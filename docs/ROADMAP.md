@@ -6,6 +6,8 @@ This roadmap is grounded in the current state of the code (see `docs/ARCHITECTUR
 
 The app's job is to be a trustworthy record of hours and pay, so silent data loss is the first thing to eliminate.
 
+> **Status:** implemented, except the CKSyncEngine migration which remains open. Save failures now surface as an alert and CloudKit failures are logged; cloud writes are incremental; a session left open past midnight stays active and blocks a second clock-in; unit tests cover merge, export filtering, clock-out estimation, and view-model flows; CI runs the test suite on every push and pull request.
+
 - **Surface persistence and sync errors.**
   `PersistenceManager` swallows every load/save error with `try?`, and `CloudKitSyncManager` catches upload/delete failures with empty `catch` blocks. A failed save currently looks identical to a successful one. Introduce an error channel (e.g. a `@Published` alert state on `AppViewModel`) and at minimum log failures; `SyncState.failed` already exists and is only partially used.
 - **Make cloud writes incremental.**

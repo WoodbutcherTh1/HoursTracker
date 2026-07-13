@@ -72,11 +72,10 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
 
     // MARK: - Notifications
 
-    private func hasOpenSessionToday() -> Bool {
-        let today = Calendar.current.startOfDay(for: Date())
-        return sessions.contains { session in
-            Calendar.current.isDate(session.date, inSameDayAs: today) && session.isOpen
-        }
+    /// Any open session counts, not just today's — a session left open past
+    /// midnight still needs its clock-out reminders.
+    private func hasOpenSession() -> Bool {
+        sessions.contains(where: \.isOpen)
     }
 
     private func hasAnySessionToday() -> Bool {
@@ -100,7 +99,7 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
 
     func scheduleClockOutReminder() {
         notificationCenter.removePendingNotificationRequests(withIdentifiers: [clockOutReminderID])
-        guard hasOpenSessionToday() else { return }
+        guard hasOpenSession() else { return }
         guard let reminderTime = estimatedClockOutTime() else { return }
 
         var components = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
@@ -118,7 +117,7 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
 
     func scheduleForgotClockOutReminder() {
         notificationCenter.removePendingNotificationRequests(withIdentifiers: [forgotClockOutID])
-        guard hasOpenSessionToday() else { return }
+        guard hasOpenSession() else { return }
 
         var components = DateComponents()
         components.hour = 23
@@ -134,8 +133,17 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
         notificationCenter.add(request)
     }
 
-    /// Average of last 5-10 completed sessions, rounded up to nearest 10 minutes.
     func estimatedClockOutTime() -> Date? {
+        Self.estimatedClockOutTime(from: sessions)
+    }
+
+    /// Average clock-out time of the last up-to-10 completed sessions,
+    /// rounded up to the nearest 10 minutes, projected onto today.
+    static func estimatedClockOutTime(
+        from sessions: [WorkSession],
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> Date? {
         let completed = sessions
             .filter { $0.clockOut != nil }
             .sorted { ($0.clockOut ?? .distantPast) > ($1.clockOut ?? .distantPast) }
@@ -143,7 +151,6 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
 
         guard !completed.isEmpty else { return nil }
 
-        let calendar = Calendar.current
         let secondsFromMidnight = completed.compactMap { session -> Double? in
             guard let out = session.clockOut else { return nil }
             let components = calendar.dateComponents([.hour, .minute, .second], from: out)
@@ -160,7 +167,7 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
         let hours = roundedMinutes / 60
         let minutes = roundedMinutes % 60
 
-        var components = calendar.dateComponents([.year, .month, .day], from: Date())
+        var components = calendar.dateComponents([.year, .month, .day], from: now)
         components.hour = hours
         components.minute = minutes
         components.second = 0

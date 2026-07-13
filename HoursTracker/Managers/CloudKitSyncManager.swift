@@ -1,5 +1,6 @@
 import Foundation
 import CloudKit
+import os
 
 enum SyncState: Equatable {
     case idle
@@ -29,6 +30,7 @@ final class CloudKitSyncManager: CloudSyncing {
     private let container = CKContainer(identifier: "iCloud.com.hourstracker.app")
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
+    private let logger = Logger(subsystem: "com.hourstracker.app", category: "cloudkit")
 
     private(set) var state: SyncState = .idle
 
@@ -74,8 +76,8 @@ final class CloudKitSyncManager: CloudSyncing {
 
         let (cloudSessions, cloudSettings) = try await (remoteSessions, remoteSettings)
 
-        let mergedSessions = mergeSessions(local: localSessions, remote: cloudSessions)
-        let mergedSettings = mergeSettings(local: localSettings, remote: cloudSettings)
+        let mergedSessions = Self.mergeSessions(local: localSessions, remote: cloudSessions)
+        let mergedSettings = Self.mergeSettings(local: localSettings, remote: cloudSettings)
 
         await uploadSessions(mergedSessions)
         await uploadSettings(mergedSettings)
@@ -92,6 +94,7 @@ final class CloudKitSyncManager: CloudSyncing {
                 _ = try await database.save(record)
             } catch {
                 // Individual record failures should not block other uploads.
+                logger.error("Failed to upload session \(session.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -103,6 +106,7 @@ final class CloudKitSyncManager: CloudSyncing {
             _ = try await database.save(record)
         } catch {
             // Settings upload is best-effort when offline.
+            logger.error("Failed to upload settings: \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -124,6 +128,7 @@ final class CloudKitSyncManager: CloudSyncing {
             }
         } catch {
             // Deletions are retried on the next full sync.
+            logger.error("Failed to delete \(ids.count) session(s): \(error.localizedDescription, privacy: .public)")
         }
     }
 
@@ -175,7 +180,7 @@ final class CloudKitSyncManager: CloudSyncing {
 
     // MARK: - Merge
 
-    private func mergeSessions(local: [WorkSession], remote: [WorkSession]) -> [WorkSession] {
+    static func mergeSessions(local: [WorkSession], remote: [WorkSession]) -> [WorkSession] {
         var merged = Dictionary(uniqueKeysWithValues: local.map { ($0.id, $0) })
         for remoteSession in remote {
             if let localSession = merged[remoteSession.id] {
@@ -189,7 +194,7 @@ final class CloudKitSyncManager: CloudSyncing {
         return Array(merged.values)
     }
 
-    private func mergeSettings(local: WorkplaceSettings, remote: WorkplaceSettings?) -> WorkplaceSettings {
+    static func mergeSettings(local: WorkplaceSettings, remote: WorkplaceSettings?) -> WorkplaceSettings {
         guard let remote else { return local }
         return local.modifiedAt >= remote.modifiedAt ? local : remote
     }

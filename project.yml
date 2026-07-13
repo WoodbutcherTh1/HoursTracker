@@ -29,6 +29,9 @@ targets:
         ENABLE_PREVIEWS: YES
     entitlements:
       path: HoursTracker/HoursTracker.entitlements
+    scheme:
+      testTargets:
+        - HoursTrackerTests
     info:
       path: HoursTracker/Info.plist
       properties:
