@@ -24,6 +24,10 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSCameraUsageDescription</key>
+	<string>Hours Tracker needs camera access to photograph printed timesheets for import.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>Hours Tracker needs photo library access to import timesheet screenshots and images.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Hours Tracker needs your location to remind you to clock in when you arrive at work and to monitor your workplace geofence.</string>
 	<key>NSLocationAlwaysUsageDescription</key>

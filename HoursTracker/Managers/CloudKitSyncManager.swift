@@ -23,18 +23,40 @@ protocol CloudSyncing: AnyObject {
     func deleteSessions(ids: Set<UUID>) async
 }
 
+/// Local-only stub used when CloudKit entitlements / iCloud account are unavailable.
+final class NoOpCloudSyncManager: CloudSyncing {
+    static let shared = NoOpCloudSyncManager()
+    private(set) var state: SyncState = .unavailable
+
+    func checkAvailability() async -> Bool { false }
+
+    func sync(localSessions: [WorkSession], localSettings: WorkplaceSettings) async throws -> SyncResult {
+        state = .unavailable
+        return SyncResult(sessions: localSessions, settings: localSettings)
+    }
+
+    func uploadSessions(_ sessions: [WorkSession]) async {}
+    func uploadSettings(_ settings: WorkplaceSettings) async {}
+    func deleteSessions(ids: Set<UUID>) async {}
+}
+
 final class CloudKitSyncManager: CloudSyncing {
     static let shared = CloudKitSyncManager()
 
-    private let container = CKContainer(identifier: "iCloud.com.hourstracker.app")
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
+    private var container: CKContainer?
 
     private(set) var state: SyncState = .idle
 
     private let sessionRecordType = "WorkSession"
     private let settingsRecordType = "WorkplaceSettings"
     private let settingsRecordName = "workplace-settings"
+    private let containerIdentifier = "iCloud.com.hourstracker.app"
+
+    /// Creating `CKContainer` aborts when iCloud entitlements are missing from the signed app.
+    /// Stay on local storage until the CloudKit capability is confirmed in the signed entitlements.
+    private let cloudKitEnabledKey = "HTCloudKitCapabilityEnabled"
 
     private init() {
         encoder = JSONEncoder()
@@ -43,11 +65,33 @@ final class CloudKitSyncManager: CloudSyncing {
         decoder.dateDecodingStrategy = .iso8601
     }
 
-    private var database: CKDatabase {
-        container.privateCloudDatabase
+    /// Call after enabling CloudKit under Signing & Capabilities and verifying a signed build embeds the entitlement.
+    static func setCloudKitCapabilityEnabled(_ enabled: Bool) {
+        UserDefaults.standard.set(enabled, forKey: CloudKitSyncManager.shared.cloudKitEnabledKey)
+    }
+
+    private var isCloudKitCapabilityEnabled: Bool {
+        // Default off so Simulator / unsigned local runs never touch CKContainer.
+        UserDefaults.standard.bool(forKey: cloudKitEnabledKey)
+    }
+
+    private func ensureContainer() -> CKContainer? {
+        if let container { return container }
+        guard isCloudKitCapabilityEnabled else {
+            state = .unavailable
+            return nil
+        }
+        let created = CKContainer(identifier: containerIdentifier)
+        container = created
+        return created
+    }
+
+    private var database: CKDatabase? {
+        ensureContainer()?.privateCloudDatabase
     }
 
     func checkAvailability() async -> Bool {
+        guard let container = ensureContainer() else { return false }
         do {
             let status = try await container.accountStatus()
             return status == .available
@@ -57,57 +101,52 @@ final class CloudKitSyncManager: CloudSyncing {
     }
 
     func sync(localSessions: [WorkSession], localSettings: WorkplaceSettings) async throws -> SyncResult {
-        guard await checkAvailability() else {
+        guard await checkAvailability(), let database else {
             state = .unavailable
             return SyncResult(sessions: localSessions, settings: localSettings)
         }
 
         state = .syncing
-        defer {
-            if case .syncing = state {
-                state = .synced(Date())
-            }
+
+        do {
+            async let remoteSessions = fetchSessions(from: database)
+            async let remoteSettings = fetchSettings(from: database)
+            let (cloudSessions, cloudSettings) = try await (remoteSessions, remoteSettings)
+
+            let mergedSessions = mergeSessions(local: localSessions, remote: cloudSessions)
+            let mergedSettings = mergeSettings(local: localSettings, remote: cloudSettings)
+
+            await uploadSessions(mergedSessions)
+            await uploadSettings(mergedSettings)
+
+            state = .synced(Date())
+            return SyncResult(sessions: mergedSessions, settings: mergedSettings)
+        } catch {
+            state = .failed(error.localizedDescription)
+            throw error
         }
-
-        async let remoteSessions = fetchSessions()
-        async let remoteSettings = fetchSettings()
-
-        let (cloudSessions, cloudSettings) = try await (remoteSessions, remoteSettings)
-
-        let mergedSessions = mergeSessions(local: localSessions, remote: cloudSessions)
-        let mergedSettings = mergeSettings(local: localSettings, remote: cloudSettings)
-
-        await uploadSessions(mergedSessions)
-        await uploadSettings(mergedSettings)
-
-        state = .synced(Date())
-        return SyncResult(sessions: mergedSessions, settings: mergedSettings)
     }
 
     func uploadSessions(_ sessions: [WorkSession]) async {
-        guard await checkAvailability() else { return }
+        guard await checkAvailability(), let database else { return }
         for session in sessions {
             do {
                 let record = try makeSessionRecord(session)
                 _ = try await database.save(record)
-            } catch {
-                // Individual record failures should not block other uploads.
-            }
+            } catch {}
         }
     }
 
     func uploadSettings(_ settings: WorkplaceSettings) async {
-        guard await checkAvailability() else { return }
+        guard await checkAvailability(), let database else { return }
         do {
             let record = try makeSettingsRecord(settings)
             _ = try await database.save(record)
-        } catch {
-            // Settings upload is best-effort when offline.
-        }
+        } catch {}
     }
 
     func deleteSessions(ids: Set<UUID>) async {
-        guard await checkAvailability(), !ids.isEmpty else { return }
+        guard await checkAvailability(), let database, !ids.isEmpty else { return }
         let recordIDs = ids.map { CKRecord.ID(recordName: $0.uuidString) }
         do {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -122,14 +161,10 @@ final class CloudKitSyncManager: CloudSyncing {
                 }
                 database.add(operation)
             }
-        } catch {
-            // Deletions are retried on the next full sync.
-        }
+        } catch {}
     }
 
-    // MARK: - Fetch
-
-    private func fetchSessions() async throws -> [WorkSession] {
+    private func fetchSessions(from database: CKDatabase) async throws -> [WorkSession] {
         let query = CKQuery(recordType: sessionRecordType, predicate: NSPredicate(value: true))
         var collected: [WorkSession] = []
 
@@ -163,7 +198,7 @@ final class CloudKitSyncManager: CloudSyncing {
         return collected
     }
 
-    private func fetchSettings() async throws -> WorkplaceSettings? {
+    private func fetchSettings(from database: CKDatabase) async throws -> WorkplaceSettings? {
         let recordID = CKRecord.ID(recordName: settingsRecordName)
         do {
             let record = try await database.record(for: recordID)
@@ -172,8 +207,6 @@ final class CloudKitSyncManager: CloudSyncing {
             return nil
         }
     }
-
-    // MARK: - Merge
 
     private func mergeSessions(local: [WorkSession], remote: [WorkSession]) -> [WorkSession] {
         var merged = Dictionary(uniqueKeysWithValues: local.map { ($0.id, $0) })
@@ -193,8 +226,6 @@ final class CloudKitSyncManager: CloudSyncing {
         guard let remote else { return local }
         return local.modifiedAt >= remote.modifiedAt ? local : remote
     }
-
-    // MARK: - Records
 
     private func makeSessionRecord(_ session: WorkSession) throws -> CKRecord {
         let recordID = CKRecord.ID(recordName: session.id.uuidString)

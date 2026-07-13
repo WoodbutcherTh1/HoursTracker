@@ -25,8 +25,8 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
     private override init() {
         super.init()
         locationManager.delegate = self
-        locationManager.allowsBackgroundLocationUpdates = true
         locationManager.pausesLocationUpdatesAutomatically = false
+        // Only enable background updates after Always authorization — enabling earlier can crash.
     }
 
     func configure(settings: WorkplaceSettings, sessions: [WorkSession]) {
@@ -175,8 +175,11 @@ extension LocationReminderManager: CLLocationManagerDelegate {
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        if manager.authorizationStatus == .authorizedAlways ||
-            manager.authorizationStatus == .authorizedWhenInUse {
+        if manager.authorizationStatus == .authorizedAlways {
+            manager.allowsBackgroundLocationUpdates = true
+            setupGeofence()
+        } else if manager.authorizationStatus == .authorizedWhenInUse {
+            manager.allowsBackgroundLocationUpdates = false
             setupGeofence()
         }
     }

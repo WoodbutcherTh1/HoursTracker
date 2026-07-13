@@ -7,12 +7,17 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		10E3CC7508126D212B06543F /* TimesheetScannerManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = C68048C58CD6A4B2CD20D879 /* TimesheetScannerManager.swift */; };
 		2097F64E6F1C1423F66A1C2D /* PersistenceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FDAB9EE51832753E42CD2D5 /* PersistenceManager.swift */; };
+		2E7E1C69313319E6D135F8B0 /* HistoryPeriodHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = E275D94A0B48A66359B5BF3F /* HistoryPeriodHelper.swift */; };
+		4A49BED6D396FAFD109E12EE /* TaxCreditPointsCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = CB9A15C1C2D040F93754572F /* TaxCreditPointsCalculator.swift */; };
+		526E3D347F7D7BD5007E4051 /* TimesheetScannerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8F7BE92600F76FBBD57D54A /* TimesheetScannerView.swift */; };
 		56BE8BE508DFE7D934FD740F /* OvertimeCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43266DDF759B38F0873E592C /* OvertimeCalculatorTests.swift */; };
 		5F3B240756EEF66ECCEB6D71 /* SyncingPersistenceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF402DAEB13015874FBAA10D /* SyncingPersistenceStore.swift */; };
 		6C91084041663AE679572E9C /* LocationReminderManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7220FAC4E0F6603D672F5BAA /* LocationReminderManager.swift */; };
 		79F4FA119B85C1A606C7A4CE /* HoursTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F99309DEFC1A9BE876A78A9 /* HoursTrackerApp.swift */; };
 		88D5AC242675329B09B34037 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FD50D9B63C065ADB9F97519 /* HomeView.swift */; };
+		89207E546EF85BA358556C8C /* MaritalStatus.swift in Sources */ = {isa = PBXBuildFile; fileRef = B228BBB2B4824F65A6C289CA /* MaritalStatus.swift */; };
 		8D266A081E872C96F8FCCDD1 /* LocationCaptureHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76794D4DDB68A3C22E0E557E /* LocationCaptureHelper.swift */; };
 		8DD91D510C6023BEE579DB51 /* AppLocale.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C17E08F9F89AE220E52E61D /* AppLocale.swift */; };
 		8EA0763B730532FC09A729CE /* CloudKitSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8719EC974F7C65D2792B482 /* CloudKitSyncManager.swift */; };
@@ -24,8 +29,10 @@
 		A4CF6A469DB07864970F3A1B /* WorkSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F910409226D73EDAB612207 /* WorkSession.swift */; };
 		AC89D97D1AD70DAF4B0AA4B9 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08974D5BDFA98FE91863C4B4 /* L10n.swift */; };
 		C290ADABE17B638CBCFC3280 /* ZipWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8A2E18E808A097F67099943 /* ZipWriter.swift */; };
+		C8FC0C3DF97A8740090BC7CB /* ShiftDetailSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 77229D0B9C64273D1483CC9B /* ShiftDetailSheet.swift */; };
 		CB0A87A4361F2675DA4179E7 /* OvertimeCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A39444DC8F9540E5DB62FC1 /* OvertimeCalculator.swift */; };
 		D1F8DCAFD8558B843169CDE5 /* ExportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AE0E7FFBF1290185FFB9C30 /* ExportManager.swift */; };
+		DF77B964933F84BE4FA7246E /* IsraeliTaxEstimator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9457FF6EAE7D11B2C6D2DD30 /* IsraeliTaxEstimator.swift */; };
 		E05C7BA7657C6748DB88345C /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B194AF37FA5384C91F6813F7 /* Localizable.xcstrings */; };
 		EBC07B21F5162696D1890417 /* ExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F99D2C7DDDC8A1DCDEB9AC64 /* ExportView.swift */; };
 /* End PBXBuildFile section */
@@ -49,18 +56,25 @@
 		4A39444DC8F9540E5DB62FC1 /* OvertimeCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OvertimeCalculator.swift; sourceTree = "<group>"; };
 		5AE0E7FFBF1290185FFB9C30 /* ExportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportManager.swift; sourceTree = "<group>"; };
 		6C17E08F9F89AE220E52E61D /* AppLocale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLocale.swift; sourceTree = "<group>"; };
-		6CD4E386BA9F7EF1B9265CE5 /* HoursTracker.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HoursTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		6CD4E386BA9F7EF1B9265CE5 /* HoursTracker.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = HoursTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		7220FAC4E0F6603D672F5BAA /* LocationReminderManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationReminderManager.swift; sourceTree = "<group>"; };
 		76794D4DDB68A3C22E0E557E /* LocationCaptureHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationCaptureHelper.swift; sourceTree = "<group>"; };
+		77229D0B9C64273D1483CC9B /* ShiftDetailSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShiftDetailSheet.swift; sourceTree = "<group>"; };
 		7F910409226D73EDAB612207 /* WorkSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkSession.swift; sourceTree = "<group>"; };
 		875C3649755E755B741FF857 /* HoursTracker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HoursTracker.entitlements; sourceTree = "<group>"; };
+		9457FF6EAE7D11B2C6D2DD30 /* IsraeliTaxEstimator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = IsraeliTaxEstimator.swift; sourceTree = "<group>"; };
 		9F99309DEFC1A9BE876A78A9 /* HoursTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoursTrackerApp.swift; sourceTree = "<group>"; };
 		B194AF37FA5384C91F6813F7 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		B228BBB2B4824F65A6C289CA /* MaritalStatus.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MaritalStatus.swift; sourceTree = "<group>"; };
+		C68048C58CD6A4B2CD20D879 /* TimesheetScannerManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimesheetScannerManager.swift; sourceTree = "<group>"; };
 		C6CB16412E3F73E43DAAAB1E /* ManualEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualEntryView.swift; sourceTree = "<group>"; };
+		C8F7BE92600F76FBBD57D54A /* TimesheetScannerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TimesheetScannerView.swift; sourceTree = "<group>"; };
+		CB9A15C1C2D040F93754572F /* TaxCreditPointsCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TaxCreditPointsCalculator.swift; sourceTree = "<group>"; };
 		CCB96D1982B602A71D223098 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		D0319FA011E59800407F7B1E /* AppViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppViewModel.swift; sourceTree = "<group>"; };
 		D8719EC974F7C65D2792B482 /* CloudKitSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSyncManager.swift; sourceTree = "<group>"; };
 		D8A2E18E808A097F67099943 /* ZipWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZipWriter.swift; sourceTree = "<group>"; };
+		E275D94A0B48A66359B5BF3F /* HistoryPeriodHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryPeriodHelper.swift; sourceTree = "<group>"; };
 		E3872A5D76CF6B4EF7DB4BD3 /* WorkplaceSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkplaceSettings.swift; sourceTree = "<group>"; };
 		F99D2C7DDDC8A1DCDEB9AC64 /* ExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportView.swift; sourceTree = "<group>"; };
 		FA0AA6B6E9EFE59280F90191 /* HoursTrackerTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HoursTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -72,6 +86,7 @@
 			isa = PBXGroup;
 			children = (
 				6C17E08F9F89AE220E52E61D /* AppLocale.swift */,
+				E275D94A0B48A66359B5BF3F /* HistoryPeriodHelper.swift */,
 				08974D5BDFA98FE91863C4B4 /* L10n.swift */,
 				76794D4DDB68A3C22E0E557E /* LocationCaptureHelper.swift */,
 				D8A2E18E808A097F67099943 /* ZipWriter.swift */,
@@ -87,6 +102,7 @@
 				7220FAC4E0F6603D672F5BAA /* LocationReminderManager.swift */,
 				1FDAB9EE51832753E42CD2D5 /* PersistenceManager.swift */,
 				FF402DAEB13015874FBAA10D /* SyncingPersistenceStore.swift */,
+				C68048C58CD6A4B2CD20D879 /* TimesheetScannerManager.swift */,
 			);
 			path = Managers;
 			sourceTree = "<group>";
@@ -151,7 +167,10 @@
 		ECE37B6C4525AF416F0C7BD0 /* Models */ = {
 			isa = PBXGroup;
 			children = (
+				9457FF6EAE7D11B2C6D2DD30 /* IsraeliTaxEstimator.swift */,
+				B228BBB2B4824F65A6C289CA /* MaritalStatus.swift */,
 				4A39444DC8F9540E5DB62FC1 /* OvertimeCalculator.swift */,
+				CB9A15C1C2D040F93754572F /* TaxCreditPointsCalculator.swift */,
 				E3872A5D76CF6B4EF7DB4BD3 /* WorkplaceSettings.swift */,
 				7F910409226D73EDAB612207 /* WorkSession.swift */,
 			);
@@ -166,6 +185,8 @@
 				1FD50D9B63C065ADB9F97519 /* HomeView.swift */,
 				C6CB16412E3F73E43DAAAB1E /* ManualEntryView.swift */,
 				CCB96D1982B602A71D223098 /* SettingsView.swift */,
+				77229D0B9C64273D1483CC9B /* ShiftDetailSheet.swift */,
+				C8F7BE92600F76FBBD57D54A /* TimesheetScannerView.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -274,17 +295,24 @@
 				8EA0763B730532FC09A729CE /* CloudKitSyncManager.swift in Sources */,
 				D1F8DCAFD8558B843169CDE5 /* ExportManager.swift in Sources */,
 				EBC07B21F5162696D1890417 /* ExportView.swift in Sources */,
+				2E7E1C69313319E6D135F8B0 /* HistoryPeriodHelper.swift in Sources */,
 				939FD5A2B9B3FD73C24B84BC /* HistoryView.swift in Sources */,
 				88D5AC242675329B09B34037 /* HomeView.swift in Sources */,
 				79F4FA119B85C1A606C7A4CE /* HoursTrackerApp.swift in Sources */,
+				DF77B964933F84BE4FA7246E /* IsraeliTaxEstimator.swift in Sources */,
 				AC89D97D1AD70DAF4B0AA4B9 /* L10n.swift in Sources */,
 				8D266A081E872C96F8FCCDD1 /* LocationCaptureHelper.swift in Sources */,
 				6C91084041663AE679572E9C /* LocationReminderManager.swift in Sources */,
 				902B244AE25DF5AA16EE85EF /* ManualEntryView.swift in Sources */,
+				89207E546EF85BA358556C8C /* MaritalStatus.swift in Sources */,
 				CB0A87A4361F2675DA4179E7 /* OvertimeCalculator.swift in Sources */,
 				2097F64E6F1C1423F66A1C2D /* PersistenceManager.swift in Sources */,
 				987ED296AC64E7F1F9B9FDFF /* SettingsView.swift in Sources */,
+				C8FC0C3DF97A8740090BC7CB /* ShiftDetailSheet.swift in Sources */,
 				5F3B240756EEF66ECCEB6D71 /* SyncingPersistenceStore.swift in Sources */,
+				4A49BED6D396FAFD109E12EE /* TaxCreditPointsCalculator.swift in Sources */,
+				10E3CC7508126D212B06543F /* TimesheetScannerManager.swift in Sources */,
+				526E3D347F7D7BD5007E4051 /* TimesheetScannerView.swift in Sources */,
 				A4CF6A469DB07864970F3A1B /* WorkSession.swift in Sources */,
 				9D36A8293D8552D41510251D /* WorkplaceSettings.swift in Sources */,
 				C290ADABE17B638CBCFC3280 /* ZipWriter.swift in Sources */,
@@ -309,6 +337,7 @@
 				CODE_SIGN_ENTITLEMENTS = HoursTracker/HoursTracker.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = FQUC6DU87N;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = HoursTracker/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -328,6 +357,7 @@
 				CODE_SIGN_ENTITLEMENTS = HoursTracker/HoursTracker.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = FQUC6DU87N;
 				ENABLE_PREVIEWS = YES;
 				INFOPLIST_FILE = HoursTracker/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

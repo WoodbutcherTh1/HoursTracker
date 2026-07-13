@@ -13,8 +13,15 @@ final class SyncingPersistenceStore: SyncingStore {
 
     private(set) var syncState: SyncState = .idle
 
-    init(cloud: CloudSyncing = CloudKitSyncManager.shared) {
-        self.cloud = cloud
+    init(cloud: CloudSyncing? = nil) {
+        // Prefer CloudKit when capability is enabled; otherwise stay local-only (safe for Simulator).
+        if let cloud {
+            self.cloud = cloud
+        } else if UserDefaults.standard.bool(forKey: "HTCloudKitCapabilityEnabled") {
+            self.cloud = CloudKitSyncManager.shared
+        } else {
+            self.cloud = NoOpCloudSyncManager.shared
+        }
     }
 
     func loadSessions() -> [WorkSession] {

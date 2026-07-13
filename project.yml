@@ -29,6 +29,11 @@ targets:
         ENABLE_PREVIEWS: YES
     entitlements:
       path: HoursTracker/HoursTracker.entitlements
+      properties:
+        com.apple.developer.icloud-container-identifiers:
+          - iCloud.com.hourstracker.app
+        com.apple.developer.icloud-services:
+          - CloudKit
     info:
       path: HoursTracker/Info.plist
       properties:
@@ -38,6 +43,8 @@ targets:
         NSLocationAlwaysAndWhenInUseUsageDescription: "Hours Tracker needs your location to remind you to clock in when you arrive at work and to monitor your workplace geofence."
         NSLocationWhenInUseUsageDescription: "Hours Tracker needs your location to set your workplace and send arrival reminders."
         NSLocationAlwaysUsageDescription: "Hours Tracker needs background location access to detect when you enter your workplace."
+        NSCameraUsageDescription: "Hours Tracker needs camera access to photograph printed timesheets for import."
+        NSPhotoLibraryUsageDescription: "Hours Tracker needs photo library access to import timesheet screenshots and images."
         CFBundleLocalizations:
           - en
           - ar

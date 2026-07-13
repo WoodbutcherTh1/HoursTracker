@@ -36,30 +36,24 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Active Session
 
+    /// Any open session (clockOut == nil), regardless of calendar day.
     var activeSession: WorkSession? {
-        let today = Calendar.current.startOfDay(for: Date())
-        return sessions.first { session in
-            Calendar.current.isDate(session.date, inSameDayAs: today) && session.isOpen
-        }
+        sessions.first(where: \.isOpen)
     }
 
     var isClockedIn: Bool {
         activeSession != nil
     }
 
-    var canClockInToday: Bool {
-        !hasSessionToday
-    }
-
-    private var hasSessionToday: Bool {
-        let today = Calendar.current.startOfDay(for: Date())
-        return sessions.contains { Calendar.current.isDate($0.date, inSameDayAs: today) }
+    /// Clock In is available whenever there is no open session.
+    var canClockIn: Bool {
+        activeSession == nil
     }
 
     // MARK: - Clock In / Out
 
     func clockIn(isManual: Bool = false) {
-        guard canClockInToday else { return }
+        guard canClockIn else { return }
         let now = Date()
         let session = WorkSession(
             date: Calendar.current.startOfDay(for: now),
@@ -105,6 +99,57 @@ final class AppViewModel: ObservableObject {
         sessions.append(session)
         persist()
         refreshReminders()
+    }
+
+    /// Thread-safe on MainActor: import selected drafts, optionally overwriting existing days.
+    func importScannedSessions(
+        _ drafts: [ScannedSessionDraft],
+        overwriteDays: Set<Date> = []
+    ) {
+        guard !drafts.isEmpty else { return }
+        let calendar = Calendar.current
+        let overwriteKeys = Set(overwriteDays.map { calendar.startOfDay(for: $0).timeIntervalSince1970 })
+
+        for draft in drafts where draft.isSelected {
+            guard draft.clockOut > draft.clockIn else { continue }
+            let day = calendar.startOfDay(for: draft.date)
+            let key = day.timeIntervalSince1970
+            let existing = sessions.filter { calendar.isDate($0.date, inSameDayAs: day) }
+
+            if !existing.isEmpty {
+                guard overwriteKeys.contains(key) else { continue }
+                sessions.removeAll { calendar.isDate($0.date, inSameDayAs: day) }
+            }
+
+            var session = draft.toWorkSession()
+            session.date = day
+            sessions.append(session)
+        }
+
+        persist()
+        refreshReminders()
+    }
+
+    func existingCompletedSession(on day: Date) -> WorkSession? {
+        let calendar = Calendar.current
+        return sessions.first {
+            calendar.isDate($0.date, inSameDayAs: day) && $0.clockOut != nil
+        }
+    }
+
+    func conflictingDays(for drafts: [ScannedSessionDraft]) -> [Date] {
+        let calendar = Calendar.current
+        var days: [Date] = []
+        var seen = Set<TimeInterval>()
+        for draft in drafts where draft.isSelected {
+            let day = calendar.startOfDay(for: draft.date)
+            let key = day.timeIntervalSince1970
+            guard seen.insert(key).inserted else { continue }
+            if existingCompletedSession(on: day) != nil || sessions.contains(where: { calendar.isDate($0.date, inSameDayAs: day) }) {
+                days.append(day)
+            }
+        }
+        return days.sorted()
     }
 
     func updateSession(_ session: WorkSession, clockIn: Date, clockOut: Date?, notes: String?) {

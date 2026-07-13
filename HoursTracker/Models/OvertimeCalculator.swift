@@ -6,10 +6,28 @@ struct DayPayBreakdown: Equatable {
     let ot150Hours: Double
     let totalHours: Double
     let gasAllowance: Double
+    /// Gross pay (ברוטו) including gas allowance.
     let totalPay: Double
+    /// Estimated net pay (נטו).
+    let netPay: Double
+    let incomeTax: Double
+    let nationalInsurance: Double
+    let healthTax: Double
+    let creditPointsApplied: Double
+    let creditPoints: Double
+
+    var grossPay: Double { totalPay }
 
     var formattedTotalPay: String {
         String(format: "₪%.2f", totalPay)
+    }
+
+    var formattedGrossPay: String {
+        String(format: "₪%.2f", grossPay)
+    }
+
+    var formattedNetPay: String {
+        String(format: "₪%.2f", netPay)
     }
 }
 
@@ -26,7 +44,10 @@ enum OvertimeCalculator {
 
         let rate = settings.hourlyRate
         let gas = includeGasAllowance ? settings.dailyGasAllowance : 0
-        let pay = regular * rate + ot125 * rate * 1.25 + ot150 * rate * 1.5 + gas
+        let gross = regular * rate + ot125 * rate * 1.25 + ot150 * rate * 1.5 + gas
+
+        let tax = IsraeliTaxEstimator.estimateDailyNet(fromDailyGross: gross, settings: settings)
+        let points = TaxCreditPointsCalculator.creditPoints(for: settings)
 
         return DayPayBreakdown(
             regularHours: regular,
@@ -34,7 +55,13 @@ enum OvertimeCalculator {
             ot150Hours: ot150,
             totalHours: totalHours,
             gasAllowance: gas,
-            totalPay: pay
+            totalPay: gross,
+            netPay: tax.net,
+            incomeTax: tax.incomeTax,
+            nationalInsurance: tax.nationalInsurance,
+            healthTax: tax.healthTax,
+            creditPointsApplied: tax.creditApplied,
+            creditPoints: points
         )
     }
 
@@ -52,7 +79,13 @@ enum OvertimeCalculator {
         let ot150 = totals.reduce(0) { $0 + $1.ot150Hours }
         let hours = totals.reduce(0) { $0 + $1.totalHours }
         let gas = totals.reduce(0) { $0 + $1.gasAllowance }
-        let pay = totals.reduce(0) { $0 + $1.totalPay }
+        let gross = totals.reduce(0) { $0 + $1.totalPay }
+        let net = totals.reduce(0) { $0 + $1.netPay }
+        let incomeTax = totals.reduce(0) { $0 + $1.incomeTax }
+        let ni = totals.reduce(0) { $0 + $1.nationalInsurance }
+        let health = totals.reduce(0) { $0 + $1.healthTax }
+        let credit = totals.reduce(0) { $0 + $1.creditPointsApplied }
+        let points = TaxCreditPointsCalculator.creditPoints(for: settings)
 
         return DayPayBreakdown(
             regularHours: regular,
@@ -60,7 +93,13 @@ enum OvertimeCalculator {
             ot150Hours: ot150,
             totalHours: hours,
             gasAllowance: gas,
-            totalPay: pay
+            totalPay: gross,
+            netPay: net,
+            incomeTax: incomeTax,
+            nationalInsurance: ni,
+            healthTax: health,
+            creditPointsApplied: credit,
+            creditPoints: points
         )
     }
 }
