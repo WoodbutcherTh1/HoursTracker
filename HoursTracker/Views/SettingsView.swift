@@ -25,6 +25,8 @@ struct SettingsView: View {
                 workerSection
                 workplaceSection
                 paySection
+                payrollSection
+                taxSection
                 locationSection
                 syncSection
             }
@@ -97,6 +99,94 @@ struct SettingsView: View {
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
             }
+        }
+    }
+
+    private var payrollSection: some View {
+        Section {
+            Text(String(localized: "payroll.startDayHelp", defaultValue: "Choose which day your salary month starts. Example: 10 → from the 10th to the 9th of next month."))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 6) {
+                ForEach(1...28, id: \.self) { day in
+                    Button {
+                        draft.payrollStartDay = day
+                    } label: {
+                        Text("\(day)")
+                            .font(.subheadline.weight(draft.payrollStartDay == day ? .bold : .regular).monospacedDigit())
+                            .frame(maxWidth: .infinity, minHeight: 34)
+                            .background(
+                                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                                    .fill(draft.payrollStartDay == day ? Color.accentColor : Color(.tertiarySystemFill))
+                            )
+                            .foregroundStyle(draft.payrollStartDay == day ? Color.white : Color.primary)
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            .padding(.vertical, 4)
+
+            let preview = HistoryPeriodHelper.payrollPeriod(
+                containing: Date(),
+                startDay: draft.payrollStartDay
+            )
+            Text(String(
+                format: String(localized: "payroll.currentWindow %@", defaultValue: "Current window: %@"),
+                HistoryPeriodHelper.shortRangeLabel(for: preview)
+            ))
+            .font(.caption)
+            .foregroundStyle(.secondary)
+        } header: {
+            Text(String(localized: "payroll.section", defaultValue: "Payroll Month (חודש שכר)"))
+        }
+    }
+
+    private var taxSection: some View {
+        Section {
+            Picker(
+                String(localized: "tax.maritalStatus", defaultValue: "Marital Status"),
+                selection: $draft.maritalStatus
+            ) {
+                ForEach(MaritalStatus.allCases) { status in
+                    Text(status.displayName).tag(status)
+                }
+            }
+
+            Toggle(
+                String(localized: "tax.hasChildren", defaultValue: "Has Children"),
+                isOn: $draft.hasChildren
+            )
+
+            if draft.hasChildren {
+                Stepper(
+                    value: $draft.numberOfChildren,
+                    in: 0...15
+                ) {
+                    Text("\(String(localized: "tax.numberOfChildren", defaultValue: "Number of Children")): \(draft.numberOfChildren)")
+                }
+            }
+
+            if draft.maritalStatus == .married {
+                Toggle(
+                    String(localized: "tax.spouseEmployed", defaultValue: "Spouse is Employed"),
+                    isOn: $draft.spouseEmployed
+                )
+            }
+
+            LabeledContent(
+                String(localized: "tax.creditPoints", defaultValue: "Credit Points")
+            ) {
+                Text(String(format: "%.2f", TaxCreditPointsCalculator.creditPoints(for: draft)))
+                    .monospacedDigit()
+                    .foregroundStyle(.secondary)
+            }
+
+            Text(String(localized: "tax.estimateNote", defaultValue: "Net pay is an estimate using Israeli tax brackets, credit points, National Insurance, and Health Tax."))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text(String(localized: "tax.section", defaultValue: "Tax & Family Status"))
         }
     }
 

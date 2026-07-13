@@ -24,6 +24,23 @@ protocol CloudSyncing: AnyObject {
     func deleteSessions(ids: Set<UUID>) async
 }
 
+/// Local-only stub used when CloudKit is unavailable or injected in tests.
+final class NoOpCloudSyncManager: CloudSyncing {
+    static let shared = NoOpCloudSyncManager()
+    private(set) var state: SyncState = .unavailable
+
+    func checkAvailability() async -> Bool { false }
+
+    func sync(localSessions: [WorkSession], localSettings: WorkplaceSettings) async throws -> SyncResult {
+        state = .unavailable
+        return SyncResult(sessions: localSessions, settings: localSettings)
+    }
+
+    func uploadSessions(_ sessions: [WorkSession]) async {}
+    func uploadSettings(_ settings: WorkplaceSettings) async {}
+    func deleteSessions(ids: Set<UUID>) async {}
+}
+
 final class CloudKitSyncManager: CloudSyncing {
     static let shared = CloudKitSyncManager()
 

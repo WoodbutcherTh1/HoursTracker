@@ -32,15 +32,15 @@ final class AppViewModelTests: XCTestCase {
         XCTAssertTrue(store.storedSessions[0].isOpen)
     }
 
-    func testSecondClockInSameDayIsIgnored() {
+    func testSecondClockInSameDayAfterClockOutIsAllowed() {
         let (viewModel, _) = makeViewModel()
 
         viewModel.clockIn()
         viewModel.clockOut()
         viewModel.clockIn()
 
-        XCTAssertEqual(viewModel.sessions.count, 1)
-        XCTAssertFalse(viewModel.isClockedIn)
+        XCTAssertEqual(viewModel.sessions.count, 2)
+        XCTAssertTrue(viewModel.isClockedIn)
     }
 
     func testClockOutClosesSessionAndShowsSummary() {

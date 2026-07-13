@@ -196,7 +196,7 @@ final class ExportManager {
         lines.append(headerText(report))
         lines.append("")
         let columns = tableColumns()
-        let widths = [12, 8, 8, 10, 8, 8, 10, 12, 12]
+        let widths = [11, 7, 7, 8, 7, 7, 8, 10, 10, 10]
         lines.append(formatFixedWidth(columns, widths: widths, bold: true))
         lines.append(String(repeating: "-", count: widths.reduce(0, +)))
         for row in report.rows {
@@ -303,13 +303,24 @@ final class ExportManager {
         [
             L10n.reportColDate, L10n.reportColIn, L10n.reportColOut,
             L10n.reportColRegular, L10n.reportColOT125, L10n.reportColOT150,
-            L10n.reportColGas, L10n.reportColTotal, L10n.reportColType
+            L10n.reportColGas,
+            String(localized: "report.col.gross", defaultValue: "Gross"),
+            String(localized: "report.col.net", defaultValue: "Net"),
+            L10n.reportColType
         ]
     }
 
     private func rowValues(_ row: ExportRow) -> [String] {
         let session = row.session
         let b = row.breakdown
+        let typeLabel: String
+        if session.isAIImported {
+            typeLabel = String(localized: "entry.ai", defaultValue: "Scanned")
+        } else if session.isManualEntry {
+            typeLabel = AppLocale.manualEntryLabel()
+        } else {
+            typeLabel = AppLocale.automaticEntryLabel()
+        }
         return [
             dateFormatter.string(from: session.date),
             timeFormatter.string(from: session.clockIn),
@@ -318,8 +329,9 @@ final class ExportManager {
             formatHours(b.ot125Hours),
             formatHours(b.ot150Hours),
             String(format: "₪%.0f", b.gasAllowance),
-            String(format: "₪%.2f", b.totalPay),
-            session.isManualEntry ? AppLocale.manualEntryLabel() : AppLocale.automaticEntryLabel()
+            String(format: "₪%.2f", b.grossPay),
+            String(format: "₪%.2f", b.netPay),
+            typeLabel
         ]
     }
 
@@ -330,7 +342,8 @@ final class ExportManager {
             formatHours(totals.ot125Hours),
             formatHours(totals.ot150Hours),
             String(format: "₪%.0f", totals.gasAllowance),
-            String(format: "₪%.2f", totals.totalPay),
+            String(format: "₪%.2f", totals.grossPay),
+            String(format: "₪%.2f", totals.netPay),
             ""
         ]
     }
@@ -347,6 +360,10 @@ final class ExportManager {
             parts.append(L10n.reportContractor(contractor))
         }
         parts.append(L10n.reportPeriod(report.dateRangeDescription))
+        parts.append(String(
+            format: String(localized: "report.creditPoints %@", defaultValue: "Credit Points: %@"),
+            String(format: "%.2f", s.creditPoints)
+        ))
         return parts.joined(separator: " | ")
     }
 

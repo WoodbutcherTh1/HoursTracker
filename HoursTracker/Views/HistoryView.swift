@@ -2,13 +2,16 @@ import SwiftUI
 
 struct HistoryView: View {
     @ObservedObject var viewModel: AppViewModel
-    @State private var editingSession: WorkSession?
 
-    private let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .medium
-        return f
-    }()
+    /// Anchor month for the payroll cycle label / chevron navigation.
+    @State private var periodAnchor: Date = Date()
+    @State private var selectedDay: Date = Calendar.current.startOfDay(for: Date())
+    @State private var payMode: PayDisplayMode = .net
+    @State private var selectedSession: WorkSession?
+    @State private var showScanner = false
+    @State private var showManualEntry = false
+
+    private let calendar = Calendar.current
 
     private let timeFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -16,137 +19,382 @@ struct HistoryView: View {
         return f
     }()
 
+    private let dayNumberFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "d"
+        return f
+    }()
+
+    private var activePeriod: PayrollPeriod {
+        HistoryPeriodHelper.payrollPeriod(
+            forMonthAnchor: periodAnchor,
+            startDay: viewModel.settings.payrollStartDay,
+            calendar: calendar
+        )
+    }
+
     var body: some View {
         NavigationStack {
-            Group {
-                if viewModel.sortedSessions.isEmpty {
-                    ContentUnavailableView(
-                        L10n.historyEmpty,
-                        systemImage: "calendar.badge.clock",
-                        description: Text(L10n.historyEmptyDescription)
-                    )
-                } else {
-                    List {
-                        ForEach(viewModel.sortedSessions) { session in
-                            HistoryRow(
-                                session: session,
-                                breakdown: viewModel.breakdown(for: session),
-                                dateFormatter: dateFormatter,
-                                timeFormatter: timeFormatter
-                            )
-                            .contentShape(Rectangle())
-                            .onTapGesture {
-                                editingSession = session
-                            }
-                        }
-                        .onDelete { indexSet in
-                            for index in indexSet {
-                                viewModel.deleteSession(viewModel.sortedSessions[index])
-                            }
-                        }
-                    }
-                    .listStyle(.insetGrouped)
-                }
+            VStack(spacing: 0) {
+                periodHeader
+                daySelector
+                tableHeader
+                sessionsContent
+                stickySummaryBar
             }
+            .background(Color(.systemGroupedBackground))
             .navigationTitle(L10n.historyTitle)
+            .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    NavigationLink {
-                        ManualEntryView(viewModel: viewModel)
+                ToolbarItemGroup(placement: .primaryAction) {
+                    Button {
+                        showScanner = true
+                    } label: {
+                        Image(systemName: "doc.viewfinder")
+                    }
+                    .accessibilityLabel(String(localized: "scanner.title", defaultValue: "Scan Timesheet"))
+
+                    Button {
+                        showManualEntry = true
                     } label: {
                         Image(systemName: "plus")
                     }
                 }
             }
-            .sheet(item: $editingSession) { session in
-                EditSessionView(viewModel: viewModel, session: session)
+            .sheet(item: $selectedSession) { session in
+                ShiftDetailSheet(
+                    session: session,
+                    breakdown: viewModel.breakdown(for: session),
+                    viewModel: viewModel
+                )
+                .presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: $showScanner) {
+                TimesheetScannerView(appViewModel: viewModel)
+            }
+            .sheet(isPresented: $showManualEntry) {
+                NavigationStack {
+                    ManualEntryView(viewModel: viewModel)
+                }
+            }
+            .onAppear {
+                alignToCurrentPayrollPeriod()
+            }
+            .onChange(of: viewModel.settings.payrollStartDay) { _, _ in
+                alignToCurrentPayrollPeriod()
             }
         }
     }
-}
 
-struct HistoryRow: View {
-    let session: WorkSession
-    let breakdown: DayPayBreakdown
-    let dateFormatter: DateFormatter
-    let timeFormatter: DateFormatter
+    // MARK: - Header
 
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: session.isManualEntry ? "pencil.circle.fill" : "bolt.circle.fill")
-                .foregroundStyle(session.isManualEntry ? .orange : .blue)
-                .font(.title3)
+    private var periodHeader: some View {
+        VStack(spacing: 4) {
+            HStack {
+                Button {
+                    periodAnchor = HistoryPeriodHelper.shiftPayrollAnchor(periodAnchor, by: -1)
+                    snapSelectedDayIntoPeriod()
+                } label: {
+                    Image(systemName: "chevron.backward")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(width: 36, height: 36)
+                }
 
-            VStack(alignment: .leading, spacing: 4) {
-                Text(dateFormatter.string(from: session.date))
-                    .font(.headline)
-                Text("\(timeFormatter.string(from: session.clockIn)) – \(session.clockOut.map { timeFormatter.string(from: $0) } ?? "-")")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Spacer()
+
+                VStack(spacing: 2) {
+                    Text(HistoryPeriodHelper.payrollPeriodTitle(for: activePeriod))
+                        .font(.headline)
+                    Text(HistoryPeriodHelper.shortRangeLabel(for: activePeriod))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                Button {
+                    periodAnchor = HistoryPeriodHelper.shiftPayrollAnchor(periodAnchor, by: 1)
+                    snapSelectedDayIntoPeriod()
+                } label: {
+                    Image(systemName: "chevron.forward")
+                        .font(.subheadline.weight(.semibold))
+                        .frame(width: 36, height: 36)
+                }
             }
+            .padding(.horizontal, 8)
+            .padding(.top, 6)
+        }
+    }
 
+    // MARK: - Day Selector
+
+    private var daySelector: some View {
+        ScrollViewReader { proxy in
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: 8) {
+                    ForEach(activePeriod.days, id: \.self) { day in
+                        dayChip(day)
+                            .id(day)
+                    }
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+            }
+            .onAppear {
+                proxy.scrollTo(selectedDay, anchor: .center)
+            }
+            .onChange(of: selectedDay) { _, newDay in
+                withAnimation(.easeInOut(duration: 0.22)) {
+                    proxy.scrollTo(newDay, anchor: .center)
+                }
+            }
+            .onChange(of: periodAnchor) { _, _ in
+                DispatchQueue.main.async {
+                    proxy.scrollTo(selectedDay, anchor: .center)
+                }
+            }
+        }
+        .background(Color(.secondarySystemGroupedBackground))
+    }
+
+    private func dayChip(_ day: Date) -> some View {
+        let isSelected = calendar.isDate(day, inSameDayAs: selectedDay)
+        let hasSession = !sessionsForDay(day).isEmpty
+        let isToday = calendar.isDateInToday(day)
+
+        return Button {
+            selectedDay = calendar.startOfDay(for: day)
+        } label: {
+            VStack(spacing: 4) {
+                Text(HistoryPeriodHelper.weekdayLetter(for: day))
+                    .font(.system(size: 9, weight: .medium))
+                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+
+                Text(dayNumberFormatter.string(from: day))
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                    .foregroundStyle(.primary)
+
+                Circle()
+                    .fill(hasSession ? Color.accentColor : Color.clear)
+                    .frame(width: 4, height: 4)
+            }
+            .frame(width: 40, height: 58)
+            .background(
+                Circle()
+                    .fill(isSelected ? Color(.systemBackground) : Color.clear)
+                    .shadow(color: isSelected ? .black.opacity(0.14) : .clear, radius: 5, y: 2)
+                    .frame(width: 42, height: 42)
+                    .offset(y: 2)
+            )
+            .overlay {
+                if isToday && !isSelected {
+                    Circle()
+                        .strokeBorder(Color.accentColor.opacity(0.4), lineWidth: 1.2)
+                        .frame(width: 42, height: 42)
+                        .offset(y: 2)
+                }
+            }
+        }
+        .buttonStyle(.plain)
+    }
+
+    // MARK: - Table
+
+    private var tableHeader: some View {
+        HStack(spacing: 0) {
+            headerCell(String(localized: "history.col.date", defaultValue: "Date"))
+            headerCell(String(localized: "history.col.in", defaultValue: "In"))
+            headerCell(String(localized: "history.col.out", defaultValue: "Out"))
+            headerCell(String(localized: "history.col.hours", defaultValue: "Hours"))
+            headerCell(String(localized: "history.col.amount", defaultValue: "Amount"), alignEnd: true)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(Color(.tertiarySystemFill))
+    }
+
+    private func headerCell(_ title: String, alignEnd: Bool = false) -> some View {
+        Text(title)
+            .font(.caption2.weight(.semibold))
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity, alignment: alignEnd ? .trailing : .leading)
+    }
+
+    @ViewBuilder
+    private var sessionsContent: some View {
+        let rows = filteredSessions
+        if rows.isEmpty {
+            emptyState
+        } else {
+            ScrollView {
+                LazyVStack(spacing: 0) {
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, session in
+                        Button {
+                            selectedSession = session
+                        } label: {
+                            sessionRow(session, striped: index.isMultiple(of: 2))
+                        }
+                        .buttonStyle(.plain)
+
+                        Divider().padding(.leading, 14)
+                    }
+                }
+                .background(Color(.systemBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+                .padding(.horizontal, 10)
+                .padding(.top, 8)
+                .padding(.bottom, 12)
+            }
+        }
+    }
+
+    private func sessionRow(_ session: WorkSession, striped: Bool) -> some View {
+        let breakdown = viewModel.breakdown(for: session)
+        let amount = payMode == .net ? breakdown.netPay : breakdown.grossPay
+
+        return HStack(spacing: 0) {
+            Text(shortDate(session.date))
+                .font(.caption.weight(.medium).monospacedDigit())
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(timeFormatter.string(from: session.clockIn))
+                .font(.caption.monospacedDigit())
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(session.clockOut.map { timeFormatter.string(from: $0) } ?? "—")
+                .font(.caption.monospacedDigit())
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(HistoryPeriodHelper.formatHoursClock(breakdown.totalHours))
+                .font(.caption.monospacedDigit())
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(String(format: "₪%.2f", amount))
+                .font(.caption.weight(.semibold).monospacedDigit())
+                .foregroundStyle(payMode == .net ? Color.green : Color.primary)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(striped ? Color(.secondarySystemGroupedBackground).opacity(0.55) : Color.clear)
+        .contentShape(Rectangle())
+    }
+
+    private var emptyState: some View {
+        VStack(spacing: 12) {
+            Spacer(minLength: 28)
+            Image(systemName: "hand.draw")
+                .font(.system(size: 40))
+                .foregroundStyle(.secondary)
+                .symbolRenderingMode(.hierarchical)
+            Text(String(localized: "history.emptyPeriod", defaultValue: "אין משמרות לתקופה שנבחרה"))
+                .font(.subheadline.weight(.semibold))
+                .multilineTextAlignment(.center)
+            Text(String(localized: "history.emptyPeriodHint", defaultValue: "Swipe the days above or add a shift."))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 28)
             Spacer()
-
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(breakdown.formattedTotalPay)
-                    .font(.headline)
-                    .monospacedDigit()
-                Text(L10n.hoursShort(breakdown.totalHours))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
         }
-        .padding(.vertical, 4)
-    }
-}
-
-struct EditSessionView: View {
-    @ObservedObject var viewModel: AppViewModel
-    let session: WorkSession
-    @Environment(\.dismiss) private var dismiss
-
-    @State private var clockIn: Date
-    @State private var clockOut: Date
-    @State private var notes: String
-
-    init(viewModel: AppViewModel, session: WorkSession) {
-        self.viewModel = viewModel
-        self.session = session
-        _clockIn = State(initialValue: session.clockIn)
-        _clockOut = State(initialValue: session.clockOut ?? Date())
-        _notes = State(initialValue: session.notes ?? "")
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    var body: some View {
-        NavigationStack {
-            Form {
-                Section(L10n.editTimes) {
-                    DatePicker(L10n.editClockIn, selection: $clockIn)
-                    DatePicker(L10n.editClockOut, selection: $clockOut)
-                }
-                Section(L10n.editNotes) {
-                    TextField(L10n.editNotesPlaceholder, text: $notes)
-                }
-                Section {
-                    Button(L10n.editDelete, role: .destructive) {
-                        viewModel.deleteSession(session)
-                        dismiss()
+    // MARK: - Sticky Summary
+
+    private var stickySummaryBar: some View {
+        let totals = periodTotals
+
+        return VStack(spacing: 0) {
+            Divider()
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 8) {
+                        Text(String(localized: "history.totalPay", defaultValue: "Total"))
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+
+                        Picker("", selection: $payMode) {
+                            ForEach(PayDisplayMode.allCases) { mode in
+                                Text(mode == .net ? "נטו" : "ברוטו").tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 108)
                     }
+
+                    Text(String(
+                        format: String(localized: "history.totalPayValue %@", defaultValue: "סה\"כ: %@ ₪"),
+                        String(format: "%.2f", payMode == .net ? totals.netPay : totals.grossPay)
+                    ))
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                }
+
+                Spacer(minLength: 8)
+
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(String(localized: "history.totalHours", defaultValue: "Hours"))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                    Text(String(
+                        format: String(localized: "history.totalHoursValue %@", defaultValue: "שעות: %@"),
+                        HistoryPeriodHelper.formatHoursClock(totals.totalHours)
+                    ))
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
                 }
             }
-            .navigationTitle(L10n.editTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.editCancel) { dismiss() }
-                }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.editSave) {
-                        viewModel.updateSession(session, clockIn: clockIn, clockOut: clockOut, notes: notes.isEmpty ? nil : notes)
-                        dismiss()
-                    }
-                    .disabled(clockOut <= clockIn)
-                }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(.ultraThinMaterial)
+        }
+    }
+
+    // MARK: - Data
+
+    private var filteredSessions: [WorkSession] {
+        viewModel.sortedSessions.filter {
+            calendar.isDate($0.date, inSameDayAs: selectedDay)
+        }
+    }
+
+    /// Totals for the full custom payroll window (not a calendar month).
+    private var periodTotals: DayPayBreakdown {
+        let period = activePeriod
+        let sessions = viewModel.sortedSessions.filter { period.contains($0.date, calendar: calendar) }
+        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.settings)
+    }
+
+    private func sessionsForDay(_ day: Date) -> [WorkSession] {
+        viewModel.sessions.filter { calendar.isDate($0.date, inSameDayAs: day) && $0.clockOut != nil }
+    }
+
+    private func shortDate(_ date: Date) -> String {
+        let f = DateFormatter()
+        f.locale = .current
+        f.setLocalizedDateFormatFromTemplate("dd/MM")
+        return f.string(from: date)
+    }
+
+    private func alignToCurrentPayrollPeriod() {
+        let period = HistoryPeriodHelper.payrollPeriod(
+            containing: Date(),
+            startDay: viewModel.settings.payrollStartDay,
+            calendar: calendar
+        )
+        periodAnchor = period.labelMonth
+        selectedDay = calendar.startOfDay(for: Date())
+        if !period.contains(selectedDay, calendar: calendar) {
+            selectedDay = period.start
+        }
+    }
+
+    private func snapSelectedDayIntoPeriod() {
+        let period = activePeriod
+        if !period.contains(selectedDay, calendar: calendar) {
+            if period.contains(Date(), calendar: calendar) {
+                selectedDay = calendar.startOfDay(for: Date())
+            } else {
+                selectedDay = period.start
             }
         }
     }
