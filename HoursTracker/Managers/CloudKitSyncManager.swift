@@ -27,7 +27,11 @@ protocol CloudSyncing: AnyObject {
 final class CloudKitSyncManager: CloudSyncing {
     static let shared = CloudKitSyncManager()
 
-    private let container = CKContainer(identifier: "iCloud.com.hourstracker.app")
+    /// CKContainer raises an uncatchable exception when the process lacks the
+    /// iCloud entitlements. Locally signed test builds (unit tests, CI) run
+    /// without provisioning, so skip CloudKit entirely there instead of
+    /// crashing the test host at launch.
+    private let container: CKContainer?
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private let logger = Logger(subsystem: "com.hourstracker.app", category: "cloudkit")
@@ -38,18 +42,26 @@ final class CloudKitSyncManager: CloudSyncing {
     private let settingsRecordType = "WorkplaceSettings"
     private let settingsRecordName = "workplace-settings"
 
+    private static var isRunningTests: Bool {
+        ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
+    }
+
     private init() {
+        container = Self.isRunningTests
+            ? nil
+            : CKContainer(identifier: "iCloud.com.hourstracker.app")
         encoder = JSONEncoder()
         decoder = JSONDecoder()
         encoder.dateEncodingStrategy = .iso8601
         decoder.dateDecodingStrategy = .iso8601
     }
 
-    private var database: CKDatabase {
-        container.privateCloudDatabase
+    private var database: CKDatabase? {
+        container?.privateCloudDatabase
     }
 
     func checkAvailability() async -> Bool {
+        guard let container else { return false }
         do {
             let status = try await container.accountStatus()
             return status == .available
@@ -87,7 +99,7 @@ final class CloudKitSyncManager: CloudSyncing {
     }
 
     func uploadSessions(_ sessions: [WorkSession]) async {
-        guard await checkAvailability() else { return }
+        guard let database, await checkAvailability() else { return }
         for session in sessions {
             do {
                 let record = try makeSessionRecord(session)
@@ -100,7 +112,7 @@ final class CloudKitSyncManager: CloudSyncing {
     }
 
     func uploadSettings(_ settings: WorkplaceSettings) async {
-        guard await checkAvailability() else { return }
+        guard let database, await checkAvailability() else { return }
         do {
             let record = try makeSettingsRecord(settings)
             _ = try await database.save(record)
@@ -111,7 +123,7 @@ final class CloudKitSyncManager: CloudSyncing {
     }
 
     func deleteSessions(ids: Set<UUID>) async {
-        guard await checkAvailability(), !ids.isEmpty else { return }
+        guard let database, await checkAvailability(), !ids.isEmpty else { return }
         let recordIDs = ids.map { CKRecord.ID(recordName: $0.uuidString) }
         do {
             try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -135,6 +147,7 @@ final class CloudKitSyncManager: CloudSyncing {
     // MARK: - Fetch
 
     private func fetchSessions() async throws -> [WorkSession] {
+        guard let database else { return [] }
         let query = CKQuery(recordType: sessionRecordType, predicate: NSPredicate(value: true))
         var collected: [WorkSession] = []
 
@@ -169,6 +182,7 @@ final class CloudKitSyncManager: CloudSyncing {
     }
 
     private func fetchSettings() async throws -> WorkplaceSettings? {
+        guard let database else { return nil }
         let recordID = CKRecord.ID(recordName: settingsRecordName)
         do {
             let record = try await database.record(for: recordID)
