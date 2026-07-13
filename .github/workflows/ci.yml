@@ -17,9 +17,26 @@ jobs:
       - name: Generate project
         run: xcodegen generate
 
+      - name: Select simulator
+        id: sim
+        run: |
+          UDID=$(xcrun simctl list devices available --json \
+            | jq -r '[.devices[] | .[] | select(.isAvailable and (.name | startswith("iPhone")))][0].udid // empty')
+          if [ -z "$UDID" ]; then
+            echo "No available iPhone simulator; creating one."
+            RUNTIME=$(xcrun simctl list runtimes --json \
+              | jq -r '[.runtimes[] | select(.platform == "iOS" and .isAvailable)] | sort_by(.version) | last.identifier')
+            DEVICE_TYPE=$(xcrun simctl list devicetypes --json \
+              | jq -r '[.devicetypes[] | select(.productFamily == "iPhone")] | last.identifier')
+            UDID=$(xcrun simctl create "CI iPhone" "$DEVICE_TYPE" "$RUNTIME")
+          fi
+          echo "Using simulator $UDID"
+          xcrun simctl list devices available
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
       - name: Run tests
         run: |
           xcodebuild test \
             -project HoursTracker.xcodeproj \
             -scheme HoursTracker \
-            -destination 'platform=iOS Simulator,name=iPhone 16'
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}"
