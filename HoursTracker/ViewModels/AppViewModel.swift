@@ -8,6 +8,7 @@ final class AppViewModel: ObservableObject {
     @Published var lastCompletedBreakdown: DayPayBreakdown?
     @Published var showDaySummary = false
     @Published private(set) var syncState: SyncState = .idle
+    @Published var errorMessage: String?
 
     private let store: SyncingStore
     private let locationManager: LocationReminderManaging
@@ -36,18 +37,28 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Active Session
 
-    /// Any open session (clockOut == nil), regardless of calendar day.
+    /// The most recent open session, regardless of which day it started on.
+    /// A session left open past midnight must stay reachable so it can still
+    /// be clocked out from the Home tab.
     var activeSession: WorkSession? {
-        sessions.first(where: \.isOpen)
+        sessions
+            .filter(\.isOpen)
+            .max { $0.clockIn < $1.clockIn }
     }
 
     var isClockedIn: Bool {
         activeSession != nil
     }
 
-    /// Clock In is available whenever there is no open session.
+    /// Clock In is available whenever there is no open session (multiple completed
+    /// shifts on the same calendar day are allowed).
     var canClockIn: Bool {
         activeSession == nil
+    }
+
+    /// Compatibility alias used by older phase-1 tests / call sites.
+    var canClockInToday: Bool {
+        canClockIn
     }
 
     // MARK: - Clock In / Out
@@ -175,7 +186,7 @@ final class AppViewModel: ObservableObject {
         var updated = newSettings
         updated.modifiedAt = Date()
         settings = updated
-        store.saveSettings(settings)
+        persistSettings()
         refreshReminders()
     }
 
@@ -192,7 +203,7 @@ final class AppViewModel: ObservableObject {
         settings.locationLatitude = location.coordinate.latitude
         settings.locationLongitude = location.coordinate.longitude
         settings.modifiedAt = Date()
-        store.saveSettings(settings)
+        persistSettings()
         locationManager.updateWorkplaceLocation(
             latitude: location.coordinate.latitude,
             longitude: location.coordinate.longitude,
@@ -247,8 +258,20 @@ final class AppViewModel: ObservableObject {
     }
 
     private func persist() {
-        store.saveSessions(sessions)
+        do {
+            try store.saveSessions(sessions)
+        } catch {
+            errorMessage = L10n.errorSaveFailed
+        }
         refreshReminders()
+    }
+
+    private func persistSettings() {
+        do {
+            try store.saveSettings(settings)
+        } catch {
+            errorMessage = L10n.errorSaveFailed
+        }
     }
 
     private func refreshReminders() {

@@ -13,6 +13,11 @@ iOS app for tracking daily work hours with Israeli overtime law calculations (Re
 - **JSON persistence** in Documents with **CloudKit sync** (iCloud private database)
 - **Full localization** — Arabic, Hebrew, English (String Catalog)
 
+## Documentation
+
+- [Architecture overview](docs/ARCHITECTURE.md) — how the codebase is structured and how the subsystems work
+- [Roadmap](docs/ROADMAP.md) — phased development plan
+
 ## Requirements
 
 - iOS 17+
@@ -22,10 +27,11 @@ iOS app for tracking daily work hours with Israeli overtime law calculations (Re
 ## Setup
 
 ```bash
-cd FingerPrint
 xcodegen generate
 open HoursTracker.xcodeproj
 ```
+
+The `.xcodeproj` is generated from `project.yml` and not checked in — install [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`) and run `xcodegen generate` after cloning.
 
 Run on a physical device for full location/geofence behavior.
 

@@ -8,35 +8,36 @@ protocol SyncingStore: PersistableStore {
 final class SyncingPersistenceStore: SyncingStore {
     static let shared = SyncingPersistenceStore()
 
-    private let local = PersistenceManager.shared
+    private let local: PersistableStore
     private let cloud: CloudSyncing
 
     private(set) var syncState: SyncState = .idle
 
-    init(cloud: CloudSyncing? = nil) {
-        // Prefer CloudKit when capability is enabled; otherwise stay local-only (safe for Simulator).
-        if let cloud {
-            self.cloud = cloud
-        } else if UserDefaults.standard.bool(forKey: "HTCloudKitCapabilityEnabled") {
-            self.cloud = CloudKitSyncManager.shared
-        } else {
-            self.cloud = NoOpCloudSyncManager.shared
-        }
+    init(
+        local: PersistableStore = PersistenceManager.shared,
+        cloud: CloudSyncing = CloudKitSyncManager.shared
+    ) {
+        self.local = local
+        self.cloud = cloud
     }
 
     func loadSessions() -> [WorkSession] {
         local.loadSessions()
     }
 
-    func saveSessions(_ sessions: [WorkSession]) {
+    func saveSessions(_ sessions: [WorkSession]) throws {
         let previous = local.loadSessions()
-        let deletedIDs = Set(previous.map(\.id)).subtracting(sessions.map(\.id))
-        local.saveSessions(sessions)
+        let previousByID = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
+        let deletedIDs = Set(previousByID.keys).subtracting(sessions.map(\.id))
+        let changed = sessions.filter { previousByID[$0.id] != $0 }
+        try local.saveSessions(sessions)
         Task {
             if !deletedIDs.isEmpty {
                 await cloud.deleteSessions(ids: deletedIDs)
             }
-            await cloud.uploadSessions(sessions)
+            if !changed.isEmpty {
+                await cloud.uploadSessions(changed)
+            }
         }
     }
 
@@ -44,8 +45,8 @@ final class SyncingPersistenceStore: SyncingStore {
         local.loadSettings()
     }
 
-    func saveSettings(_ settings: WorkplaceSettings) {
-        local.saveSettings(settings)
+    func saveSettings(_ settings: WorkplaceSettings) throws {
+        try local.saveSettings(settings)
         Task {
             await cloud.uploadSettings(settings)
         }
@@ -61,8 +62,8 @@ final class SyncingPersistenceStore: SyncingStore {
                 localSessions: localSessions,
                 localSettings: localSettings
             )
-            local.saveSessions(result.sessions)
-            local.saveSettings(result.settings)
+            try local.saveSessions(result.sessions)
+            try local.saveSettings(result.settings)
             syncState = cloud.state
             return result
         } catch {

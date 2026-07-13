@@ -143,6 +143,11 @@ enum L10n {
     static var reportColType: String { String(localized: "report.col.type") }
     static var reportTotal: String { String(localized: "report.total") }
 
+    // Errors
+    static var errorTitle: String { String(localized: "error.title") }
+    static var errorSaveFailed: String { String(localized: "error.saveFailed") }
+    static var errorOK: String { String(localized: "error.ok") }
+
     // Common
     static func hoursShort(_ hours: Double) -> String {
         String(format: String(localized: "common.hoursShort %@"), String(format: "%.1f", hours))

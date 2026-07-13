@@ -29,6 +29,19 @@ struct MainTabView: View {
                 .tabItem {
                     Label(L10n.tabHome, systemImage: "clock.fill")
                 }
+                .alert(
+                    L10n.errorTitle,
+                    isPresented: Binding(
+                        get: { viewModel.errorMessage != nil },
+                        set: { if !$0 { viewModel.errorMessage = nil } }
+                    )
+                ) {
+                    Button(L10n.errorOK, role: .cancel) {
+                        viewModel.errorMessage = nil
+                    }
+                } message: {
+                    Text(viewModel.errorMessage ?? "")
+                }
 
             HistoryView(viewModel: viewModel)
                 .tabItem {

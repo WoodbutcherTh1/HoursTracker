@@ -29,11 +29,9 @@ targets:
         ENABLE_PREVIEWS: YES
     entitlements:
       path: HoursTracker/HoursTracker.entitlements
-      properties:
-        com.apple.developer.icloud-container-identifiers:
-          - iCloud.com.hourstracker.app
-        com.apple.developer.icloud-services:
-          - CloudKit
+    scheme:
+      testTargets:
+        - HoursTrackerTests
     info:
       path: HoursTracker/Info.plist
       properties:
