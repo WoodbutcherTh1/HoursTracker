@@ -1,0 +1,55 @@
+name: HoursTracker
+options:
+  bundleIdPrefix: com.hourstracker
+  deploymentTarget:
+    iOS: "17.0"
+  xcodeVersion: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    DEVELOPMENT_LANGUAGE: en
+    LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+targets:
+  HoursTracker:
+    type: application
+    platform: iOS
+    sources:
+      - path: HoursTracker
+        excludes:
+          - Info.plist
+    resources:
+      - path: HoursTracker/Resources
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hourstracker.app
+        INFOPLIST_FILE: HoursTracker/Info.plist
+        CODE_SIGN_ENTITLEMENTS: HoursTracker/HoursTracker.entitlements
+        CODE_SIGN_STYLE: Automatic
+        TARGETED_DEVICE_FAMILY: "1,2"
+        ENABLE_PREVIEWS: YES
+    entitlements:
+      path: HoursTracker/HoursTracker.entitlements
+    info:
+      path: HoursTracker/Info.plist
+      properties:
+        UILaunchScreen: {}
+        UIBackgroundModes:
+          - location
+        NSLocationAlwaysAndWhenInUseUsageDescription: "Hours Tracker needs your location to remind you to clock in when you arrive at work and to monitor your workplace geofence."
+        NSLocationWhenInUseUsageDescription: "Hours Tracker needs your location to set your workplace and send arrival reminders."
+        NSLocationAlwaysUsageDescription: "Hours Tracker needs background location access to detect when you enter your workplace."
+        CFBundleLocalizations:
+          - en
+          - ar
+          - he
+  HoursTrackerTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - HoursTrackerTests
+    dependencies:
+      - target: HoursTracker
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hourstracker.app.tests
+        GENERATE_INFOPLIST_FILE: YES

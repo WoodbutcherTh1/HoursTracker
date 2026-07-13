@@ -1,0 +1,533 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		2097F64E6F1C1423F66A1C2D /* PersistenceManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FDAB9EE51832753E42CD2D5 /* PersistenceManager.swift */; };
+		56BE8BE508DFE7D934FD740F /* OvertimeCalculatorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 43266DDF759B38F0873E592C /* OvertimeCalculatorTests.swift */; };
+		5F3B240756EEF66ECCEB6D71 /* SyncingPersistenceStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = FF402DAEB13015874FBAA10D /* SyncingPersistenceStore.swift */; };
+		6C91084041663AE679572E9C /* LocationReminderManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7220FAC4E0F6603D672F5BAA /* LocationReminderManager.swift */; };
+		79F4FA119B85C1A606C7A4CE /* HoursTrackerApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F99309DEFC1A9BE876A78A9 /* HoursTrackerApp.swift */; };
+		88D5AC242675329B09B34037 /* HomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1FD50D9B63C065ADB9F97519 /* HomeView.swift */; };
+		8D266A081E872C96F8FCCDD1 /* LocationCaptureHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 76794D4DDB68A3C22E0E557E /* LocationCaptureHelper.swift */; };
+		8DD91D510C6023BEE579DB51 /* AppLocale.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6C17E08F9F89AE220E52E61D /* AppLocale.swift */; };
+		8EA0763B730532FC09A729CE /* CloudKitSyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8719EC974F7C65D2792B482 /* CloudKitSyncManager.swift */; };
+		902B244AE25DF5AA16EE85EF /* ManualEntryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = C6CB16412E3F73E43DAAAB1E /* ManualEntryView.swift */; };
+		939FD5A2B9B3FD73C24B84BC /* HistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0459C5041F98A8F5081432B5 /* HistoryView.swift */; };
+		93F4EDD57F39747273EA6616 /* AppViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = D0319FA011E59800407F7B1E /* AppViewModel.swift */; };
+		987ED296AC64E7F1F9B9FDFF /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB96D1982B602A71D223098 /* SettingsView.swift */; };
+		9D36A8293D8552D41510251D /* WorkplaceSettings.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3872A5D76CF6B4EF7DB4BD3 /* WorkplaceSettings.swift */; };
+		A4CF6A469DB07864970F3A1B /* WorkSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F910409226D73EDAB612207 /* WorkSession.swift */; };
+		AC89D97D1AD70DAF4B0AA4B9 /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08974D5BDFA98FE91863C4B4 /* L10n.swift */; };
+		C290ADABE17B638CBCFC3280 /* ZipWriter.swift in Sources */ = {isa = PBXBuildFile; fileRef = D8A2E18E808A097F67099943 /* ZipWriter.swift */; };
+		CB0A87A4361F2675DA4179E7 /* OvertimeCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4A39444DC8F9540E5DB62FC1 /* OvertimeCalculator.swift */; };
+		D1F8DCAFD8558B843169CDE5 /* ExportManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5AE0E7FFBF1290185FFB9C30 /* ExportManager.swift */; };
+		E05C7BA7657C6748DB88345C /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B194AF37FA5384C91F6813F7 /* Localizable.xcstrings */; };
+		EBC07B21F5162696D1890417 /* ExportView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F99D2C7DDDC8A1DCDEB9AC64 /* ExportView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		9AFF639B4C1611862DBE1CCB /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = F6CD0DBBC04F731B0BE82BA3 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = EF458555FFF196203D7AD5AD;
+			remoteInfo = HoursTracker;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		0459C5041F98A8F5081432B5 /* HistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HistoryView.swift; sourceTree = "<group>"; };
+		08974D5BDFA98FE91863C4B4 /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = L10n.swift; sourceTree = "<group>"; };
+		1FD50D9B63C065ADB9F97519 /* HomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HomeView.swift; sourceTree = "<group>"; };
+		1FDAB9EE51832753E42CD2D5 /* PersistenceManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PersistenceManager.swift; sourceTree = "<group>"; };
+		43266DDF759B38F0873E592C /* OvertimeCalculatorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OvertimeCalculatorTests.swift; sourceTree = "<group>"; };
+		4A39444DC8F9540E5DB62FC1 /* OvertimeCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OvertimeCalculator.swift; sourceTree = "<group>"; };
+		5AE0E7FFBF1290185FFB9C30 /* ExportManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportManager.swift; sourceTree = "<group>"; };
+		6C17E08F9F89AE220E52E61D /* AppLocale.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppLocale.swift; sourceTree = "<group>"; };
+		6CD4E386BA9F7EF1B9265CE5 /* HoursTracker.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = HoursTracker.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7220FAC4E0F6603D672F5BAA /* LocationReminderManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationReminderManager.swift; sourceTree = "<group>"; };
+		76794D4DDB68A3C22E0E557E /* LocationCaptureHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationCaptureHelper.swift; sourceTree = "<group>"; };
+		7F910409226D73EDAB612207 /* WorkSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkSession.swift; sourceTree = "<group>"; };
+		875C3649755E755B741FF857 /* HoursTracker.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = HoursTracker.entitlements; sourceTree = "<group>"; };
+		9F99309DEFC1A9BE876A78A9 /* HoursTrackerApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HoursTrackerApp.swift; sourceTree = "<group>"; };
+		B194AF37FA5384C91F6813F7 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		C6CB16412E3F73E43DAAAB1E /* ManualEntryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ManualEntryView.swift; sourceTree = "<group>"; };
+		CCB96D1982B602A71D223098 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		D0319FA011E59800407F7B1E /* AppViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppViewModel.swift; sourceTree = "<group>"; };
+		D8719EC974F7C65D2792B482 /* CloudKitSyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CloudKitSyncManager.swift; sourceTree = "<group>"; };
+		D8A2E18E808A097F67099943 /* ZipWriter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ZipWriter.swift; sourceTree = "<group>"; };
+		E3872A5D76CF6B4EF7DB4BD3 /* WorkplaceSettings.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WorkplaceSettings.swift; sourceTree = "<group>"; };
+		F99D2C7DDDC8A1DCDEB9AC64 /* ExportView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ExportView.swift; sourceTree = "<group>"; };
+		FA0AA6B6E9EFE59280F90191 /* HoursTrackerTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = HoursTrackerTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		FF402DAEB13015874FBAA10D /* SyncingPersistenceStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncingPersistenceStore.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		1322779C924F193570500481 /* Utilities */ = {
+			isa = PBXGroup;
+			children = (
+				6C17E08F9F89AE220E52E61D /* AppLocale.swift */,
+				08974D5BDFA98FE91863C4B4 /* L10n.swift */,
+				76794D4DDB68A3C22E0E557E /* LocationCaptureHelper.swift */,
+				D8A2E18E808A097F67099943 /* ZipWriter.swift */,
+			);
+			path = Utilities;
+			sourceTree = "<group>";
+		};
+		3B39EFCC55840AC34066D647 /* Managers */ = {
+			isa = PBXGroup;
+			children = (
+				D8719EC974F7C65D2792B482 /* CloudKitSyncManager.swift */,
+				5AE0E7FFBF1290185FFB9C30 /* ExportManager.swift */,
+				7220FAC4E0F6603D672F5BAA /* LocationReminderManager.swift */,
+				1FDAB9EE51832753E42CD2D5 /* PersistenceManager.swift */,
+				FF402DAEB13015874FBAA10D /* SyncingPersistenceStore.swift */,
+			);
+			path = Managers;
+			sourceTree = "<group>";
+		};
+		3ECD3F62B1C310AEFD9A3FDE /* ViewModels */ = {
+			isa = PBXGroup;
+			children = (
+				D0319FA011E59800407F7B1E /* AppViewModel.swift */,
+			);
+			path = ViewModels;
+			sourceTree = "<group>";
+		};
+		6075E10691BBC129C0DBB5D2 = {
+			isa = PBXGroup;
+			children = (
+				87EE0645DA5AEED3E9BE4CA1 /* HoursTracker */,
+				76203EC3B8C03E0EE95788A7 /* HoursTrackerTests */,
+				E6898440400657D7CBBA357C /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		76203EC3B8C03E0EE95788A7 /* HoursTrackerTests */ = {
+			isa = PBXGroup;
+			children = (
+				43266DDF759B38F0873E592C /* OvertimeCalculatorTests.swift */,
+			);
+			path = HoursTrackerTests;
+			sourceTree = "<group>";
+		};
+		87EE0645DA5AEED3E9BE4CA1 /* HoursTracker */ = {
+			isa = PBXGroup;
+			children = (
+				875C3649755E755B741FF857 /* HoursTracker.entitlements */,
+				9F99309DEFC1A9BE876A78A9 /* HoursTrackerApp.swift */,
+				3B39EFCC55840AC34066D647 /* Managers */,
+				ECE37B6C4525AF416F0C7BD0 /* Models */,
+				C8F01F2A14CBE4AC7EF416F9 /* Resources */,
+				1322779C924F193570500481 /* Utilities */,
+				3ECD3F62B1C310AEFD9A3FDE /* ViewModels */,
+				F51C2652AFB4AB59456B791C /* Views */,
+			);
+			path = HoursTracker;
+			sourceTree = "<group>";
+		};
+		C8F01F2A14CBE4AC7EF416F9 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B194AF37FA5384C91F6813F7 /* Localizable.xcstrings */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+		E6898440400657D7CBBA357C /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				6CD4E386BA9F7EF1B9265CE5 /* HoursTracker.app */,
+				FA0AA6B6E9EFE59280F90191 /* HoursTrackerTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		ECE37B6C4525AF416F0C7BD0 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				4A39444DC8F9540E5DB62FC1 /* OvertimeCalculator.swift */,
+				E3872A5D76CF6B4EF7DB4BD3 /* WorkplaceSettings.swift */,
+				7F910409226D73EDAB612207 /* WorkSession.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		F51C2652AFB4AB59456B791C /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				F99D2C7DDDC8A1DCDEB9AC64 /* ExportView.swift */,
+				0459C5041F98A8F5081432B5 /* HistoryView.swift */,
+				1FD50D9B63C065ADB9F97519 /* HomeView.swift */,
+				C6CB16412E3F73E43DAAAB1E /* ManualEntryView.swift */,
+				CCB96D1982B602A71D223098 /* SettingsView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		05F6AFFAF10D93072DA4E61A /* HoursTrackerTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = FD73874F39EDFAE9023CEAAE /* Build configuration list for PBXNativeTarget "HoursTrackerTests" */;
+			buildPhases = (
+				272F6446D0A3EB0DDCF3F104 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A961847EEC190C8D87AC957F /* PBXTargetDependency */,
+			);
+			name = HoursTrackerTests;
+			packageProductDependencies = (
+			);
+			productName = HoursTrackerTests;
+			productReference = FA0AA6B6E9EFE59280F90191 /* HoursTrackerTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		EF458555FFF196203D7AD5AD /* HoursTracker */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 40145BEC5D5A86450378A1A6 /* Build configuration list for PBXNativeTarget "HoursTracker" */;
+			buildPhases = (
+				2FFE09203F6A6EF100A98943 /* Sources */,
+				BADE7C10FFC897A4959A4891 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = HoursTracker;
+			packageProductDependencies = (
+			);
+			productName = HoursTracker;
+			productReference = 6CD4E386BA9F7EF1B9265CE5 /* HoursTracker.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F6CD0DBBC04F731B0BE82BA3 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					EF458555FFF196203D7AD5AD = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 6EB0419B6883252179B138A4 /* Build configuration list for PBXProject "HoursTracker" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				ar,
+				en,
+				he,
+			);
+			mainGroup = 6075E10691BBC129C0DBB5D2;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = E6898440400657D7CBBA357C /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				EF458555FFF196203D7AD5AD /* HoursTracker */,
+				05F6AFFAF10D93072DA4E61A /* HoursTrackerTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		BADE7C10FFC897A4959A4891 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E05C7BA7657C6748DB88345C /* Localizable.xcstrings in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		272F6446D0A3EB0DDCF3F104 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				56BE8BE508DFE7D934FD740F /* OvertimeCalculatorTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		2FFE09203F6A6EF100A98943 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				8DD91D510C6023BEE579DB51 /* AppLocale.swift in Sources */,
+				93F4EDD57F39747273EA6616 /* AppViewModel.swift in Sources */,
+				8EA0763B730532FC09A729CE /* CloudKitSyncManager.swift in Sources */,
+				D1F8DCAFD8558B843169CDE5 /* ExportManager.swift in Sources */,
+				EBC07B21F5162696D1890417 /* ExportView.swift in Sources */,
+				939FD5A2B9B3FD73C24B84BC /* HistoryView.swift in Sources */,
+				88D5AC242675329B09B34037 /* HomeView.swift in Sources */,
+				79F4FA119B85C1A606C7A4CE /* HoursTrackerApp.swift in Sources */,
+				AC89D97D1AD70DAF4B0AA4B9 /* L10n.swift in Sources */,
+				8D266A081E872C96F8FCCDD1 /* LocationCaptureHelper.swift in Sources */,
+				6C91084041663AE679572E9C /* LocationReminderManager.swift in Sources */,
+				902B244AE25DF5AA16EE85EF /* ManualEntryView.swift in Sources */,
+				CB0A87A4361F2675DA4179E7 /* OvertimeCalculator.swift in Sources */,
+				2097F64E6F1C1423F66A1C2D /* PersistenceManager.swift in Sources */,
+				987ED296AC64E7F1F9B9FDFF /* SettingsView.swift in Sources */,
+				5F3B240756EEF66ECCEB6D71 /* SyncingPersistenceStore.swift in Sources */,
+				A4CF6A469DB07864970F3A1B /* WorkSession.swift in Sources */,
+				9D36A8293D8552D41510251D /* WorkplaceSettings.swift in Sources */,
+				C290ADABE17B638CBCFC3280 /* ZipWriter.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A961847EEC190C8D87AC957F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = EF458555FFF196203D7AD5AD /* HoursTracker */;
+			targetProxy = 9AFF639B4C1611862DBE1CCB /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		0DA33C6AAEF14485D5451AAE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = HoursTracker/HoursTracker.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = HoursTracker/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hourstracker.app;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		73BC7D8118EEE4428C293F3D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = HoursTracker/HoursTracker.entitlements;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CODE_SIGN_STYLE = Automatic;
+				ENABLE_PREVIEWS = YES;
+				INFOPLIST_FILE = HoursTracker/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hourstracker.app;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		82821743FAC79850442413AC /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_LANGUAGE = en;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Release;
+		};
+		9D6D7AEC8DEF43E4F7CA3A75 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hourstracker.app.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HoursTracker.app/HoursTracker";
+			};
+			name = Release;
+		};
+		B026D9DC86ECC0677ADCD348 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_LANGUAGE = en;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.9;
+			};
+			name = Debug;
+		};
+		C76F9764F0781439B87D0615 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.hourstracker.app.tests;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/HoursTracker.app/HoursTracker";
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		40145BEC5D5A86450378A1A6 /* Build configuration list for PBXNativeTarget "HoursTracker" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				0DA33C6AAEF14485D5451AAE /* Debug */,
+				73BC7D8118EEE4428C293F3D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		6EB0419B6883252179B138A4 /* Build configuration list for PBXProject "HoursTracker" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B026D9DC86ECC0677ADCD348 /* Debug */,
+				82821743FAC79850442413AC /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		FD73874F39EDFAE9023CEAAE /* Build configuration list for PBXNativeTarget "HoursTrackerTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				C76F9764F0781439B87D0615 /* Debug */,
+				9D6D7AEC8DEF43E4F7CA3A75 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = F6CD0DBBC04F731B0BE82BA3 /* Project object */;
+}
