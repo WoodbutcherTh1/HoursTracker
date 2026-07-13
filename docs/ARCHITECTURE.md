@@ -50,7 +50,13 @@ HoursTracker/
     └── Localizable.xcstrings    String Catalog (en / ar / he)
 
 HoursTrackerTests/
-└── OvertimeCalculatorTests.swift  Unit tests for the pay engine
+├── OvertimeCalculatorTests.swift      Pay-engine boundary cases
+├── SyncMergeTests.swift               Last-write-wins merge logic
+├── ExportManagerTests.swift           Report filtering and totals
+├── ClockOutEstimationTests.swift      Clock-out time prediction
+├── SyncingPersistenceStoreTests.swift Incremental upload/delete propagation
+├── AppViewModelTests.swift            Clock in/out flows, error surfacing
+└── TestDoubles.swift                  In-memory store, mock cloud/location
 ```
 
 ## Architecture
@@ -84,13 +90,13 @@ Key protocols (all in `Managers/`): `PersistableStore`, `SyncingStore`, `CloudSy
 
 1. A view calls a method on `AppViewModel` (e.g. `clockOut()`).
 2. The view model mutates its `@Published` `sessions` array and calls `persist()`.
-3. `SyncingPersistenceStore.saveSessions(_:)` writes JSON locally **synchronously**, diffs against the previous file to find deleted IDs, then kicks off a background `Task` that deletes/uploads records in CloudKit (best-effort).
+3. `SyncingPersistenceStore.saveSessions(_:)` writes JSON locally **synchronously**, diffs against the previous file to find deleted and changed records, then kicks off a background `Task` that propagates only those deletions/changes to CloudKit (best-effort). A failed local write throws and surfaces as an alert via `AppViewModel.errorMessage`.
 4. `refreshReminders()` re-feeds settings and sessions to `LocationReminderManager`, which reschedules notifications and the geofence.
 
 ### Domain rules worth knowing
 
-- **One session per calendar day.** `clockIn` is blocked if any session exists for today (`AppViewModel.canClockInToday`), and manual entry refuses a duplicate day.
-- **A session belongs to the day of its clock-in** (`date` is `startOfDay(for: clockIn)`), so an overnight shift is attributed entirely to the start day.
+- **One session per calendar day.** `clockIn` is blocked if any session exists for today or any session is still open (`AppViewModel.canClockInToday`), and manual entry refuses a duplicate day.
+- **A session belongs to the day of its clock-in** (`date` is `startOfDay(for: clockIn)`), so an overnight shift is attributed entirely to the start day. A session left open past midnight remains the active session and can still be clocked out from the Home tab.
 - The live timer on Home is derived from `WorkSession.elapsedSeconds`, so it survives app relaunches — no timer state is stored beyond the session itself.
 
 ## Core domain logic: the overtime engine
@@ -111,10 +117,10 @@ pay      = regular·rate + ot125·rate·1.25 + ot150·rate·1.5 + gasAllowance
 
 ### Persistence & sync
 
-- **Local**: `PersistenceManager` writes `work_sessions.json` and `workplace_settings.json` to Documents with ISO-8601 dates, atomic writes, and silent failure (`try?`).
+- **Local**: `PersistenceManager` writes `work_sessions.json` and `workplace_settings.json` to Documents with ISO-8601 dates and atomic writes. Save failures throw (surfaced as a UI alert); load failures fall back to empty/default state and are logged.
 - **Cloud**: `CloudKitSyncManager` stores each session as one `WorkSession` record whose `payload` field is the JSON-encoded struct (plus a `modifiedAt` field); settings live in a single well-known record (`workplace-settings`). There is no per-field schema — the payload blob is the source of truth.
 - **Merge strategy**: last-write-wins per record using `modifiedAt` (`WorkSession.touch()` bumps it on every edit). Sessions are merged by UUID; the newer copy wins.
-- **Sync triggers**: full two-way sync (`syncNow`) runs at launch and whenever the app returns to the foreground (`HoursTrackerApp.onChange(of: scenePhase)`), plus a manual sync button. Every local save also fire-and-forgets an upload of **all** sessions.
+- **Sync triggers**: full two-way sync (`syncNow`) runs at launch and whenever the app returns to the foreground (`HoursTrackerApp.onChange(of: scenePhase)`), plus a manual sync button. Every local save also fire-and-forgets an upload of the sessions that changed in that save.
 - **Deletions** are detected by diffing the previous local file against the new session list, then propagated to CloudKit; a failed delete is silently retried at the next full sync.
 
 ### Location & reminders
@@ -161,4 +167,4 @@ open HoursTracker.xcodeproj
 xcodebuild test -scheme HoursTracker -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
-Current test coverage is limited to the overtime engine (`OvertimeCalculatorTests`, 7 cases covering regular/125%/150% boundaries, zero hours, and aggregation). Managers and the view model are protocol-abstracted and ready for mock-based tests, but none exist yet — see `docs/ROADMAP.md`.
+The suite covers the overtime engine (`OvertimeCalculatorTests`), CloudKit merge logic (`SyncMergeTests`), export filtering and totals (`ExportManagerTests`), clock-out prediction (`ClockOutEstimationTests`), incremental sync writes (`SyncingPersistenceStoreTests`), and view-model flows against in-memory mocks (`AppViewModelTests`, doubles in `TestDoubles.swift`). CI (`.github/workflows/ci.yml`) regenerates the project and runs the suite on every push and pull request.

@@ -31,6 +31,8 @@ xcodegen generate
 open HoursTracker.xcodeproj
 ```
 
+The `.xcodeproj` is generated from `project.yml` and not checked in — install [XcodeGen](https://github.com/yonaskolb/XcodeGen) (`brew install xcodegen`) and run `xcodegen generate` after cloning.
+
 Run on a physical device for full location/geofence behavior.
 
 ## Project Structure
