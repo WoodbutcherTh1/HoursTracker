@@ -10,6 +10,9 @@ struct ManualEntryView: View {
     @State private var useDirectHours = false
     @State private var directHours: Double = 8.6
     @State private var notes = ""
+    @State private var breakMinutes = 0
+    @State private var dayType: DayType = .regular
+    @State private var isNightShift = false
 
     var body: some View {
         Form {
@@ -39,6 +42,24 @@ struct ManualEntryView: View {
                 }
             }
 
+            Section(L10n.settingsWorkRules) {
+                Picker(L10n.sessionDayType, selection: $dayType) {
+                    ForEach(DayType.allCases) { type in
+                        Text(type.localizedName).tag(type)
+                    }
+                }
+                Toggle(L10n.sessionNightShift, isOn: $isNightShift)
+                Stepper(value: $breakMinutes, in: 0...240, step: 5) {
+                    HStack {
+                        Text(L10n.sessionBreakMinutes)
+                        Spacer()
+                        Text("\(breakMinutes)")
+                            .monospacedDigit()
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
             Section(L10n.editNotes) {
                 TextField(L10n.editNotesPlaceholder, text: $notes)
             }
@@ -55,9 +76,12 @@ struct ManualEntryView: View {
         }
         .onAppear {
             syncTimesToDate()
+            breakMinutes = viewModel.settings.defaultBreakMinutes
+            dayType = DayType.automatic(for: selectedDate, settings: viewModel.settings)
         }
         .onChange(of: selectedDate) { _, _ in
             syncTimesToDate()
+            dayType = DayType.automatic(for: selectedDate, settings: viewModel.settings)
         }
     }
 
@@ -108,7 +132,10 @@ struct ManualEntryView: View {
             date: day,
             clockIn: finalClockIn,
             clockOut: finalClockOut,
-            notes: notes.isEmpty ? nil : notes
+            notes: notes.isEmpty ? nil : notes,
+            breakMinutes: breakMinutes,
+            dayType: dayType,
+            isNightShift: isNightShift
         )
         dismiss()
     }

@@ -70,9 +70,11 @@ final class OvertimeCalculatorTests: XCTestCase {
     }
 
     func testAggregateMultipleSessions() {
+        // Distinct days: overtime and the gas allowance are per calendar day,
+        // so each day gets its own standard-hours allowance and gas payment.
         let sessions = [
-            makeSession(hours: 8.6),
-            makeSession(hours: 10.0)
+            makeSession(hours: 8.6, daysAgo: 1),
+            makeSession(hours: 10.0, daysAgo: 0)
         ]
         let result = OvertimeCalculator.aggregate(sessions: sessions, settings: settings)
         XCTAssertEqual(result.regularHours, 17.2, accuracy: 0.001)
@@ -101,11 +103,13 @@ final class OvertimeCalculatorTests: XCTestCase {
         XCTAssertGreaterThanOrEqual(withKids.netPay, without.netPay)
     }
 
-    private func makeSession(hours: Double) -> WorkSession {
-        let start = Date()
+    private func makeSession(hours: Double, daysAgo: Int = 0) -> WorkSession {
+        let calendar = Calendar.current
+        let day = calendar.startOfDay(for: calendar.date(byAdding: .day, value: -daysAgo, to: Date())!)
+        let start = calendar.date(bySettingHour: 8, minute: 0, second: 0, of: day) ?? day
         let end = start.addingTimeInterval(hours * 3600)
         return WorkSession(
-            date: start,
+            date: day,
             clockIn: start,
             clockOut: end,
             isManualEntry: false

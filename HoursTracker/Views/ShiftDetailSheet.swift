@@ -93,28 +93,27 @@ struct ShiftDetailSheet: View {
     }
 
     private var breakdownCard: some View {
-        let rate = viewModel.settings.hourlyRate
-        let regularPay = breakdown.regularHours * rate
-        let ot125Pay = breakdown.ot125Hours * rate * 1.25
-        let ot150Pay = breakdown.ot150Hours * rate * 1.5
+        let tiers = OvertimeCalculator.tiers(for: session.dayType)
 
         return VStack(spacing: 12) {
             sectionTitle(String(localized: "shift.breakdown", defaultValue: "Pay Breakdown"))
 
+            shiftAttributesLine
+
             payLine(
-                title: String(localized: "summary.regular", defaultValue: "Regular"),
+                title: tierTitle(base: String(localized: "summary.regular", defaultValue: "Regular"), multiplier: tiers.base),
                 hours: breakdown.regularHours,
-                amount: regularPay
+                amount: breakdown.basePay
             )
             payLine(
-                title: String(localized: "summary.ot125", defaultValue: "125%"),
+                title: percentTitle(tiers.tier1),
                 hours: breakdown.ot125Hours,
-                amount: ot125Pay
+                amount: breakdown.ot125Pay
             )
             payLine(
-                title: String(localized: "summary.ot150", defaultValue: "150%"),
+                title: percentTitle(tiers.tier2),
                 hours: breakdown.ot150Hours,
-                amount: ot150Pay
+                amount: breakdown.ot150Pay
             )
             payLine(
                 title: String(localized: "shift.gas", defaultValue: "Travel / Gas"),
@@ -138,6 +137,37 @@ struct ShiftDetailSheet: View {
         .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
+    /// Day type, night shift, and break — the inputs that shaped the rates below.
+    private var shiftAttributesLine: some View {
+        HStack(spacing: 6) {
+            attributeBadge(session.dayType.localizedName, highlighted: session.dayType.isPremium)
+            if session.isNightShift {
+                attributeBadge(L10n.sessionNightShift, highlighted: true)
+            }
+            if session.breakMinutes > 0 {
+                attributeBadge("\(L10n.sessionBreakMinutes): \(session.breakMinutes)", highlighted: false)
+            }
+            Spacer()
+        }
+    }
+
+    private func attributeBadge(_ text: String, highlighted: Bool) -> some View {
+        Text(text)
+            .font(.caption2.weight(.medium))
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(Capsule().fill(highlighted ? Color.accentColor.opacity(0.15) : Color(.tertiarySystemFill)))
+            .foregroundStyle(highlighted ? Color.accentColor : Color.secondary)
+    }
+
+    private func tierTitle(base: String, multiplier: Double) -> String {
+        multiplier == 1.0 ? base : percentTitle(multiplier)
+    }
+
+    private func percentTitle(_ multiplier: Double) -> String {
+        "\(Int((multiplier * 100).rounded()))%"
+    }
+
     private func sectionTitle(_ text: String) -> some View {
         Text(text)
             .font(.headline)
@@ -156,7 +186,7 @@ struct ShiftDetailSheet: View {
                 }
             }
             Spacer()
-            Text(String(format: "₪%.2f", amount))
+            Text(breakdown.formatted(amount))
                 .font(.subheadline.weight(.semibold).monospacedDigit())
         }
     }
@@ -177,6 +207,9 @@ struct EditSessionView: View {
     @State private var clockIn: Date
     @State private var clockOut: Date
     @State private var notes: String
+    @State private var breakMinutes: Int
+    @State private var dayType: DayType
+    @State private var isNightShift: Bool
 
     init(viewModel: AppViewModel, session: WorkSession) {
         self.viewModel = viewModel
@@ -184,6 +217,9 @@ struct EditSessionView: View {
         _clockIn = State(initialValue: session.clockIn)
         _clockOut = State(initialValue: session.clockOut ?? Date())
         _notes = State(initialValue: session.notes ?? "")
+        _breakMinutes = State(initialValue: session.breakMinutes)
+        _dayType = State(initialValue: session.dayType)
+        _isNightShift = State(initialValue: session.isNightShift)
     }
 
     var body: some View {
@@ -192,6 +228,23 @@ struct EditSessionView: View {
                 Section(L10n.editTimes) {
                     DatePicker(L10n.editClockIn, selection: $clockIn)
                     DatePicker(L10n.editClockOut, selection: $clockOut)
+                }
+                Section(L10n.settingsWorkRules) {
+                    Picker(L10n.sessionDayType, selection: $dayType) {
+                        ForEach(DayType.allCases) { type in
+                            Text(type.localizedName).tag(type)
+                        }
+                    }
+                    Toggle(L10n.sessionNightShift, isOn: $isNightShift)
+                    Stepper(value: $breakMinutes, in: 0...240, step: 5) {
+                        HStack {
+                            Text(L10n.sessionBreakMinutes)
+                            Spacer()
+                            Text("\(breakMinutes)")
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                    }
                 }
                 Section(L10n.editNotes) {
                     TextField(L10n.editNotesPlaceholder, text: $notes)
@@ -215,7 +268,10 @@ struct EditSessionView: View {
                             session,
                             clockIn: clockIn,
                             clockOut: clockOut,
-                            notes: notes.isEmpty ? nil : notes
+                            notes: notes.isEmpty ? nil : notes,
+                            breakMinutes: breakMinutes,
+                            dayType: dayType,
+                            isNightShift: isNightShift
                         )
                         dismiss()
                     }

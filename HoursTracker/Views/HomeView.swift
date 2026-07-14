@@ -166,7 +166,7 @@ struct HomeView: View {
                     Text(String(localized: "home.liveGrossBasic", defaultValue: "Estimated gross (hours × rate)"))
                         .font(.caption2)
                         .foregroundStyle(.secondary)
-                    Text(String(format: "₪%.2f", basicGross))
+                    Text(PayFormatter.string(basicGross, currencyCode: viewModel.settings.currencyCode))
                         .font(.headline.monospacedDigit())
                         .contentTransition(.numericText())
                 }
@@ -267,7 +267,7 @@ struct DaySummarySheet: View {
                         summaryRow(L10n.summaryOT150, value: L10n.hoursLong(breakdown.ot150Hours))
                         summaryRow(
                             String(localized: "shift.gas", defaultValue: "Travel / Gas"),
-                            value: String(format: "₪%.2f", breakdown.gasAllowance)
+                            value: breakdown.formatted(breakdown.gasAllowance)
                         )
                         Divider()
                         GrossNetBadge(breakdown: breakdown)
