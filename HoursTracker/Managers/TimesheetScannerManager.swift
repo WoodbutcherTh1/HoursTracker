@@ -347,15 +347,13 @@ actor TimesheetScannerManager {
         calendar: Calendar,
         confidence: Double
     ) -> ScannedSessionDraft {
-        let clockIn = combine(date: date, time: inTime, calendar: calendar)
-        var clockOut = combine(date: date, time: outTime, calendar: calendar)
-        if clockOut <= clockIn {
-            clockOut = calendar.date(byAdding: .day, value: 1, to: clockOut) ?? clockOut
-        }
+        let rawIn = combine(date: date, time: inTime, calendar: calendar)
+        let rawOut = combine(date: date, time: outTime, calendar: calendar)
+        let resolved = WorkSession.resolveClockPair(clockIn: rawIn, clockOut: rawOut, calendar: calendar)
         return ScannedSessionDraft(
             date: date,
-            clockIn: clockIn,
-            clockOut: clockOut,
+            clockIn: resolved.clockIn,
+            clockOut: resolved.clockOut,
             notes: String(localized: "scanner.importedNote", defaultValue: "Imported from scan"),
             confidence: confidence
         )

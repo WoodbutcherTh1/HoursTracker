@@ -124,6 +124,54 @@ struct WorkSession: Codable, Identifiable, Equatable {
         return "blue"
     }
 
+    /// Orders clock-in / clock-out correctly.
+    ///
+    /// Fixes the common OCR / RTL mistake where evening and morning are
+    /// swapped and then treated as a long overnight (e.g. 17:02 → 07:22+1day
+    /// = 14h20, when the real day shift was 07:22 → 17:02 = 9h40).
+    static func resolveClockPair(
+        clockIn: Date,
+        clockOut: Date,
+        calendar: Calendar = .current
+    ) -> (clockIn: Date, clockOut: Date) {
+        if clockOut > clockIn {
+            let hours = clockOut.timeIntervalSince(clockIn) / 3600
+            guard hours > 12 else { return (clockIn, clockOut) }
+
+            // Long span: maybe times were swapped and then +1 day applied.
+            let day = calendar.startOfDay(for: clockIn)
+            let inParts = calendar.dateComponents([.hour, .minute], from: clockIn)
+            let outParts = calendar.dateComponents([.hour, .minute], from: clockOut)
+            guard
+                let inHour = inParts.hour, let inMinute = inParts.minute,
+                let outHour = outParts.hour, let outMinute = outParts.minute,
+                let earlier = calendar.date(bySettingHour: outHour, minute: outMinute, second: 0, of: day),
+                let later = calendar.date(bySettingHour: inHour, minute: inMinute, second: 0, of: day),
+                later > earlier
+            else {
+                return (clockIn, clockOut)
+            }
+
+            let sameDayHours = later.timeIntervalSince(earlier) / 3600
+            if sameDayHours >= 3, sameDayHours <= 12 {
+                return (earlier, later)
+            }
+            return (clockIn, clockOut)
+        }
+
+        // Out is not after in yet — either overnight, or the pair is reversed.
+        guard let overnightOut = calendar.date(byAdding: .day, value: 1, to: clockOut) else {
+            return (clockIn, clockOut)
+        }
+        let overnightHours = overnightOut.timeIntervalSince(clockIn) / 3600
+        let swappedSameDayHours = clockIn.timeIntervalSince(clockOut) / 3600
+
+        if overnightHours > 12, swappedSameDayHours >= 3, swappedSameDayHours <= 12 {
+            return (clockOut, clockIn)
+        }
+        return (clockIn, overnightOut)
+    }
+
     /// A shift counts as a night shift when at least two hours fall
     /// between 22:00 and 06:00 (Hours of Work and Rest Law).
     static func qualifiesAsNightShift(

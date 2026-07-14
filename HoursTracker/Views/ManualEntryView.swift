@@ -66,6 +66,7 @@ struct ManualEntryView: View {
         }
         .navigationTitle(L10n.manualTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .keyboardDismissible()
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button(L10n.editSave) {
@@ -89,7 +90,10 @@ struct ManualEntryView: View {
         if useDirectHours {
             return directHours > 0
         }
-        return clockOut > clockIn
+        let calendar = Calendar.current
+        let inParts = calendar.dateComponents([.hour, .minute], from: clockIn)
+        let outParts = calendar.dateComponents([.hour, .minute], from: clockOut)
+        return !(inParts.hour == outParts.hour && inParts.minute == outParts.minute)
     }
 
     private func syncTimesToDate() {
@@ -124,8 +128,9 @@ struct ManualEntryView: View {
             finalClockIn = day.addingTimeInterval(8 * 3600)
             finalClockOut = finalClockIn.addingTimeInterval(directHours * 3600)
         } else {
-            finalClockIn = clockIn
-            finalClockOut = clockOut
+            let resolved = WorkSession.resolveClockPair(clockIn: clockIn, clockOut: clockOut)
+            finalClockIn = resolved.clockIn
+            finalClockOut = resolved.clockOut
         }
 
         viewModel.addManualSession(

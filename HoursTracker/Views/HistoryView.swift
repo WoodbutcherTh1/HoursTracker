@@ -202,11 +202,11 @@ struct HistoryView: View {
 
     private var tableHeader: some View {
         HStack(spacing: 0) {
-            headerCell(String(localized: "history.col.date", defaultValue: "Date"))
-            headerCell(String(localized: "history.col.in", defaultValue: "In"))
-            headerCell(String(localized: "history.col.out", defaultValue: "Out"))
-            headerCell(String(localized: "history.col.hours", defaultValue: "Hours"))
-            headerCell(String(localized: "history.col.amount", defaultValue: "Amount"), alignEnd: true)
+            headerCell(L10n.historyColDate)
+            headerCell(L10n.historyColIn)
+            headerCell(L10n.historyColOut)
+            headerCell(L10n.historyColHours)
+            headerCell(L10n.historyColAmount, alignEnd: true)
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 8)
@@ -310,21 +310,21 @@ struct HistoryView: View {
             HStack(alignment: .center, spacing: 12) {
                 VStack(alignment: .leading, spacing: 3) {
                     HStack(spacing: 8) {
-                        Text(String(localized: "history.totalPay", defaultValue: "Total"))
+                        Text(L10n.historyTotalPay)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
 
                         Picker("", selection: $payMode) {
                             ForEach(PayDisplayMode.allCases) { mode in
-                                Text(mode == .net ? "נטו" : "ברוטו").tag(mode)
+                                Text(mode == .net ? L10n.historyPayNet : L10n.historyPayGross).tag(mode)
                             }
                         }
                         .pickerStyle(.segmented)
-                        .frame(width: 108)
+                        .frame(width: 120)
                     }
 
                     Text(String(
-                        format: String(localized: "history.totalPayValue %@", defaultValue: "סה\"כ: %@"),
+                        format: String(localized: "history.totalPayValue %@"),
                         payMode == .net ? totals.formattedNetPay : totals.formattedGrossPay
                     ))
                     .font(.subheadline.weight(.semibold).monospacedDigit())
@@ -333,11 +333,11 @@ struct HistoryView: View {
                 Spacer(minLength: 8)
 
                 VStack(alignment: .trailing, spacing: 3) {
-                    Text(String(localized: "history.totalHours", defaultValue: "Hours"))
+                    Text(L10n.historyTotalHours)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     Text(String(
-                        format: String(localized: "history.totalHoursValue %@", defaultValue: "שעות: %@"),
+                        format: String(localized: "history.totalHoursValue %@"),
                         HistoryPeriodHelper.formatHoursClock(totals.totalHours)
                     ))
                     .font(.subheadline.weight(.semibold).monospacedDigit())

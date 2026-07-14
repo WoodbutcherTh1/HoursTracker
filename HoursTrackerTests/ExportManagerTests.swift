@@ -83,18 +83,166 @@ final class ExportManagerTests: XCTestCase {
         XCTAssertEqual(report.totals.totalPay, 2190, accuracy: 0.01)
     }
 
-    func testMarkdownExportWritesFile() throws {
+    func testMarkdownExportUsesSelectedLanguage() throws {
         let report = manager.buildReport(
             sessions: [TestData.session(day: 1)],
             settings: settings,
-            range: .all
+            range: .all,
+            language: .english
         )
 
-        let url = try manager.export(report: report, format: .markdown)
+        let url = try manager.export(report: report, format: .markdown, language: .english)
         defer { try? FileManager.default.removeItem(at: url) }
 
         let contents = try String(contentsOf: url, encoding: .utf8)
         XCTAssertTrue(contents.contains("|"))
+        XCTAssertTrue(contents.contains("Monthly Hours Report"))
+        XCTAssertTrue(contents.contains("Payroll summary"))
+        XCTAssertTrue(contents.contains("Hours breakdown"))
+        XCTAssertTrue(contents.contains("Pay breakdown"))
+        XCTAssertTrue(contents.contains("Column guide"))
+        XCTAssertTrue(contents.contains("Daily details"))
+        XCTAssertTrue(contents.contains("Day"))
+        XCTAssertTrue(contents.contains("Travel"))
+        XCTAssertTrue(contents.contains("Daily wage"))
+        XCTAssertTrue(contents.contains("100%"))
+        XCTAssertTrue(contents.contains("125%"))
+        XCTAssertTrue(contents.contains("150%"))
+        // No Hebrew characters in an English export.
+        XCTAssertNil(contents.range(of: #"\p{Hebrew}"#, options: .regularExpression))
         XCTAssertEqual(url.pathExtension, "md")
+    }
+
+    func testArabicExportLanguage() throws {
+        let report = manager.buildReport(
+            sessions: [TestData.session(day: 1)],
+            settings: settings,
+            range: .all,
+            language: .arabic
+        )
+
+        let url = try manager.export(report: report, format: .markdown, language: .arabic)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let contents = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(contents.contains("ملخص الرواتب"))
+        XCTAssertTrue(contents.contains("توزيع الساعات"))
+        XCTAssertTrue(contents.contains("تفاصيل الأيام"))
+        XCTAssertTrue(contents.contains("اليوم"))
+        XCTAssertTrue(contents.contains("مواصلات"))
+        XCTAssertTrue(contents.contains("الأجر اليومي"))
+        XCTAssertFalse(contents.contains("Travel"))
+        XCTAssertFalse(contents.contains("Gross"))
+        XCTAssertFalse(contents.contains("Daily wage"))
+    }
+
+    func testHebrewExportLanguage() throws {
+        let report = manager.buildReport(
+            sessions: [TestData.session(day: 1)],
+            settings: settings,
+            range: .all,
+            language: .hebrew
+        )
+
+        let url = try manager.export(report: report, format: .txt, language: .hebrew)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let contents = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(contents.contains("דוח שעות חודשי"))
+        XCTAssertTrue(contents.contains("סיכום שכר"))
+        XCTAssertTrue(contents.contains("פילוח שעות"))
+        XCTAssertTrue(contents.contains("פירוט ימים"))
+        XCTAssertTrue(contents.contains("נסיעות"))
+        XCTAssertTrue(contents.contains("שכר יומי"))
+        XCTAssertTrue(contents.contains("הפסקה"))
+        XCTAssertTrue(contents.contains("100%"))
+        // No English payroll words mixed into Hebrew export.
+        XCTAssertFalse(contents.contains("Travel"))
+        XCTAssertFalse(contents.contains("Gross"))
+        XCTAssertFalse(contents.contains("Daily wage"))
+        XCTAssertFalse(contents.contains("Break"))
+        XCTAssertFalse(contents.contains(" OT"))
+    }
+
+    func testTXTExportIncludesPayrollChartsAndLegend() throws {
+        let report = manager.buildReport(
+            sessions: [TestData.session(day: 1)],
+            settings: settings,
+            range: .all,
+            language: .english
+        )
+
+        let url = try manager.export(report: report, format: .txt, language: .english)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let contents = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(contents.contains("Payroll summary"))
+        XCTAssertTrue(contents.contains("Hours breakdown"))
+        XCTAssertTrue(contents.contains("Pay breakdown"))
+        XCTAssertTrue(contents.contains("█") || contents.contains("░"))
+        XCTAssertTrue(contents.contains("Column guide"))
+        let legendIndex = contents.range(of: "Column guide")!.lowerBound
+        let tableIndex = contents.range(of: "Daily details")!.lowerBound
+        XCTAssertLessThan(legendIndex, tableIndex)
+    }
+
+    func testDOCXExportIncludesPayrollSections() throws {
+        let report = manager.buildReport(
+            sessions: [TestData.session(day: 1)],
+            settings: settings,
+            range: .all,
+            language: .english
+        )
+
+        let url = try manager.export(report: report, format: .docx, language: .english)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        XCTAssertEqual(url.pathExtension, "docx")
+        XCTAssertFalse(try Data(contentsOf: url).isEmpty)
+
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("docx-legend-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+        process.arguments = ["-qq", url.path, "-d", tmp.path]
+        try process.run()
+        process.waitUntilExit()
+        XCTAssertEqual(process.terminationStatus, 0)
+
+        let xml = try String(
+            contentsOf: tmp.appendingPathComponent("word/document.xml"),
+            encoding: .utf8
+        )
+        XCTAssertTrue(xml.contains("Payroll summary"))
+        XCTAssertTrue(xml.contains("Hours breakdown"))
+        XCTAssertTrue(xml.contains("Column guide"))
+        XCTAssertTrue(xml.contains("Daily details"))
+    }
+
+    func testPDFExportWritesFile() throws {
+        let report = manager.buildReport(
+            sessions: [TestData.session(day: 1)],
+            settings: settings,
+            range: .all,
+            language: .english
+        )
+
+        let url = try manager.export(report: report, format: .pdf, language: .english)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        XCTAssertEqual(url.pathExtension, "pdf")
+        let data = try Data(contentsOf: url)
+        XCTAssertFalse(data.isEmpty)
+        XCTAssertTrue(data.starts(with: Data("%PDF".utf8)))
+    }
+
+    func testExportLanguagePhoneResolvesToDeviceLanguage() {
+        XCTAssertEqual(ExportLanguage.phone.resolvedLanguage, AppLocale.current)
+        XCTAssertEqual(ExportLanguage.arabic.resolvedLocale.language.languageCode?.identifier, "ar")
+        XCTAssertEqual(ExportLanguage.hebrew.resolvedLocale.language.languageCode?.identifier, "he")
+        XCTAssertEqual(ExportLanguage.english.resolvedLocale.language.languageCode?.identifier, "en")
     }
 }

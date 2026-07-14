@@ -8,8 +8,10 @@ struct HoursTrackerApp: App {
     var body: some Scene {
         WindowGroup {
             MainTabView(viewModel: viewModel)
+                .keyboardDismissible()
                 .onAppear {
                     viewModel.syncNow()
+                    KeyboardTapDismissInstaller.shared.installIfNeeded()
                 }
                 .onChange(of: scenePhase) { _, phase in
                     if phase == .active {

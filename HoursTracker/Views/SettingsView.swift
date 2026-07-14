@@ -6,6 +6,8 @@ struct SettingsView: View {
 
     @State private var draft: WorkplaceSettings
     @State private var locationStatus: String = ""
+    @State private var showDeleteAllConfirm = false
+    @State private var showArrivalExplainer = false
 
     private let syncDateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -30,7 +32,11 @@ struct SettingsView: View {
                 taxSection
                 locationSection
                 syncSection
+                toolsSection
+                aboutSection
             }
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDismissible()
             .navigationTitle(L10n.settingsTitle)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
@@ -41,6 +47,27 @@ struct SettingsView: View {
             }
             .onAppear {
                 draft = viewModel.settings
+            }
+            .confirmationDialog(
+                L10n.privacyDeleteAllConfirm,
+                isPresented: $showDeleteAllConfirm,
+                titleVisibility: .visible
+            ) {
+                Button(L10n.privacyDeleteAll, role: .destructive) {
+                    viewModel.deleteAllUserData()
+                    draft = viewModel.settings
+                }
+                Button(L10n.editCancel, role: .cancel) {}
+            }
+            .alert(L10n.settingsArrivalTitle, isPresented: $showArrivalExplainer) {
+                Button(L10n.settingsArrivalContinue) {
+                    draft.arrivalRemindersEnabled = true
+                }
+                Button(L10n.editCancel, role: .cancel) {
+                    draft.arrivalRemindersEnabled = false
+                }
+            } message: {
+                Text(L10n.settingsArrivalBody)
             }
         }
     }
@@ -222,7 +249,27 @@ struct SettingsView: View {
     }
 
     private var locationSection: some View {
-        Section(L10n.settingsLocationReminders) {
+        Section {
+            Toggle(L10n.settingsArrivalReminders, isOn: Binding(
+                get: { draft.arrivalRemindersEnabled },
+                set: { newValue in
+                    if newValue {
+                        if draft.hasWorkplaceLocation {
+                            showArrivalExplainer = true
+                        } else {
+                            locationStatus = L10n.settingsArrivalNeedLocation
+                            draft.arrivalRemindersEnabled = false
+                        }
+                    } else {
+                        draft.arrivalRemindersEnabled = false
+                    }
+                }
+            ))
+
+            Text(L10n.settingsArrivalHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
             HStack {
                 Text(L10n.settingsGeofenceRadius)
                 Spacer()
@@ -259,11 +306,13 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.green)
             }
+        } header: {
+            Text(L10n.settingsLocationReminders)
         }
     }
 
     private var syncSection: some View {
-        Section(L10n.syncSection) {
+        Section {
             HStack {
                 Image(systemName: syncIcon)
                     .foregroundStyle(syncColor)
@@ -272,13 +321,61 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
 
-            Button {
-                viewModel.syncNow()
-            } label: {
-                Label(L10n.syncNow, systemImage: "icloud.and.arrow.up")
+            if case .unavailable = viewModel.syncState {
+                Text(L10n.syncUnavailableHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            } else {
+                Button {
+                    viewModel.syncNow()
+                } label: {
+                    Label(L10n.syncNow, systemImage: "icloud.and.arrow.up")
+                }
+                .disabled(viewModel.isSyncing)
             }
-            .disabled(viewModel.isSyncing)
+        } header: {
+            Text(L10n.syncSection)
         }
+    }
+
+    private var toolsSection: some View {
+        Section(L10n.settingsTools) {
+            NavigationLink {
+                ActivityLogView()
+            } label: {
+                Label(L10n.logTitle, systemImage: "list.bullet.rectangle")
+            }
+        }
+    }
+
+    private var aboutSection: some View {
+        Section(L10n.settingsAbout) {
+            LabeledContent(L10n.settingsVersion, value: appVersionString)
+
+            NavigationLink {
+                PrivacyPolicyView()
+            } label: {
+                Label(L10n.privacyTitle, systemImage: "hand.raised.fill")
+            }
+
+            if let mailURL = URL(string: "mailto:support@hourstracker.app") {
+                Link(destination: mailURL) {
+                    Label(L10n.settingsSupport, systemImage: "envelope")
+                }
+            }
+
+            Button(role: .destructive) {
+                showDeleteAllConfirm = true
+            } label: {
+                Label(L10n.privacyDeleteAll, systemImage: "trash")
+            }
+        }
+    }
+
+    private var appVersionString: String {
+        let short = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "1"
+        return "\(short) (\(build))"
     }
 
     private var syncIcon: String {

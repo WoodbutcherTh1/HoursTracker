@@ -31,7 +31,6 @@ final class AppViewModel: ObservableObject {
         self.store = store
         self.locationManager = locationManager
         load()
-        self.locationManager.requestPermissions()
         refreshReminders()
     }
 
@@ -76,6 +75,12 @@ final class AppViewModel: ObservableObject {
         sessions.append(session)
         persist()
         refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventClockIn,
+            level: .success,
+            category: "clock",
+            details: ISO8601DateFormatter().string(from: now)
+        )
     }
 
     func clockOut() {
@@ -103,6 +108,12 @@ final class AppViewModel: ObservableObject {
         showDaySummary = true
         persist()
         refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventClockOut,
+            level: .success,
+            category: "clock",
+            details: String(format: "%.2fh", sessions[index].totalHours)
+        )
     }
 
     func dismissDaySummary() {
@@ -125,22 +136,28 @@ final class AppViewModel: ObservableObject {
         let hasExisting = sessions.contains { Calendar.current.isDate($0.date, inSameDayAs: day) }
         guard !hasExisting else { return }
 
+        let resolved = WorkSession.resolveClockPair(clockIn: clockIn, clockOut: clockOut)
         let session = WorkSession(
             date: day,
-            clockIn: clockIn,
-            clockOut: clockOut,
+            clockIn: resolved.clockIn,
+            clockOut: resolved.clockOut,
             isManualEntry: true,
             breakMinutes: breakMinutes,
             dayType: dayType ?? DayType.automatic(for: day, settings: settings),
-            isNightShift: isNightShift ?? WorkSession.qualifiesAsNightShift(clockIn: clockIn, clockOut: clockOut),
+            isNightShift: isNightShift
+                ?? WorkSession.qualifiesAsNightShift(clockIn: resolved.clockIn, clockOut: resolved.clockOut),
             notes: notes
         )
         sessions.append(session)
         persist()
         refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventManualEntry,
+            level: .success,
+            category: "session",
+            details: day.formatted(date: .abbreviated, time: .omitted)
+        )
     }
-
-    /// Thread-safe on MainActor: import selected drafts, optionally overwriting existing days.
     func importScannedSessions(
         _ drafts: [ScannedSessionDraft],
         overwriteDays: Set<Date> = []
@@ -150,7 +167,8 @@ final class AppViewModel: ObservableObject {
         let overwriteKeys = Set(overwriteDays.map { calendar.startOfDay(for: $0).timeIntervalSince1970 })
 
         for draft in drafts where draft.isSelected {
-            guard draft.clockOut > draft.clockIn else { continue }
+            let resolved = WorkSession.resolveClockPair(clockIn: draft.clockIn, clockOut: draft.clockOut)
+            guard resolved.clockOut > resolved.clockIn else { continue }
             let day = calendar.startOfDay(for: draft.date)
             let key = day.timeIntervalSince1970
             let existing = sessions.filter { calendar.isDate($0.date, inSameDayAs: day) }
@@ -162,15 +180,24 @@ final class AppViewModel: ObservableObject {
 
             var session = draft.toWorkSession()
             session.date = day
+            session.clockIn = resolved.clockIn
+            session.clockOut = resolved.clockOut
             session.dayType = DayType.automatic(for: day, settings: settings)
-            if let clockOut = session.clockOut {
-                session.isNightShift = WorkSession.qualifiesAsNightShift(clockIn: session.clockIn, clockOut: clockOut)
-            }
+            session.isNightShift = WorkSession.qualifiesAsNightShift(
+                clockIn: resolved.clockIn,
+                clockOut: resolved.clockOut
+            )
             sessions.append(session)
         }
 
         persist()
         refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventImport(drafts.filter(\.isSelected).count),
+            level: .success,
+            category: "import",
+            details: overwriteDays.isEmpty ? nil : L10n.logEventImportOverwrite(overwriteDays.count)
+        )
     }
 
     func existingCompletedSession(on day: Date) -> WorkSession? {
@@ -205,28 +232,47 @@ final class AppViewModel: ObservableObject {
         isNightShift: Bool? = nil
     ) {
         guard let index = sessions.firstIndex(where: { $0.id == session.id }) else { return }
-        sessions[index].clockIn = clockIn
-        sessions[index].clockOut = clockOut
+        if let clockOut {
+            let resolved = WorkSession.resolveClockPair(clockIn: clockIn, clockOut: clockOut)
+            sessions[index].clockIn = resolved.clockIn
+            sessions[index].clockOut = resolved.clockOut
+            sessions[index].date = Calendar.current.startOfDay(for: resolved.clockIn)
+            sessions[index].isNightShift = isNightShift
+                ?? WorkSession.qualifiesAsNightShift(clockIn: resolved.clockIn, clockOut: resolved.clockOut)
+        } else {
+            sessions[index].clockIn = clockIn
+            sessions[index].clockOut = nil
+            sessions[index].date = Calendar.current.startOfDay(for: clockIn)
+            if let isNightShift {
+                sessions[index].isNightShift = isNightShift
+            }
+        }
         sessions[index].notes = notes
-        sessions[index].date = Calendar.current.startOfDay(for: clockIn)
         if let breakMinutes {
             sessions[index].breakMinutes = max(0, breakMinutes)
         }
         if let dayType {
             sessions[index].dayType = dayType
         }
-        if let isNightShift {
-            sessions[index].isNightShift = isNightShift
-        }
         sessions[index].touch()
         persist()
         refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventSessionUpdated,
+            level: .info,
+            category: "session"
+        )
     }
 
     func deleteSession(_ session: WorkSession) {
         sessions.removeAll { $0.id == session.id }
         persist()
         refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventSessionDeleted,
+            level: .warning,
+            category: "session"
+        )
     }
 
     // MARK: - Settings
@@ -234,9 +280,48 @@ final class AppViewModel: ObservableObject {
     func saveSettings(_ newSettings: WorkplaceSettings) {
         var updated = newSettings
         updated.modifiedAt = Date()
+        let remindersJustEnabled = updated.arrivalRemindersEnabled && !settings.arrivalRemindersEnabled
+        let remindersJustDisabled = !updated.arrivalRemindersEnabled && settings.arrivalRemindersEnabled
         settings = updated
         persistSettings()
+        if remindersJustEnabled {
+            locationManager.requestArrivalReminderPermissions()
+            ActivityLogStore.shared.log(
+                L10n.logEventRemindersOn,
+                level: .info,
+                category: "location"
+            )
+        }
+        if remindersJustDisabled {
+            locationManager.stopArrivalReminders()
+            ActivityLogStore.shared.log(
+                L10n.logEventRemindersOff,
+                level: .info,
+                category: "location"
+            )
+        }
         refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventSettingsSaved,
+            level: .info,
+            category: "settings"
+        )
+    }
+
+    /// Erases all sessions and resets settings on this device (Guideline 5.1.1 data control).
+    func deleteAllUserData() {
+        sessions = []
+        settings = .default
+        persist()
+        persistSettings()
+        locationManager.stopArrivalReminders()
+        refreshReminders()
+        ActivityLogStore.shared.wipeForPrivacy()
+        ActivityLogStore.shared.log(
+            L10n.logEventDataDeleted,
+            level: .warning,
+            category: "privacy"
+        )
     }
 
     func captureCurrentLocation() {
@@ -259,6 +344,12 @@ final class AppViewModel: ObservableObject {
             radius: settings.locationRadiusMeters
         )
         refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventLocationSet,
+            level: .success,
+            category: "location",
+            details: String(format: "%.5f, %.5f", location.coordinate.latitude, location.coordinate.longitude)
+        )
     }
 
     // MARK: - Sync
@@ -295,9 +386,25 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Export
 
-    func export(range: ExportDateRange, format: ExportFormat) throws -> URL {
-        let report = exportManager.buildReport(sessions: sessions, settings: settings, range: range)
-        return try exportManager.export(report: report, format: format)
+    func export(
+        range: ExportDateRange,
+        format: ExportFormat,
+        language: ExportLanguage = .phone
+    ) throws -> URL {
+        let report = exportManager.buildReport(
+            sessions: sessions,
+            settings: settings,
+            range: range,
+            language: language
+        )
+        let url = try exportManager.export(report: report, format: format, language: language)
+        ActivityLogStore.shared.log(
+            L10n.logEventExport,
+            level: .success,
+            category: "export",
+            details: "\(format.fileExtension) / \(String(describing: language))"
+        )
+        return url
     }
 
     // MARK: - Private

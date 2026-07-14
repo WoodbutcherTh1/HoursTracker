@@ -4,7 +4,9 @@ import UserNotifications
 
 protocol LocationReminderManaging: AnyObject {
     func configure(settings: WorkplaceSettings, sessions: [WorkSession])
-    func requestPermissions()
+    /// Request Always location + notifications only after the user opts into arrival reminders.
+    func requestArrivalReminderPermissions()
+    func stopArrivalReminders()
     func updateWorkplaceLocation(latitude: Double, longitude: Double, radius: Double)
 }
 
@@ -32,28 +34,51 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
     func configure(settings: WorkplaceSettings, sessions: [WorkSession]) {
         self.settings = settings
         self.sessions = sessions
-        setupGeofence()
+        if settings.arrivalRemindersEnabled {
+            setupGeofence()
+        } else {
+            clearGeofence()
+        }
         scheduleClockOutReminder()
         scheduleForgotClockOutReminder()
     }
 
-    func requestPermissions() {
+    func requestArrivalReminderPermissions() {
         notificationCenter.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
         locationManager.requestAlwaysAuthorization()
+    }
+
+    func stopArrivalReminders() {
+        clearGeofence()
+        locationManager.allowsBackgroundLocationUpdates = false
     }
 
     func updateWorkplaceLocation(latitude: Double, longitude: Double, radius: Double) {
         settings.locationLatitude = latitude
         settings.locationLongitude = longitude
         settings.locationRadiusMeters = radius
-        setupGeofence()
+        if settings.arrivalRemindersEnabled {
+            setupGeofence()
+        }
     }
 
     // MARK: - Geofence
 
+    private func clearGeofence() {
+        if let existing = workplaceRegion {
+            locationManager.stopMonitoring(for: existing)
+            workplaceRegion = nil
+        }
+        locationManager.stopMonitoringSignificantLocationChanges()
+    }
+
     private func setupGeofence() {
-        guard let lat = settings.locationLatitude,
-              let lon = settings.locationLongitude else { return }
+        guard settings.arrivalRemindersEnabled,
+              let lat = settings.locationLatitude,
+              let lon = settings.locationLongitude else {
+            clearGeofence()
+            return
+        }
 
         if let existing = workplaceRegion {
             locationManager.stopMonitoring(for: existing)

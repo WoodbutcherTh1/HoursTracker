@@ -18,22 +18,26 @@
 	</array>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
+	<key>CFBundleDisplayName</key>
+	<string>HourTrackers</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>7</string>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<key>NSCameraUsageDescription</key>
-	<string>Hours Tracker needs camera access to photograph printed timesheets for import.</string>
+	<string>HourTrackers uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>Hours Tracker needs photo library access to import timesheet screenshots and images.</string>
+	<string>HourTrackers needs photo access only to import a timesheet screenshot or image you choose.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Hours Tracker needs your location to remind you to clock in when you arrive at work and to monitor your workplace geofence.</string>
+	<string>Background location is used only to remind you to clock in when you arrive at the workplace you saved. We do not continuously track you.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Hours Tracker needs background location access to detect when you enter your workplace.</string>
+	<string>Always location is used only for workplace arrival reminders. You can turn arrival reminders off anytime in Settings.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>Hours Tracker needs your location to set your workplace and send arrival reminders.</string>
+	<string>HourTrackers uses your location while using the app only to save your workplace when you tap Set Location.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

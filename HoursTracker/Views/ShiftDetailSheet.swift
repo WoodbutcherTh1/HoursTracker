@@ -258,6 +258,7 @@ struct EditSessionView: View {
             }
             .navigationTitle(L10n.editTitle)
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDismissible()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n.editCancel) { dismiss() }
@@ -275,9 +276,16 @@ struct EditSessionView: View {
                         )
                         dismiss()
                     }
-                    .disabled(clockOut <= clockIn)
+                    .disabled(sameClockTimes)
                 }
             }
         }
+    }
+
+    private var sameClockTimes: Bool {
+        let calendar = Calendar.current
+        let inParts = calendar.dateComponents([.hour, .minute], from: clockIn)
+        let outParts = calendar.dateComponents([.hour, .minute], from: clockOut)
+        return inParts.hour == outParts.hour && inParts.minute == outParts.minute
     }
 }

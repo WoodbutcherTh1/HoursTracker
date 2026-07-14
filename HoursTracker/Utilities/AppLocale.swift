@@ -5,6 +5,15 @@ enum AppLocale {
         case arabic
         case hebrew
         case english
+
+        /// Display name in the current app UI language (for “phone language is X”).
+        var localizedDisplayName: String {
+            switch self {
+            case .arabic: return L10n.languageNameArabic
+            case .hebrew: return L10n.languageNameHebrew
+            case .english: return L10n.languageNameEnglish
+            }
+        }
     }
 
     static var current: Language {
