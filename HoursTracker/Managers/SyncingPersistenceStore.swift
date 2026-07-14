@@ -15,10 +15,10 @@ final class SyncingPersistenceStore: SyncingStore {
 
     init(
         local: PersistableStore = PersistenceManager.shared,
-        cloud: CloudSyncing = CloudKitSyncManager.shared
+        cloud: CloudSyncing? = nil
     ) {
         self.local = local
-        self.cloud = cloud
+        self.cloud = cloud ?? NoOpCloudSyncManager.shared
     }
 
     func loadSessions() -> [WorkSession] {
