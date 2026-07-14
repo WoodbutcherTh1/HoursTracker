@@ -1,0 +1,48 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "CFBundleDisplayName" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "متتبع الساعات" } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Hours Tracker" } },
+        "he" : { "stringUnit" : { "state" : "translated", "value" : "מעקב שעות" } }
+      }
+    },
+    "NSCameraUsageDescription" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "نحتاج الكاميرا لتصوير جدول ساعات مطبوع واستيراد أوقات الدخول والخروج." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Hours Tracker uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times." } },
+        "he" : { "stringUnit" : { "state" : "translated", "value" : "האפליקציה משתמשת במצלמה רק כדי לצלם דוח שעות מודפס ולייבא שעות כניסה ויציאה." } }
+      }
+    },
+    "NSPhotoLibraryUsageDescription" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "نحتاج الوصول للصور لاستيراد لقطة شاشة أو صورة لجدول الساعات." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Hours Tracker needs photo access only to import a timesheet screenshot or image you choose." } },
+        "he" : { "stringUnit" : { "state" : "translated", "value" : "האפליקציה צריכה גישה לתמונות רק כדי לייבא צילום מסך או תמונה של דוח שעות שתבחר." } }
+      }
+    },
+    "NSLocationWhenInUseUsageDescription" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "نستخدم موقعك أثناء الاستخدام فقط لحفظ مكان عملك عندما تضغط «تعيين الموقع»." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Hours Tracker uses your location while using the app only to save your workplace when you tap Set Location." } },
+        "he" : { "stringUnit" : { "state" : "translated", "value" : "האפליקציה משתמשת במיקום בזמן השימוש רק כדי לשמור את מקום העבודה כשתלחץ על הגדרת מיקום." } }
+      }
+    },
+    "NSLocationAlwaysAndWhenInUseUsageDescription" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "نحتاج الموقع في الخلفية فقط لتذكيرك بتسجيل الدخول عند وصولك لمكان العمل الذي اخترته. لا نتتبعك باستمرار." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Background location is used only to remind you to clock in when you arrive at the workplace you saved. We do not continuously track you." } },
+        "he" : { "stringUnit" : { "state" : "translated", "value" : "מיקום ברקע משמש רק כדי להזכיר לך להחתים כניסה כשאתה מגיע למקום העבודה ששמרת. אין מעקב רציף." } }
+      }
+    },
+    "NSLocationAlwaysUsageDescription" : {
+      "localizations" : {
+        "ar" : { "stringUnit" : { "state" : "translated", "value" : "نحتاج الموقع دائماً فقط لتذكير الوصول لمكان العمل. يمكن إيقاف تذكيرات الوصول من الإعدادات في أي وقت." } },
+        "en" : { "stringUnit" : { "state" : "translated", "value" : "Always location is used only for workplace arrival reminders. You can turn arrival reminders off anytime in Settings." } },
+        "he" : { "stringUnit" : { "state" : "translated", "value" : "מיקום תמיד משמש רק לתזכורות הגעה למקום העבודה. אפשר לכבות תזכורות הגעה בכל עת בהגדרות." } }
+      }
+    }
+  },
+  "version" : "1.0"
+}

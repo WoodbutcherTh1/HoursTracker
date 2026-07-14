@@ -31,7 +31,6 @@ final class AppViewModel: ObservableObject {
         self.store = store
         self.locationManager = locationManager
         load()
-        self.locationManager.requestPermissions()
         refreshReminders()
     }
 
@@ -76,6 +75,12 @@ final class AppViewModel: ObservableObject {
         sessions.append(session)
         persist()
         refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventClockIn,
+            level: .success,
+            category: "clock",
+            details: ISO8601DateFormatter().string(from: now)
+        )
     }
 
     func clockOut() {
@@ -103,6 +108,12 @@ final class AppViewModel: ObservableObject {
         showDaySummary = true
         persist()
         refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventClockOut,
+            level: .success,
+            category: "clock",
+            details: String(format: "%.2fh", sessions[index].totalHours)
+        )
     }
 
     func dismissDaySummary() {
@@ -140,9 +151,13 @@ final class AppViewModel: ObservableObject {
         sessions.append(session)
         persist()
         refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventManualEntry,
+            level: .success,
+            category: "session",
+            details: day.formatted(date: .abbreviated, time: .omitted)
+        )
     }
-
-    /// Thread-safe on MainActor: import selected drafts, optionally overwriting existing days.
     func importScannedSessions(
         _ drafts: [ScannedSessionDraft],
         overwriteDays: Set<Date> = []
@@ -177,6 +192,12 @@ final class AppViewModel: ObservableObject {
 
         persist()
         refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventImport(drafts.filter(\.isSelected).count),
+            level: .success,
+            category: "import",
+            details: overwriteDays.isEmpty ? nil : L10n.logEventImportOverwrite(overwriteDays.count)
+        )
     }
 
     func existingCompletedSession(on day: Date) -> WorkSession? {
@@ -236,12 +257,22 @@ final class AppViewModel: ObservableObject {
         sessions[index].touch()
         persist()
         refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventSessionUpdated,
+            level: .info,
+            category: "session"
+        )
     }
 
     func deleteSession(_ session: WorkSession) {
         sessions.removeAll { $0.id == session.id }
         persist()
         refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventSessionDeleted,
+            level: .warning,
+            category: "session"
+        )
     }
 
     // MARK: - Settings
@@ -249,9 +280,48 @@ final class AppViewModel: ObservableObject {
     func saveSettings(_ newSettings: WorkplaceSettings) {
         var updated = newSettings
         updated.modifiedAt = Date()
+        let remindersJustEnabled = updated.arrivalRemindersEnabled && !settings.arrivalRemindersEnabled
+        let remindersJustDisabled = !updated.arrivalRemindersEnabled && settings.arrivalRemindersEnabled
         settings = updated
         persistSettings()
+        if remindersJustEnabled {
+            locationManager.requestArrivalReminderPermissions()
+            ActivityLogStore.shared.log(
+                L10n.logEventRemindersOn,
+                level: .info,
+                category: "location"
+            )
+        }
+        if remindersJustDisabled {
+            locationManager.stopArrivalReminders()
+            ActivityLogStore.shared.log(
+                L10n.logEventRemindersOff,
+                level: .info,
+                category: "location"
+            )
+        }
         refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventSettingsSaved,
+            level: .info,
+            category: "settings"
+        )
+    }
+
+    /// Erases all sessions and resets settings on this device (Guideline 5.1.1 data control).
+    func deleteAllUserData() {
+        sessions = []
+        settings = .default
+        persist()
+        persistSettings()
+        locationManager.stopArrivalReminders()
+        refreshReminders()
+        ActivityLogStore.shared.wipeForPrivacy()
+        ActivityLogStore.shared.log(
+            L10n.logEventDataDeleted,
+            level: .warning,
+            category: "privacy"
+        )
     }
 
     func captureCurrentLocation() {
@@ -274,6 +344,12 @@ final class AppViewModel: ObservableObject {
             radius: settings.locationRadiusMeters
         )
         refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventLocationSet,
+            level: .success,
+            category: "location",
+            details: String(format: "%.5f, %.5f", location.coordinate.latitude, location.coordinate.longitude)
+        )
     }
 
     // MARK: - Sync
@@ -321,7 +397,14 @@ final class AppViewModel: ObservableObject {
             range: range,
             language: language
         )
-        return try exportManager.export(report: report, format: format, language: language)
+        let url = try exportManager.export(report: report, format: format, language: language)
+        ActivityLogStore.shared.log(
+            L10n.logEventExport,
+            level: .success,
+            category: "export",
+            details: "\(format.fileExtension) / \(String(describing: language))"
+        )
+        return url
     }
 
     // MARK: - Private

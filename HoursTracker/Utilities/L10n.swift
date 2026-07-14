@@ -98,6 +98,16 @@ enum L10n {
     static var settingsSetLocation: String { String(localized: "settings.setLocation") }
     static var settingsLocationUpdated: String { String(localized: "settings.locationUpdated") }
     static var settingsRequestingLocation: String { String(localized: "settings.requestingLocation") }
+    static var settingsArrivalReminders: String { String(localized: "settings.arrivalReminders") }
+    static var settingsArrivalHint: String { String(localized: "settings.arrivalHint") }
+    static var settingsArrivalNeedLocation: String { String(localized: "settings.arrivalNeedLocation") }
+    static var settingsArrivalTitle: String { String(localized: "settings.arrivalTitle") }
+    static var settingsArrivalBody: String { String(localized: "settings.arrivalBody") }
+    static var settingsArrivalContinue: String { String(localized: "settings.arrivalContinue") }
+    static var settingsTools: String { String(localized: "settings.tools") }
+    static var settingsAbout: String { String(localized: "settings.about") }
+    static var settingsVersion: String { String(localized: "settings.version") }
+    static var settingsSupport: String { String(localized: "settings.support") }
 
     // Sync
     static var syncSection: String { String(localized: "sync.section") }
@@ -105,6 +115,7 @@ enum L10n {
     static var syncSyncing: String { String(localized: "sync.syncing") }
     static var syncSynced: String { String(localized: "sync.synced") }
     static var syncUnavailable: String { String(localized: "sync.unavailable") }
+    static var syncUnavailableHint: String { String(localized: "sync.unavailableHint") }
     static func syncFailed(_ message: String) -> String {
         String(format: String(localized: "sync.failed %@"), message)
     }
@@ -206,6 +217,58 @@ enum L10n {
     static var errorOK: String { String(localized: "error.ok") }
 
     static var keyboardDone: String { String(localized: "keyboard.done") }
+
+    // Privacy
+    static var privacyTitle: String { String(localized: "privacy.title") }
+    static var privacyUpdated: String { String(localized: "privacy.updated") }
+    static var privacySectionData: String { String(localized: "privacy.section.data") }
+    static var privacyBodyData: String { String(localized: "privacy.body.data") }
+    static var privacySectionLocation: String { String(localized: "privacy.section.location") }
+    static var privacyBodyLocation: String { String(localized: "privacy.body.location") }
+    static var privacySectionCamera: String { String(localized: "privacy.section.camera") }
+    static var privacyBodyCamera: String { String(localized: "privacy.body.camera") }
+    static var privacySectionTracking: String { String(localized: "privacy.section.tracking") }
+    static var privacyBodyTracking: String { String(localized: "privacy.body.tracking") }
+    static var privacySectionControls: String { String(localized: "privacy.section.controls") }
+    static var privacyBodyControls: String { String(localized: "privacy.body.controls") }
+    static var privacySectionContact: String { String(localized: "privacy.section.contact") }
+    static var privacyBodyContact: String { String(localized: "privacy.body.contact") }
+    static var privacyDeleteAll: String { String(localized: "privacy.deleteAll") }
+    static var privacyDeleteAllConfirm: String { String(localized: "privacy.deleteAllConfirm") }
+
+    // Activity log
+    static var logTitle: String { String(localized: "log.title") }
+    static var logActions: String { String(localized: "log.actions") }
+    static var logEntries: String { String(localized: "log.entries") }
+    static var logEmpty: String { String(localized: "log.empty") }
+    static var logExport: String { String(localized: "log.export") }
+    static var logExportFormat: String { String(localized: "log.exportFormat") }
+    static var logExportHint: String { String(localized: "log.exportHint") }
+    static var logClear: String { String(localized: "log.clear") }
+    static var logClearConfirm: String { String(localized: "log.clearConfirm") }
+    static var logClearedMessage: String { String(localized: "log.clearedMessage") }
+    static var logFormatTXT: String { String(localized: "log.format.txt") }
+    static var logFormatJSON: String { String(localized: "log.format.json") }
+    static var logFormatCSV: String { String(localized: "log.format.csv") }
+    static var logFormatMarkdown: String { String(localized: "log.format.markdown") }
+    static var logEventClockIn: String { String(localized: "log.event.clockIn") }
+    static var logEventClockOut: String { String(localized: "log.event.clockOut") }
+    static var logEventManualEntry: String { String(localized: "log.event.manualEntry") }
+    static func logEventImport(_ count: Int) -> String {
+        String(format: String(localized: "log.event.import %lld"), count)
+    }
+    static func logEventImportOverwrite(_ count: Int) -> String {
+        String(format: String(localized: "log.event.importOverwrite %lld"), count)
+    }
+    static var logEventSessionUpdated: String { String(localized: "log.event.sessionUpdated") }
+    static var logEventSessionDeleted: String { String(localized: "log.event.sessionDeleted") }
+    static var logEventRemindersOn: String { String(localized: "log.event.remindersOn") }
+    static var logEventRemindersOff: String { String(localized: "log.event.remindersOff") }
+    static var logEventSettingsSaved: String { String(localized: "log.event.settingsSaved") }
+    static var logEventDataDeleted: String { String(localized: "log.event.dataDeleted") }
+    static var logEventLocationSet: String { String(localized: "log.event.locationSet") }
+    static var logEventExport: String { String(localized: "log.event.export") }
+    static var logEventLogExported: String { String(localized: "log.event.logExported") }
 
     // Common
     static func hoursShort(_ hours: Double) -> String {

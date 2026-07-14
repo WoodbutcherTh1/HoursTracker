@@ -27,10 +27,12 @@ struct WorkplaceSettings: Codable, Equatable {
     var nightStandardDayHours: Double
     /// ISO 4217 currency code used for all pay display.
     var currencyCode: String
+    /// User opted into workplace arrival reminders (requires Always location).
+    var arrivalRemindersEnabled: Bool
     var modifiedAt: Date
 
     static let `default` = WorkplaceSettings(
-        workplaceName: "Kahana",
+        workplaceName: "",
         contractorName: nil,
         workerFullName: "",
         workerIDNumber: "",
@@ -51,6 +53,7 @@ struct WorkplaceSettings: Codable, Equatable {
         defaultBreakMinutes: 0,
         nightStandardDayHours: 7.0,
         currencyCode: "ILS",
+        arrivalRemindersEnabled: false,
         modifiedAt: Date()
     )
 
@@ -68,6 +71,7 @@ struct WorkplaceSettings: Codable, Equatable {
         case locationLatitude, locationLongitude, locationRadiusMeters
         case maritalStatus, hasChildren, numberOfChildren, spouseEmployed, payrollStartDay
         case restDayWeekday, defaultBreakMinutes, nightStandardDayHours, currencyCode
+        case arrivalRemindersEnabled
         case modifiedAt
     }
 
@@ -93,6 +97,7 @@ struct WorkplaceSettings: Codable, Equatable {
         defaultBreakMinutes: Int = 0,
         nightStandardDayHours: Double = 7.0,
         currencyCode: String = "ILS",
+        arrivalRemindersEnabled: Bool = false,
         modifiedAt: Date
     ) {
         self.workplaceName = workplaceName
@@ -116,6 +121,7 @@ struct WorkplaceSettings: Codable, Equatable {
         self.defaultBreakMinutes = max(0, defaultBreakMinutes)
         self.nightStandardDayHours = nightStandardDayHours
         self.currencyCode = currencyCode
+        self.arrivalRemindersEnabled = arrivalRemindersEnabled
         self.modifiedAt = modifiedAt
     }
 
@@ -144,6 +150,7 @@ struct WorkplaceSettings: Codable, Equatable {
         defaultBreakMinutes = max(0, try c.decodeIfPresent(Int.self, forKey: .defaultBreakMinutes) ?? 0)
         nightStandardDayHours = try c.decodeIfPresent(Double.self, forKey: .nightStandardDayHours) ?? 7.0
         currencyCode = try c.decodeIfPresent(String.self, forKey: .currencyCode) ?? "ILS"
+        arrivalRemindersEnabled = try c.decodeIfPresent(Bool.self, forKey: .arrivalRemindersEnabled) ?? false
         modifiedAt = try c.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? Date()
     }
 }

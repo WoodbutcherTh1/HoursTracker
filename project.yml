@@ -40,11 +40,12 @@ targets:
         UILaunchScreen: {}
         UIBackgroundModes:
           - location
-        NSLocationAlwaysAndWhenInUseUsageDescription: "Hours Tracker needs your location to remind you to clock in when you arrive at work and to monitor your workplace geofence."
-        NSLocationWhenInUseUsageDescription: "Hours Tracker needs your location to set your workplace and send arrival reminders."
-        NSLocationAlwaysUsageDescription: "Hours Tracker needs background location access to detect when you enter your workplace."
-        NSCameraUsageDescription: "Hours Tracker needs camera access to photograph printed timesheets for import."
-        NSPhotoLibraryUsageDescription: "Hours Tracker needs photo library access to import timesheet screenshots and images."
+        NSLocationAlwaysAndWhenInUseUsageDescription: "Background location is used only to remind you to clock in when you arrive at the workplace you saved. We do not continuously track you."
+        NSLocationWhenInUseUsageDescription: "Hours Tracker uses your location while using the app only to save your workplace when you tap Set Location."
+        NSLocationAlwaysUsageDescription: "Always location is used only for workplace arrival reminders. You can turn arrival reminders off anytime in Settings."
+        NSCameraUsageDescription: "Hours Tracker uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times."
+        NSPhotoLibraryUsageDescription: "Hours Tracker needs photo access only to import a timesheet screenshot or image you choose."
+        ITSAppUsesNonExemptEncryption: false
         CFBundleLocalizations:
           - en
           - ar

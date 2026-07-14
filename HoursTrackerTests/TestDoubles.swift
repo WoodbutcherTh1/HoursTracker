@@ -33,13 +33,21 @@ final class InMemoryStore: SyncingStore {
 final class MockLocationReminderManager: LocationReminderManaging {
     private(set) var configureCallCount = 0
     private(set) var lastConfiguredSessions: [WorkSession] = []
+    private(set) var arrivalPermissionRequests = 0
+    private(set) var stopReminderCalls = 0
 
     func configure(settings: WorkplaceSettings, sessions: [WorkSession]) {
         configureCallCount += 1
         lastConfiguredSessions = sessions
     }
 
-    func requestPermissions() {}
+    func requestArrivalReminderPermissions() {
+        arrivalPermissionRequests += 1
+    }
+
+    func stopArrivalReminders() {
+        stopReminderCalls += 1
+    }
 
     func updateWorkplaceLocation(latitude: Double, longitude: Double, radius: Double) {}
 }
