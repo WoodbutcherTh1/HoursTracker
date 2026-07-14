@@ -483,6 +483,7 @@ struct ScannedDraftEditor: View {
             }
             .navigationTitle(String(localized: "scanner.editRow", defaultValue: "Edit Day"))
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDismissible()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(String(localized: "edit.cancel", defaultValue: "Cancel")) { dismiss() }

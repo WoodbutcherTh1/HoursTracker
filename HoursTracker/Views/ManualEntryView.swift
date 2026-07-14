@@ -66,6 +66,7 @@ struct ManualEntryView: View {
         }
         .navigationTitle(L10n.manualTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .keyboardDismissible()
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button(L10n.editSave) {

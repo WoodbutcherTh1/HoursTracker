@@ -187,6 +187,8 @@ enum L10n {
     static var errorSaveFailed: String { String(localized: "error.saveFailed") }
     static var errorOK: String { String(localized: "error.ok") }
 
+    static var keyboardDone: String { String(localized: "keyboard.done") }
+
     // Common
     static func hoursShort(_ hours: Double) -> String {
         String(format: String(localized: "common.hoursShort %@"), String(format: "%.1f", hours))

@@ -31,6 +31,7 @@ struct SettingsView: View {
                 locationSection
                 syncSection
             }
+            .scrollDismissesKeyboard(.interactively)
             .navigationTitle(L10n.settingsTitle)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {

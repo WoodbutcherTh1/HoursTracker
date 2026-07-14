@@ -258,6 +258,7 @@ struct EditSessionView: View {
             }
             .navigationTitle(L10n.editTitle)
             .navigationBarTitleDisplayMode(.inline)
+            .keyboardDismissible()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n.editCancel) { dismiss() }
