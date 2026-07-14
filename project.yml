@@ -41,10 +41,10 @@ targets:
         UIBackgroundModes:
           - location
         NSLocationAlwaysAndWhenInUseUsageDescription: "Background location is used only to remind you to clock in when you arrive at the workplace you saved. We do not continuously track you."
-        NSLocationWhenInUseUsageDescription: "Hours Tracker uses your location while using the app only to save your workplace when you tap Set Location."
+        NSLocationWhenInUseUsageDescription: "SaatMark uses your location while using the app only to save your workplace when you tap Set Location."
         NSLocationAlwaysUsageDescription: "Always location is used only for workplace arrival reminders. You can turn arrival reminders off anytime in Settings."
-        NSCameraUsageDescription: "Hours Tracker uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times."
-        NSPhotoLibraryUsageDescription: "Hours Tracker needs photo access only to import a timesheet screenshot or image you choose."
+        NSCameraUsageDescription: "SaatMark uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times."
+        NSPhotoLibraryUsageDescription: "SaatMark needs photo access only to import a timesheet screenshot or image you choose."
         ITSAppUsesNonExemptEncryption: false
         CFBundleLocalizations:
           - en

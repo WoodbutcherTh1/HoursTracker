@@ -1,11 +1,11 @@
-# Privacy Policy — Hours Tracker
+# Privacy Policy — SaatMark
 
 **Last updated:** 14 July 2026
 
-Hours Tracker (“the App”) is a personal work-hours companion for a single worker. This policy explains what data the App stores and how it is used.
+SaatMark (“the App”) is a personal work-hours companion for a single worker. This policy explains what data the App stores and how it is used.
 
 ## Who we are
-Hours Tracker is provided by the app developer for personal timesheet and pay estimation use.
+SaatMark is provided by the app developer for personal timesheet and pay estimation use.
 
 ## Data we store on your device
 The App stores the following on your iPhone/iPad only (unless you later enable iCloud sync):

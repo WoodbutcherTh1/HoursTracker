@@ -1,6 +1,8 @@
 import Foundation
 
 enum L10n {
+    static var brandName: String { String(localized: "app.brandName") }
+
     // Tabs
     static var tabHome: String { String(localized: "tab.home") }
     static var tabHistory: String { String(localized: "tab.history") }

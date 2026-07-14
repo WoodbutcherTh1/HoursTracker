@@ -128,7 +128,7 @@ final class ActivityLogStore: ObservableObject {
 
         let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
         let url = fileManager.temporaryDirectory
-            .appendingPathComponent("HoursTracker-Log-\(stamp).\(format.fileExtension)")
+            .appendingPathComponent("SaatMark-Log-\(stamp).\(format.fileExtension)")
         try data.write(to: url, options: .atomic)
         log(
             L10n.logEventLogExported,
@@ -166,7 +166,7 @@ final class ActivityLogStore: ObservableObject {
     }
 
     private func renderTXT() -> String {
-        var lines = ["Hours Tracker — Activity Log", ""]
+        var lines = ["SaatMark — Activity Log", ""]
         for entry in entries {
             let stamp = stampFormatter.string(from: entry.timestamp)
             var line = "[\(stamp)] [\(entry.level.rawValue.uppercased())] [\(entry.category)] \(entry.message)"
@@ -195,7 +195,7 @@ final class ActivityLogStore: ObservableObject {
 
     private func renderMarkdown() -> String {
         var lines = [
-            "# Hours Tracker — Activity Log",
+            "# SaatMark — Activity Log",
             "",
             "| Time | Level | Category | Message | Details |",
             "| --- | --- | --- | --- | --- |"
