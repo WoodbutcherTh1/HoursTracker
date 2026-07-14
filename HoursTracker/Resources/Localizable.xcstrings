@@ -1622,6 +1622,292 @@
         }
       }
     },
+    "report.col.gross" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إجمالي"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gross"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ברוטו"
+          }
+        }
+      }
+    },
+    "report.col.net" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "صافي"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Net"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "נטו"
+          }
+        }
+      }
+    },
+    "report.legend.title" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "شرح أعمدة الجدول"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Column guide"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מדריך עמודות"
+          }
+        }
+      }
+    },
+    "report.legend.date" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "التاريخ: تاريخ يوم العمل."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Date: The work day date."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "תאריך: תאריך יום העבודה."
+          }
+        }
+      }
+    },
+    "report.legend.in" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "دخول: وقت بداية الوردية (تسجيل الدخول)."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In: Clock-in / shift start time."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "כניסה: שעת תחילת המשמרת."
+          }
+        }
+      }
+    },
+    "report.legend.out" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "خروج: وقت نهاية الوردية (تسجيل الخروج)."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Out: Clock-out / shift end time."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "יציאה: שעת סיום המשמרת."
+          }
+        }
+      }
+    },
+    "report.legend.regular" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "عادي: ساعات العمل العادية المدفوعة بنسبة 100% (أو 150% في يوم الراحة/العيد)."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regular: Base-rate hours (100% on regular days; 150% on rest days/holidays)."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "רגיל: שעות במחיר הבסיס (100% ביום רגיל; 150% ביום מנוחה/חג)."
+          }
+        }
+      }
+    },
+    "report.legend.ot125" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إضافي 125%: ساعات إضافية بالشريحة الأولى (125% في يوم عادي؛ 175% في يوم راحة/عيد)."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "125% OT: First overtime tier (125% regular day; 175% rest day/holiday)."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "125% נוסף: שעות נוספות בשכבה הראשונה (125% ביום רגיל; 175% ביום מנוחה/חג)."
+          }
+        }
+      }
+    },
+    "report.legend.ot150" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إضافي 150%: ساعات إضافية بالشريحة الثانية (150% في يوم عادي؛ 200% في يوم راحة/عيد)."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "150% OT: Second overtime tier (150% regular day; 200% rest day/holiday)."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "150% נוסף: שעות נוספות בשכבה השנייה (150% ביום רגיל; 200% ביום מנוחה/חג)."
+          }
+        }
+      }
+    },
+    "report.legend.gas" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "وقود: بدل الوقود اليومي حسب الإعدادات."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gas: Daily fuel/gas allowance from settings."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "דלק: תוספת דלק יומית לפי ההגדרות."
+          }
+        }
+      }
+    },
+    "report.legend.gross" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إجمالي: الأجر اليومي الإجمالي (بروطو) قبل الخصومات — يشمل الساعات العادية والإضافي وبدل الوقود."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gross: Daily gross wage before deductions — regular + overtime + gas."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ברוטו: השכר היומי לפני ניכויים — כולל רגיל, שעות נוספות ודלק."
+          }
+        }
+      }
+    },
+    "report.legend.net" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "صافي: تقدير الأجر الصافي لليوم بعد ضريبة الدخل والتأمين الوطني وضريبة الصحة."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Net: Estimated daily net pay after income tax, National Insurance, and Health Tax."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "נטו: הערכת השכר נטו ליום אחרי מס הכנסה, ביטוח לאומי ומס בריאות."
+          }
+        }
+      }
+    },
+    "report.legend.type" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "النوع: طريقة تسجيل الوردية — تلقائي، يدوي، أو عبر المسح الضوئي."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Type: How the shift was recorded — automatic, manual, or scanned."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "סוג: איך נרשמה המשמרת — אוטומטי, ידני או סריקה."
+          }
+        }
+      }
+    },
     "report.contractor %@" : {
       "extractionState" : "stale",
       "localizations" : {

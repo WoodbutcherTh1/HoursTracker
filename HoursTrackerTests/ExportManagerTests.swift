@@ -95,6 +95,86 @@ final class ExportManagerTests: XCTestCase {
 
         let contents = try String(contentsOf: url, encoding: .utf8)
         XCTAssertTrue(contents.contains("|"))
+        XCTAssertTrue(contents.contains(L10n.reportLegendTitle))
+        XCTAssertTrue(contents.contains(L10n.reportLegendGross))
         XCTAssertEqual(url.pathExtension, "md")
+    }
+
+    func testTXTExportIncludesColumnLegend() throws {
+        let report = manager.buildReport(
+            sessions: [TestData.session(day: 1)],
+            settings: settings,
+            range: .all
+        )
+
+        let url = try manager.export(report: report, format: .txt)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let contents = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(contents.contains(L10n.reportLegendTitle))
+        XCTAssertTrue(contents.contains(L10n.reportLegendDate))
+        XCTAssertTrue(contents.contains(L10n.reportLegendIn))
+        XCTAssertTrue(contents.contains(L10n.reportLegendOut))
+        XCTAssertTrue(contents.contains(L10n.reportLegendGross))
+        XCTAssertTrue(contents.contains(L10n.reportLegendNet))
+        // Legend appears before the table header row.
+        let legendIndex = contents.range(of: L10n.reportLegendTitle)!.lowerBound
+        let tableIndex = contents.range(of: L10n.reportColDate)!.lowerBound
+        XCTAssertLessThan(legendIndex, tableIndex)
+    }
+
+    func testDOCXExportIncludesColumnLegend() throws {
+        let report = manager.buildReport(
+            sessions: [TestData.session(day: 1)],
+            settings: settings,
+            range: .all
+        )
+
+        let url = try manager.export(report: report, format: .docx)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let data = try Data(contentsOf: url)
+        // DOCX is a zip; document.xml contains the legend text as plain XML text nodes.
+        XCTAssertEqual(url.pathExtension, "docx")
+        XCTAssertFalse(data.isEmpty)
+
+        // Smoke-check via markdown path already covers legend strings; here verify
+        // the Word package embeds the legend title in document.xml.
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("docx-legend-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: tmp) }
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+
+        // Unzip with unzip CLI when available.
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+        process.arguments = ["-qq", url.path, "-d", tmp.path]
+        try process.run()
+        process.waitUntilExit()
+        XCTAssertEqual(process.terminationStatus, 0)
+
+        let xml = try String(
+            contentsOf: tmp.appendingPathComponent("word/document.xml"),
+            encoding: .utf8
+        )
+        XCTAssertTrue(xml.contains(L10n.reportLegendTitle))
+        XCTAssertTrue(xml.contains(L10n.reportLegendGross))
+    }
+
+    func testPDFExportWritesFile() throws {
+        let report = manager.buildReport(
+            sessions: [TestData.session(day: 1)],
+            settings: settings,
+            range: .all
+        )
+
+        let url = try manager.export(report: report, format: .pdf)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        XCTAssertEqual(url.pathExtension, "pdf")
+        let data = try Data(contentsOf: url)
+        XCTAssertFalse(data.isEmpty)
+        // PDF magic header
+        XCTAssertTrue(data.starts(with: Data("%PDF".utf8)))
     }
 }

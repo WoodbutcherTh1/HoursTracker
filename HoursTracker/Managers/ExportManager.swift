@@ -133,6 +133,7 @@ final class ExportManager {
         let pageWidth: CGFloat = 842
         let pageHeight: CGFloat = 595
         let margin: CGFloat = 40
+        let contentWidth = pageWidth - margin * 2
         let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight))
 
         let data = renderer.pdfData { context in
@@ -142,22 +143,47 @@ final class ExportManager {
             let titleFont = UIFont.boldSystemFont(ofSize: 18)
             let headerFont = UIFont.boldSystemFont(ofSize: 10)
             let bodyFont = UIFont.systemFont(ofSize: 9)
+            let legendFont = UIFont.systemFont(ofSize: 8)
 
-            func draw(_ text: String, font: UIFont, x: CGFloat, width: CGFloat) {
+            func draw(_ text: String, font: UIFont, x: CGFloat, width: CGFloat, height: CGFloat = 20) {
                 let attrs: [NSAttributedString.Key: Any] = [.font: font]
-                text.draw(in: CGRect(x: x, y: y, width: width, height: 20), withAttributes: attrs)
+                text.draw(in: CGRect(x: x, y: y, width: width, height: height), withAttributes: attrs)
             }
 
-            draw(L10n.reportTitle, font: titleFont, x: margin, width: pageWidth - margin * 2)
+            func drawWrapped(_ text: String, font: UIFont, width: CGFloat) -> CGFloat {
+                let attrs: [NSAttributedString.Key: Any] = [.font: font]
+                let rect = (text as NSString).boundingRect(
+                    with: CGSize(width: width, height: .greatestFiniteMagnitude),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading],
+                    attributes: attrs,
+                    context: nil
+                )
+                let height = ceil(rect.height)
+                text.draw(in: CGRect(x: margin, y: y, width: width, height: height), withAttributes: attrs)
+                return height
+            }
+
+            draw(L10n.reportTitle, font: titleFont, x: margin, width: contentWidth)
             y += 28
-            draw(headerText(report), font: bodyFont, x: margin, width: pageWidth - margin * 2)
-            y += 30
+            y += drawWrapped(headerText(report), font: bodyFont, width: contentWidth) + 10
+
+            // Column legend sits above the table so readers know what each column means.
+            draw(L10n.reportLegendTitle, font: headerFont, x: margin, width: contentWidth)
+            y += 16
+            for line in L10n.reportColumnLegendLines {
+                if y > pageHeight - 100 {
+                    context.beginPage()
+                    y = margin
+                }
+                y += drawWrapped(line, font: legendFont, width: contentWidth) + 2
+            }
+            y += 10
 
             let columns = tableColumns()
-            let colWidth = (pageWidth - margin * 2) / CGFloat(columns.count)
+            let colWidth = contentWidth / CGFloat(columns.count)
 
             UIColor.systemGray5.setFill()
-            UIRectFill(CGRect(x: margin, y: y, width: pageWidth - margin * 2, height: 22))
+            UIRectFill(CGRect(x: margin, y: y, width: contentWidth, height: 22))
             for (i, col) in columns.enumerated() {
                 draw(col, font: headerFont, x: margin + CGFloat(i) * colWidth, width: colWidth)
             }
@@ -176,8 +202,12 @@ final class ExportManager {
             }
 
             y += 10
+            if y > pageHeight - 40 {
+                context.beginPage()
+                y = margin
+            }
             UIColor.systemGray4.setFill()
-            UIRectFill(CGRect(x: margin, y: y, width: pageWidth - margin * 2, height: 22))
+            UIRectFill(CGRect(x: margin, y: y, width: contentWidth, height: 22))
             let totals = totalsValues(report.totals)
             for (i, val) in totals.enumerated() {
                 draw(val, font: headerFont, x: margin + CGFloat(i) * colWidth, width: colWidth)
@@ -193,6 +223,8 @@ final class ExportManager {
         var lines: [String] = []
         lines.append(L10n.reportTitle.uppercased())
         lines.append(headerText(report))
+        lines.append("")
+        lines.append(contentsOf: columnLegendBlock())
         lines.append("")
         let columns = tableColumns()
         let widths = [11, 7, 7, 8, 7, 7, 8, 10, 10, 10]
@@ -214,6 +246,12 @@ final class ExportManager {
         lines.append("# \(L10n.reportTitle)")
         lines.append("")
         lines.append(headerText(report))
+        lines.append("")
+        lines.append("## \(L10n.reportLegendTitle)")
+        lines.append("")
+        for line in L10n.reportColumnLegendLines {
+            lines.append("- \(line)")
+        }
         lines.append("")
         let columns = tableColumns()
         lines.append("| " + columns.joined(separator: " | ") + " |")
@@ -237,12 +275,18 @@ final class ExportManager {
         }
         rowsXML += docxRow(totalsValues(report.totals), isHeader: true)
 
+        let legendParagraphs = columnLegendBlock().map { line in
+            "<w:p><w:r><w:t>\(escapeXML(line))</w:t></w:r></w:p>"
+        }.joined(separator: "\n            ")
+
         let documentXML = """
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
           <w:body>
             <w:p><w:r><w:t>\(escapeXML(L10n.reportTitle))</w:t></w:r></w:p>
-            <w:p><w:r><w:t>\(escapeXML(headerText(report)))</w:t></w:r></w:p>
+            <w:p><w:r><w:t>\(escapeXML(headerText(report))</w:t></w:r></w:p>
+            \(legendParagraphs)
+            <w:p><w:r><w:t></w:t></w:r></w:p>
             <w:tbl>
               \(rowsXML)
             </w:tbl>
@@ -298,13 +342,17 @@ final class ExportManager {
 
     // MARK: - Helpers
 
+    private func columnLegendBlock() -> [String] {
+        [L10n.reportLegendTitle] + L10n.reportColumnLegendLines
+    }
+
     private func tableColumns() -> [String] {
         [
             L10n.reportColDate, L10n.reportColIn, L10n.reportColOut,
             L10n.reportColRegular, L10n.reportColOT125, L10n.reportColOT150,
             L10n.reportColGas,
-            String(localized: "report.col.gross", defaultValue: "Gross"),
-            String(localized: "report.col.net", defaultValue: "Net"),
+            L10n.reportColGross,
+            L10n.reportColNet,
             L10n.reportColType
         ]
     }

@@ -139,9 +139,38 @@ enum L10n {
     static var reportColOT125: String { String(localized: "report.col.ot125") }
     static var reportColOT150: String { String(localized: "report.col.ot150") }
     static var reportColGas: String { String(localized: "report.col.gas") }
+    static var reportColGross: String { String(localized: "report.col.gross") }
+    static var reportColNet: String { String(localized: "report.col.net") }
     static var reportColTotal: String { String(localized: "report.col.total") }
     static var reportColType: String { String(localized: "report.col.type") }
     static var reportTotal: String { String(localized: "report.total") }
+
+    static var reportLegendTitle: String { String(localized: "report.legend.title") }
+    static var reportLegendDate: String { String(localized: "report.legend.date") }
+    static var reportLegendIn: String { String(localized: "report.legend.in") }
+    static var reportLegendOut: String { String(localized: "report.legend.out") }
+    static var reportLegendRegular: String { String(localized: "report.legend.regular") }
+    static var reportLegendOT125: String { String(localized: "report.legend.ot125") }
+    static var reportLegendOT150: String { String(localized: "report.legend.ot150") }
+    static var reportLegendGas: String { String(localized: "report.legend.gas") }
+    static var reportLegendGross: String { String(localized: "report.legend.gross") }
+    static var reportLegendNet: String { String(localized: "report.legend.net") }
+    static var reportLegendType: String { String(localized: "report.legend.type") }
+
+    static var reportColumnLegendLines: [String] {
+        [
+            reportLegendDate,
+            reportLegendIn,
+            reportLegendOut,
+            reportLegendRegular,
+            reportLegendOT125,
+            reportLegendOT150,
+            reportLegendGas,
+            reportLegendGross,
+            reportLegendNet,
+            reportLegendType
+        ]
+    }
 
     // Work rules
     static var settingsWorkRules: String { String(localized: "settings.workRules") }
