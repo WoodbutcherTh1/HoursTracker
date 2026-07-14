@@ -111,6 +111,18 @@ enum L10n {
     static var exportFormatDOCX: String { String(localized: "export.format.docx") }
     static var exportFormatMD: String { String(localized: "export.format.md") }
 
+    static var exportLanguage: String { String(localized: "export.language") }
+    static func exportLanguagePhone(_ languageName: String) -> String {
+        String(format: String(localized: "export.language.phone %@"), languageName)
+    }
+    static var exportLanguageEnglish: String { String(localized: "export.language.english") }
+    static var exportLanguageHebrew: String { String(localized: "export.language.hebrew") }
+    static var exportLanguageArabic: String { String(localized: "export.language.arabic") }
+
+    static var languageNameArabic: String { String(localized: "language.name.arabic") }
+    static var languageNameHebrew: String { String(localized: "language.name.hebrew") }
+    static var languageNameEnglish: String { String(localized: "language.name.english") }
+
     // Export report
     static var reportTitle: String { String(localized: "report.title") }
     static var reportAllDays: String { String(localized: "report.allDays") }
@@ -156,21 +168,6 @@ enum L10n {
     static var reportLegendGross: String { String(localized: "report.legend.gross") }
     static var reportLegendNet: String { String(localized: "report.legend.net") }
     static var reportLegendType: String { String(localized: "report.legend.type") }
-
-    static var reportColumnLegendLines: [String] {
-        [
-            reportLegendDate,
-            reportLegendIn,
-            reportLegendOut,
-            reportLegendRegular,
-            reportLegendOT125,
-            reportLegendOT150,
-            reportLegendGas,
-            reportLegendGross,
-            reportLegendNet,
-            reportLegendType
-        ]
-    }
 
     // Work rules
     static var settingsWorkRules: String { String(localized: "settings.workRules") }

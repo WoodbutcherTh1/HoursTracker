@@ -47,25 +47,35 @@ enum ExportDateRange: Equatable {
 }
 
 final class ExportManager {
-    private let dateFormatter: DateFormatter = {
+    private var copy = ExportCopy(language: .phone)
+
+    private lazy var dateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateStyle = .medium
         f.timeStyle = .none
         return f
     }()
 
-    private let timeFormatter: DateFormatter = {
+    private lazy var timeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateStyle = .none
         f.timeStyle = .short
         return f
     }()
 
+    private lazy var weekdayFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "EEEE"
+        return f
+    }()
+
     func buildReport(
         sessions: [WorkSession],
         settings: WorkplaceSettings,
-        range: ExportDateRange
+        range: ExportDateRange,
+        language: ExportLanguage = .phone
     ) -> ExportReport {
+        apply(language: language)
         let filtered = filter(sessions: sessions, range: range)
         let completed = filtered.filter { $0.clockOut != nil }
         let rows = OvertimeCalculator.dayAwareBreakdowns(sessions: completed, settings: settings)
@@ -79,7 +89,12 @@ final class ExportManager {
         )
     }
 
-    func export(report: ExportReport, format: ExportFormat) throws -> URL {
+    func export(
+        report: ExportReport,
+        format: ExportFormat,
+        language: ExportLanguage = .phone
+    ) throws -> URL {
+        apply(language: language)
         switch format {
         case .pdf:
             return try exportPDF(report: report)
@@ -90,6 +105,13 @@ final class ExportManager {
         case .markdown:
             return try exportMarkdown(report: report)
         }
+    }
+
+    private func apply(language: ExportLanguage) {
+        copy = ExportCopy(language: language)
+        dateFormatter.locale = copy.locale
+        timeFormatter.locale = copy.locale
+        weekdayFormatter.locale = copy.locale
     }
 
     private func filter(sessions: [WorkSession], range: ExportDateRange) -> [WorkSession] {
@@ -112,9 +134,10 @@ final class ExportManager {
     private func rangeDescription(_ range: ExportDateRange) -> String {
         switch range {
         case .all:
-            return L10n.reportAllDays
+            return copy.allDays
         case .month(let year, let month):
             let formatter = DateFormatter()
+            formatter.locale = copy.locale
             formatter.dateFormat = "MMMM yyyy"
             var components = DateComponents()
             components.year = year
@@ -127,108 +150,280 @@ final class ExportManager {
         }
     }
 
-    // MARK: - PDF
+    // MARK: - PDF (payroll layout)
 
     private func exportPDF(report: ExportReport) throws -> URL {
         let pageWidth: CGFloat = 842
         let pageHeight: CGFloat = 595
-        let margin: CGFloat = 40
+        let margin: CGFloat = 36
         let contentWidth = pageWidth - margin * 2
         let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight))
+        let totals = report.totals
 
         let data = renderer.pdfData { context in
             context.beginPage()
             var y = margin
 
-            let titleFont = UIFont.boldSystemFont(ofSize: 18)
-            let headerFont = UIFont.boldSystemFont(ofSize: 10)
+            let titleFont = UIFont.boldSystemFont(ofSize: 20)
+            let sectionFont = UIFont.boldSystemFont(ofSize: 12)
+            let headerFont = UIFont.boldSystemFont(ofSize: 9)
             let bodyFont = UIFont.systemFont(ofSize: 9)
-            let legendFont = UIFont.systemFont(ofSize: 8)
+            let smallFont = UIFont.systemFont(ofSize: 8)
 
-            func draw(_ text: String, font: UIFont, x: CGFloat, width: CGFloat, height: CGFloat = 20) {
-                let attrs: [NSAttributedString.Key: Any] = [.font: font]
-                text.draw(in: CGRect(x: x, y: y, width: width, height: height), withAttributes: attrs)
+            func attrs(_ font: UIFont, color: UIColor = .black) -> [NSAttributedString.Key: Any] {
+                [.font: font, .foregroundColor: color]
             }
 
-            func drawWrapped(_ text: String, font: UIFont, width: CGFloat) -> CGFloat {
-                let attrs: [NSAttributedString.Key: Any] = [.font: font]
+            func drawText(
+                _ text: String,
+                font: UIFont,
+                x: CGFloat,
+                width: CGFloat,
+                height: CGFloat = 18,
+                color: UIColor = .black
+            ) {
+                text.draw(
+                    in: CGRect(x: x, y: y, width: width, height: height),
+                    withAttributes: attrs(font, color: color)
+                )
+            }
+
+            func wrappedHeight(_ text: String, font: UIFont, width: CGFloat) -> CGFloat {
                 let rect = (text as NSString).boundingRect(
                     with: CGSize(width: width, height: .greatestFiniteMagnitude),
                     options: [.usesLineFragmentOrigin, .usesFontLeading],
-                    attributes: attrs,
+                    attributes: attrs(font),
                     context: nil
                 )
-                let height = ceil(rect.height)
-                text.draw(in: CGRect(x: margin, y: y, width: width, height: height), withAttributes: attrs)
-                return height
+                return ceil(rect.height)
             }
 
-            draw(L10n.reportTitle, font: titleFont, x: margin, width: contentWidth)
-            y += 28
-            y += drawWrapped(headerText(report), font: bodyFont, width: contentWidth) + 10
+            // Title band
+            UIColor(red: 0.12, green: 0.22, blue: 0.33, alpha: 1).setFill()
+            UIRectFill(CGRect(x: 0, y: 0, width: pageWidth, height: 52))
+            y = 16
+            drawText(copy.title, font: titleFont, x: margin, width: contentWidth, color: .white)
+            y = 60
 
-            // Column legend sits above the table so readers know what each column means.
-            draw(L10n.reportLegendTitle, font: headerFont, x: margin, width: contentWidth)
+            // Employee / workplace header
+            let headerLines = headerLines(report)
+            for line in headerLines {
+                drawText(line, font: bodyFont, x: margin, width: contentWidth, height: 14)
+                y += 14
+            }
+            y += 8
+
+            // Payroll summary cards
+            drawText(copy.payrollSummary, font: sectionFont, x: margin, width: contentWidth)
+            y += 20
+
+            let deductions = totals.incomeTax + totals.nationalInsurance + totals.healthTax
+            let cards: [(String, String)] = [
+                (copy.colTotalHours, formatHours(totals.totalHours)),
+                (copy.colGrossPay, totals.formattedGrossPay),
+                (copy.colDeductions, totals.formatted(deductions)),
+                (copy.colNetPay, totals.formattedNetPay)
+            ]
+            let cardGap: CGFloat = 10
+            let cardWidth = (contentWidth - cardGap * 3) / 4
+            let cardHeight: CGFloat = 48
+            for (index, card) in cards.enumerated() {
+                let x = margin + CGFloat(index) * (cardWidth + cardGap)
+                UIColor(red: 0.94, green: 0.96, blue: 0.98, alpha: 1).setFill()
+                UIRectFill(CGRect(x: x, y: y, width: cardWidth, height: cardHeight))
+                UIColor(red: 0.75, green: 0.82, blue: 0.88, alpha: 1).setStroke()
+                let path = UIBezierPath(rect: CGRect(x: x, y: y, width: cardWidth, height: cardHeight))
+                path.lineWidth = 1
+                path.stroke()
+                card.0.draw(
+                    in: CGRect(x: x + 8, y: y + 6, width: cardWidth - 16, height: 14),
+                    withAttributes: attrs(smallFont, color: UIColor.darkGray)
+                )
+                card.1.draw(
+                    in: CGRect(x: x + 8, y: y + 22, width: cardWidth - 16, height: 18),
+                    withAttributes: attrs(headerFont)
+                )
+            }
+            y += cardHeight + 14
+
+            // Hours + pay charts side by side
+            let chartWidth = (contentWidth - 16) / 2
+            let chartTop = y
+            y = drawBarChart(
+                title: copy.hoursChart,
+                segments: [
+                    (copy.colRegular, totals.regularHours, UIColor(red: 0.20, green: 0.55, blue: 0.40, alpha: 1)),
+                    (copy.colOT125, totals.ot125Hours, UIColor(red: 0.90, green: 0.55, blue: 0.15, alpha: 1)),
+                    (copy.colOT150, totals.ot150Hours, UIColor(red: 0.80, green: 0.25, blue: 0.25, alpha: 1))
+                ],
+                x: margin,
+                y: chartTop,
+                width: chartWidth,
+                titleFont: sectionFont,
+                labelFont: smallFont,
+                valueFormatter: formatHours
+            )
+            let payY = drawBarChart(
+                title: copy.payChart,
+                segments: [
+                    (copy.colRegular, totals.basePay, UIColor(red: 0.20, green: 0.45, blue: 0.70, alpha: 1)),
+                    (copy.colOT125, totals.ot125Pay, UIColor(red: 0.90, green: 0.55, blue: 0.15, alpha: 1)),
+                    (copy.colOT150, totals.ot150Pay, UIColor(red: 0.80, green: 0.25, blue: 0.25, alpha: 1)),
+                    (copy.colGas, totals.gasAllowance, UIColor(red: 0.45, green: 0.45, blue: 0.55, alpha: 1))
+                ],
+                x: margin + chartWidth + 16,
+                y: chartTop,
+                width: chartWidth,
+                titleFont: sectionFont,
+                labelFont: smallFont,
+                valueFormatter: { totals.formatted($0) }
+            )
+            y = max(y, payY) + 12
+
+            // Column guide (compact)
+            drawText(copy.legendTitle, font: sectionFont, x: margin, width: contentWidth)
             y += 16
-            for line in L10n.reportColumnLegendLines {
-                if y > pageHeight - 100 {
+            for line in copy.legendLines {
+                let h = wrappedHeight(line, font: smallFont, width: contentWidth)
+                if y + h > pageHeight - 90 {
                     context.beginPage()
                     y = margin
                 }
-                y += drawWrapped(line, font: legendFont, width: contentWidth) + 2
+                line.draw(
+                    in: CGRect(x: margin, y: y, width: contentWidth, height: h),
+                    withAttributes: attrs(smallFont, color: UIColor.darkGray)
+                )
+                y += h + 2
             }
             y += 10
+
+            // Daily payroll table
+            if y > pageHeight - 120 {
+                context.beginPage()
+                y = margin
+            }
+            drawText(copy.dailyTable, font: sectionFont, x: margin, width: contentWidth)
+            y += 18
 
             let columns = tableColumns()
             let colWidth = contentWidth / CGFloat(columns.count)
-
-            UIColor.systemGray5.setFill()
-            UIRectFill(CGRect(x: margin, y: y, width: contentWidth, height: 22))
+            UIColor(red: 0.12, green: 0.22, blue: 0.33, alpha: 1).setFill()
+            UIRectFill(CGRect(x: margin, y: y, width: contentWidth, height: 20))
             for (i, col) in columns.enumerated() {
-                draw(col, font: headerFont, x: margin + CGFloat(i) * colWidth, width: colWidth)
+                col.draw(
+                    in: CGRect(x: margin + CGFloat(i) * colWidth + 2, y: y + 3, width: colWidth - 4, height: 14),
+                    withAttributes: attrs(headerFont, color: .white)
+                )
             }
-            y += 24
+            y += 22
 
-            for row in report.rows {
-                if y > pageHeight - 80 {
+            for (rowIndex, row) in report.rows.enumerated() {
+                if y > pageHeight - 60 {
                     context.beginPage()
                     y = margin
+                    UIColor(red: 0.12, green: 0.22, blue: 0.33, alpha: 1).setFill()
+                    UIRectFill(CGRect(x: margin, y: y, width: contentWidth, height: 20))
+                    for (i, col) in columns.enumerated() {
+                        col.draw(
+                            in: CGRect(x: margin + CGFloat(i) * colWidth + 2, y: y + 3, width: colWidth - 4, height: 14),
+                            withAttributes: attrs(headerFont, color: .white)
+                        )
+                    }
+                    y += 22
                 }
-                let values = rowValues(row)
-                for (i, val) in values.enumerated() {
-                    draw(val, font: bodyFont, x: margin + CGFloat(i) * colWidth, width: colWidth)
+                if rowIndex % 2 == 1 {
+                    UIColor(red: 0.96, green: 0.97, blue: 0.98, alpha: 1).setFill()
+                    UIRectFill(CGRect(x: margin, y: y, width: contentWidth, height: 16))
                 }
-                y += 18
+                for (i, val) in rowValues(row).enumerated() {
+                    val.draw(
+                        in: CGRect(x: margin + CGFloat(i) * colWidth + 2, y: y + 1, width: colWidth - 4, height: 14),
+                        withAttributes: attrs(bodyFont)
+                    )
+                }
+                y += 16
             }
 
-            y += 10
+            y += 6
             if y > pageHeight - 40 {
                 context.beginPage()
                 y = margin
             }
-            UIColor.systemGray4.setFill()
-            UIRectFill(CGRect(x: margin, y: y, width: contentWidth, height: 22))
-            let totals = totalsValues(report.totals)
-            for (i, val) in totals.enumerated() {
-                draw(val, font: headerFont, x: margin + CGFloat(i) * colWidth, width: colWidth)
+            UIColor(red: 0.18, green: 0.28, blue: 0.38, alpha: 1).setFill()
+            UIRectFill(CGRect(x: margin, y: y, width: contentWidth, height: 20))
+            for (i, val) in totalsValues(totals).enumerated() {
+                val.draw(
+                    in: CGRect(x: margin + CGFloat(i) * colWidth + 2, y: y + 3, width: colWidth - 4, height: 14),
+                    withAttributes: attrs(headerFont, color: .white)
+                )
             }
         }
 
         return try write(data: data, extension: "pdf")
     }
 
+    /// Draws a titled horizontal bar chart; returns the Y position below the chart.
+    private func drawBarChart(
+        title: String,
+        segments: [(String, Double, UIColor)],
+        x: CGFloat,
+        y startY: CGFloat,
+        width: CGFloat,
+        titleFont: UIFont,
+        labelFont: UIFont,
+        valueFormatter: (Double) -> String
+    ) -> CGFloat {
+        var y = startY
+        let attrsTitle: [NSAttributedString.Key: Any] = [.font: titleFont]
+        let attrsLabel: [NSAttributedString.Key: Any] = [.font: labelFont, .foregroundColor: UIColor.darkGray]
+        title.draw(in: CGRect(x: x, y: y, width: width, height: 16), withAttributes: attrsTitle)
+        y += 20
+
+        let total = segments.map(\.1).reduce(0, +)
+        let barHeight: CGFloat = 14
+        let labelWidth: CGFloat = min(90, width * 0.35)
+        let valueWidth: CGFloat = 54
+        let barWidth = max(40, width - labelWidth - valueWidth - 8)
+
+        for (label, value, color) in segments {
+            label.draw(in: CGRect(x: x, y: y, width: labelWidth, height: 14), withAttributes: attrsLabel)
+            let trackX = x + labelWidth + 4
+            UIColor(white: 0.92, alpha: 1).setFill()
+            UIRectFill(CGRect(x: trackX, y: y + 1, width: barWidth, height: barHeight))
+            let fraction = total > 0 ? CGFloat(value / total) : 0
+            color.setFill()
+            UIRectFill(CGRect(x: trackX, y: y + 1, width: max(0, barWidth * fraction), height: barHeight))
+            valueFormatter(value).draw(
+                in: CGRect(x: trackX + barWidth + 4, y: y, width: valueWidth, height: 14),
+                withAttributes: attrsLabel
+            )
+            y += 18
+        }
+        return y
+    }
+
     // MARK: - TXT
 
     private func exportTXT(report: ExportReport) throws -> URL {
         var lines: [String] = []
-        lines.append(L10n.reportTitle.uppercased())
-        lines.append(headerText(report))
+        lines.append(copy.title.uppercased())
+        lines.append(contentsOf: headerLines(report))
+        lines.append("")
+        lines.append(copy.payrollSummary)
+        lines.append(contentsOf: summaryLines(report.totals))
+        lines.append("")
+        lines.append(copy.hoursChart)
+        lines.append(contentsOf: asciiBars(hoursSegments(report.totals), formatValue: formatHours))
+        lines.append("")
+        lines.append(copy.payChart)
+        lines.append(contentsOf: asciiBars(paySegments(report.totals), formatValue: { report.totals.formatted($0) }))
         lines.append("")
         lines.append(contentsOf: columnLegendBlock())
         lines.append("")
+        lines.append(copy.dailyTable)
         let columns = tableColumns()
-        let widths = [11, 7, 7, 8, 7, 7, 8, 10, 10, 10]
-        lines.append(formatFixedWidth(columns, widths: widths, bold: true))
+        let widths = [10, 11, 7, 7, 7, 7, 7, 8, 10, 10, 10]
+        lines.append(formatFixedWidth(columns, widths: widths))
         lines.append(String(repeating: "-", count: widths.reduce(0, +)))
         for row in report.rows {
             lines.append(formatFixedWidth(rowValues(row), widths: widths))
@@ -243,15 +438,33 @@ final class ExportManager {
 
     private func exportMarkdown(report: ExportReport) throws -> URL {
         var lines: [String] = []
-        lines.append("# \(L10n.reportTitle)")
+        lines.append("# \(copy.title)")
         lines.append("")
-        lines.append(headerText(report))
-        lines.append("")
-        lines.append("## \(L10n.reportLegendTitle)")
-        lines.append("")
-        for line in L10n.reportColumnLegendLines {
+        for line in headerLines(report) {
             lines.append("- \(line)")
         }
+        lines.append("")
+        lines.append("## \(copy.payrollSummary)")
+        lines.append("")
+        for line in summaryLines(report.totals) {
+            lines.append("- \(line)")
+        }
+        lines.append("")
+        lines.append("## \(copy.hoursChart)")
+        lines.append("")
+        lines.append(contentsOf: asciiBars(hoursSegments(report.totals), formatValue: formatHours).map { "- `\($0)`" })
+        lines.append("")
+        lines.append("## \(copy.payChart)")
+        lines.append("")
+        lines.append(contentsOf: asciiBars(paySegments(report.totals), formatValue: { report.totals.formatted($0) }).map { "- `\($0)`" })
+        lines.append("")
+        lines.append("## \(copy.legendTitle)")
+        lines.append("")
+        for line in copy.legendLines {
+            lines.append("- \(line)")
+        }
+        lines.append("")
+        lines.append("## \(copy.dailyTable)")
         lines.append("")
         let columns = tableColumns()
         lines.append("| " + columns.joined(separator: " | ") + " |")
@@ -275,18 +488,25 @@ final class ExportManager {
         }
         rowsXML += docxRow(totalsValues(report.totals), isHeader: true)
 
-        let legendParagraphs = columnLegendBlock().map { line in
-            "<w:p><w:r><w:t>\(escapeXML(line))</w:t></w:r></w:p>"
-        }.joined(separator: "\n            ")
+        func paragraphs(_ lines: [String]) -> String {
+            lines.map { "<w:p><w:r><w:t>\(escapeXML($0))</w:t></w:r></w:p>" }
+                .joined(separator: "\n            ")
+        }
 
         let documentXML = """
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
           <w:body>
-            <w:p><w:r><w:t>\(escapeXML(L10n.reportTitle))</w:t></w:r></w:p>
-            <w:p><w:r><w:t>\(escapeXML(headerText(report))</w:t></w:r></w:p>
-            \(legendParagraphs)
-            <w:p><w:r><w:t></w:t></w:r></w:p>
+            <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>\(escapeXML(copy.title))</w:t></w:r></w:p>
+            \(paragraphs(headerLines(report)))
+            <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>\(escapeXML(copy.payrollSummary))</w:t></w:r></w:p>
+            \(paragraphs(summaryLines(report.totals)))
+            <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>\(escapeXML(copy.hoursChart))</w:t></w:r></w:p>
+            \(paragraphs(asciiBars(hoursSegments(report.totals), formatValue: formatHours)))
+            <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>\(escapeXML(copy.payChart))</w:t></w:r></w:p>
+            \(paragraphs(asciiBars(paySegments(report.totals), formatValue: { report.totals.formatted($0) })))
+            \(paragraphs(columnLegendBlock()))
+            <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>\(escapeXML(copy.dailyTable))</w:t></w:r></w:p>
             <w:tbl>
               \(rowsXML)
             </w:tbl>
@@ -342,18 +562,72 @@ final class ExportManager {
 
     // MARK: - Helpers
 
+    private func headerLines(_ report: ExportReport) -> [String] {
+        let s = report.settings
+        var lines = [
+            copy.worker(s.workerFullName),
+            copy.idNumber(s.workerIDNumber),
+            copy.employee(s.employeeNumber),
+            copy.workplace(s.workplaceName)
+        ]
+        if let contractor = s.contractorName, !contractor.isEmpty {
+            lines.append(copy.contractor(contractor))
+        }
+        lines.append(copy.period(report.dateRangeDescription))
+        lines.append(copy.creditPoints(String(format: "%.2f", s.creditPoints)))
+        return lines
+    }
+
+    private func summaryLines(_ totals: DayPayBreakdown) -> [String] {
+        let deductions = totals.incomeTax + totals.nationalInsurance + totals.healthTax
+        return [
+            "\(copy.colTotalHours): \(formatHours(totals.totalHours))",
+            "\(copy.colGrossPay): \(totals.formattedGrossPay)",
+            "\(copy.colDeductions): \(totals.formatted(deductions))",
+            "\(copy.colNetPay): \(totals.formattedNetPay)"
+        ]
+    }
+
+    private func hoursSegments(_ totals: DayPayBreakdown) -> [(String, Double)] {
+        [
+            (copy.colRegular, totals.regularHours),
+            (copy.colOT125, totals.ot125Hours),
+            (copy.colOT150, totals.ot150Hours)
+        ]
+    }
+
+    private func paySegments(_ totals: DayPayBreakdown) -> [(String, Double)] {
+        [
+            (copy.colRegular, totals.basePay),
+            (copy.colOT125, totals.ot125Pay),
+            (copy.colOT150, totals.ot150Pay),
+            (copy.colGas, totals.gasAllowance)
+        ]
+    }
+
+    private func asciiBars(
+        _ segments: [(String, Double)],
+        formatValue: (Double) -> String
+    ) -> [String] {
+        let total = segments.map(\.1).reduce(0, +)
+        let maxBars = 20
+        return segments.map { label, value in
+            let count = total > 0 ? Int((value / total) * Double(maxBars)) : 0
+            let bar = String(repeating: "█", count: max(0, count))
+                + String(repeating: "░", count: max(0, maxBars - count))
+            return "\(label): \(bar) \(formatValue(value))"
+        }
+    }
+
     private func columnLegendBlock() -> [String] {
-        [L10n.reportLegendTitle] + L10n.reportColumnLegendLines
+        [copy.legendTitle] + copy.legendLines
     }
 
     private func tableColumns() -> [String] {
         [
-            L10n.reportColDate, L10n.reportColIn, L10n.reportColOut,
-            L10n.reportColRegular, L10n.reportColOT125, L10n.reportColOT150,
-            L10n.reportColGas,
-            L10n.reportColGross,
-            L10n.reportColNet,
-            L10n.reportColType
+            copy.colDay, copy.colDate, copy.colIn, copy.colOut,
+            copy.colRegular, copy.colOT125, copy.colOT150,
+            copy.colGas, copy.colGross, copy.colNet, copy.colType
         ]
     }
 
@@ -362,13 +636,14 @@ final class ExportManager {
         let b = row.breakdown
         let typeLabel: String
         if session.isAIImported {
-            typeLabel = String(localized: "entry.ai", defaultValue: "Scanned")
+            typeLabel = copy.entryScanned
         } else if session.isManualEntry {
-            typeLabel = AppLocale.manualEntryLabel()
+            typeLabel = copy.entryManual
         } else {
-            typeLabel = AppLocale.automaticEntryLabel()
+            typeLabel = copy.entryAutomatic
         }
         return [
+            weekdayFormatter.string(from: session.date),
             dateFormatter.string(from: session.date),
             timeFormatter.string(from: session.clockIn),
             session.clockOut.map { timeFormatter.string(from: $0) } ?? "-",
@@ -384,7 +659,7 @@ final class ExportManager {
 
     private func totalsValues(_ totals: DayPayBreakdown) -> [String] {
         [
-            L10n.reportTotal, "", "",
+            copy.total, "", "", "",
             formatHours(totals.regularHours),
             formatHours(totals.ot125Hours),
             formatHours(totals.ot150Hours),
@@ -395,30 +670,11 @@ final class ExportManager {
         ]
     }
 
-    private func headerText(_ report: ExportReport) -> String {
-        let s = report.settings
-        var parts = [
-            L10n.reportWorker(s.workerFullName),
-            L10n.reportID(s.workerIDNumber),
-            L10n.reportEmployee(s.employeeNumber),
-            L10n.reportWorkplace(s.workplaceName)
-        ]
-        if let contractor = s.contractorName, !contractor.isEmpty {
-            parts.append(L10n.reportContractor(contractor))
-        }
-        parts.append(L10n.reportPeriod(report.dateRangeDescription))
-        parts.append(String(
-            format: String(localized: "report.creditPoints %@", defaultValue: "Credit Points: %@"),
-            String(format: "%.2f", s.creditPoints)
-        ))
-        return parts.joined(separator: " | ")
-    }
-
     private func formatHours(_ hours: Double) -> String {
         String(format: "%.2f", hours)
     }
 
-    private func formatFixedWidth(_ values: [String], widths: [Int], bold: Bool = false) -> String {
+    private func formatFixedWidth(_ values: [String], widths: [Int]) -> String {
         zip(values, widths).map { value, width in
             let truncated = String(value.prefix(width))
             return truncated.padding(toLength: width, withPad: " ", startingAt: 0)

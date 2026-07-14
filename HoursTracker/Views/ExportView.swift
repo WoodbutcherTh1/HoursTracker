@@ -5,6 +5,7 @@ struct ExportView: View {
     @ObservedObject var viewModel: AppViewModel
 
     @State private var selectedFormat: ExportFormat = .pdf
+    @State private var selectedLanguage: ExportLanguage = .phone
     @State private var rangeMode: RangeMode = .all
     @State private var selectedMonth = Date()
     @State private var customFrom = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
@@ -57,6 +58,14 @@ struct ExportView: View {
                     }
                 }
 
+                Section(L10n.exportLanguage) {
+                    Picker(L10n.exportLanguage, selection: $selectedLanguage) {
+                        ForEach(ExportLanguage.allCases) { language in
+                            Text(label(for: language)).tag(language)
+                        }
+                    }
+                }
+
                 Section {
                     Button {
                         export()
@@ -82,10 +91,27 @@ struct ExportView: View {
         }
     }
 
+    private func label(for language: ExportLanguage) -> String {
+        switch language {
+        case .phone:
+            return L10n.exportLanguagePhone(AppLocale.current.localizedDisplayName)
+        case .english:
+            return L10n.exportLanguageEnglish
+        case .hebrew:
+            return L10n.exportLanguageHebrew
+        case .arabic:
+            return L10n.exportLanguageArabic
+        }
+    }
+
     private func export() {
         errorMessage = nil
         do {
-            let url = try viewModel.export(range: buildRange(), format: selectedFormat)
+            let url = try viewModel.export(
+                range: buildRange(),
+                format: selectedFormat,
+                language: selectedLanguage
+            )
             exportedURL = url
             showShareSheet = true
         } catch {

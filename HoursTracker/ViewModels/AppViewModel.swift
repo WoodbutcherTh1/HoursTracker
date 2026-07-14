@@ -295,9 +295,18 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Export
 
-    func export(range: ExportDateRange, format: ExportFormat) throws -> URL {
-        let report = exportManager.buildReport(sessions: sessions, settings: settings, range: range)
-        return try exportManager.export(report: report, format: format)
+    func export(
+        range: ExportDateRange,
+        format: ExportFormat,
+        language: ExportLanguage = .phone
+    ) throws -> URL {
+        let report = exportManager.buildReport(
+            sessions: sessions,
+            settings: settings,
+            range: range,
+            language: language
+        )
+        return try exportManager.export(report: report, format: format, language: language)
     }
 
     // MARK: - Private

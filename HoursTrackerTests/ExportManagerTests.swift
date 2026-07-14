@@ -83,69 +83,104 @@ final class ExportManagerTests: XCTestCase {
         XCTAssertEqual(report.totals.totalPay, 2190, accuracy: 0.01)
     }
 
-    func testMarkdownExportWritesFile() throws {
+    func testMarkdownExportUsesSelectedLanguage() throws {
         let report = manager.buildReport(
             sessions: [TestData.session(day: 1)],
             settings: settings,
-            range: .all
+            range: .all,
+            language: .english
         )
 
-        let url = try manager.export(report: report, format: .markdown)
+        let url = try manager.export(report: report, format: .markdown, language: .english)
         defer { try? FileManager.default.removeItem(at: url) }
 
         let contents = try String(contentsOf: url, encoding: .utf8)
         XCTAssertTrue(contents.contains("|"))
-        XCTAssertTrue(contents.contains(L10n.reportLegendTitle))
-        XCTAssertTrue(contents.contains(L10n.reportLegendGross))
+        XCTAssertTrue(contents.contains("Payroll summary"))
+        XCTAssertTrue(contents.contains("Hours breakdown"))
+        XCTAssertTrue(contents.contains("Pay breakdown"))
+        XCTAssertTrue(contents.contains("Column guide"))
+        XCTAssertTrue(contents.contains("Daily details"))
+        XCTAssertTrue(contents.contains("Day"))
         XCTAssertEqual(url.pathExtension, "md")
     }
 
-    func testTXTExportIncludesColumnLegend() throws {
+    func testArabicExportLanguage() throws {
         let report = manager.buildReport(
             sessions: [TestData.session(day: 1)],
             settings: settings,
-            range: .all
+            range: .all,
+            language: .arabic
         )
 
-        let url = try manager.export(report: report, format: .txt)
+        let url = try manager.export(report: report, format: .markdown, language: .arabic)
         defer { try? FileManager.default.removeItem(at: url) }
 
         let contents = try String(contentsOf: url, encoding: .utf8)
-        XCTAssertTrue(contents.contains(L10n.reportLegendTitle))
-        XCTAssertTrue(contents.contains(L10n.reportLegendDate))
-        XCTAssertTrue(contents.contains(L10n.reportLegendIn))
-        XCTAssertTrue(contents.contains(L10n.reportLegendOut))
-        XCTAssertTrue(contents.contains(L10n.reportLegendGross))
-        XCTAssertTrue(contents.contains(L10n.reportLegendNet))
-        // Legend appears before the table header row.
-        let legendIndex = contents.range(of: L10n.reportLegendTitle)!.lowerBound
-        let tableIndex = contents.range(of: L10n.reportColDate)!.lowerBound
-        XCTAssertLessThan(legendIndex, tableIndex)
+        XCTAssertTrue(contents.contains("ملخص الرواتب"))
+        XCTAssertTrue(contents.contains("توزيع الساعات"))
+        XCTAssertTrue(contents.contains("تفاصيل الأيام"))
+        XCTAssertTrue(contents.contains("اليوم"))
     }
 
-    func testDOCXExportIncludesColumnLegend() throws {
+    func testHebrewExportLanguage() throws {
         let report = manager.buildReport(
             sessions: [TestData.session(day: 1)],
             settings: settings,
-            range: .all
+            range: .all,
+            language: .hebrew
         )
 
-        let url = try manager.export(report: report, format: .docx)
+        let url = try manager.export(report: report, format: .txt, language: .hebrew)
         defer { try? FileManager.default.removeItem(at: url) }
 
-        let data = try Data(contentsOf: url)
-        // DOCX is a zip; document.xml contains the legend text as plain XML text nodes.
-        XCTAssertEqual(url.pathExtension, "docx")
-        XCTAssertFalse(data.isEmpty)
+        let contents = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(contents.contains("סיכום שכר"))
+        XCTAssertTrue(contents.contains("פילוח שעות"))
+        XCTAssertTrue(contents.contains("פירוט ימים"))
+    }
 
-        // Smoke-check via markdown path already covers legend strings; here verify
-        // the Word package embeds the legend title in document.xml.
+    func testTXTExportIncludesPayrollChartsAndLegend() throws {
+        let report = manager.buildReport(
+            sessions: [TestData.session(day: 1)],
+            settings: settings,
+            range: .all,
+            language: .english
+        )
+
+        let url = try manager.export(report: report, format: .txt, language: .english)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let contents = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(contents.contains("Payroll summary"))
+        XCTAssertTrue(contents.contains("Hours breakdown"))
+        XCTAssertTrue(contents.contains("Pay breakdown"))
+        XCTAssertTrue(contents.contains("█") || contents.contains("░"))
+        XCTAssertTrue(contents.contains("Column guide"))
+        let legendIndex = contents.range(of: "Column guide")!.lowerBound
+        let tableIndex = contents.range(of: "Daily details")!.lowerBound
+        XCTAssertLessThan(legendIndex, tableIndex)
+    }
+
+    func testDOCXExportIncludesPayrollSections() throws {
+        let report = manager.buildReport(
+            sessions: [TestData.session(day: 1)],
+            settings: settings,
+            range: .all,
+            language: .english
+        )
+
+        let url = try manager.export(report: report, format: .docx, language: .english)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        XCTAssertEqual(url.pathExtension, "docx")
+        XCTAssertFalse(try Data(contentsOf: url).isEmpty)
+
         let tmp = FileManager.default.temporaryDirectory
             .appendingPathComponent("docx-legend-\(UUID().uuidString)")
         defer { try? FileManager.default.removeItem(at: tmp) }
         try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
 
-        // Unzip with unzip CLI when available.
         let process = Process()
         process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
         process.arguments = ["-qq", url.path, "-d", tmp.path]
@@ -157,24 +192,33 @@ final class ExportManagerTests: XCTestCase {
             contentsOf: tmp.appendingPathComponent("word/document.xml"),
             encoding: .utf8
         )
-        XCTAssertTrue(xml.contains(L10n.reportLegendTitle))
-        XCTAssertTrue(xml.contains(L10n.reportLegendGross))
+        XCTAssertTrue(xml.contains("Payroll summary"))
+        XCTAssertTrue(xml.contains("Hours breakdown"))
+        XCTAssertTrue(xml.contains("Column guide"))
+        XCTAssertTrue(xml.contains("Daily details"))
     }
 
     func testPDFExportWritesFile() throws {
         let report = manager.buildReport(
             sessions: [TestData.session(day: 1)],
             settings: settings,
-            range: .all
+            range: .all,
+            language: .english
         )
 
-        let url = try manager.export(report: report, format: .pdf)
+        let url = try manager.export(report: report, format: .pdf, language: .english)
         defer { try? FileManager.default.removeItem(at: url) }
 
         XCTAssertEqual(url.pathExtension, "pdf")
         let data = try Data(contentsOf: url)
         XCTAssertFalse(data.isEmpty)
-        // PDF magic header
         XCTAssertTrue(data.starts(with: Data("%PDF".utf8)))
+    }
+
+    func testExportLanguagePhoneResolvesToDeviceLanguage() {
+        XCTAssertEqual(ExportLanguage.phone.resolvedLanguage, AppLocale.current)
+        XCTAssertEqual(ExportLanguage.arabic.resolvedLocale.language.languageCode?.identifier, "ar")
+        XCTAssertEqual(ExportLanguage.hebrew.resolvedLocale.language.languageCode?.identifier, "he")
+        XCTAssertEqual(ExportLanguage.english.resolvedLocale.language.languageCode?.identifier, "en")
     }
 }
