@@ -44,33 +44,45 @@ final class NoOpCloudSyncManager: CloudSyncing {
 final class CloudKitSyncManager: CloudSyncing {
     static let shared = CloudKitSyncManager()
 
-    /// CKContainer raises an uncatchable exception when the process lacks the
-    /// iCloud entitlements. Locally signed test builds (unit tests, CI) run
-    /// without provisioning, so skip CloudKit entirely there instead of
-    /// crashing the test host at launch.
-    private let container: CKContainer?
+    /// CKContainer aborts the process when iCloud entitlements are missing.
+    /// Personal-team device installs usually ship without CloudKit, so the
+    /// container stays nil unless the build explicitly opts in.
+    private var container: CKContainer?
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private let logger = Logger(subsystem: "com.hourstracker.app", category: "cloudkit")
 
-    private(set) var state: SyncState = .idle
+    private(set) var state: SyncState = .unavailable
 
     private let sessionRecordType = "WorkSession"
     private let settingsRecordType = "WorkplaceSettings"
     private let settingsRecordName = "workplace-settings"
+    private let containerIdentifier = "iCloud.com.hourstracker.app"
+
+    /// Opt-in only. Creating `CKContainer` without the entitlement kills the app
+    /// at launch (uncatchable). Keep this false for personal-team installs.
+    private static var isCloudKitBuildEnabled: Bool {
+        Bundle.main.object(forInfoDictionaryKey: "HTCloudKitEnabled") as? Bool ?? false
+    }
 
     private static var isRunningTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
     }
 
     private init() {
-        container = Self.isRunningTests
-            ? nil
-            : CKContainer(identifier: "iCloud.com.hourstracker.app")
         encoder = JSONEncoder()
         decoder = JSONDecoder()
         encoder.dateEncodingStrategy = .iso8601
         decoder.dateDecodingStrategy = .iso8601
+
+        guard !Self.isRunningTests, Self.isCloudKitBuildEnabled else {
+            container = nil
+            state = .unavailable
+            return
+        }
+
+        container = CKContainer(identifier: containerIdentifier)
+        state = .idle
     }
 
     private var database: CKDatabase? {

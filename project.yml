@@ -25,6 +25,7 @@ targets:
         INFOPLIST_FILE: HoursTracker/Info.plist
         CODE_SIGN_ENTITLEMENTS: HoursTracker/HoursTracker.entitlements
         CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: FQUC6DU87N
         TARGETED_DEVICE_FAMILY: "1,2"
         ENABLE_PREVIEWS: YES
     entitlements:
