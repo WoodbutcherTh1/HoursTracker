@@ -6,19 +6,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "SaatMark"
+            "value": "HourTrackers"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "SaatMark"
+            "value": "HourTrackers"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "SaatMark"
+            "value": "HourTrackers"
           }
         }
       }
@@ -34,7 +34,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "SaatMark uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times."
+            "value": "HourTrackers uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times."
           }
         },
         "he": {
@@ -56,7 +56,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "SaatMark needs photo access only to import a timesheet screenshot or image you choose."
+            "value": "HourTrackers needs photo access only to import a timesheet screenshot or image you choose."
           }
         },
         "he": {
@@ -78,7 +78,7 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "SaatMark uses your location while using the app only to save your workplace when you tap Set Location."
+            "value": "HourTrackers uses your location while using the app only to save your workplace when you tap Set Location."
           }
         },
         "he": {

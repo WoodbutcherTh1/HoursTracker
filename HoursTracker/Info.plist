@@ -19,25 +19,25 @@
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundleDisplayName</key>
-	<string>SaatMark</string>
+	<string>HourTrackers</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
-	<string>4</string>
+	<string>5</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCameraUsageDescription</key>
-	<string>SaatMark uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times.</string>
+	<string>HourTrackers uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>SaatMark needs photo access only to import a timesheet screenshot or image you choose.</string>
+	<string>HourTrackers needs photo access only to import a timesheet screenshot or image you choose.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Background location is used only to remind you to clock in when you arrive at the workplace you saved. We do not continuously track you.</string>
 	<key>NSLocationAlwaysUsageDescription</key>
 	<string>Always location is used only for workplace arrival reminders. You can turn arrival reminders off anytime in Settings.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>SaatMark uses your location while using the app only to save your workplace when you tap Set Location.</string>
+	<string>HourTrackers uses your location while using the app only to save your workplace when you tap Set Location.</string>
 	<key>UIBackgroundModes</key>
 	<array>
 		<string>location</string>

@@ -1758,19 +1758,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "SaatMark"
+            "value": "HourTrackers"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "SaatMark"
+            "value": "HourTrackers"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "SaatMark"
+            "value": "HourTrackers"
           }
         }
       }
@@ -4115,13 +4115,13 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "يحفظ SaatMark ملف العامل وإعدادات مكان العمل والورديات على هذا الجهاز. لا نبيع البيانات ولا نرسلها إلى خوادمنا."
+            "value": "يحفظ HourTrackers ملف العامل وإعدادات مكان العمل والورديات على هذا الجهاز. لا نبيع البيانات ولا نرسلها إلى خوادمنا."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "SaatMark stores your worker profile, workplace settings, and work sessions on this device. Data is not sold and is not sent to our servers."
+            "value": "HourTrackers stores your worker profile, workplace settings, and work sessions on this device. Data is not sold and is not sent to our servers."
           }
         },
         "he": {
@@ -5017,19 +5017,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "SaatMark"
+            "value": "HourTrackers"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "SaatMark"
+            "value": "HourTrackers"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "SaatMark"
+            "value": "HourTrackers"
           }
         }
       }
