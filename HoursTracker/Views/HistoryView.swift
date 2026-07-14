@@ -269,7 +269,7 @@ struct HistoryView: View {
                 .font(.caption.monospacedDigit())
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text(String(format: "₪%.2f", amount))
+            Text(breakdown.formatted(amount))
                 .font(.caption.weight(.semibold).monospacedDigit())
                 .foregroundStyle(payMode == .net ? Color.green : Color.primary)
                 .frame(maxWidth: .infinity, alignment: .trailing)
@@ -324,8 +324,8 @@ struct HistoryView: View {
                     }
 
                     Text(String(
-                        format: String(localized: "history.totalPayValue %@", defaultValue: "סה\"כ: %@ ₪"),
-                        String(format: "%.2f", payMode == .net ? totals.netPay : totals.grossPay)
+                        format: String(localized: "history.totalPayValue %@", defaultValue: "סה\"כ: %@"),
+                        payMode == .net ? totals.formattedNetPay : totals.formattedGrossPay
                     ))
                     .font(.subheadline.weight(.semibold).monospacedDigit())
                 }

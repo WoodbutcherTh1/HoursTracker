@@ -70,7 +70,8 @@ final class AppViewModel: ObservableObject {
             date: Calendar.current.startOfDay(for: now),
             clockIn: now,
             clockOut: nil,
-            isManualEntry: isManual
+            isManualEntry: isManual,
+            dayType: DayType.automatic(for: now, settings: settings)
         )
         sessions.append(session)
         persist()
@@ -79,10 +80,26 @@ final class AppViewModel: ObservableObject {
 
     func clockOut() {
         guard let index = sessions.firstIndex(where: { $0.id == activeSession?.id }) else { return }
-        sessions[index].clockOut = Date()
+        let clockOutDate = Date()
+        sessions[index].clockOut = clockOutDate
+        sessions[index].isNightShift = WorkSession.qualifiesAsNightShift(
+            clockIn: sessions[index].clockIn,
+            clockOut: clockOutDate
+        )
+        // Long shifts get the configured unpaid break unless one was set already.
+        if settings.defaultBreakMinutes > 0,
+           sessions[index].breakMinutes == 0,
+           sessions[index].totalHours >= 6 {
+            sessions[index].breakMinutes = settings.defaultBreakMinutes
+        }
         sessions[index].touch()
-        let breakdown = OvertimeCalculator.breakdown(for: sessions[index], settings: settings)
-        lastCompletedBreakdown = breakdown
+        // The completion sheet summarizes the whole day, so a second shift on
+        // the same day shows combined totals rather than restarting from zero.
+        let calendar = Calendar.current
+        let dayCompleted = sessions.filter {
+            calendar.isDate($0.date, inSameDayAs: sessions[index].date) && !$0.isOpen
+        }
+        lastCompletedBreakdown = OvertimeCalculator.aggregate(sessions: dayCompleted, settings: settings)
         showDaySummary = true
         persist()
         refreshReminders()
@@ -95,7 +112,15 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Manual Entry
 
-    func addManualSession(date: Date, clockIn: Date, clockOut: Date, notes: String?) {
+    func addManualSession(
+        date: Date,
+        clockIn: Date,
+        clockOut: Date,
+        notes: String?,
+        breakMinutes: Int = 0,
+        dayType: DayType? = nil,
+        isNightShift: Bool? = nil
+    ) {
         let day = Calendar.current.startOfDay(for: date)
         let hasExisting = sessions.contains { Calendar.current.isDate($0.date, inSameDayAs: day) }
         guard !hasExisting else { return }
@@ -105,6 +130,9 @@ final class AppViewModel: ObservableObject {
             clockIn: clockIn,
             clockOut: clockOut,
             isManualEntry: true,
+            breakMinutes: breakMinutes,
+            dayType: dayType ?? DayType.automatic(for: day, settings: settings),
+            isNightShift: isNightShift ?? WorkSession.qualifiesAsNightShift(clockIn: clockIn, clockOut: clockOut),
             notes: notes
         )
         sessions.append(session)
@@ -134,6 +162,10 @@ final class AppViewModel: ObservableObject {
 
             var session = draft.toWorkSession()
             session.date = day
+            session.dayType = DayType.automatic(for: day, settings: settings)
+            if let clockOut = session.clockOut {
+                session.isNightShift = WorkSession.qualifiesAsNightShift(clockIn: session.clockIn, clockOut: clockOut)
+            }
             sessions.append(session)
         }
 
@@ -163,12 +195,29 @@ final class AppViewModel: ObservableObject {
         return days.sorted()
     }
 
-    func updateSession(_ session: WorkSession, clockIn: Date, clockOut: Date?, notes: String?) {
+    func updateSession(
+        _ session: WorkSession,
+        clockIn: Date,
+        clockOut: Date?,
+        notes: String?,
+        breakMinutes: Int? = nil,
+        dayType: DayType? = nil,
+        isNightShift: Bool? = nil
+    ) {
         guard let index = sessions.firstIndex(where: { $0.id == session.id }) else { return }
         sessions[index].clockIn = clockIn
         sessions[index].clockOut = clockOut
         sessions[index].notes = notes
         sessions[index].date = Calendar.current.startOfDay(for: clockIn)
+        if let breakMinutes {
+            sessions[index].breakMinutes = max(0, breakMinutes)
+        }
+        if let dayType {
+            sessions[index].dayType = dayType
+        }
+        if let isNightShift {
+            sessions[index].isNightShift = isNightShift
+        }
         sessions[index].touch()
         persist()
         refreshReminders()
@@ -239,8 +288,9 @@ final class AppViewModel: ObservableObject {
             .sorted { $0.date > $1.date }
     }
 
+    /// Day-aware: same-day sessions share one daily overtime/gas allowance.
     func breakdown(for session: WorkSession) -> DayPayBreakdown {
-        OvertimeCalculator.breakdown(for: session, settings: settings)
+        OvertimeCalculator.breakdown(for: session, in: sessions, settings: settings)
     }
 
     // MARK: - Export

@@ -25,6 +25,7 @@ struct SettingsView: View {
                 workerSection
                 workplaceSection
                 paySection
+                workRulesSection
                 payrollSection
                 taxSection
                 locationSection
@@ -72,7 +73,7 @@ struct SettingsView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
-                Text("₪")
+                Text(PayFormatter.symbol(for: draft.currencyCode))
             }
             HStack {
                 Text(L10n.settingsGasAllowance)
@@ -81,7 +82,7 @@ struct SettingsView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
-                Text("₪")
+                Text(PayFormatter.symbol(for: draft.currencyCode))
             }
             HStack {
                 Text(L10n.settingsStandardHours)
@@ -99,6 +100,36 @@ struct SettingsView: View {
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
             }
+        }
+    }
+
+    private var workRulesSection: some View {
+        Section(L10n.settingsWorkRules) {
+            Picker(L10n.settingsRestDay, selection: $draft.restDayWeekday) {
+                ForEach(1...7, id: \.self) { weekday in
+                    Text(Calendar.current.weekdaySymbols[weekday - 1]).tag(weekday)
+                }
+            }
+
+            Stepper(value: $draft.defaultBreakMinutes, in: 0...120, step: 5) {
+                HStack {
+                    Text(L10n.settingsDefaultBreak)
+                    Spacer()
+                    Text("\(draft.defaultBreakMinutes)")
+                        .monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            Picker(L10n.settingsCurrency, selection: $draft.currencyCode) {
+                ForEach(PayFormatter.supportedCurrencyCodes, id: \.self) { code in
+                    Text("\(code) (\(PayFormatter.symbol(for: code)))").tag(code)
+                }
+            }
+
+            Text(L10n.settingsWorkRulesNote)
+                .font(.caption)
+                .foregroundStyle(.secondary)
         }
     }
 

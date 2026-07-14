@@ -19,6 +19,14 @@ struct WorkplaceSettings: Codable, Equatable {
     var spouseEmployed: Bool
     /// Day of month when the payroll cycle starts (1...28). Default 1 = calendar month.
     var payrollStartDay: Int
+    /// Weekly rest day in `Calendar` weekday numbering (1 = Sunday ... 7 = Saturday).
+    var restDayWeekday: Int
+    /// Unpaid break applied automatically to shifts of 6 hours or more.
+    var defaultBreakMinutes: Int
+    /// Standard day for night shifts before overtime starts (Hours of Work and Rest Law).
+    var nightStandardDayHours: Double
+    /// ISO 4217 currency code used for all pay display.
+    var currencyCode: String
     var modifiedAt: Date
 
     static let `default` = WorkplaceSettings(
@@ -39,6 +47,10 @@ struct WorkplaceSettings: Codable, Equatable {
         numberOfChildren: 0,
         spouseEmployed: false,
         payrollStartDay: 1,
+        restDayWeekday: 7,
+        defaultBreakMinutes: 0,
+        nightStandardDayHours: 7.0,
+        currencyCode: "ILS",
         modifiedAt: Date()
     )
 
@@ -54,7 +66,9 @@ struct WorkplaceSettings: Codable, Equatable {
         case workplaceName, contractorName, workerFullName, workerIDNumber, employeeNumber
         case hourlyRate, dailyGasAllowance, standardDayHours, ot125HoursCap
         case locationLatitude, locationLongitude, locationRadiusMeters
-        case maritalStatus, hasChildren, numberOfChildren, spouseEmployed, payrollStartDay, modifiedAt
+        case maritalStatus, hasChildren, numberOfChildren, spouseEmployed, payrollStartDay
+        case restDayWeekday, defaultBreakMinutes, nightStandardDayHours, currencyCode
+        case modifiedAt
     }
 
     init(
@@ -75,6 +89,10 @@ struct WorkplaceSettings: Codable, Equatable {
         numberOfChildren: Int = 0,
         spouseEmployed: Bool = false,
         payrollStartDay: Int = 1,
+        restDayWeekday: Int = 7,
+        defaultBreakMinutes: Int = 0,
+        nightStandardDayHours: Double = 7.0,
+        currencyCode: String = "ILS",
         modifiedAt: Date
     ) {
         self.workplaceName = workplaceName
@@ -94,6 +112,10 @@ struct WorkplaceSettings: Codable, Equatable {
         self.numberOfChildren = numberOfChildren
         self.spouseEmployed = spouseEmployed
         self.payrollStartDay = HistoryPeriodHelper.normalizedStartDay(payrollStartDay)
+        self.restDayWeekday = min(max(restDayWeekday, 1), 7)
+        self.defaultBreakMinutes = max(0, defaultBreakMinutes)
+        self.nightStandardDayHours = nightStandardDayHours
+        self.currencyCode = currencyCode
         self.modifiedAt = modifiedAt
     }
 
@@ -118,6 +140,10 @@ struct WorkplaceSettings: Codable, Equatable {
         payrollStartDay = HistoryPeriodHelper.normalizedStartDay(
             try c.decodeIfPresent(Int.self, forKey: .payrollStartDay) ?? 1
         )
+        restDayWeekday = min(max(try c.decodeIfPresent(Int.self, forKey: .restDayWeekday) ?? 7, 1), 7)
+        defaultBreakMinutes = max(0, try c.decodeIfPresent(Int.self, forKey: .defaultBreakMinutes) ?? 0)
+        nightStandardDayHours = try c.decodeIfPresent(Double.self, forKey: .nightStandardDayHours) ?? 7.0
+        currencyCode = try c.decodeIfPresent(String.self, forKey: .currencyCode) ?? "ILS"
         modifiedAt = try c.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? Date()
     }
 }

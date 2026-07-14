@@ -1,5 +1,31 @@
 import Foundation
 
+/// Pay classification of a work day under Israeli labor rules.
+/// Rest-day and holiday work pays premium rates from the first hour.
+enum DayType: String, Codable, CaseIterable, Identifiable {
+    case regular
+    case restDay
+    case holiday
+
+    var id: Self { self }
+
+    var isPremium: Bool {
+        self != .regular
+    }
+
+    var localizedName: String {
+        switch self {
+        case .regular: return L10n.dayTypeRegular
+        case .restDay: return L10n.dayTypeRestDay
+        case .holiday: return L10n.dayTypeHoliday
+        }
+    }
+
+    static func automatic(for date: Date, settings: WorkplaceSettings, calendar: Calendar = .current) -> DayType {
+        calendar.component(.weekday, from: date) == settings.restDayWeekday ? .restDay : .regular
+    }
+}
+
 struct WorkSession: Codable, Identifiable, Equatable {
     let id: UUID
     var date: Date
@@ -8,6 +34,11 @@ struct WorkSession: Codable, Identifiable, Equatable {
     var isManualEntry: Bool
     /// True when imported via the timesheet scanner / OCR flow.
     var isAIImported: Bool
+    /// Unpaid break, deducted from paid hours.
+    var breakMinutes: Int
+    var dayType: DayType
+    /// Night shifts have a shorter standard day before overtime starts.
+    var isNightShift: Bool
     var notes: String?
     var modifiedAt: Date
 
@@ -18,6 +49,9 @@ struct WorkSession: Codable, Identifiable, Equatable {
         clockOut: Date? = nil,
         isManualEntry: Bool = false,
         isAIImported: Bool = false,
+        breakMinutes: Int = 0,
+        dayType: DayType = .regular,
+        isNightShift: Bool = false,
         notes: String? = nil,
         modifiedAt: Date = Date()
     ) {
@@ -27,12 +61,17 @@ struct WorkSession: Codable, Identifiable, Equatable {
         self.clockOut = clockOut
         self.isManualEntry = isManualEntry
         self.isAIImported = isAIImported
+        self.breakMinutes = max(0, breakMinutes)
+        self.dayType = dayType
+        self.isNightShift = isNightShift
         self.notes = notes
         self.modifiedAt = modifiedAt
     }
 
     enum CodingKeys: String, CodingKey {
-        case id, date, clockIn, clockOut, isManualEntry, isAIImported, notes, modifiedAt
+        case id, date, clockIn, clockOut, isManualEntry, isAIImported
+        case breakMinutes, dayType, isNightShift
+        case notes, modifiedAt
     }
 
     init(from decoder: Decoder) throws {
@@ -43,6 +82,9 @@ struct WorkSession: Codable, Identifiable, Equatable {
         clockOut = try c.decodeIfPresent(Date.self, forKey: .clockOut)
         isManualEntry = try c.decode(Bool.self, forKey: .isManualEntry)
         isAIImported = try c.decodeIfPresent(Bool.self, forKey: .isAIImported) ?? false
+        breakMinutes = max(0, try c.decodeIfPresent(Int.self, forKey: .breakMinutes) ?? 0)
+        dayType = try c.decodeIfPresent(DayType.self, forKey: .dayType) ?? .regular
+        isNightShift = try c.decodeIfPresent(Bool.self, forKey: .isNightShift) ?? false
         notes = try c.decodeIfPresent(String.self, forKey: .notes)
         modifiedAt = try c.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? Date()
     }
@@ -60,6 +102,11 @@ struct WorkSession: Codable, Identifiable, Equatable {
         return max(0, clockOut.timeIntervalSince(clockIn) / 3600)
     }
 
+    /// Paid hours: total minus the unpaid break.
+    var effectiveHours: Double {
+        max(0, totalHours - Double(breakMinutes) / 60)
+    }
+
     var elapsedSeconds: TimeInterval {
         let end = clockOut ?? Date()
         return max(0, end.timeIntervalSince(clockIn))
@@ -75,6 +122,30 @@ struct WorkSession: Codable, Identifiable, Equatable {
         if isAIImported { return "purple" }
         if isManualEntry { return "orange" }
         return "blue"
+    }
+
+    /// A shift counts as a night shift when at least two hours fall
+    /// between 22:00 and 06:00 (Hours of Work and Rest Law).
+    static func qualifiesAsNightShift(
+        clockIn: Date,
+        clockOut: Date,
+        calendar: Calendar = .current
+    ) -> Bool {
+        guard clockOut > clockIn else { return false }
+        var nightSeconds: TimeInterval = 0
+        // Night windows run 22:00 → 06:00; check every window that could
+        // overlap the shift, starting from the evening before clock-in.
+        var day = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: clockIn))!
+        while day <= clockOut {
+            if let windowStart = calendar.date(bySettingHour: 22, minute: 0, second: 0, of: day) {
+                let windowEnd = windowStart.addingTimeInterval(8 * 3600)
+                let overlap = min(clockOut, windowEnd).timeIntervalSince(max(clockIn, windowStart))
+                if overlap > 0 { nightSeconds += overlap }
+            }
+            guard let next = calendar.date(byAdding: .day, value: 1, to: day) else { break }
+            day = next
+        }
+        return nightSeconds >= 2 * 3600
     }
 
     static func calendarDay(for date: Date, calendar: Calendar = .current) -> Date {

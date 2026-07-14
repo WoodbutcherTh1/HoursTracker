@@ -2,7 +2,7 @@
 
 ## What this app is
 
-HoursTracker is an iOS app for a single worker to track daily work hours and see what each day pays under **Israeli overtime rules** (regular rate up to the standard day, then 125% for the first overtime hours, then 150%). It supports clock in/out with a live timer, manual entries, geofence-based arrival reminders, smart clock-out reminders, iCloud sync across devices, and exporting pay reports to PDF, TXT, Word (.docx), and Markdown. The UI is fully localized in English, Arabic, and Hebrew.
+HoursTracker is an iOS app for a single worker to track daily work hours and see what each day pays under **Israeli labor rules**: regular days pay 100% up to the standard day (8.6h), then 125% for up to 2 hours, then 150%; rest-day (Shabbat) and holiday work pays 150%/175%/200%; night shifts reach overtime after 7 hours; unpaid breaks are deducted. Net pay is estimated from Israeli income-tax brackets, credit points, National Insurance, and Health Tax. It supports clock in/out with a live timer, multiple shifts per day, manual entries, OCR import of printed timesheets, geofence-based arrival reminders, smart clock-out reminders, custom payroll months, iCloud sync across devices, and exporting pay reports to PDF, TXT, Word (.docx), and Markdown. The UI is fully localized in English, Arabic, and Hebrew, and pay can be displayed in a configurable currency.
 
 ## Tech stack
 
@@ -24,33 +24,42 @@ HoursTracker is an iOS app for a single worker to track daily work hours and see
 HoursTracker/
 ├── HoursTrackerApp.swift        App entry point + MainTabView (Home / History / Export / Settings)
 ├── Models/
-│   ├── WorkSession.swift        A single work day: clockIn, clockOut?, notes, modifiedAt
-│   ├── WorkplaceSettings.swift  Worker identity, hourly rate, gas allowance, OT parameters, geofence
-│   └── OvertimeCalculator.swift Pure pay-breakdown engine (DayPayBreakdown)
+│   ├── WorkSession.swift        A shift: clockIn/out, break, DayType, night flag; night-shift detection
+│   ├── WorkplaceSettings.swift  Worker identity, rates, OT/work rules, tax status, geofence, currency
+│   ├── OvertimeCalculator.swift Day-aware tiered pay engine (DayPayBreakdown)
+│   ├── IsraeliTaxEstimator.swift      Income tax / National Insurance / Health Tax estimate
+│   ├── TaxCreditPointsCalculator.swift Credit points from marital/family status
+│   └── MaritalStatus.swift            Marital status enum for tax settings
 ├── Managers/
 │   ├── PersistenceManager.swift       Local JSON load/save (PersistableStore)
-│   ├── CloudKitSyncManager.swift      CloudKit fetch/upload/merge (CloudSyncing)
-│   ├── SyncingPersistenceStore.swift  Facade: local-first writes + background cloud upload
+│   ├── CloudKitSyncManager.swift      CloudKit fetch/upload/merge (CloudSyncing) + NoOp stub
+│   ├── SyncingPersistenceStore.swift  Facade: local-first writes + incremental cloud upload
 │   ├── LocationReminderManager.swift  Geofence + all reminder notifications
+│   ├── TimesheetScannerManager.swift  Vision OCR of photographed timesheets → session drafts
 │   └── ExportManager.swift            Report building + PDF/TXT/DOCX/Markdown writers
 ├── ViewModels/
 │   └── AppViewModel.swift       Single @MainActor view model owning all app state
 ├── Views/
-│   ├── HomeView.swift           Clock in/out buttons, live timer, day-summary sheet
-│   ├── HistoryView.swift        Completed sessions list, edit/delete, manual-entry entry point
-│   ├── ManualEntryView.swift    Add/edit a session by hand
+│   ├── HomeView.swift           Clock in/out, live timer + gross ticker, day-summary sheet
+│   ├── HistoryView.swift        Payroll-period browser, per-shift rows, gross/net totals
+│   ├── ShiftDetailSheet.swift   Per-shift pay breakdown + session editor
+│   ├── ManualEntryView.swift    Add a session by hand (times, break, day type, night)
+│   ├── TimesheetScannerView.swift Review/import OCR-scanned sessions
 │   ├── ExportView.swift         Date range + format pickers, share sheet
-│   └── SettingsView.swift       Worker details, pay parameters, workplace location capture
+│   └── SettingsView.swift       Worker/pay/work-rules/payroll/tax/location/sync settings
 ├── Utilities/
 │   ├── L10n.swift               Typed accessors for the String Catalog
 │   ├── AppLocale.swift          ar/he/en strings for notifications (outside the catalog)
+│   ├── HistoryPeriodHelper.swift    Custom payroll-month math + hour formatting
+│   ├── PayFormatter.swift           Currency-aware money formatting
 │   ├── LocationCaptureHelper.swift  One-shot "use my current location" capture
 │   └── ZipWriter.swift          Minimal ZIP archiver (deflate + CRC32) used to build .docx
 └── Resources/
     └── Localizable.xcstrings    String Catalog (en / ar / he)
 
 HoursTrackerTests/
-├── OvertimeCalculatorTests.swift      Pay-engine boundary cases
+├── OvertimeCalculatorTests.swift      Pay-engine boundary cases + payroll periods
+├── PayRulesTests.swift                Multi-session days, breaks, rest-day/night rates, currency
 ├── SyncMergeTests.swift               Last-write-wins merge logic
 ├── ExportManagerTests.swift           Report filtering and totals
 ├── ClockOutEstimationTests.swift      Clock-out time prediction
@@ -95,23 +104,29 @@ Key protocols (all in `Managers/`): `PersistableStore`, `SyncingStore`, `CloudSy
 
 ### Domain rules worth knowing
 
-- **One session per calendar day.** `clockIn` is blocked if any session exists for today or any session is still open (`AppViewModel.canClockInToday`), and manual entry refuses a duplicate day.
+- **Multiple sessions per day, one open at a time.** `clockIn` is blocked only while a session is open (`AppViewModel.canClockIn`); a second shift after clocking out is allowed. Manual entry still refuses a duplicate day.
+- **Same-day sessions share one daily allowance.** Overtime tiers and the daily gas allowance are consumed across a day's sessions in clock-in order (`OvertimeCalculator.breakdowns(forDay:)`), so a second shift continues the day's counters instead of restarting them.
 - **A session belongs to the day of its clock-in** (`date` is `startOfDay(for: clockIn)`), so an overnight shift is attributed entirely to the start day. A session left open past midnight remains the active session and can still be clocked out from the Home tab.
+- **Auto-classification on clock-out**: night shifts are detected (≥ 2h between 22:00 and 06:00), and the configured default break is applied to shifts of 6h or more; both stay user-editable per session, as does the day type (regular / rest day / holiday).
 - The live timer on Home is derived from `WorkSession.elapsedSeconds`, so it survives app relaunches — no timer state is stored beyond the session itself.
 
-## Core domain logic: the overtime engine
+## Core domain logic: the pay engine
 
-`OvertimeCalculator.breakdown(totalHours:settings:)` is a pure function:
+`OvertimeCalculator` splits each calendar day's **effective hours** (clocked time minus unpaid break) into three tiers and prices them by the session's day type:
 
-```
-regular  = min(totalHours, standardDayHours)        // default 8.6h
-otTotal  = max(0, totalHours - standardDayHours)
-ot125    = min(otTotal, ot125HoursCap)              // default cap 2h
-ot150    = max(0, otTotal - ot125)
-pay      = regular·rate + ot125·rate·1.25 + ot150·rate·1.5 + gasAllowance
-```
+| Tier | Regular day | Rest day / holiday | Capacity |
+|---|---|---|---|
+| Base | 100% | 150% | `standardDayHours` (8.6h; 7h for night shifts) |
+| Tier 1 | 125% | 175% | `ot125HoursCap` (2h) |
+| Tier 2 | 150% | 200% | unlimited |
 
-`DayPayBreakdown` carries the per-bucket hours plus total pay (formatted as ₪). `aggregate(sessions:settings:)` sums per-day breakdowns for reports — importantly, overtime is computed **per day**, then summed, never across the whole range.
+Key entry points:
+
+- `breakdowns(forDay:settings:)` — the core: a day's sessions processed in clock-in order against one shared allowance; gas paid once, on the first session; per-session values sum exactly to the day total.
+- `breakdown(for:in:settings:)` — one session evaluated in its same-day context (used by History rows and the shift detail sheet).
+- `aggregate(sessions:settings:)` — groups by calendar day and sums; overtime is computed **per day**, never across the whole range.
+
+`DayPayBreakdown` carries per-tier hours and pay, gross, and estimated net: gross flows through `IsraeliTaxEstimator` (income-tax brackets + National Insurance + Health Tax, offset by `TaxCreditPointsCalculator` credit points from marital/family status). Money is formatted via `PayFormatter` using the currency chosen in Settings (`WorkplaceSettings.currencyCode`, default ILS).
 
 ## Subsystems
 
@@ -143,6 +158,12 @@ Notification copy comes from `AppLocale` (hardcoded ar/he/en strings chosen from
 - **DOCX** — hand-built WordprocessingML XML packaged into a valid `.zip` by `ZipWriter` (a from-scratch ZIP encoder using `Compression`'s deflate and a CRC-32 implementation — there is no third-party dependency in the project).
 
 Date ranges: all / specific month / custom range. Output lands in the temp directory and is handed to a share sheet.
+
+### Payroll periods, tax estimation, and timesheet scanning
+
+- **Payroll months** — `HistoryPeriodHelper` computes custom salary periods from `WorkplaceSettings.payrollStartDay` (e.g. the 10th → 9th of the next month); History navigates period by period and shows per-period totals with a gross/net toggle.
+- **Net-pay estimation** — `IsraeliTaxEstimator` scales a day's gross to a monthly profile, applies progressive income-tax brackets, National Insurance, and Health Tax, offsets by credit points (`TaxCreditPointsCalculator`, driven by marital status/children settings), and scales back to a daily figure. Explicitly an estimate, not a payroll calculation.
+- **OCR timesheet import** — `TimesheetScannerManager` (Vision-based) extracts date/in/out rows from photographed or imported timesheet images into `ScannedSessionDraft`s; `TimesheetScannerView` lets the user review, select, and import them, with conflict handling for days that already have sessions (`AppViewModel.importScannedSessions`). Imported sessions are flagged `isAIImported` and auto-tagged with day type and night-shift status.
 
 ### Localization
 

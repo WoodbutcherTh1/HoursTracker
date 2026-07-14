@@ -68,9 +68,8 @@ final class ExportManager {
     ) -> ExportReport {
         let filtered = filter(sessions: sessions, range: range)
         let completed = filtered.filter { $0.clockOut != nil }
-        let rows = completed.map { session in
-            ExportRow(session: session, breakdown: OvertimeCalculator.breakdown(for: session, settings: settings))
-        }
+        let rows = OvertimeCalculator.dayAwareBreakdowns(sessions: completed, settings: settings)
+            .map { ExportRow(session: $0.session, breakdown: $0.breakdown) }
         let totals = OvertimeCalculator.aggregate(sessions: completed, settings: settings)
         return ExportReport(
             settings: settings,
@@ -328,9 +327,9 @@ final class ExportManager {
             formatHours(b.regularHours),
             formatHours(b.ot125Hours),
             formatHours(b.ot150Hours),
-            String(format: "₪%.0f", b.gasAllowance),
-            String(format: "₪%.2f", b.grossPay),
-            String(format: "₪%.2f", b.netPay),
+            b.formatted(b.gasAllowance),
+            b.formattedGrossPay,
+            b.formattedNetPay,
             typeLabel
         ]
     }
@@ -341,9 +340,9 @@ final class ExportManager {
             formatHours(totals.regularHours),
             formatHours(totals.ot125Hours),
             formatHours(totals.ot150Hours),
-            String(format: "₪%.0f", totals.gasAllowance),
-            String(format: "₪%.2f", totals.grossPay),
-            String(format: "₪%.2f", totals.netPay),
+            totals.formatted(totals.gasAllowance),
+            totals.formattedGrossPay,
+            totals.formattedNetPay,
             ""
         ]
     }

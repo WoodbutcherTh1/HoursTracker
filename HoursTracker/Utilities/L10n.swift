@@ -143,6 +143,19 @@ enum L10n {
     static var reportColType: String { String(localized: "report.col.type") }
     static var reportTotal: String { String(localized: "report.total") }
 
+    // Work rules
+    static var settingsWorkRules: String { String(localized: "settings.workRules") }
+    static var settingsRestDay: String { String(localized: "settings.restDay") }
+    static var settingsDefaultBreak: String { String(localized: "settings.defaultBreak") }
+    static var settingsCurrency: String { String(localized: "settings.currency") }
+    static var settingsWorkRulesNote: String { String(localized: "settings.workRulesNote") }
+    static var sessionDayType: String { String(localized: "session.dayType") }
+    static var sessionNightShift: String { String(localized: "session.nightShift") }
+    static var sessionBreakMinutes: String { String(localized: "session.breakMinutes") }
+    static var dayTypeRegular: String { String(localized: "dayType.regular") }
+    static var dayTypeRestDay: String { String(localized: "dayType.restDay") }
+    static var dayTypeHoliday: String { String(localized: "dayType.holiday") }
+
     // Errors
     static var errorTitle: String { String(localized: "error.title") }
     static var errorSaveFailed: String { String(localized: "error.saveFailed") }
