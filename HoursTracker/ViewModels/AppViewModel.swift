@@ -125,14 +125,16 @@ final class AppViewModel: ObservableObject {
         let hasExisting = sessions.contains { Calendar.current.isDate($0.date, inSameDayAs: day) }
         guard !hasExisting else { return }
 
+        let resolved = WorkSession.resolveClockPair(clockIn: clockIn, clockOut: clockOut)
         let session = WorkSession(
             date: day,
-            clockIn: clockIn,
-            clockOut: clockOut,
+            clockIn: resolved.clockIn,
+            clockOut: resolved.clockOut,
             isManualEntry: true,
             breakMinutes: breakMinutes,
             dayType: dayType ?? DayType.automatic(for: day, settings: settings),
-            isNightShift: isNightShift ?? WorkSession.qualifiesAsNightShift(clockIn: clockIn, clockOut: clockOut),
+            isNightShift: isNightShift
+                ?? WorkSession.qualifiesAsNightShift(clockIn: resolved.clockIn, clockOut: resolved.clockOut),
             notes: notes
         )
         sessions.append(session)
@@ -150,7 +152,8 @@ final class AppViewModel: ObservableObject {
         let overwriteKeys = Set(overwriteDays.map { calendar.startOfDay(for: $0).timeIntervalSince1970 })
 
         for draft in drafts where draft.isSelected {
-            guard draft.clockOut > draft.clockIn else { continue }
+            let resolved = WorkSession.resolveClockPair(clockIn: draft.clockIn, clockOut: draft.clockOut)
+            guard resolved.clockOut > resolved.clockIn else { continue }
             let day = calendar.startOfDay(for: draft.date)
             let key = day.timeIntervalSince1970
             let existing = sessions.filter { calendar.isDate($0.date, inSameDayAs: day) }
@@ -162,10 +165,13 @@ final class AppViewModel: ObservableObject {
 
             var session = draft.toWorkSession()
             session.date = day
+            session.clockIn = resolved.clockIn
+            session.clockOut = resolved.clockOut
             session.dayType = DayType.automatic(for: day, settings: settings)
-            if let clockOut = session.clockOut {
-                session.isNightShift = WorkSession.qualifiesAsNightShift(clockIn: session.clockIn, clockOut: clockOut)
-            }
+            session.isNightShift = WorkSession.qualifiesAsNightShift(
+                clockIn: resolved.clockIn,
+                clockOut: resolved.clockOut
+            )
             sessions.append(session)
         }
 
@@ -205,18 +211,27 @@ final class AppViewModel: ObservableObject {
         isNightShift: Bool? = nil
     ) {
         guard let index = sessions.firstIndex(where: { $0.id == session.id }) else { return }
-        sessions[index].clockIn = clockIn
-        sessions[index].clockOut = clockOut
+        if let clockOut {
+            let resolved = WorkSession.resolveClockPair(clockIn: clockIn, clockOut: clockOut)
+            sessions[index].clockIn = resolved.clockIn
+            sessions[index].clockOut = resolved.clockOut
+            sessions[index].date = Calendar.current.startOfDay(for: resolved.clockIn)
+            sessions[index].isNightShift = isNightShift
+                ?? WorkSession.qualifiesAsNightShift(clockIn: resolved.clockIn, clockOut: resolved.clockOut)
+        } else {
+            sessions[index].clockIn = clockIn
+            sessions[index].clockOut = nil
+            sessions[index].date = Calendar.current.startOfDay(for: clockIn)
+            if let isNightShift {
+                sessions[index].isNightShift = isNightShift
+            }
+        }
         sessions[index].notes = notes
-        sessions[index].date = Calendar.current.startOfDay(for: clockIn)
         if let breakMinutes {
             sessions[index].breakMinutes = max(0, breakMinutes)
         }
         if let dayType {
             sessions[index].dayType = dayType
-        }
-        if let isNightShift {
-            sessions[index].isNightShift = isNightShift
         }
         sessions[index].touch()
         persist()

@@ -109,6 +109,7 @@ struct TimesheetScannerView: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var conflictQueue: [Date] = []
+    @State private var allConflictDates: [Date] = []
     @State private var overwriteDays: Set<Date> = []
     @State private var showConflictAlert = false
     @State private var currentConflictDay: Date?
@@ -178,33 +179,32 @@ struct TimesheetScannerView: View {
                     scannerVM.updateDraft(updated)
                 }
             }
-            .alert(
-                String(localized: "scanner.conflictTitle", defaultValue: "Shift already exists"),
-                isPresented: $showConflictAlert,
-                presenting: currentConflictDay
-            ) { day in
-                Button(String(localized: "scanner.conflictReplace", defaultValue: "Replace")) {
-                    overwriteDays.insert(Calendar.current.startOfDay(for: day))
-                    advanceConflictQueue()
+            .overlay {
+                if showConflictAlert, let currentConflictDay {
+                    ImportConflictPopup(
+                        dates: allConflictDates,
+                        currentDate: currentConflictDay,
+                        onReplace: {
+                            overwriteDays.insert(Calendar.current.startOfDay(for: currentConflictDay))
+                            advanceConflictQueue()
+                        },
+                        onApplyAll: {
+                            for day in allConflictDates {
+                                overwriteDays.insert(Calendar.current.startOfDay(for: day))
+                            }
+                            conflictQueue = []
+                            currentConflictDay = nil
+                            showConflictAlert = false
+                            commitImport()
+                        },
+                        onKeep: {
+                            advanceConflictQueue()
+                        }
+                    )
+                    .zIndex(100)
                 }
-                Button(String(localized: "scanner.conflictKeep", defaultValue: "Keep original"), role: .cancel) {
-                    advanceConflictQueue()
-                }
-            } message: { day in
-                Text(conflictMessage(for: day))
             }
         }
-    }
-
-    private func conflictMessage(for day: Date) -> String {
-        let formatted = shortDateFormatter.string(from: day)
-        return String(
-            format: String(
-                localized: "scanner.conflictMessage %@",
-                defaultValue: "This date %@ already has a recorded shift. Do you want to replace it with the imported data or keep the original?\nהאם ברצונך להחליף את המשמרת הקיימת?"
-            ),
-            formatted
-        )
     }
 
     private func beginApproveFlow() {
@@ -213,6 +213,7 @@ struct TimesheetScannerView: View {
         pendingImportDrafts = selected
         overwriteDays = []
         conflictQueue = appViewModel.conflictingDays(for: selected)
+        allConflictDates = conflictQueue
         if conflictQueue.isEmpty {
             commitImport()
         } else {
@@ -226,7 +227,9 @@ struct TimesheetScannerView: View {
             return
         }
         currentConflictDay = next
-        showConflictAlert = true
+        withAnimation(.easeOut(duration: 0.18)) {
+            showConflictAlert = true
+        }
     }
 
     private func advanceConflictQueue() {
@@ -234,12 +237,13 @@ struct TimesheetScannerView: View {
             conflictQueue.removeFirst()
         }
         if conflictQueue.isEmpty {
+            withAnimation(.easeOut(duration: 0.15)) {
+                showConflictAlert = false
+            }
+            currentConflictDay = nil
             commitImport()
         } else {
-            // Slight delay so SwiftUI can re-present the next alert cleanly.
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) {
-                presentNextConflict()
-            }
+            presentNextConflict()
         }
     }
 
@@ -490,10 +494,22 @@ struct ScannedDraftEditor: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(String(localized: "edit.save", defaultValue: "Save")) {
-                        onSave(draft)
+                        var updated = draft
+                        let resolved = WorkSession.resolveClockPair(
+                            clockIn: draft.clockIn,
+                            clockOut: draft.clockOut
+                        )
+                        updated.clockIn = resolved.clockIn
+                        updated.clockOut = resolved.clockOut
+                        onSave(updated)
                         dismiss()
                     }
-                    .disabled(draft.clockOut <= draft.clockIn)
+                    .disabled({
+                        let calendar = Calendar.current
+                        let inParts = calendar.dateComponents([.hour, .minute], from: draft.clockIn)
+                        let outParts = calendar.dateComponents([.hour, .minute], from: draft.clockOut)
+                        return inParts.hour == outParts.hour && inParts.minute == outParts.minute
+                    }())
                 }
             }
         }

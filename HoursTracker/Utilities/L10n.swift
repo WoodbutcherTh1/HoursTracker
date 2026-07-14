@@ -30,6 +30,24 @@ enum L10n {
     static var historyTitle: String { String(localized: "history.title") }
     static var historyEmpty: String { String(localized: "history.empty") }
     static var historyEmptyDescription: String { String(localized: "history.emptyDescription") }
+    static var historyColDate: String { String(localized: "history.col.date") }
+    static var historyColIn: String { String(localized: "history.col.in") }
+    static var historyColOut: String { String(localized: "history.col.out") }
+    static var historyColHours: String { String(localized: "history.col.hours") }
+    static var historyColAmount: String { String(localized: "history.col.amount") }
+    static var historyTotalPay: String { String(localized: "history.totalPay") }
+    static var historyTotalHours: String { String(localized: "history.totalHours") }
+    static var historyPayNet: String { String(localized: "history.payNet") }
+    static var historyPayGross: String { String(localized: "history.payGross") }
+
+    static var scannerConflictTitle: String { String(localized: "scanner.conflictTitle") }
+    static var scannerConflictReplace: String { String(localized: "scanner.conflictReplace") }
+    static var scannerConflictKeep: String { String(localized: "scanner.conflictKeep") }
+    static var scannerConflictApplyAll: String { String(localized: "scanner.conflictApplyAll") }
+    static var scannerConflictDatesHeader: String { String(localized: "scanner.conflictDatesHeader") }
+    static func scannerConflictMessage(_ date: String) -> String {
+        String(format: String(localized: "scanner.conflictMessage %@"), date)
+    }
 
     // Edit
     static var editTitle: String { String(localized: "edit.title") }
