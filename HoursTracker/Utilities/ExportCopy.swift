@@ -1,7 +1,7 @@
 import Foundation
 
 /// All user-facing strings for an exported report, resolved for a specific language
-/// so the report language can differ from the app UI language.
+/// so the report is entirely in one language — never a Hebrew/English mix.
 struct ExportCopy {
     let locale: Locale
     let language: AppLocale.Language
@@ -40,24 +40,31 @@ struct ExportCopy {
     func period(_ period: String) -> String { format("report.period %@", period) }
     func creditPoints(_ points: String) -> String { format("report.creditPoints %@", points) }
 
-    // MARK: Columns
+    // MARK: Daily table columns (classic payroll timesheet)
 
-    var colDate: String { t("report.col.date") }
     var colDay: String { t("report.col.day") }
+    var colDate: String { t("report.col.date") }
     var colIn: String { t("report.col.in") }
     var colOut: String { t("report.col.out") }
-    var colRegular: String { t("report.col.regular") }
-    var colOT125: String { t("report.col.ot125") }
-    var colOT150: String { t("report.col.ot150") }
-    var colGas: String { t("report.col.gas") }
-    var colGross: String { t("report.col.gross") }
-    var colNet: String { t("report.col.net") }
-    var colType: String { t("report.col.type") }
+    var colBreak: String { t("report.col.break") }
+    var colTotalHours: String { t("report.col.totalHours") }
+    /// Rate columns stay numeric (100% / 125% / 150%) in every language — not a language mix.
+    var colRate100: String { "100%" }
+    var colRate125: String { "125%" }
+    var colRate150: String { "150%" }
+    var colTravel: String { t("report.col.travel") }
+    var colDailyWage: String { t("report.col.dailyWage") }
 
-    var colTotalHours: String { t("report.summary.totalHours") }
+    // MARK: Summary / chart labels
+
+    var colSummaryTotalHours: String { t("report.summary.totalHours") }
     var colGrossPay: String { t("report.summary.grossPay") }
     var colNetPay: String { t("report.summary.netPay") }
     var colDeductions: String { t("report.summary.deductions") }
+    var colRegular: String { t("report.col.regular") }
+    var colOT125: String { t("report.col.ot125") }
+    var colOT150: String { t("report.col.ot150") }
+    var colGas: String { t("report.col.travel") }
 
     // MARK: Legend
 
@@ -67,28 +74,22 @@ struct ExportCopy {
             t("report.legend.date"),
             t("report.legend.in"),
             t("report.legend.out"),
-            t("report.legend.regular"),
-            t("report.legend.ot125"),
-            t("report.legend.ot150"),
-            t("report.legend.gas"),
-            t("report.legend.gross"),
-            t("report.legend.net"),
-            t("report.legend.type")
+            t("report.legend.break"),
+            t("report.legend.totalHours"),
+            t("report.legend.rate100"),
+            t("report.legend.rate125"),
+            t("report.legend.rate150"),
+            t("report.legend.travel"),
+            t("report.legend.dailyWage")
         ]
     }
 
-    // MARK: Entry types
-
-    var entryManual: String { t("entry.manual") }
-    var entryAutomatic: String { t("entry.automatic") }
-    var entryScanned: String { t("entry.ai") }
-
-    /// Explicit table so export language is independent of the device UI locale.
+    /// Explicit table so each export language is complete and self-contained.
     private static let table: [String: [AppLocale.Language: String]] = [
         "report.title": [
-            .english: "Work Hours Report",
-            .arabic: "تقرير ساعات العمل",
-            .hebrew: "דוח שעות עבודה"
+            .english: "Monthly Hours Report",
+            .arabic: "تقرير الساعات الشهري",
+            .hebrew: "דוח שעות חודשי"
         ],
         "report.payrollSummary": [
             .english: "Payroll summary",
@@ -111,7 +112,7 @@ struct ExportCopy {
             .hebrew: "פירוט ימים"
         ],
         "report.allDays": [
-            .english: "All Days",
+            .english: "All days",
             .arabic: "جميع الأيام",
             .hebrew: "כל הימים"
         ],
@@ -131,14 +132,14 @@ struct ExportCopy {
             .hebrew: "עובד: %@"
         ],
         "report.id %@": [
-            .english: "ID: %@",
-            .arabic: "الهوية: %@",
-            .hebrew: "ת.ז.: %@"
+            .english: "ID number: %@",
+            .arabic: "رقم الهوية: %@",
+            .hebrew: "תעודת זהות: %@"
         ],
         "report.employee %@": [
-            .english: "Employee #: %@",
+            .english: "Employee number: %@",
             .arabic: "رقم الموظف: %@",
-            .hebrew: "מס׳ עובד: %@"
+            .hebrew: "מספר עובד: %@"
         ],
         "report.workplace %@": [
             .english: "Workplace: %@",
@@ -156,7 +157,7 @@ struct ExportCopy {
             .hebrew: "תקופה: %@"
         ],
         "report.creditPoints %@": [
-            .english: "Credit Points: %@",
+            .english: "Credit points: %@",
             .arabic: "نقاط الائتمان: %@",
             .hebrew: "נקודות זיכוי: %@"
         ],
@@ -180,40 +181,40 @@ struct ExportCopy {
             .arabic: "خروج",
             .hebrew: "יציאה"
         ],
+        "report.col.break": [
+            .english: "Break",
+            .arabic: "استراحة",
+            .hebrew: "הפסקה"
+        ],
+        "report.col.totalHours": [
+            .english: "Total",
+            .arabic: "المجموع",
+            .hebrew: "סה״כ"
+        ],
         "report.col.regular": [
             .english: "Regular",
             .arabic: "عادي",
             .hebrew: "רגיל"
         ],
         "report.col.ot125": [
-            .english: "125% OT",
+            .english: "Overtime 125%",
             .arabic: "إضافي 125%",
-            .hebrew: "125% נוסף"
+            .hebrew: "שעות נוספות 125%"
         ],
         "report.col.ot150": [
-            .english: "150% OT",
+            .english: "Overtime 150%",
             .arabic: "إضافي 150%",
-            .hebrew: "150% נוסף"
+            .hebrew: "שעות נוספות 150%"
         ],
-        "report.col.gas": [
-            .english: "Gas",
-            .arabic: "وقود",
-            .hebrew: "דלק"
+        "report.col.travel": [
+            .english: "Travel",
+            .arabic: "مواصلات",
+            .hebrew: "נסיעות"
         ],
-        "report.col.gross": [
-            .english: "Gross",
-            .arabic: "إجمالي",
-            .hebrew: "ברוטו"
-        ],
-        "report.col.net": [
-            .english: "Net",
-            .arabic: "صافي",
-            .hebrew: "נטו"
-        ],
-        "report.col.type": [
-            .english: "Type",
-            .arabic: "النوع",
-            .hebrew: "סוג"
+        "report.col.dailyWage": [
+            .english: "Daily wage",
+            .arabic: "الأجر اليومي",
+            .hebrew: "שכר יומי"
         ],
         "report.summary.totalHours": [
             .english: "Total hours",
@@ -236,74 +237,59 @@ struct ExportCopy {
             .hebrew: "ניכויים"
         ],
         "report.legend.day": [
-            .english: "Day: Weekday name.",
+            .english: "Day: weekday name.",
             .arabic: "اليوم: اسم يوم الأسبوع.",
             .hebrew: "יום: שם יום השבוע."
         ],
         "report.legend.date": [
-            .english: "Date: The work day date.",
+            .english: "Date: the work day date.",
             .arabic: "التاريخ: تاريخ يوم العمل.",
             .hebrew: "תאריך: תאריך יום העבודה."
         ],
         "report.legend.in": [
-            .english: "In: Clock-in / shift start time.",
-            .arabic: "دخول: وقت بداية الوردية (تسجيل الدخول).",
-            .hebrew: "כניסה: שעת תחילת המשמרת."
+            .english: "In: clock-in time.",
+            .arabic: "دخول: وقت بداية الوردية.",
+            .hebrew: "כניסה: שעת התחלת המשמרת."
         ],
         "report.legend.out": [
-            .english: "Out: Clock-out / shift end time.",
-            .arabic: "خروج: وقت نهاية الوردية (تسجيل الخروج).",
+            .english: "Out: clock-out time.",
+            .arabic: "خروج: وقت نهاية الوردية.",
             .hebrew: "יציאה: שעת סיום המשמרת."
         ],
-        "report.legend.regular": [
-            .english: "Regular: Base-rate hours (100% on regular days; 150% on rest days/holidays).",
-            .arabic: "عادي: ساعات العمل العادية المدفوعة بنسبة 100% (أو 150% في يوم الراحة/العيد).",
-            .hebrew: "רגיל: שעות במחיר הבסיס (100% ביום רגיל; 150% ביום מנוחה/חג)."
+        "report.legend.break": [
+            .english: "Break: unpaid break in hours.",
+            .arabic: "استراحة: مدة الاستراحة غير المدفوعة بالساعات.",
+            .hebrew: "הפסקה: משך הפסקה ללא תשלום בשעות."
         ],
-        "report.legend.ot125": [
-            .english: "125% OT: First overtime tier (125% regular day; 175% rest day/holiday).",
-            .arabic: "إضافي 125%: ساعات إضافية بالشريحة الأولى (125% في يوم عادي؛ 175% في يوم راحة/عيد).",
-            .hebrew: "125% נוסף: שעות נוספות בשכבה הראשונה (125% ביום רגיל; 175% ביום מנוחה/חג)."
+        "report.legend.totalHours": [
+            .english: "Total: paid hours after break.",
+            .arabic: "المجموع: الساعات المدفوعة بعد خصم الاستراحة.",
+            .hebrew: "סה״כ: שעות בתשלום אחרי הפסקה."
         ],
-        "report.legend.ot150": [
-            .english: "150% OT: Second overtime tier (150% regular day; 200% rest day/holiday).",
-            .arabic: "إضافي 150%: ساعات إضافية بالشريحة الثانية (150% في يوم عادي؛ 200% في يوم راحة/عيد).",
-            .hebrew: "150% נוסף: שעות נוספות בשכבה השנייה (150% ביום רגיל; 200% ביום מנוחה/חג)."
+        "report.legend.rate100": [
+            .english: "100%: regular-rate hours.",
+            .arabic: "100%: الساعات بالأجر العادي.",
+            .hebrew: "100%: שעות בתעריף רגיל."
         ],
-        "report.legend.gas": [
-            .english: "Gas: Daily fuel/gas allowance from settings.",
-            .arabic: "وقود: بدل الوقود اليومي حسب الإعدادات.",
-            .hebrew: "דלק: תוספת דלק יומית לפי ההגדרות."
+        "report.legend.rate125": [
+            .english: "125%: first overtime tier.",
+            .arabic: "125%: الشريحة الأولى من الساعات الإضافية.",
+            .hebrew: "125%: שכבת שעות נוספות ראשונה."
         ],
-        "report.legend.gross": [
-            .english: "Gross: Daily gross wage before deductions — regular + overtime + gas.",
-            .arabic: "إجمالي: الأجر اليومي الإجمالي (بروطو) قبل الخصومات — يشمل الساعات العادية والإضافي وبدل الوقود.",
-            .hebrew: "ברוטו: השכר היומי לפני ניכויים — כולל רגיל, שעות נוספות ודלק."
+        "report.legend.rate150": [
+            .english: "150%: second overtime tier.",
+            .arabic: "150%: الشريحة الثانية من الساعات الإضافية.",
+            .hebrew: "150%: שכבת שעות נוספות שנייה."
         ],
-        "report.legend.net": [
-            .english: "Net: Estimated daily net pay after income tax, National Insurance, and Health Tax.",
-            .arabic: "صافي: تقدير الأجر الصافي لليوم بعد ضريبة الدخل والتأمين الوطني وضريبة الصحة.",
-            .hebrew: "נטו: הערכת השכר נטו ליום אחרי מס הכנסה, ביטוח לאומי ומס בריאות."
+        "report.legend.travel": [
+            .english: "Travel: daily travel allowance.",
+            .arabic: "مواصلات: بدل المواصلات اليومي.",
+            .hebrew: "נסיעות: תוספת נסיעות יומית."
         ],
-        "report.legend.type": [
-            .english: "Type: How the shift was recorded — automatic, manual, or scanned.",
-            .arabic: "النوع: طريقة تسجيل الوردية — تلقائي، يدوي، أو عبر المسح الضوئي.",
-            .hebrew: "סוג: איך נרשמה המשמרת — אוטומטי, ידני או סריקה."
-        ],
-        "entry.manual": [
-            .english: "Manual",
-            .arabic: "يدوي",
-            .hebrew: "ידני"
-        ],
-        "entry.automatic": [
-            .english: "Automatic",
-            .arabic: "أوتوماتيكي",
-            .hebrew: "אוטומטי"
-        ],
-        "entry.ai": [
-            .english: "Scanned",
-            .arabic: "مسح ضوئي",
-            .hebrew: "סריקה"
+        "report.legend.dailyWage": [
+            .english: "Daily wage: gross pay for that day.",
+            .arabic: "الأجر اليومي: الأجر الإجمالي لذلك اليوم.",
+            .hebrew: "שכר יומי: השכר ברוטו לאותו יום."
         ]
     ]
 }

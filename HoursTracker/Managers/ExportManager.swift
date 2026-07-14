@@ -51,15 +51,14 @@ final class ExportManager {
 
     private lazy var dateFormatter: DateFormatter = {
         let f = DateFormatter()
-        f.dateStyle = .medium
-        f.timeStyle = .none
+        // Numeric date avoids English month names leaking into Hebrew/Arabic exports.
+        f.dateFormat = "dd.MM.yy"
         return f
     }()
 
     private lazy var timeFormatter: DateFormatter = {
         let f = DateFormatter()
-        f.dateStyle = .none
-        f.timeStyle = .short
+        f.dateFormat = "HH:mm"
         return f
     }()
 
@@ -219,10 +218,10 @@ final class ExportManager {
 
             let deductions = totals.incomeTax + totals.nationalInsurance + totals.healthTax
             let cards: [(String, String)] = [
-                (copy.colTotalHours, formatHours(totals.totalHours)),
-                (copy.colGrossPay, totals.formattedGrossPay),
-                (copy.colDeductions, totals.formatted(deductions)),
-                (copy.colNetPay, totals.formattedNetPay)
+                (copy.colSummaryTotalHours, formatHours(totals.totalHours)),
+                (copy.colGrossPay, formatMoney(totals.grossPay, currencyCode: totals.currencyCode)),
+                (copy.colDeductions, formatMoney(deductions, currencyCode: totals.currencyCode)),
+                (copy.colNetPay, formatMoney(totals.netPay, currencyCode: totals.currencyCode))
             ]
             let cardGap: CGFloat = 10
             let cardWidth = (contentWidth - cardGap * 3) / 4
@@ -276,7 +275,7 @@ final class ExportManager {
                 width: chartWidth,
                 titleFont: sectionFont,
                 labelFont: smallFont,
-                valueFormatter: { totals.formatted($0) }
+                valueFormatter: { formatMoney($0, currencyCode: totals.currencyCode) }
             )
             y = max(y, payY) + 12
 
@@ -416,7 +415,7 @@ final class ExportManager {
         lines.append(contentsOf: asciiBars(hoursSegments(report.totals), formatValue: formatHours))
         lines.append("")
         lines.append(copy.payChart)
-        lines.append(contentsOf: asciiBars(paySegments(report.totals), formatValue: { report.totals.formatted($0) }))
+        lines.append(contentsOf: asciiBars(paySegments(report.totals), formatValue: { formatMoney($0, currencyCode: report.totals.currencyCode) }))
         lines.append("")
         lines.append(contentsOf: columnLegendBlock())
         lines.append("")
@@ -456,7 +455,7 @@ final class ExportManager {
         lines.append("")
         lines.append("## \(copy.payChart)")
         lines.append("")
-        lines.append(contentsOf: asciiBars(paySegments(report.totals), formatValue: { report.totals.formatted($0) }).map { "- `\($0)`" })
+        lines.append(contentsOf: asciiBars(paySegments(report.totals), formatValue: { formatMoney($0, currencyCode: report.totals.currencyCode) }).map { "- `\($0)`" })
         lines.append("")
         lines.append("## \(copy.legendTitle)")
         lines.append("")
@@ -504,7 +503,7 @@ final class ExportManager {
             <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>\(escapeXML(copy.hoursChart))</w:t></w:r></w:p>
             \(paragraphs(asciiBars(hoursSegments(report.totals), formatValue: formatHours)))
             <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>\(escapeXML(copy.payChart))</w:t></w:r></w:p>
-            \(paragraphs(asciiBars(paySegments(report.totals), formatValue: { report.totals.formatted($0) })))
+            \(paragraphs(asciiBars(paySegments(report.totals), formatValue: { formatMoney($0, currencyCode: report.totals.currencyCode) })))
             \(paragraphs(columnLegendBlock()))
             <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>\(escapeXML(copy.dailyTable))</w:t></w:r></w:p>
             <w:tbl>
@@ -581,10 +580,10 @@ final class ExportManager {
     private func summaryLines(_ totals: DayPayBreakdown) -> [String] {
         let deductions = totals.incomeTax + totals.nationalInsurance + totals.healthTax
         return [
-            "\(copy.colTotalHours): \(formatHours(totals.totalHours))",
-            "\(copy.colGrossPay): \(totals.formattedGrossPay)",
-            "\(copy.colDeductions): \(totals.formatted(deductions))",
-            "\(copy.colNetPay): \(totals.formattedNetPay)"
+            "\(copy.colSummaryTotalHours): \(formatHours(totals.totalHours))",
+            "\(copy.colGrossPay): \(formatMoney(totals.grossPay, currencyCode: totals.currencyCode))",
+            "\(copy.colDeductions): \(formatMoney(deductions, currencyCode: totals.currencyCode))",
+            "\(copy.colNetPay): \(formatMoney(totals.netPay, currencyCode: totals.currencyCode))"
         ]
     }
 
@@ -626,52 +625,50 @@ final class ExportManager {
     private func tableColumns() -> [String] {
         [
             copy.colDay, copy.colDate, copy.colIn, copy.colOut,
-            copy.colRegular, copy.colOT125, copy.colOT150,
-            copy.colGas, copy.colGross, copy.colNet, copy.colType
+            copy.colBreak, copy.colTotalHours,
+            copy.colRate100, copy.colRate125, copy.colRate150,
+            copy.colTravel, copy.colDailyWage
         ]
     }
 
     private func rowValues(_ row: ExportRow) -> [String] {
         let session = row.session
         let b = row.breakdown
-        let typeLabel: String
-        if session.isAIImported {
-            typeLabel = copy.entryScanned
-        } else if session.isManualEntry {
-            typeLabel = copy.entryManual
-        } else {
-            typeLabel = copy.entryAutomatic
-        }
+        let breakHours = Double(session.breakMinutes) / 60
         return [
             weekdayFormatter.string(from: session.date),
             dateFormatter.string(from: session.date),
             timeFormatter.string(from: session.clockIn),
-            session.clockOut.map { timeFormatter.string(from: $0) } ?? "-",
+            session.clockOut.map { timeFormatter.string(from: $0) } ?? "—",
+            formatHours(breakHours),
+            formatHours(b.totalHours),
             formatHours(b.regularHours),
             formatHours(b.ot125Hours),
             formatHours(b.ot150Hours),
-            b.formatted(b.gasAllowance),
-            b.formattedGrossPay,
-            b.formattedNetPay,
-            typeLabel
+            formatMoney(b.gasAllowance, currencyCode: b.currencyCode),
+            formatMoney(b.grossPay, currencyCode: b.currencyCode)
         ]
     }
 
     private func totalsValues(_ totals: DayPayBreakdown) -> [String] {
         [
             copy.total, "", "", "",
+            "",
+            formatHours(totals.totalHours),
             formatHours(totals.regularHours),
             formatHours(totals.ot125Hours),
             formatHours(totals.ot150Hours),
-            totals.formatted(totals.gasAllowance),
-            totals.formattedGrossPay,
-            totals.formattedNetPay,
-            ""
+            formatMoney(totals.gasAllowance, currencyCode: totals.currencyCode),
+            formatMoney(totals.grossPay, currencyCode: totals.currencyCode)
         ]
     }
 
     private func formatHours(_ hours: Double) -> String {
-        String(format: "%.2f", hours)
+        String(format: "%.1f", hours)
+    }
+
+    private func formatMoney(_ amount: Double, currencyCode: String) -> String {
+        PayFormatter.string(amount, currencyCode: currencyCode, locale: copy.locale)
     }
 
     private func formatFixedWidth(_ values: [String], widths: [Int]) -> String {

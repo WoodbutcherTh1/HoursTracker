@@ -96,12 +96,20 @@ final class ExportManagerTests: XCTestCase {
 
         let contents = try String(contentsOf: url, encoding: .utf8)
         XCTAssertTrue(contents.contains("|"))
+        XCTAssertTrue(contents.contains("Monthly Hours Report"))
         XCTAssertTrue(contents.contains("Payroll summary"))
         XCTAssertTrue(contents.contains("Hours breakdown"))
         XCTAssertTrue(contents.contains("Pay breakdown"))
         XCTAssertTrue(contents.contains("Column guide"))
         XCTAssertTrue(contents.contains("Daily details"))
         XCTAssertTrue(contents.contains("Day"))
+        XCTAssertTrue(contents.contains("Travel"))
+        XCTAssertTrue(contents.contains("Daily wage"))
+        XCTAssertTrue(contents.contains("100%"))
+        XCTAssertTrue(contents.contains("125%"))
+        XCTAssertTrue(contents.contains("150%"))
+        // No Hebrew characters in an English export.
+        XCTAssertNil(contents.range(of: #"\p{Hebrew}"#, options: .regularExpression))
         XCTAssertEqual(url.pathExtension, "md")
     }
 
@@ -121,6 +129,11 @@ final class ExportManagerTests: XCTestCase {
         XCTAssertTrue(contents.contains("توزيع الساعات"))
         XCTAssertTrue(contents.contains("تفاصيل الأيام"))
         XCTAssertTrue(contents.contains("اليوم"))
+        XCTAssertTrue(contents.contains("مواصلات"))
+        XCTAssertTrue(contents.contains("الأجر اليومي"))
+        XCTAssertFalse(contents.contains("Travel"))
+        XCTAssertFalse(contents.contains("Gross"))
+        XCTAssertFalse(contents.contains("Daily wage"))
     }
 
     func testHebrewExportLanguage() throws {
@@ -135,9 +148,20 @@ final class ExportManagerTests: XCTestCase {
         defer { try? FileManager.default.removeItem(at: url) }
 
         let contents = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(contents.contains("דוח שעות חודשי"))
         XCTAssertTrue(contents.contains("סיכום שכר"))
         XCTAssertTrue(contents.contains("פילוח שעות"))
         XCTAssertTrue(contents.contains("פירוט ימים"))
+        XCTAssertTrue(contents.contains("נסיעות"))
+        XCTAssertTrue(contents.contains("שכר יומי"))
+        XCTAssertTrue(contents.contains("הפסקה"))
+        XCTAssertTrue(contents.contains("100%"))
+        // No English payroll words mixed into Hebrew export.
+        XCTAssertFalse(contents.contains("Travel"))
+        XCTAssertFalse(contents.contains("Gross"))
+        XCTAssertFalse(contents.contains("Daily wage"))
+        XCTAssertFalse(contents.contains("Break"))
+        XCTAssertFalse(contents.contains(" OT"))
     }
 
     func testTXTExportIncludesPayrollChartsAndLegend() throws {
