@@ -366,9 +366,9 @@ actor TimesheetScannerManager {
         return unique
     }
 
-    /// Accepted import window: a few years back through next year (payroll lag / Dec sheets).
+    /// Accepted import window: recent years only (payroll lag / last-year sheets).
     private func isPlausibleTimesheetYear(_ year: Int, currentYear: Int) -> Bool {
-        year >= currentYear - 3 && year <= currentYear + 1
+        year >= currentYear - 5 && year <= currentYear + 1
     }
 
     /// OCR often flips a digit (2024→2004, 2021→2001). Repair when the fixed year is plausible.
@@ -612,31 +612,21 @@ actor TimesheetScannerManager {
             let unusedIndexes = times.indices.filter { !times[$0].used }
             let nearest = unusedIndexes
                 .map { (offset: $0, distance: abs(times[$0].location - markedDate.location)) }
-                .filter { $0.distance <= 120 }
+                .filter { $0.distance <= 80 }
                 .sorted { $0.distance < $1.distance }
+            // Only the two closest times — taking more steals the next row's clocks.
             guard nearest.count >= 2 else { continue }
 
-            let candidateTimes = nearest.prefix(4).map { times[$0.offset].time }
-            guard let pair = pickClockPair(Array(candidateTimes)) else { continue }
-
-            func consume(_ target: (Int, Int)) {
-                let match = nearest.first { times[$0.offset].time == target && !times[$0.offset].used }
-                    ?? unusedIndexes
-                        .map { (offset: $0, distance: abs(times[$0].location - markedDate.location)) }
-                        .filter { times[$0.offset].time == target && !times[$0.offset].used }
-                        .min(by: { $0.distance < $1.distance })
-                if let match {
-                    times[match.offset].used = true
-                }
-            }
-            consume(pair.0)
-            consume(pair.1)
+            let first = times[nearest[0].offset].time
+            let second = times[nearest[1].offset].time
+            times[nearest[0].offset].used = true
+            times[nearest[1].offset].used = true
 
             drafts.append(
                 makeDraft(
                     date: markedDate.date,
-                    inTime: pair.0,
-                    outTime: pair.1,
+                    inTime: first,
+                    outTime: second,
                     calendar: calendar,
                     confidence: markedDate.hasYear ? 0.85 : 0.7
                 )
