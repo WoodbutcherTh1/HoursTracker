@@ -230,9 +230,9 @@ actor TimesheetScannerManager {
             .replacingOccurrences(of: "\u{200e}", with: "")
             .replacingOccurrences(of: "—", with: "-")
             .replacingOccurrences(of: "–", with: "-")
-            .replacingOccurrences(of: "٫", with: ".")
             .replacingOccurrences(of: "：", with: ":")
-            .replacingOccurrences(of: "٫", with: ":")
+            // Arabic decimal separator → ASCII dot (timesheets often use 7.17 for 7:17).
+            .replacingOccurrences(of: "٫", with: ".")
     }
 
     private func parseLineRows(_ text: String, calendar: Calendar) -> [ScannedSessionDraft] {
@@ -253,6 +253,8 @@ actor TimesheetScannerManager {
         struct MarkedDate {
             let date: Date
             let location: Int
+            let hasYear: Bool
+            let usesSlash: Bool
         }
         struct MarkedTime {
             let time: (Int, Int)
@@ -263,16 +265,24 @@ actor TimesheetScannerManager {
         var dates: [MarkedDate] = []
         var times: [MarkedTime] = []
 
-        let datePattern = #"\b(\d{1,2})[./\-](\d{1,2})(?:[./\-](\d{2,4}))?\b"#
+        // Prefer year-bearing dates; yearless dotted values are often clock times (7.17 / 17.08).
+        let datePattern = #"\b(\d{1,2})([./\-])(\d{1,2})(?:\2(\d{2,4}))?\b"#
         let timePattern = #"\b([01]?\d|2[0-3])[:.]([0-5]\d)(?:[:.][0-5]\d)?\b"#
 
         if let regex = try? NSRegularExpression(pattern: datePattern) {
             let range = NSRange(text.startIndex..., in: text)
             for match in regex.matches(in: text, range: range) {
-                guard let full = Range(match.range, in: text),
-                      let date = firstDate(in: String(text[full]), calendar: calendar)
-                else { continue }
-                dates.append(MarkedDate(date: date, location: match.range.location))
+                guard let full = Range(match.range, in: text) else { continue }
+                let token = String(text[full])
+                guard let parsed = parseDateToken(token, calendar: calendar) else { continue }
+                dates.append(
+                    MarkedDate(
+                        date: parsed.date,
+                        location: match.range.location,
+                        hasYear: parsed.hasYear,
+                        usesSlash: token.contains("/")
+                    )
+                )
             }
         }
 
@@ -282,34 +292,42 @@ actor TimesheetScannerManager {
                 guard let full = Range(match.range, in: text),
                       let parsed = parseTime(String(text[full]))
                 else { continue }
-                // Skip values that were already counted as dates (e.g. 12.07 mistaken) — rare with HH:MM.
                 times.append(MarkedTime(time: parsed, location: match.range.location, used: false))
             }
+        }
+
+        // Printed Hebrew sheets use `/` for table dates and `.` for times; a dotted
+        // header date like 15.7.2024 must not steal the first row's clock times.
+        if dates.contains(where: { $0.usesSlash && $0.hasYear }) {
+            dates = dates.filter { $0.usesSlash && $0.hasYear }
+        } else if dates.contains(where: \.hasYear) {
+            dates = dates.filter(\.hasYear)
         }
 
         guard !dates.isEmpty, times.count >= 2 else { return [] }
 
         var drafts: [ScannedSessionDraft] = []
         for markedDate in dates.sorted(by: { $0.location < $1.location }) {
-            // Prefer times that appear after this date in reading order.
-            var candidates = times.enumerated().filter { !$0.element.used && $0.element.location >= markedDate.location }
-            if candidates.count < 2 {
-                candidates = times.enumerated().filter { !$0.element.used }
-            }
-            guard candidates.count >= 2 else { continue }
+            // Pair each date with the two nearest unused times. Hebrew RTL tables often
+            // OCR clock-out/in to the left of the date, so "times after date" is wrong.
+            let unused = times.enumerated().filter { !$0.element.used }
+            let nearest = unused
+                .map { (offset: $0.offset, time: $0.element, distance: abs($0.element.location - markedDate.location)) }
+                .filter { $0.distance <= 120 }
+                .sorted { $0.distance < $1.distance }
+            guard nearest.count >= 2 else { continue }
 
-            let first = candidates[0]
-            let second = candidates[1]
-            times[first.offset].used = true
-            times[second.offset].used = true
+            let pair = Array(nearest.prefix(2)).sorted { $0.time.location < $1.time.location }
+            times[pair[0].offset].used = true
+            times[pair[1].offset].used = true
 
             drafts.append(
                 makeDraft(
                     date: markedDate.date,
-                    inTime: first.element.time,
-                    outTime: second.element.time,
+                    inTime: pair[0].time.time,
+                    outTime: pair[1].time.time,
                     calendar: calendar,
-                    confidence: 0.7
+                    confidence: markedDate.hasYear ? 0.85 : 0.7
                 )
             )
         }
@@ -367,37 +385,73 @@ actor TimesheetScannerManager {
     }
 
     private func firstDate(in text: String, calendar: Calendar) -> Date? {
-        let patterns = [
-            #"(\d{1,2})[./\-](\d{1,2})[./\-](\d{4})"#,
-            #"(\d{1,2})[./\-](\d{1,2})[./\-](\d{2})"#,
-            #"(\d{1,2})[./\-](\d{1,2})(?!\d)"# // DD/MM without year → assume current year
-        ]
-
-        for (index, pattern) in patterns.enumerated() {
-            guard let match = firstGroups(in: text, pattern: pattern) else { continue }
-            let parts = match.compactMap(Int.init)
-            guard parts.count >= 2 else { continue }
-
-            var day = parts[0]
-            var month = parts[1]
-            var year = parts.count > 2 ? parts[2] : calendar.component(.year, from: Date())
-            if year < 100 { year += 2000 }
-
-            // Heuristic: if first number > 12, it's day-first; if second > 12, swap was wrong.
-            if index < 2, day > 31 || month > 12 {
-                swap(&day, &month)
-            }
-            guard (1...12).contains(month), (1...31).contains(day) else { continue }
-
-            var components = DateComponents()
-            components.year = year
-            components.month = month
-            components.day = day
-            if let date = calendar.date(from: components) {
-                return calendar.startOfDay(for: date)
+        let pattern = #"\b(\d{1,2})([./\-])(\d{1,2})(?:\2(\d{2,4}))?\b"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(text.startIndex..., in: text)
+        for match in regex.matches(in: text, range: range) {
+            guard let tokenRange = Range(match.range, in: text) else { continue }
+            if let parsed = parseDateToken(String(text[tokenRange]), calendar: calendar) {
+                return parsed.date
             }
         }
         return nil
+    }
+
+    /// Parses a date token. Yearless dotted/colon values that look like HH.MM are rejected
+    /// so printed timesheets using dots for clock-in/out (7.17, 17.08) do not become May/August days.
+    private func parseDateToken(_ token: String, calendar: Calendar) -> (date: Date, hasYear: Bool)? {
+        let pattern = #"^(\d{1,2})([./\-])(\d{1,2})(?:\2(\d{2,4}))?$"#
+        guard let regex = try? NSRegularExpression(pattern: pattern),
+              let match = regex.firstMatch(in: token, range: NSRange(token.startIndex..., in: token)),
+              match.numberOfRanges >= 4
+        else { return nil }
+
+        func group(_ index: Int) -> String? {
+            guard let range = Range(match.range(at: index), in: token) else { return nil }
+            return String(token[range])
+        }
+
+        guard let firstText = group(1),
+              let separator = group(2),
+              let secondText = group(3),
+              let first = Int(firstText),
+              let second = Int(secondText)
+        else { return nil }
+        let yearPart = group(4).flatMap(Int.init)
+
+        if yearPart == nil {
+            // Israeli printed sheets usually use `/` for dates and `.` for clock times
+            // (7.17, 17.08). Yearless dotted/colon tokens are therefore times, not dates.
+            if separator == "." || separator == ":" {
+                return nil
+            }
+        }
+
+        var day = first
+        var month = second
+        var year = yearPart ?? calendar.component(.year, from: Date())
+        if year < 100 { year += 2000 }
+
+        // DD/MM vs MM/DD: if first looks like a month and second like a day, swap.
+        if yearPart != nil, day <= 12, month > 12 {
+            swap(&day, &month)
+        }
+        if day > 31 || month > 12 {
+            swap(&day, &month)
+        }
+        guard (1...12).contains(month), (1...31).contains(day) else { return nil }
+
+        let currentYear = calendar.component(.year, from: Date())
+        if yearPart != nil, year < 1990 || year > currentYear + 1 {
+            return nil
+        }
+
+        var components = DateComponents()
+        components.year = year
+        components.month = month
+        components.day = day
+        guard let date = calendar.date(from: components) else { return nil }
+        return (calendar.startOfDay(for: date), yearPart != nil)
     }
 
     private func allTimes(in text: String) -> [(Int, Int)] {
@@ -426,17 +480,5 @@ actor TimesheetScannerManager {
         return regex.matches(in: text, range: range).compactMap {
             Range($0.range, in: text).map { String(text[$0]) }
         }
-    }
-
-    private func firstGroups(in text: String, pattern: String) -> [String]? {
-        guard let regex = try? NSRegularExpression(pattern: pattern),
-              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text))
-        else { return nil }
-        var groups: [String] = []
-        for i in 1..<match.numberOfRanges {
-            guard let range = Range(match.range(at: i), in: text) else { continue }
-            groups.append(String(text[range]))
-        }
-        return groups.isEmpty ? nil : groups
     }
 }

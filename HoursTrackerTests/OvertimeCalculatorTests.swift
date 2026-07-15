@@ -160,6 +160,24 @@ final class PayrollPeriodTests: XCTestCase {
 }
 
 final class TimesheetScannerParserTests: XCTestCase {
+    private var calendar: Calendar!
+
+    override func setUp() {
+        super.setUp()
+        calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    }
+
+    private func dayMonthYear(_ date: Date) -> (Int, Int, Int) {
+        let c = calendar.dateComponents([.day, .month, .year], from: date)
+        return (c.day!, c.month!, c.year!)
+    }
+
+    private func hourMinute(_ date: Date) -> (Int, Int) {
+        let c = calendar.dateComponents([.hour, .minute], from: date)
+        return (c.hour!, c.minute!)
+    }
+
     func testParseLineOrientedTimesheet() async throws {
         let text = """
         Date In Out
@@ -184,12 +202,88 @@ final class TimesheetScannerParserTests: XCTestCase {
         12.07.2026
         08:00
         17:30
-        13.07
+        13/07
         09:00
         18:00
         """
         let drafts = await TimesheetScannerManager.shared.parseSessions(from: text)
         XCTAssertGreaterThanOrEqual(drafts.count, 2)
+    }
+
+    func testDottedClockTimesAreNotParsedAsDates() async throws {
+        // Real Israeli printed sheet: slash dates + dotted clock times (7.17 / 17.08).
+        // OCR also emits cells out of order (RTL: out, in, then date).
+        let text = """
+        תאריך יום כניסה יציאה
+        17.08
+        7.17
+        01/07/2024
+        17.04
+        7.05
+        02/07/2024
+        17.04
+        7.30
+        05/07/2024
+        17.42
+        7.13
+        06/07/2024
+        """
+        let drafts = await TimesheetScannerManager.shared.parseSessions(from: text)
+        XCTAssertEqual(drafts.count, 4)
+
+        XCTAssertEqual(dayMonthYear(drafts[0].date), (1, 7, 2024))
+        XCTAssertEqual(hourMinute(drafts[0].clockIn), (7, 17))
+        XCTAssertEqual(hourMinute(drafts[0].clockOut), (17, 8))
+
+        XCTAssertEqual(dayMonthYear(drafts[1].date), (2, 7, 2024))
+        XCTAssertEqual(hourMinute(drafts[1].clockIn), (7, 5))
+        XCTAssertEqual(hourMinute(drafts[1].clockOut), (17, 4))
+
+        XCTAssertEqual(dayMonthYear(drafts[2].date), (5, 7, 2024))
+        XCTAssertEqual(hourMinute(drafts[2].clockIn), (7, 30))
+        XCTAssertEqual(hourMinute(drafts[2].clockOut), (17, 4))
+
+        XCTAssertEqual(dayMonthYear(drafts[3].date), (6, 7, 2024))
+        XCTAssertEqual(hourMinute(drafts[3].clockIn), (7, 13))
+        XCTAssertEqual(hourMinute(drafts[3].clockOut), (17, 42))
+
+        // Must not invent May/August days from 7.05 / 17.08.
+        let months = Set(drafts.map { calendar.component(.month, from: $0.date) })
+        XCTAssertEqual(months, [7])
+    }
+
+    func testYearlessDottedTokenIsNotADateWhenYearBearingDatesExist() async throws {
+        let text = """
+        7.05
+        17.08
+        01/07/2024
+        """
+        let drafts = await TimesheetScannerManager.shared.parseSessions(from: text)
+        XCTAssertEqual(drafts.count, 1)
+        XCTAssertEqual(dayMonthYear(drafts[0].date), (1, 7, 2024))
+        XCTAssertEqual(hourMinute(drafts[0].clockIn), (7, 5))
+        XCTAssertEqual(hourMinute(drafts[0].clockOut), (17, 8))
+    }
+
+    func testDottedHeaderDateDoesNotStealRowTimes() async throws {
+        let text = """
+        Ameen Ab
+        15.7.2024
+        17.08
+        7.17
+        01/07/2024
+        17.04
+        7.05
+        02/07/2024
+        """
+        let drafts = await TimesheetScannerManager.shared.parseSessions(from: text)
+        XCTAssertEqual(drafts.count, 2)
+        XCTAssertEqual(dayMonthYear(drafts[0].date), (1, 7, 2024))
+        XCTAssertEqual(hourMinute(drafts[0].clockIn), (7, 17))
+        XCTAssertEqual(hourMinute(drafts[0].clockOut), (17, 8))
+        XCTAssertEqual(dayMonthYear(drafts[1].date), (2, 7, 2024))
+        // Header 15.7.2024 must not appear as a work day.
+        XCTAssertFalse(drafts.contains { dayMonthYear($0.date) == (15, 7, 2024) })
     }
 
     func testFallbackWhenNoSessions() async throws {
