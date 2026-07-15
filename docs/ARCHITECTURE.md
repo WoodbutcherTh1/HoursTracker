@@ -183,6 +183,7 @@ open HoursTracker.xcodeproj
 
 - Run on a **physical device** for geofencing/background location; the simulator can't exercise region monitoring reliably.
 - Requires an iCloud-signed-in device for sync (container `iCloud.com.hourstracker.app`, entitlements in `HoursTracker/HoursTracker.entitlements`).
+- CloudKit is **opt-in** via `HTCloudKitEnabled` in Info.plist. Personal-team installs leave it off (empty entitlements) so `CKContainer` never initializes and the Settings sync section stays hidden. Set the flag and restore the iCloud entitlements only on a paid Apple Developer team build that has the CloudKit container provisioned.
 
 ```bash
 xcodebuild test -scheme HoursTracker -destination 'platform=iOS Simulator,name=iPhone 16'

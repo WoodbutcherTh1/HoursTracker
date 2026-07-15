@@ -31,7 +31,9 @@ struct SettingsView: View {
                 payrollSection
                 taxSection
                 locationSection
-                syncSection
+                if viewModel.isCloudSyncSupported {
+                    syncSection
+                }
                 toolsSection
                 aboutSection
             }

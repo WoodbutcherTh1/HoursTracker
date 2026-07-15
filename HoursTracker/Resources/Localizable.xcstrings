@@ -4027,19 +4027,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "مزامنة iCloud غير متاحة على هذا الجهاز. بياناتك تبقى محفوظة محلياً."
+            "value": "سجّل الدخول إلى iCloud من إعدادات الجهاز لمزامنة ساعاتك بين أجهزتك. بياناتك تبقى محفوظة محلياً."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "iCloud sync is unavailable on this device. Your data stays saved locally."
+            "value": "Sign in to iCloud on this device to sync your hours across Apple devices. Your data stays saved locally."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "סנכרון iCloud אינו זמין במכשיר זה. הנתונים נשמרים מקומית."
+            "value": "התחבר ל‑iCloud בהגדרות המכשיר כדי לסנכרן את השעות בין המכשירים. הנתונים נשמרים מקומית."
           }
         }
       }

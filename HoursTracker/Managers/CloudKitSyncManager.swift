@@ -16,6 +16,9 @@ struct SyncResult {
 }
 
 protocol CloudSyncing: AnyObject {
+    /// `false` when this build cannot use CloudKit at all (no entitlement / NoOp).
+    /// Distinct from a temporary `.unavailable` account status.
+    var isSupported: Bool { get }
     var state: SyncState { get }
     func checkAvailability() async -> Bool
     func sync(localSessions: [WorkSession], localSettings: WorkplaceSettings) async throws -> SyncResult
@@ -27,6 +30,7 @@ protocol CloudSyncing: AnyObject {
 /// Local-only stub used when CloudKit is unavailable or injected in tests.
 final class NoOpCloudSyncManager: CloudSyncing {
     static let shared = NoOpCloudSyncManager()
+    let isSupported = false
     private(set) var state: SyncState = .unavailable
 
     func checkAvailability() async -> Bool { false }
@@ -61,9 +65,11 @@ final class CloudKitSyncManager: CloudSyncing {
 
     /// Opt-in only. Creating `CKContainer` without the entitlement kills the app
     /// at launch (uncatchable). Keep this false for personal-team installs.
-    private static var isCloudKitBuildEnabled: Bool {
+    static var isCloudKitBuildEnabled: Bool {
         Bundle.main.object(forInfoDictionaryKey: "HTCloudKitEnabled") as? Bool ?? false
     }
+
+    var isSupported: Bool { container != nil }
 
     private static var isRunningTests: Bool {
         ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil
@@ -83,6 +89,11 @@ final class CloudKitSyncManager: CloudSyncing {
 
         container = CKContainer(identifier: containerIdentifier)
         state = .idle
+    }
+
+    /// Prefer CloudKit when the build opts in; otherwise stay local-only.
+    static func makeDefault() -> CloudSyncing {
+        isCloudKitBuildEnabled ? CloudKitSyncManager.shared : NoOpCloudSyncManager.shared
     }
 
     private var database: CKDatabase? {
