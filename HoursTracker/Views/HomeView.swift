@@ -252,37 +252,44 @@ struct DaySummarySheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 44))
-                        .foregroundStyle(.green)
+            ZStack {
+                // Celebratory stickman walks in the background for a few seconds.
+                StickmanBackgroundAnimation()
+                    .zIndex(0)
 
-                    Text(L10n.summaryDayComplete)
-                        .font(.title3.weight(.semibold))
+                ScrollView {
+                    VStack(spacing: 20) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .font(.system(size: 44))
+                            .foregroundStyle(.green)
 
-                    VStack(spacing: 12) {
-                        summaryRow(L10n.summaryRegular, value: L10n.hoursLong(breakdown.regularHours))
-                        summaryRow(L10n.summaryOT125, value: L10n.hoursLong(breakdown.ot125Hours))
-                        summaryRow(L10n.summaryOT150, value: L10n.hoursLong(breakdown.ot150Hours))
-                        summaryRow(
-                            String(localized: "shift.gas", defaultValue: "Travel / Gas"),
-                            value: breakdown.formatted(breakdown.gasAllowance)
-                        )
-                        Divider()
-                        GrossNetBadge(breakdown: breakdown)
-                        summaryRow(
-                            String(localized: "tax.creditPoints", defaultValue: "Credit Points"),
-                            value: String(format: "%.2f", breakdown.creditPoints)
-                        )
+                        Text(L10n.summaryDayComplete)
+                            .font(.title3.weight(.semibold))
+
+                        VStack(spacing: 12) {
+                            summaryRow(L10n.summaryRegular, value: L10n.hoursLong(breakdown.regularHours))
+                            summaryRow(L10n.summaryOT125, value: L10n.hoursLong(breakdown.ot125Hours))
+                            summaryRow(L10n.summaryOT150, value: L10n.hoursLong(breakdown.ot150Hours))
+                            summaryRow(
+                                String(localized: "shift.gas", defaultValue: "Travel / Gas"),
+                                value: breakdown.formatted(breakdown.gasAllowance)
+                            )
+                            Divider()
+                            GrossNetBadge(breakdown: breakdown)
+                            summaryRow(
+                                String(localized: "tax.creditPoints", defaultValue: "Credit Points"),
+                                value: String(format: "%.2f", breakdown.creditPoints)
+                            )
+                        }
+                        .padding()
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                        .padding(.horizontal)
                     }
-                    .padding()
-                    .background(Color(.secondarySystemGroupedBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal)
+                    .padding(.top, 28)
+                    .padding(.bottom, 24)
                 }
-                .padding(.top, 28)
-                .padding(.bottom, 24)
+                .zIndex(1)
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
