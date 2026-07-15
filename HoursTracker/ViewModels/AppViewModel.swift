@@ -9,11 +9,13 @@ final class AppViewModel: ObservableObject {
     @Published var showDaySummary = false
     @Published private(set) var syncState: SyncState = .idle
     @Published var errorMessage: String?
+    @Published private(set) var successToast: String?
 
     private let store: SyncingStore
     private let locationManager: LocationReminderManaging
     private let exportManager = ExportManager()
     private let locationCapture = LocationCaptureHelper()
+    private var successToastTask: Task<Void, Never>?
 
     /// Hide the Settings sync section when this build has no CloudKit backend.
     var isCloudSyncSupported: Bool { store.isCloudSyncSupported }
@@ -25,6 +27,23 @@ final class AppViewModel: ObservableObject {
 
     var locationUpdates: Published<CLLocation?>.Publisher {
         locationCapture.$lastLocation
+    }
+
+    var locationCaptureErrors: Published<Error?>.Publisher {
+        locationCapture.$error
+    }
+
+    /// Brief green confirmation for successful user actions (save, delete, import).
+    func showSuccessToast(_ message: String) {
+        successToastTask?.cancel()
+        successToast = message
+        successToastTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            if successToast == message {
+                successToast = nil
+            }
+        }
     }
 
     init(
@@ -136,9 +155,8 @@ final class AppViewModel: ObservableObject {
         dayType: DayType? = nil,
         isNightShift: Bool? = nil
     ) {
+        // Multiple completed shifts on the same day are allowed (same as clock-in).
         let day = Calendar.current.startOfDay(for: date)
-        let hasExisting = sessions.contains { Calendar.current.isDate($0.date, inSameDayAs: day) }
-        guard !hasExisting else { return }
 
         let resolved = WorkSession.resolveClockPair(clockIn: clockIn, clockOut: clockOut)
         let session = WorkSession(
@@ -162,13 +180,16 @@ final class AppViewModel: ObservableObject {
             details: day.formatted(date: .abbreviated, time: .omitted)
         )
     }
+
+    @discardableResult
     func importScannedSessions(
         _ drafts: [ScannedSessionDraft],
         overwriteDays: Set<Date> = []
-    ) {
-        guard !drafts.isEmpty else { return }
+    ) -> Int {
+        guard !drafts.isEmpty else { return 0 }
         let calendar = Calendar.current
         let overwriteKeys = Set(overwriteDays.map { calendar.startOfDay(for: $0).timeIntervalSince1970 })
+        var importedCount = 0
 
         for draft in drafts where draft.isSelected {
             let resolved = WorkSession.resolveClockPair(clockIn: draft.clockIn, clockOut: draft.clockOut)
@@ -192,16 +213,20 @@ final class AppViewModel: ObservableObject {
                 clockOut: resolved.clockOut
             )
             sessions.append(session)
+            importedCount += 1
         }
+
+        guard importedCount > 0 else { return 0 }
 
         persist()
         refreshReminders()
         ActivityLogStore.shared.log(
-            L10n.logEventImport(drafts.filter(\.isSelected).count),
+            L10n.logEventImport(importedCount),
             level: .success,
             category: "import",
             details: overwriteDays.isEmpty ? nil : L10n.logEventImportOverwrite(overwriteDays.count)
         )
+        return importedCount
     }
 
     func existingCompletedSession(on day: Date) -> WorkSession? {

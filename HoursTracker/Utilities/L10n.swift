@@ -59,8 +59,19 @@ enum L10n {
     static var editNotes: String { String(localized: "edit.notes") }
     static var editNotesPlaceholder: String { String(localized: "edit.notesPlaceholder") }
     static var editDelete: String { String(localized: "edit.delete") }
+    static var editDeleteConfirm: String { String(localized: "edit.deleteConfirm") }
     static var editCancel: String { String(localized: "edit.cancel") }
     static var editSave: String { String(localized: "edit.save") }
+
+    // Feedback toasts
+    static var feedbackSessionSaved: String { String(localized: "feedback.sessionSaved") }
+    static var feedbackSessionUpdated: String { String(localized: "feedback.sessionUpdated") }
+    static var feedbackSessionDeleted: String { String(localized: "feedback.sessionDeleted") }
+    static var feedbackDataDeleted: String { String(localized: "feedback.dataDeleted") }
+    static var feedbackLogCleared: String { String(localized: "feedback.logCleared") }
+    static func feedbackImported(_ count: Int) -> String {
+        String(format: String(localized: "feedback.imported %lld"), count)
+    }
 
     // Manual
     static var manualTitle: String { String(localized: "manual.title") }
@@ -78,6 +89,7 @@ enum L10n {
     // Settings
     static var settingsTitle: String { String(localized: "settings.title") }
     static var settingsSave: String { String(localized: "settings.save") }
+    static var settingsSaved: String { String(localized: "settings.saved") }
     static var settingsWorkerInfo: String { String(localized: "settings.workerInfo") }
     static var settingsFullName: String { String(localized: "settings.fullName") }
     static var settingsIDNumber: String { String(localized: "settings.idNumber") }
@@ -100,6 +112,7 @@ enum L10n {
     static var settingsSetLocation: String { String(localized: "settings.setLocation") }
     static var settingsLocationUpdated: String { String(localized: "settings.locationUpdated") }
     static var settingsRequestingLocation: String { String(localized: "settings.requestingLocation") }
+    static var settingsLocationFailed: String { String(localized: "settings.locationFailed") }
     static var settingsArrivalReminders: String { String(localized: "settings.arrivalReminders") }
     static var settingsArrivalHint: String { String(localized: "settings.arrivalHint") }
     static var settingsArrivalNeedLocation: String { String(localized: "settings.arrivalNeedLocation") }

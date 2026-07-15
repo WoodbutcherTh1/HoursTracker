@@ -210,6 +210,7 @@ struct EditSessionView: View {
     @State private var breakMinutes: Int
     @State private var dayType: DayType
     @State private var isNightShift: Bool
+    @State private var showDeleteConfirm = false
 
     init(viewModel: AppViewModel, session: WorkSession) {
         self.viewModel = viewModel
@@ -251,8 +252,7 @@ struct EditSessionView: View {
                 }
                 Section {
                     Button(L10n.editDelete, role: .destructive) {
-                        viewModel.deleteSession(session)
-                        dismiss()
+                        showDeleteConfirm = true
                     }
                 }
             }
@@ -274,10 +274,23 @@ struct EditSessionView: View {
                             dayType: dayType,
                             isNightShift: isNightShift
                         )
+                        viewModel.showSuccessToast(L10n.feedbackSessionUpdated)
                         dismiss()
                     }
                     .disabled(sameClockTimes)
                 }
+            }
+            .confirmationDialog(
+                L10n.editDeleteConfirm,
+                isPresented: $showDeleteConfirm,
+                titleVisibility: .visible
+            ) {
+                Button(L10n.editDelete, role: .destructive) {
+                    viewModel.deleteSession(session)
+                    viewModel.showSuccessToast(L10n.feedbackSessionDeleted)
+                    dismiss()
+                }
+                Button(L10n.editCancel, role: .cancel) {}
             }
         }
     }

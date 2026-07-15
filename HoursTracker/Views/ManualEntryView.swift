@@ -142,6 +142,7 @@ struct ManualEntryView: View {
             dayType: dayType,
             isNightShift: isNightShift
         )
+        viewModel.showSuccessToast(L10n.feedbackSessionSaved)
         dismiss()
     }
 }

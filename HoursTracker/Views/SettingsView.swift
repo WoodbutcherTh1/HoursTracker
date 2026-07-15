@@ -43,7 +43,7 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.settingsSave) {
-                        viewModel.saveSettings(draft)
+                        saveSettings()
                     }
                 }
             }
@@ -58,6 +58,7 @@ struct SettingsView: View {
                 Button(L10n.privacyDeleteAll, role: .destructive) {
                     viewModel.deleteAllUserData()
                     draft = viewModel.settings
+                    viewModel.showSuccessToast(L10n.feedbackDataDeleted)
                 }
                 Button(L10n.editCancel, role: .cancel) {}
             }
@@ -72,6 +73,12 @@ struct SettingsView: View {
                 Text(L10n.settingsArrivalBody)
             }
         }
+    }
+
+    private func saveSettings() {
+        viewModel.saveSettings(draft)
+        draft = viewModel.settings
+        viewModel.showSuccessToast(L10n.settingsSaved)
     }
 
     private var workerSection: some View {
@@ -293,20 +300,26 @@ struct SettingsView: View {
             }
 
             Button {
+                locationStatus = L10n.settingsRequestingLocation
                 viewModel.captureCurrentLocation()
             } label: {
                 Label(L10n.settingsSetLocation, systemImage: "location.fill")
             }
-            .onReceive(viewModel.locationUpdates) { _ in
+            .onReceive(viewModel.locationUpdates) { location in
+                guard location != nil else { return }
                 viewModel.applyCapturedLocationIfAvailable()
                 draft = viewModel.settings
-                locationStatus = draft.hasWorkplaceLocation ? L10n.settingsLocationUpdated : L10n.settingsRequestingLocation
+                locationStatus = L10n.settingsLocationUpdated
+            }
+            .onReceive(viewModel.locationCaptureErrors) { error in
+                guard error != nil else { return }
+                locationStatus = L10n.settingsLocationFailed
             }
 
             if !locationStatus.isEmpty {
                 Text(locationStatus)
                     .font(.caption)
-                    .foregroundStyle(.green)
+                    .foregroundStyle(locationStatus == L10n.settingsLocationFailed ? .red : .green)
             }
         } header: {
             Text(L10n.settingsLocationReminders)
@@ -343,7 +356,7 @@ struct SettingsView: View {
     private var toolsSection: some View {
         Section(L10n.settingsTools) {
             NavigationLink {
-                ActivityLogView()
+                ActivityLogView(viewModel: viewModel)
             } label: {
                 Label(L10n.logTitle, systemImage: "list.bullet.rectangle")
             }

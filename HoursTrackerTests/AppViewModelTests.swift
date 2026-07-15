@@ -83,24 +83,24 @@ final class AppViewModelTests: XCTestCase {
         XCTAssertFalse(store.storedSessions[0].isOpen)
     }
 
-    func testManualSessionRejectsDuplicateDay() {
+    func testManualSessionAllowsMultipleShiftsSameDay() {
         let (viewModel, _) = makeViewModel()
         let day = TestData.date(2026, 3, 10)
 
         viewModel.addManualSession(
             date: day,
             clockIn: TestData.date(2026, 3, 10, 8),
-            clockOut: TestData.date(2026, 3, 10, 16),
+            clockOut: TestData.date(2026, 3, 10, 12),
             notes: nil
         )
         viewModel.addManualSession(
             date: day,
-            clockIn: TestData.date(2026, 3, 10, 9),
-            clockOut: TestData.date(2026, 3, 10, 17),
+            clockIn: TestData.date(2026, 3, 10, 14),
+            clockOut: TestData.date(2026, 3, 10, 18),
             notes: nil
         )
 
-        XCTAssertEqual(viewModel.sessions.count, 1)
+        XCTAssertEqual(viewModel.sessions.count, 2)
     }
 
     func testDeleteSessionPersists() {
