@@ -343,6 +343,25 @@ final class TimesheetScannerParserTests: XCTestCase {
         })
     }
 
+    func testPicksMorningAndEveningWhenExtraDecimalOnRow() async throws {
+        // Dotted Hebrew clocks + a total-hours-like 9.50 on the same reconstructed row.
+        let text = "01/07/2024 7.17 17.08 9.50"
+        let drafts = await TimesheetScannerManager.shared.parseSessions(from: text)
+        XCTAssertEqual(drafts.count, 1)
+        assertDayMonthYear(drafts[0].date, 1, 7, 2024)
+        assertHourMinute(drafts[0].clockIn, 7, 17)
+        assertHourMinute(drafts[0].clockOut, 17, 8)
+        XCTAssertEqual(drafts[0].totalHours, 9.85, accuracy: 0.02)
+    }
+
+    func testRejectsAbsurdShiftDurations() async throws {
+        let text = "01/07/2024 00:05 23:55"
+        let result = await TimesheetScannerManager.shared.parseResult(from: text)
+        // ~23.8h is rejected by finalize → manual fallback draft.
+        XCTAssertTrue(result.usedManualFallback)
+        XCTAssertTrue(result.drafts[0].needsManualReview)
+    }
+
     func testFallbackWhenNoSessions() async throws {
         let result = await TimesheetScannerManager.shared.parseResult(from: "hello world nothing useful")
         XCTAssertTrue(result.usedManualFallback)

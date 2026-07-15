@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import Vision
 import PDFKit
+import CoreImage
 
 struct ScannedSessionDraft: Identifiable, Equatable {
     let id: UUID
@@ -85,12 +86,38 @@ enum TimesheetScannerError: LocalizedError {
     }
 }
 
+/// One OCR word/line with its page position (Vision normalized coords).
+private struct OCRToken {
+    let text: String
+    let box: CGRect
+    let confidence: Float
+}
+
 actor TimesheetScannerManager {
     static let shared = TimesheetScannerManager()
 
+    private let ciContext = CIContext(options: nil)
+
     func scan(image: UIImage) async throws -> TimesheetScanResult {
-        let text = (try? await recognizeText(in: image)) ?? ""
-        return parseResult(from: text)
+        let tokens = (try? await recognizeTokens(in: image)) ?? []
+        let flatText = tokens.map(\.text).joined(separator: "\n")
+        let rowText = tableRows(from: tokens).joined(separator: "\n")
+
+        // Prefer spatially reconstructed table rows; fall back to flat OCR text.
+        var drafts = parseSessions(from: rowText)
+        if drafts.isEmpty {
+            drafts = parseSessions(from: flatText)
+        }
+        drafts = finalizeDrafts(drafts)
+
+        if drafts.isEmpty {
+            return TimesheetScanResult(
+                drafts: [ScannedSessionDraft.blankDraft()],
+                ocrText: flatText,
+                usedManualFallback: true
+            )
+        }
+        return TimesheetScanResult(drafts: drafts, ocrText: flatText, usedManualFallback: false)
     }
 
     func scan(pdfURL: URL) async throws -> TimesheetScanResult {
@@ -99,15 +126,28 @@ actor TimesheetScannerManager {
         }
 
         var allText = ""
+        var allDrafts: [ScannedSessionDraft] = []
         for index in 0..<document.pageCount {
             guard let page = document.page(at: index) else { continue }
             if let pageText = page.string, !pageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 allText += pageText + "\n"
+                allDrafts.append(contentsOf: parseSessions(from: pageText))
             } else if let image = render(page: page) {
-                allText += ((try? await recognizeText(in: image)) ?? "") + "\n"
+                let result = try await scan(image: image)
+                allText += result.ocrText + "\n"
+                allDrafts.append(contentsOf: result.drafts.filter { !$0.needsManualReview || $0.confidence > 0 })
             }
         }
-        return parseResult(from: allText)
+
+        let drafts = finalizeDrafts(allDrafts)
+        if drafts.isEmpty {
+            return TimesheetScanResult(
+                drafts: [ScannedSessionDraft.blankDraft()],
+                ocrText: allText,
+                usedManualFallback: true
+            )
+        }
+        return TimesheetScanResult(drafts: drafts, ocrText: allText, usedManualFallback: false)
     }
 
     func scan(fileURL: URL) async throws -> TimesheetScanResult {
@@ -127,8 +167,8 @@ actor TimesheetScannerManager {
 
     // MARK: - Vision
 
-    private func recognizeText(in image: UIImage) async throws -> String {
-        guard let cgImage = preparedCGImage(from: image) else { return "" }
+    private func recognizeTokens(in image: UIImage) async throws -> [OCRToken] {
+        guard let cgImage = preparedCGImage(from: image) else { return [] }
 
         return try await withCheckedThrowingContinuation { continuation in
             let request = VNRecognizeTextRequest { request, error in
@@ -137,21 +177,28 @@ actor TimesheetScannerManager {
                     return
                 }
                 let observations = (request.results as? [VNRecognizedTextObservation]) ?? []
-                let sorted = observations.sorted { lhs, rhs in
-                    let ly = lhs.boundingBox.midY
-                    let ry = rhs.boundingBox.midY
-                    if abs(ly - ry) > 0.015 { return ly > ry }
-                    return lhs.boundingBox.minX < rhs.boundingBox.minX
+                var tokens: [OCRToken] = []
+                for observation in observations {
+                    guard let candidate = observation.topCandidates(1).first else { continue }
+                    // Drop very low-confidence noise that invents fake digits.
+                    if candidate.confidence < 0.35 { continue }
+                    tokens.append(
+                        OCRToken(
+                            text: candidate.string,
+                            box: observation.boundingBox,
+                            confidence: candidate.confidence
+                        )
+                    )
                 }
-                let lines = sorted.compactMap { $0.topCandidates(1).first?.string }
-                continuation.resume(returning: lines.joined(separator: "\n"))
+                continuation.resume(returning: tokens)
             }
             request.recognitionLevel = .accurate
-            request.usesLanguageCorrection = true
+            // Language correction "fixes" timesheet numbers (7.17 → words). Keep it off.
+            request.usesLanguageCorrection = false
             request.recognitionLanguages = ["he-IL", "en-US"]
             request.customWords = [
                 "כניסה", "יציאה", "תאריך", "שעות", "נוכחות", "משמרת", "סה\"כ",
-                "Date", "In", "Out", "Hours", "Clock", "Total"
+                "Date", "Day", "Entry", "Exit", "In", "Out", "Hours", "Clock", "Total", "total_hours"
             ]
 
             do {
@@ -162,10 +209,54 @@ actor TimesheetScannerManager {
         }
     }
 
+    /// Cluster OCR boxes into table rows (top → bottom), then left → right within a row.
+    private func tableRows(from tokens: [OCRToken]) -> [String] {
+        guard !tokens.isEmpty else { return [] }
+
+        let sorted = tokens.sorted { lhs, rhs in
+            if abs(lhs.box.midY - rhs.box.midY) > 0.012 {
+                return lhs.box.midY > rhs.box.midY
+            }
+            return lhs.box.minX < rhs.box.minX
+        }
+
+        var rows: [[OCRToken]] = []
+        for token in sorted {
+            if var last = rows.last, abs(last[0].box.midY - token.box.midY) <= 0.018 {
+                last.append(token)
+                rows[rows.count - 1] = last
+            } else {
+                rows.append([token])
+            }
+        }
+
+        return rows.map { row in
+            row.sorted { $0.box.minX < $1.box.minX }
+                .map(\.text)
+                .joined(separator: " ")
+        }
+    }
+
     private func preparedCGImage(from image: UIImage) -> CGImage? {
-        if let cgImage = image.cgImage { return cgImage }
-        guard let ciImage = image.ciImage else { return nil }
-        return CIContext().createCGImage(ciImage, from: ciImage.extent)
+        let source: CIImage?
+        if let cgImage = image.cgImage {
+            source = CIImage(cgImage: cgImage)
+        } else {
+            source = image.ciImage
+        }
+        guard var ciImage = source else { return nil }
+
+        // Boost contrast so faint printed tables OCR more reliably.
+        if let filter = CIFilter(name: "CIColorControls") {
+            filter.setValue(ciImage, forKey: kCIInputImageKey)
+            filter.setValue(1.15, forKey: kCIInputContrastKey)
+            filter.setValue(0.02, forKey: kCIInputBrightnessKey)
+            if let output = filter.outputImage {
+                ciImage = output
+            }
+        }
+
+        return ciContext.createCGImage(ciImage, from: ciImage.extent)
     }
 
     private func render(page: PDFPage) -> UIImage? {
@@ -185,7 +276,7 @@ actor TimesheetScannerManager {
 
     func parseResult(from text: String) -> TimesheetScanResult {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        let drafts = parseSessions(from: trimmed)
+        let drafts = finalizeDrafts(parseSessions(from: trimmed))
         if drafts.isEmpty {
             return TimesheetScanResult(
                 drafts: [ScannedSessionDraft.blankDraft()],
@@ -230,13 +321,33 @@ actor TimesheetScannerManager {
             )
         }
 
-        var seen = Set<TimeInterval>()
+        return drafts
+    }
+
+    /// Drop impossible shifts and de-dupe identical rows (keep multiple real shifts/day).
+    private func finalizeDrafts(_ drafts: [ScannedSessionDraft]) -> [ScannedSessionDraft] {
+        let calendar = Calendar.current
+        var seen = Set<String>()
         var unique: [ScannedSessionDraft] = []
+
         for draft in drafts.sorted(by: { $0.date < $1.date }) {
-            let key = calendar.startOfDay(for: draft.date).timeIntervalSince1970
-            if seen.insert(key).inserted {
-                unique.append(draft)
+            let hours = draft.totalHours
+            // Reject OCR garbage: empty, tiny, or absurdly long same-day spans.
+            guard hours >= 0.5, hours <= 16 else { continue }
+
+            let inC = calendar.dateComponents([.hour, .minute], from: draft.clockIn)
+            let outC = calendar.dateComponents([.hour, .minute], from: draft.clockOut)
+            let day = calendar.startOfDay(for: draft.date).timeIntervalSince1970
+            let key = "\(day)-\(inC.hour ?? 0)-\(inC.minute ?? 0)-\(outC.hour ?? 0)-\(outC.minute ?? 0)"
+            guard seen.insert(key).inserted else { continue }
+
+            var cleaned = draft
+            // Typical work day is 3–12h; outside that, keep but force review.
+            if hours < 3 || hours > 12 {
+                cleaned.needsManualReview = true
+                cleaned.confidence = min(cleaned.confidence, 0.45)
             }
+            unique.append(cleaned)
         }
         return unique
     }
@@ -284,7 +395,6 @@ actor TimesheetScannerManager {
         struct Mark {
             let first: Int
             let second: Int
-            let location: Int
             let weekday: Int?
         }
 
@@ -309,7 +419,7 @@ actor TimesheetScannerManager {
                     weekday = value
                     break
                 }
-                marks.append(Mark(first: first, second: second, location: match.range.location, weekday: weekday))
+                marks.append(Mark(first: first, second: second, weekday: weekday))
             }
         }
 
@@ -356,8 +466,8 @@ actor TimesheetScannerManager {
                 if isLikelyHeader(line) { return nil }
                 guard let date = firstDate(in: line, calendar: calendar, dateOrder: dateOrder) else { return nil }
                 let times = allTimes(in: line, preferColon: preferColonTimes)
-                guard times.count >= 2 else { return nil }
-                return makeDraft(date: date, inTime: times[0], outTime: times[1], calendar: calendar, confidence: 0.9)
+                guard let pair = pickClockPair(times) else { return nil }
+                return makeDraft(date: date, inTime: pair.0, outTime: pair.1, calendar: calendar, confidence: 0.9)
             }
     }
 
@@ -428,22 +538,34 @@ actor TimesheetScannerManager {
         for markedDate in dates.sorted(by: { $0.location < $1.location }) {
             // Pair each date with the two nearest unused times. Hebrew RTL tables often
             // OCR clock-out/in to the left of the date, so "times after date" is wrong.
-            let unused = times.enumerated().filter { !$0.element.used }
-            let nearest = unused
-                .map { (offset: $0.offset, time: $0.element, distance: abs($0.element.location - markedDate.location)) }
+            let unusedIndexes = times.indices.filter { !times[$0].used }
+            let nearest = unusedIndexes
+                .map { (offset: $0, distance: abs(times[$0].location - markedDate.location)) }
                 .filter { $0.distance <= 120 }
                 .sorted { $0.distance < $1.distance }
             guard nearest.count >= 2 else { continue }
 
-            let pair = Array(nearest.prefix(2)).sorted { $0.time.location < $1.time.location }
-            times[pair[0].offset].used = true
-            times[pair[1].offset].used = true
+            let candidateTimes = nearest.prefix(4).map { times[$0.offset].time }
+            guard let pair = pickClockPair(Array(candidateTimes)) else { continue }
+
+            func consume(_ target: (Int, Int)) {
+                let match = nearest.first { times[$0.offset].time == target && !times[$0.offset].used }
+                    ?? unusedIndexes
+                        .map { (offset: $0, distance: abs(times[$0].location - markedDate.location)) }
+                        .filter { times[$0.offset].time == target && !times[$0.offset].used }
+                        .min(by: { $0.distance < $1.distance })
+                if let match {
+                    times[match.offset].used = true
+                }
+            }
+            consume(pair.0)
+            consume(pair.1)
 
             drafts.append(
                 makeDraft(
                     date: markedDate.date,
-                    inTime: pair[0].time.time,
-                    outTime: pair[1].time.time,
+                    inTime: pair.0,
+                    outTime: pair.1,
                     calendar: calendar,
                     confidence: markedDate.hasYear ? 0.85 : 0.7
                 )
@@ -468,9 +590,9 @@ actor TimesheetScannerManager {
             let window = lines[index..<min(index + 4, lines.count)].joined(separator: " ")
             if let date = firstDate(in: window, calendar: calendar, dateOrder: dateOrder) {
                 let times = allTimes(in: window, preferColon: preferColonTimes)
-                if times.count >= 2 {
+                if let pair = pickClockPair(times) {
                     drafts.append(
-                        makeDraft(date: date, inTime: times[0], outTime: times[1], calendar: calendar, confidence: 0.6)
+                        makeDraft(date: date, inTime: pair.0, outTime: pair.1, calendar: calendar, confidence: 0.6)
                     )
                     index += 2
                     continue
@@ -498,6 +620,25 @@ actor TimesheetScannerManager {
             notes: String(localized: "scanner.importedNote", defaultValue: "Imported from scan"),
             confidence: confidence
         )
+    }
+
+    /// Choose morning + evening when extra decimals (total hours) pollute the time list.
+    private func pickClockPair(_ times: [(Int, Int)]) -> ((Int, Int), (Int, Int))? {
+        guard times.count >= 2 else { return nil }
+        if times.count == 2 { return (times[0], times[1]) }
+
+        let morning = times.filter { (5...11).contains($0.0) }
+            .min { lhs, rhs in
+                if lhs.0 != rhs.0 { return lhs.0 < rhs.0 }
+                return lhs.1 < rhs.1
+            }
+        let evening = times.filter { (12...23).contains($0.0) }
+            .max { lhs, rhs in
+                if lhs.0 != rhs.0 { return lhs.0 < rhs.0 }
+                return lhs.1 < rhs.1
+            }
+        if let morning, let evening { return (morning, evening) }
+        return (times[0], times[1])
     }
 
     private func isLikelyHeader(_ line: String) -> Bool {
