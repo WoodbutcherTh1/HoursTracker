@@ -237,12 +237,16 @@ final class AppViewModel: ObservableObject {
     ) {
         guard let index = sessions.firstIndex(where: { $0.id == session.id }) else { return }
         if let clockOut {
-            let resolved = WorkSession.resolveClockPair(clockIn: clockIn, clockOut: clockOut)
-            sessions[index].clockIn = resolved.clockIn
-            sessions[index].clockOut = resolved.clockOut
-            sessions[index].date = Calendar.current.startOfDay(for: resolved.clockIn)
+            // The shift editor uses explicit date+time pickers, so the values
+            // are authoritative — no swapped-times heuristic here. That
+            // correction (`resolveClockPair`) only applies to OCR imports and
+            // the same-day wheel pickers of manual entry, where reversed
+            // times are genuinely ambiguous.
+            sessions[index].clockIn = clockIn
+            sessions[index].clockOut = clockOut
+            sessions[index].date = Calendar.current.startOfDay(for: clockIn)
             sessions[index].isNightShift = isNightShift
-                ?? WorkSession.qualifiesAsNightShift(clockIn: resolved.clockIn, clockOut: resolved.clockOut)
+                ?? WorkSession.qualifiesAsNightShift(clockIn: clockIn, clockOut: clockOut)
         } else {
             sessions[index].clockIn = clockIn
             sessions[index].clockOut = nil

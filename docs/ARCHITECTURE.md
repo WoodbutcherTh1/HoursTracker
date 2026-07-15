@@ -12,7 +12,7 @@ HoursTracker is an iOS app for a single worker to track daily work hours and see
 | Minimum OS | iOS 17.0, Swift 5.9 |
 | Project generation | [XcodeGen](https://github.com/yonaskolb/XcodeGen) via `project.yml` (the `.xcodeproj` is generated) |
 | Persistence | Plain JSON files in the app's Documents directory |
-| Sync | CloudKit private database (`iCloud.com.hourstracker.app`) |
+| Sync | CloudKit private database (`iCloud.com.hourstracker.app`), **opt-in via `HTCloudKitEnabled`, off by default** |
 | Location | Core Location geofencing (`CLCircularRegion`), background location mode |
 | Notifications | Local notifications via `UserNotifications` |
 | Localization | String Catalog (`Localizable.xcstrings`) for UI, `AppLocale` for notification text |
@@ -45,17 +45,27 @@ HoursTracker/
 │   ├── ShiftDetailSheet.swift   Per-shift pay breakdown + session editor
 │   ├── ManualEntryView.swift    Add a session by hand (times, break, day type, night)
 │   ├── TimesheetScannerView.swift Review/import OCR-scanned sessions
-│   ├── ExportView.swift         Date range + format pickers, share sheet
-│   └── SettingsView.swift       Worker/pay/work-rules/payroll/tax/location/sync settings
+│   ├── ImportConflictPopup.swift  Replace/keep prompt for scanned days that already exist
+│   ├── ActivityLogView.swift    Browse/export the on-device activity log
+│   ├── PrivacyPolicyView.swift  In-app privacy policy
+│   ├── ExportView.swift         Date range + language + format pickers, share sheet
+│   └── SettingsView.swift       Worker/pay/work-rules/payroll/tax/location/privacy settings
 ├── Utilities/
 │   ├── L10n.swift               Typed accessors for the String Catalog
 │   ├── AppLocale.swift          ar/he/en strings for notifications (outside the catalog)
+│   ├── ExportCopy.swift         Per-language report strings (independent of UI language)
 │   ├── HistoryPeriodHelper.swift    Custom payroll-month math + hour formatting
-│   ├── PayFormatter.swift           Currency-aware money formatting
+│   ├── PayFormatter.swift           Currency-aware money formatting (locale-overridable)
+│   ├── KeyboardDismiss.swift        Tap-outside keyboard dismissal helpers
 │   ├── LocationCaptureHelper.swift  One-shot "use my current location" capture
 │   └── ZipWriter.swift          Minimal ZIP archiver (deflate + CRC32) used to build .docx
+├── Managers/ActivityLogStore.swift  Persistent activity/event log (also exportable)
+├── Models/ExportLanguage.swift      Report language selection (phone / en / he / ar)
 └── Resources/
-    └── Localizable.xcstrings    String Catalog (en / ar / he)
+    ├── Localizable.xcstrings    String Catalog (en / ar / he)
+    ├── InfoPlist.xcstrings      Localized Info.plist strings
+    ├── PrivacyInfo.xcprivacy    Privacy manifest
+    └── Assets.xcassets          App icon
 
 HoursTrackerTests/
 ├── OvertimeCalculatorTests.swift      Pay-engine boundary cases + payroll periods
@@ -65,6 +75,8 @@ HoursTrackerTests/
 ├── ClockOutEstimationTests.swift      Clock-out time prediction
 ├── SyncingPersistenceStoreTests.swift Incremental upload/delete propagation
 ├── AppViewModelTests.swift            Clock in/out flows, error surfacing
+├── ClockTimeResolutionTests.swift     Swapped in/out correction, import conflicts
+├── ActivityLogStoreTests.swift        Activity log persistence
 └── TestDoubles.swift                  In-memory store, mock cloud/location
 ```
 
@@ -133,6 +145,7 @@ Key entry points:
 ### Persistence & sync
 
 - **Local**: `PersistenceManager` writes `work_sessions.json` and `workplace_settings.json` to Documents with ISO-8601 dates and atomic writes. Save failures throw (surfaced as a UI alert); load failures fall back to empty/default state and are logged.
+- **Cloud sync is compiled out by default.** `CKContainer` aborts the process when the iCloud entitlements are missing, and personal-team provisioning cannot carry them, so CloudKit only activates when `HTCloudKitEnabled` is set in Info.plist *and* the entitlements are restored (`CloudKitSyncManager.makeDefault()` otherwise returns the `NoOpCloudSyncManager` stub, and Settings hides the sync section via `CloudSyncing.isSupported`). Everything below describes the enabled configuration.
 - **Cloud**: `CloudKitSyncManager` stores each session as one `WorkSession` record whose `payload` field is the JSON-encoded struct (plus a `modifiedAt` field); settings live in a single well-known record (`workplace-settings`). There is no per-field schema — the payload blob is the source of truth.
 - **Merge strategy**: last-write-wins per record using `modifiedAt` (`WorkSession.touch()` bumps it on every edit). Sessions are merged by UUID; the newer copy wins.
 - **Sync triggers**: full two-way sync (`syncNow`) runs at launch and whenever the app returns to the foreground (`HoursTrackerApp.onChange(of: scenePhase)`), plus a manual sync button. Every local save also fire-and-forgets an upload of the sessions that changed in that save.
@@ -163,7 +176,10 @@ Date ranges: all / specific month / custom range. Output lands in the temp direc
 
 - **Payroll months** — `HistoryPeriodHelper` computes custom salary periods from `WorkplaceSettings.payrollStartDay` (e.g. the 10th → 9th of the next month); History navigates period by period and shows per-period totals with a gross/net toggle.
 - **Net-pay estimation** — `IsraeliTaxEstimator` scales a day's gross to a monthly profile, applies progressive income-tax brackets, National Insurance, and Health Tax, offsets by credit points (`TaxCreditPointsCalculator`, driven by marital status/children settings), and scales back to a daily figure. Explicitly an estimate, not a payroll calculation.
-- **OCR timesheet import** — `TimesheetScannerManager` (Vision-based) extracts date/in/out rows from photographed or imported timesheet images into `ScannedSessionDraft`s; `TimesheetScannerView` lets the user review, select, and import them, with conflict handling for days that already have sessions (`AppViewModel.importScannedSessions`). Imported sessions are flagged `isAIImported` and auto-tagged with day type and night-shift status.
+- **OCR timesheet import** — `TimesheetScannerManager` (Vision-based) extracts date/in/out rows from photographed or imported timesheet images into `ScannedSessionDraft`s; `TimesheetScannerView` lets the user review, select, and import them, with conflict handling for days that already have sessions (`AppViewModel.importScannedSessions` + `ImportConflictPopup`). Imported sessions are flagged `isAIImported` and auto-tagged with day type and night-shift status. `WorkSession.resolveClockPair` corrects the common OCR/RTL mistake of swapped in/out times — this heuristic applies only to scanner imports and the same-day wheel pickers of manual entry, never to the explicit datetimes of the shift editor.
+- **Export languages** — reports can render entirely in English, Hebrew, or Arabic independent of the UI language (`ExportLanguage`), including a column legend. Because `String(localized:)` follows the app locale, report strings live in a dedicated per-language table (`ExportCopy`) — a deliberate third string mechanism alongside the String Catalog and `AppLocale` (consolidation is tracked in the roadmap).
+- **Activity log** — `ActivityLogStore` keeps a persistent on-device log of clock/import/settings/privacy events, browsable in `ActivityLogView` and exportable as TXT/JSON/CSV/Markdown; it is erased by the delete-all-data action.
+- **Privacy & permissions** — Always-location and notification permission are requested only when the user enables the arrival-reminders toggle (`WorkplaceSettings.arrivalRemindersEnabled`); disabling it tears the geofence down. The app ships a privacy manifest (`PrivacyInfo.xcprivacy`), an in-app privacy policy (`PrivacyPolicyView`, `docs/PRIVACY.md`), and a delete-all-data action (`AppViewModel.deleteAllUserData`).
 
 ### Localization
 
