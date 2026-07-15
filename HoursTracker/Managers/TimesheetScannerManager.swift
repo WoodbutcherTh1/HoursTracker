@@ -37,13 +37,13 @@ struct ScannedSessionDraft: Identifiable, Equatable {
         max(0, clockOut.timeIntervalSince(clockIn) / 3600)
     }
 
-    func toWorkSession() -> WorkSession {
+    func toWorkSession(isAIImported: Bool = true) -> WorkSession {
         WorkSession(
             date: Calendar.current.startOfDay(for: date),
             clockIn: clockIn,
             clockOut: clockOut,
             isManualEntry: true,
-            isAIImported: true,
+            isAIImported: isAIImported,
             notes: notes
         )
     }

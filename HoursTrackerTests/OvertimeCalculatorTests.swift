@@ -199,3 +199,47 @@ final class TimesheetScannerParserTests: XCTestCase {
         XCTAssertTrue(result.drafts[0].needsManualReview)
     }
 }
+
+@MainActor
+final class BlankTimesheetViewModelTests: XCTestCase {
+    func testAnalyzeFreeTextFillsFormRows() async {
+        let vm = BlankTimesheetViewModel()
+        vm.loadPeriod(startDay: 1)
+        vm.freeText = """
+        12/07/2026 08:00 17:00
+        13/07/2026 07:30 16:45
+        """
+
+        await vm.analyzeFreeText(startDay: 1)
+
+        XCTAssertEqual(vm.mode, .form)
+        XCTAssertNil(vm.analyzeError)
+        XCTAssertEqual(vm.filledCount, 2)
+        XCTAssertNotNil(vm.analyzeNotice)
+    }
+
+    func testAnalyzeFreeTextRejectsUnparseableInput() async {
+        let vm = BlankTimesheetViewModel()
+        vm.loadPeriod(startDay: 1)
+        vm.freeText = "nothing useful here"
+
+        await vm.analyzeFreeText(startDay: 1)
+
+        XCTAssertNotNil(vm.analyzeError)
+        XCTAssertEqual(vm.filledCount, 0)
+    }
+
+    func testGridRowToDraftSkipsEmptyTimes() {
+        let day = Calendar.current.startOfDay(for: Date())
+        let empty = TimesheetGridRow(date: day)
+        XCTAssertNil(empty.toDraft())
+
+        let filled = TimesheetGridRow(
+            date: day,
+            clockIn: day.addingTimeInterval(8 * 3600),
+            clockOut: day.addingTimeInterval(17 * 3600)
+        )
+        XCTAssertNotNil(filled.toDraft())
+        XCTAssertEqual(filled.toDraft()?.totalHours ?? 0, 9, accuracy: 0.01)
+    }
+}

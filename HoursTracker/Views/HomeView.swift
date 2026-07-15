@@ -67,9 +67,9 @@ struct HomeView: View {
                     Button {
                         showScanner = true
                     } label: {
-                        Image(systemName: "doc.viewfinder")
+                        Image(systemName: "tablecells")
                     }
-                    .accessibilityLabel(String(localized: "scanner.title", defaultValue: "Scan Timesheet"))
+                    .accessibilityLabel(L10n.gridTitle)
                 }
             }
             .sheet(isPresented: $viewModel.showDaySummary) {
@@ -81,7 +81,7 @@ struct HomeView: View {
                 }
             }
             .sheet(isPresented: $showScanner) {
-                TimesheetScannerView(appViewModel: viewModel)
+                BlankTimesheetEntryView(appViewModel: viewModel)
             }
         }
     }
@@ -129,8 +129,8 @@ struct HomeView: View {
                 showScanner = true
             } label: {
                 Label(
-                    String(localized: "scanner.importButton", defaultValue: "Import / Scan Document"),
-                    systemImage: "doc.viewfinder"
+                    L10n.gridImportButton,
+                    systemImage: "tablecells"
                 )
                 .font(.footnote.weight(.medium))
             }

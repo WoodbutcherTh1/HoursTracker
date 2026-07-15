@@ -51,6 +51,33 @@ enum L10n {
         String(format: String(localized: "scanner.conflictMessage %@"), date)
     }
 
+    // Blank timesheet import grid
+    static var gridTitle: String { String(localized: "grid.title") }
+    static var gridImportButton: String { String(localized: "grid.importButton") }
+    static var gridModeForm: String { String(localized: "grid.mode.form") }
+    static var gridModeFreeText: String { String(localized: "grid.mode.freeText") }
+    static var gridColDay: String { String(localized: "grid.col.day") }
+    static var gridColDate: String { String(localized: "grid.col.date") }
+    static var gridColIn: String { String(localized: "grid.col.in") }
+    static var gridColOut: String { String(localized: "grid.col.out") }
+    static var gridHint: String { String(localized: "grid.hint") }
+    static var gridFreeTextHint: String { String(localized: "grid.freeText.hint") }
+    static var gridFreeTextExample: String { String(localized: "grid.freeText.example") }
+    static var gridAnalyze: String { String(localized: "grid.analyze") }
+    static var gridAnalyzeEmpty: String { String(localized: "grid.analyze.empty") }
+    static var gridAnalyzeFailed: String { String(localized: "grid.analyze.failed") }
+    static func gridAnalyzeSuccess(_ count: Int) -> String {
+        String(format: String(localized: "grid.analyze.success %lld"), count)
+    }
+    static var gridAddRow: String { String(localized: "grid.addRow") }
+    static var gridScan: String { String(localized: "grid.scan") }
+    static var gridEmptyTime: String { String(localized: "grid.emptyTime") }
+    static var gridClearTime: String { String(localized: "grid.clearTime") }
+    static var gridClearRow: String { String(localized: "grid.clearRow") }
+    static func gridSave(_ count: Int) -> String {
+        String(format: String(localized: "grid.save %lld"), count)
+    }
+
     // Edit
     static var editTitle: String { String(localized: "edit.title") }
     static var editTimes: String { String(localized: "edit.times") }
