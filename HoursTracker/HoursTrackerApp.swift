@@ -60,5 +60,14 @@ struct MainTabView: View {
                     Label(L10n.tabSettings, systemImage: "gearshape.fill")
                 }
         }
+        .overlay(alignment: .bottom) {
+            if let message = viewModel.successToast {
+                SuccessToastBanner(message: message)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .padding(.bottom, 56)
+                    .allowsHitTesting(false)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: viewModel.successToast)
     }
 }

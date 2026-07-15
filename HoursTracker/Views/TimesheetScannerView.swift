@@ -257,8 +257,11 @@ struct TimesheetScannerView: View {
     }
 
     private func commitImport() {
-        appViewModel.importScannedSessions(pendingImportDrafts, overwriteDays: overwriteDays)
+        let count = appViewModel.importScannedSessions(pendingImportDrafts, overwriteDays: overwriteDays)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+        if count > 0 {
+            appViewModel.showSuccessToast(L10n.feedbackImported(count))
+        }
         dismiss()
     }
 

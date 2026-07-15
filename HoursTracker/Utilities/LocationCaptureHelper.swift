@@ -15,6 +15,7 @@ final class LocationCaptureHelper: NSObject, ObservableObject, CLLocationManager
     }
 
     func capture() {
+        error = nil
         manager.requestWhenInUseAuthorization()
         manager.requestLocation()
     }

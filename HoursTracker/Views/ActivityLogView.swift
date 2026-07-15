@@ -1,6 +1,7 @@
 import SwiftUI
 
 struct ActivityLogView: View {
+    @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var store = ActivityLogStore.shared
     @State private var selectedFormat: ActivityLogExportFormat = .txt
     @State private var exportURL: URL?
@@ -71,6 +72,7 @@ struct ActivityLogView: View {
         .confirmationDialog(L10n.logClearConfirm, isPresented: $showClearConfirm, titleVisibility: .visible) {
             Button(L10n.logClear, role: .destructive) {
                 store.clear()
+                viewModel.showSuccessToast(L10n.feedbackLogCleared)
             }
             Button(L10n.editCancel, role: .cancel) {}
         }
