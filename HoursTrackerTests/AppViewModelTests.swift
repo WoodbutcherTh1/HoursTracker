@@ -52,6 +52,10 @@ final class AppViewModelTests: XCTestCase {
         XCTAssertFalse(viewModel.isClockedIn)
         XCTAssertNotNil(viewModel.lastCompletedBreakdown)
         XCTAssertTrue(viewModel.showDaySummary)
+        XCTAssertEqual(
+            viewModel.lastCompletedDayOfMonth,
+            Calendar.current.component(.day, from: viewModel.sessions[0].date)
+        )
         XCTAssertFalse(store.storedSessions[0].isOpen)
     }
 

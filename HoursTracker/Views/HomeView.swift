@@ -74,7 +74,10 @@ struct HomeView: View {
             }
             .sheet(isPresented: $viewModel.showDaySummary) {
                 if let breakdown = viewModel.lastCompletedBreakdown {
-                    DaySummarySheet(breakdown: breakdown) {
+                    DaySummarySheet(
+                        breakdown: breakdown,
+                        dayOfMonth: viewModel.lastCompletedDayOfMonth
+                    ) {
                         viewModel.dismissDaySummary()
                     }
                     .presentationDetents([.medium, .large])
@@ -248,13 +251,14 @@ struct GrossNetBadge: View {
 
 struct DaySummarySheet: View {
     let breakdown: DayPayBreakdown
+    let dayOfMonth: Int
     let onDismiss: () -> Void
 
     var body: some View {
         NavigationStack {
             ZStack {
-                // Celebratory stickman walks in the background for a few seconds.
-                StickmanBackgroundAnimation()
+                // Unique stickman (pose / outfit / motion) for this calendar day.
+                StickmanBackgroundAnimation(dayOfMonth: dayOfMonth)
                     .zIndex(0)
 
                 ScrollView {
