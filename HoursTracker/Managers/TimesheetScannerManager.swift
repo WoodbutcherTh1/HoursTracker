@@ -199,18 +199,35 @@ actor TimesheetScannerManager {
     func parseSessions(from text: String) -> [ScannedSessionDraft] {
         let normalized = normalize(text)
         let calendar = Calendar.current
+        let dateOrder = detectDateOrder(in: normalized, calendar: calendar)
+        let preferColonTimes = textContainsColonTimes(normalized)
 
         // 1) Prefer per-line rows that already contain date + 2 times.
-        var drafts = parseLineRows(normalized, calendar: calendar)
+        var drafts = parseLineRows(
+            normalized,
+            calendar: calendar,
+            dateOrder: dateOrder,
+            preferColonTimes: preferColonTimes
+        )
 
         // 2) Global pattern pairing across the whole document.
         if drafts.isEmpty {
-            drafts = parseGlobalDateTimePairs(normalized, calendar: calendar)
+            drafts = parseGlobalDateTimePairs(
+                normalized,
+                calendar: calendar,
+                dateOrder: dateOrder,
+                preferColonTimes: preferColonTimes
+            )
         }
 
         // 3) Sliding window over adjacent lines (tables often split cells).
         if drafts.isEmpty {
-            drafts = parseAdjacentLineWindows(normalized, calendar: calendar)
+            drafts = parseAdjacentLineWindows(
+                normalized,
+                calendar: calendar,
+                dateOrder: dateOrder,
+                preferColonTimes: preferColonTimes
+            )
         }
 
         var seen = Set<TimeInterval>()
@@ -224,6 +241,13 @@ actor TimesheetScannerManager {
         return unique
     }
 
+    private enum DateOrder {
+        /// Israeli / European: 01/07 = 1 July
+        case dayMonth
+        /// US-style exports: 07-01 = 1 July
+        case monthDay
+    }
+
     private func normalize(_ text: String) -> String {
         text
             .replacingOccurrences(of: "\u{200f}", with: "")
@@ -235,21 +259,115 @@ actor TimesheetScannerManager {
             .replacingOccurrences(of: "٫", with: ".")
     }
 
-    private func parseLineRows(_ text: String, calendar: Calendar) -> [ScannedSessionDraft] {
+    private func textContainsColonTimes(_ text: String) -> Bool {
+        matches(in: text, pattern: #"\b([01]?\d|2[0-3]):([0-5]\d)(?:[:.][0-5]\d)?\b"#).count >= 2
+    }
+
+    /// Prefer MM-DD when weekday labels match that reading; otherwise DD-MM (default for IL).
+    private func detectDateOrder(in text: String, calendar: Calendar) -> DateOrder {
+        let lower = text.lowercased()
+        let hasHebrew = text.range(of: #"\p{Hebrew}"#, options: .regularExpression) != nil
+        let looksUSExport = lower.contains("entry") && lower.contains("exit")
+            || lower.contains("total_hours")
+            || lower.contains("total hours")
+
+        let weekdayNames: [(String, Int)] = [
+            ("sunday", 1), ("sun", 1), ("'א", 1), ("א'", 1),
+            ("monday", 2), ("mon", 2), ("'ב", 2), ("ב'", 2),
+            ("tuesday", 3), ("tue", 3), ("'ג", 3), ("ג'", 3),
+            ("wednesday", 4), ("wed", 4), ("'ד", 4), ("ד'", 4),
+            ("thursday", 5), ("thu", 5), ("'ה", 5), ("ה'", 5),
+            ("friday", 6), ("fri", 6), ("'ו", 6), ("ו'", 6),
+            ("saturday", 7), ("sat", 7), ("'ש", 7), ("ש'", 7)
+        ]
+
+        struct Mark {
+            let first: Int
+            let second: Int
+            let location: Int
+            let weekday: Int?
+        }
+
+        let datePattern = #"\b(\d{1,2})([/\-])(\d{1,2})(?![./\-\d])"#
+        var marks: [Mark] = []
+        if let regex = try? NSRegularExpression(pattern: datePattern) {
+            let nsText = text as NSString
+            let range = NSRange(location: 0, length: nsText.length)
+            for match in regex.matches(in: text, range: range) {
+                guard match.numberOfRanges >= 4 else { continue }
+                let first = Int(nsText.substring(with: match.range(at: 1))) ?? 0
+                let second = Int(nsText.substring(with: match.range(at: 3))) ?? 0
+                guard first > 0, second > 0 else { continue }
+
+                let windowStart = max(0, match.range.location - 16)
+                let windowEnd = min(nsText.length, match.range.location + match.range.length + 16)
+                let window = nsText.substring(with: NSRange(location: windowStart, length: windowEnd - windowStart))
+                    .lowercased()
+
+                var weekday: Int?
+                for (name, value) in weekdayNames where window.contains(name) {
+                    weekday = value
+                    break
+                }
+                marks.append(Mark(first: first, second: second, location: match.range.location, weekday: weekday))
+            }
+        }
+
+        func score(_ order: DateOrder) -> Int {
+            var total = 0
+            for mark in marks {
+                let day = order == .dayMonth ? mark.first : mark.second
+                let month = order == .dayMonth ? mark.second : mark.first
+                guard (1...12).contains(month), (1...31).contains(day) else { continue }
+                var comps = DateComponents()
+                comps.year = calendar.component(.year, from: Date())
+                comps.month = month
+                comps.day = day
+                guard let date = calendar.date(from: comps),
+                      let expected = mark.weekday
+                else { continue }
+                if calendar.component(.weekday, from: date) == expected {
+                    total += 1
+                } else {
+                    total -= 1
+                }
+            }
+            return total
+        }
+
+        let dayMonthScore = score(.dayMonth)
+        let monthDayScore = score(.monthDay)
+        if monthDayScore > dayMonthScore { return .monthDay }
+        if dayMonthScore > monthDayScore { return .dayMonth }
+        if looksUSExport && !hasHebrew { return .monthDay }
+        return .dayMonth
+    }
+
+    private func parseLineRows(
+        _ text: String,
+        calendar: Calendar,
+        dateOrder: DateOrder,
+        preferColonTimes: Bool
+    ) -> [ScannedSessionDraft] {
         text.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
             .compactMap { line -> ScannedSessionDraft? in
                 if isLikelyHeader(line) { return nil }
-                guard let date = firstDate(in: line, calendar: calendar) else { return nil }
-                let times = allTimes(in: line)
+                guard let date = firstDate(in: line, calendar: calendar, dateOrder: dateOrder) else { return nil }
+                let times = allTimes(in: line, preferColon: preferColonTimes)
                 guard times.count >= 2 else { return nil }
                 return makeDraft(date: date, inTime: times[0], outTime: times[1], calendar: calendar, confidence: 0.9)
             }
     }
 
-    /// Globally collect dates and times, then pair each date with the next two unused times.
-    private func parseGlobalDateTimePairs(_ text: String, calendar: Calendar) -> [ScannedSessionDraft] {
+    /// Globally collect dates and times, then pair each date with the nearest unused times.
+    private func parseGlobalDateTimePairs(
+        _ text: String,
+        calendar: Calendar,
+        dateOrder: DateOrder,
+        preferColonTimes: Bool
+    ) -> [ScannedSessionDraft] {
         struct MarkedDate {
             let date: Date
             let location: Int
@@ -265,16 +383,17 @@ actor TimesheetScannerManager {
         var dates: [MarkedDate] = []
         var times: [MarkedTime] = []
 
-        // Prefer year-bearing dates; yearless dotted values are often clock times (7.17 / 17.08).
         let datePattern = #"\b(\d{1,2})([./\-])(\d{1,2})(?:\2(\d{2,4}))?\b"#
-        let timePattern = #"\b([01]?\d|2[0-3])[:.]([0-5]\d)(?:[:.][0-5]\d)?\b"#
+        let timePattern = preferColonTimes
+            ? #"\b([01]?\d|2[0-3]):([0-5]\d)(?:[:.][0-5]\d)?\b"#
+            : #"\b([01]?\d|2[0-3])[:.]([0-5]\d)(?:[:.][0-5]\d)?\b"#
 
         if let regex = try? NSRegularExpression(pattern: datePattern) {
             let range = NSRange(text.startIndex..., in: text)
             for match in regex.matches(in: text, range: range) {
                 guard let full = Range(match.range, in: text) else { continue }
                 let token = String(text[full])
-                guard let parsed = parseDateToken(token, calendar: calendar) else { continue }
+                guard let parsed = parseDateToken(token, calendar: calendar, dateOrder: dateOrder) else { continue }
                 dates.append(
                     MarkedDate(
                         date: parsed.date,
@@ -334,7 +453,12 @@ actor TimesheetScannerManager {
         return drafts
     }
 
-    private func parseAdjacentLineWindows(_ text: String, calendar: Calendar) -> [ScannedSessionDraft] {
+    private func parseAdjacentLineWindows(
+        _ text: String,
+        calendar: Calendar,
+        dateOrder: DateOrder,
+        preferColonTimes: Bool
+    ) -> [ScannedSessionDraft] {
         let lines = text.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
@@ -342,9 +466,9 @@ actor TimesheetScannerManager {
         var drafts: [ScannedSessionDraft] = []
         var index = 0
         while index < lines.count {
-            let window = lines[index..<min(index + 3, lines.count)].joined(separator: " ")
-            if let date = firstDate(in: window, calendar: calendar) {
-                let times = allTimes(in: window)
+            let window = lines[index..<min(index + 4, lines.count)].joined(separator: " ")
+            if let date = firstDate(in: window, calendar: calendar, dateOrder: dateOrder) {
+                let times = allTimes(in: window, preferColon: preferColonTimes)
                 if times.count >= 2 {
                     drafts.append(
                         makeDraft(date: date, inTime: times[0], outTime: times[1], calendar: calendar, confidence: 0.6)
@@ -379,18 +503,22 @@ actor TimesheetScannerManager {
 
     private func isLikelyHeader(_ line: String) -> Bool {
         let lower = line.lowercased()
-        let keys = ["תאריך", "כניסה", "יציאה", "שעות", "date", "clock", "hours", "total", "סה\"כ", "סהכ"]
+        let keys = [
+            "תאריך", "כניסה", "יציאה", "שעות",
+            "date", "day", "entry", "exit", "clock", "hours", "total", "total_hours",
+            "סה\"כ", "סהכ"
+        ]
         let hits = keys.filter { lower.contains($0) }.count
-        return hits >= 2 && allTimes(in: line).count < 2
+        return hits >= 2 && allTimes(in: line, preferColon: false).count < 2
     }
 
-    private func firstDate(in text: String, calendar: Calendar) -> Date? {
+    private func firstDate(in text: String, calendar: Calendar, dateOrder: DateOrder) -> Date? {
         let pattern = #"\b(\d{1,2})([./\-])(\d{1,2})(?:\2(\d{2,4}))?\b"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
         let range = NSRange(text.startIndex..., in: text)
         for match in regex.matches(in: text, range: range) {
             guard let tokenRange = Range(match.range, in: text) else { continue }
-            if let parsed = parseDateToken(String(text[tokenRange]), calendar: calendar) {
+            if let parsed = parseDateToken(String(text[tokenRange]), calendar: calendar, dateOrder: dateOrder) {
                 return parsed.date
             }
         }
@@ -399,7 +527,11 @@ actor TimesheetScannerManager {
 
     /// Parses a date token. Yearless dotted/colon values that look like HH.MM are rejected
     /// so printed timesheets using dots for clock-in/out (7.17, 17.08) do not become May/August days.
-    private func parseDateToken(_ token: String, calendar: Calendar) -> (date: Date, hasYear: Bool)? {
+    private func parseDateToken(
+        _ token: String,
+        calendar: Calendar,
+        dateOrder: DateOrder
+    ) -> (date: Date, hasYear: Bool)? {
         let pattern = #"^(\d{1,2})([./\-])(\d{1,2})(?:\2(\d{2,4}))?$"#
         guard let regex = try? NSRegularExpression(pattern: pattern),
               let match = regex.firstMatch(in: token, range: NSRange(token.startIndex..., in: token)),
@@ -427,16 +559,20 @@ actor TimesheetScannerManager {
             }
         }
 
-        var day = first
-        var month = second
+        var day: Int
+        var month: Int
+        if dateOrder == .monthDay {
+            month = first
+            day = second
+        } else {
+            day = first
+            month = second
+        }
         var year = yearPart ?? calendar.component(.year, from: Date())
         if year < 100 { year += 2000 }
 
-        // DD/MM vs MM/DD: if first looks like a month and second like a day, swap.
-        if yearPart != nil, day <= 12, month > 12 {
-            swap(&day, &month)
-        }
-        if day > 31 || month > 12 {
+        // If the preferred order is impossible, fall back to the other order.
+        if !(1...12).contains(month) || !(1...31).contains(day) {
             swap(&day, &month)
         }
         guard (1...12).contains(month), (1...31).contains(day) else { return nil }
@@ -454,9 +590,11 @@ actor TimesheetScannerManager {
         return (calendar.startOfDay(for: date), yearPart != nil)
     }
 
-    private func allTimes(in text: String) -> [(Int, Int)] {
-        matches(in: text, pattern: #"\b([01]?\d|2[0-3])[:.]([0-5]\d)(?:[:.][0-5]\d)?\b"#)
-            .compactMap(parseTime)
+    private func allTimes(in text: String, preferColon: Bool) -> [(Int, Int)] {
+        let pattern = preferColon
+            ? #"\b([01]?\d|2[0-3]):([0-5]\d)(?:[:.][0-5]\d)?\b"#
+            : #"\b([01]?\d|2[0-3])[:.]([0-5]\d)(?:[:.][0-5]\d)?\b"#
+        return matches(in: text, pattern: pattern).compactMap(parseTime)
     }
 
     private func parseTime(_ text: String) -> (Int, Int)? {
