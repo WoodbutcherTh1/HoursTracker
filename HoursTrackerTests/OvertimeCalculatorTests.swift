@@ -362,6 +362,33 @@ final class TimesheetScannerParserTests: XCTestCase {
         XCTAssertTrue(result.drafts[0].needsManualReview)
     }
 
+    func testRepairsOCRYear2001ToCurrentDecade() async throws {
+        // Classic OCR glitch: 2021/2024 misread as 2001/2004.
+        let text = "01/07/2001 08:00 17:00"
+        let drafts = await TimesheetScannerManager.shared.parseSessions(from: text)
+        XCTAssertEqual(drafts.count, 1)
+        let year = calendar.component(.year, from: drafts[0].date)
+        let current = calendar.component(.year, from: Date())
+        XCTAssertGreaterThanOrEqual(year, current - 5)
+        XCTAssertLessThanOrEqual(year, current + 1)
+        XCTAssertNotEqual(year, 2001)
+        assertHourMinute(drafts[0].clockIn, 8, 0)
+        assertHourMinute(drafts[0].clockOut, 17, 0)
+    }
+
+    func testRejectsAncientYearsThatCannotBeRepaired() async throws {
+        let text = "01/07/1985 08:00 17:00"
+        let result = await TimesheetScannerManager.shared.parseResult(from: text)
+        XCTAssertTrue(result.usedManualFallback)
+    }
+
+    func testRejectsFutureDates() async throws {
+        let current = calendar.component(.year, from: Date())
+        let text = "01/12/\(current + 2) 08:00 17:00"
+        let result = await TimesheetScannerManager.shared.parseResult(from: text)
+        XCTAssertTrue(result.usedManualFallback)
+    }
+
     func testFallbackWhenNoSessions() async throws {
         let result = await TimesheetScannerManager.shared.parseResult(from: "hello world nothing useful")
         XCTAssertTrue(result.usedManualFallback)

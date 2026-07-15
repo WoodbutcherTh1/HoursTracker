@@ -290,15 +290,18 @@ actor TimesheetScannerManager {
     func parseSessions(from text: String) -> [ScannedSessionDraft] {
         let normalized = normalize(text)
         let calendar = Calendar.current
+        let currentYear = calendar.component(.year, from: Date())
         let dateOrder = detectDateOrder(in: normalized, calendar: calendar)
         let preferColonTimes = textContainsColonTimes(normalized)
+        let preferredYear = dominantPrintedYear(in: normalized, currentYear: currentYear) ?? currentYear
 
         // 1) Prefer per-line rows that already contain date + 2 times.
         var drafts = parseLineRows(
             normalized,
             calendar: calendar,
             dateOrder: dateOrder,
-            preferColonTimes: preferColonTimes
+            preferColonTimes: preferColonTimes,
+            preferredYear: preferredYear
         )
 
         // 2) Global pattern pairing across the whole document.
@@ -307,7 +310,8 @@ actor TimesheetScannerManager {
                 normalized,
                 calendar: calendar,
                 dateOrder: dateOrder,
-                preferColonTimes: preferColonTimes
+                preferColonTimes: preferColonTimes,
+                preferredYear: preferredYear
             )
         }
 
@@ -317,7 +321,8 @@ actor TimesheetScannerManager {
                 normalized,
                 calendar: calendar,
                 dateOrder: dateOrder,
-                preferColonTimes: preferColonTimes
+                preferColonTimes: preferColonTimes,
+                preferredYear: preferredYear
             )
         }
 
@@ -327,6 +332,8 @@ actor TimesheetScannerManager {
     /// Drop impossible shifts and de-dupe identical rows (keep multiple real shifts/day).
     private func finalizeDrafts(_ drafts: [ScannedSessionDraft]) -> [ScannedSessionDraft] {
         let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let currentYear = calendar.component(.year, from: today)
         var seen = Set<String>()
         var unique: [ScannedSessionDraft] = []
 
@@ -335,10 +342,17 @@ actor TimesheetScannerManager {
             // Reject OCR garbage: empty, tiny, or absurdly long same-day spans.
             guard hours >= 0.5, hours <= 16 else { continue }
 
+            // Never keep years the user is not living in (e.g. OCR 2001 while in 2026).
+            let year = calendar.component(.year, from: draft.date)
+            guard isPlausibleTimesheetYear(year, currentYear: currentYear) else { continue }
+
+            // Timesheets are records of work already done — not future dates.
+            let dayStart = calendar.startOfDay(for: draft.date)
+            guard dayStart <= today else { continue }
+
             let inC = calendar.dateComponents([.hour, .minute], from: draft.clockIn)
             let outC = calendar.dateComponents([.hour, .minute], from: draft.clockOut)
-            let day = calendar.startOfDay(for: draft.date).timeIntervalSince1970
-            let key = "\(day)-\(inC.hour ?? 0)-\(inC.minute ?? 0)-\(outC.hour ?? 0)-\(outC.minute ?? 0)"
+            let key = "\(dayStart.timeIntervalSince1970)-\(inC.hour ?? 0)-\(inC.minute ?? 0)-\(outC.hour ?? 0)-\(outC.minute ?? 0)"
             guard seen.insert(key).inserted else { continue }
 
             var cleaned = draft
@@ -350,6 +364,51 @@ actor TimesheetScannerManager {
             unique.append(cleaned)
         }
         return unique
+    }
+
+    /// Accepted import window: a few years back through next year (payroll lag / Dec sheets).
+    private func isPlausibleTimesheetYear(_ year: Int, currentYear: Int) -> Bool {
+        year >= currentYear - 3 && year <= currentYear + 1
+    }
+
+    /// OCR often flips a digit (2024→2004, 2021→2001). Repair when the fixed year is plausible.
+    private func sanitizeYear(_ rawYear: Int, currentYear: Int) -> Int? {
+        var year = rawYear
+        if year < 100 { year += 2000 }
+        if isPlausibleTimesheetYear(year, currentYear: currentYear) {
+            return year
+        }
+
+        // 2001 / 2004 / 2014 style misreads → try current decade with same units digit.
+        if (1990...2019).contains(year) {
+            let units = year % 10
+            let decadeBase = (currentYear / 10) * 10
+            let repaired = decadeBase + units
+            if isPlausibleTimesheetYear(repaired, currentYear: currentYear) {
+                return repaired
+            }
+            let alt = decadeBase - 10 + units
+            if isPlausibleTimesheetYear(alt, currentYear: currentYear) {
+                return alt
+            }
+        }
+        return nil
+    }
+
+    /// When the sheet prints years, reuse the dominant one for yearless rows (scan 2024 sheet in 2026).
+    private func dominantPrintedYear(in text: String, currentYear: Int) -> Int? {
+        let pattern = #"\b(\d{1,2})[./\-](\d{1,2})[./\-](\d{2,4})\b"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
+        let range = NSRange(text.startIndex..., in: text)
+        var counts: [Int: Int] = [:]
+        for match in regex.matches(in: text, range: range) {
+            guard let yearRange = Range(match.range(at: 3), in: text),
+                  let raw = Int(text[yearRange]),
+                  let year = sanitizeYear(raw, currentYear: currentYear)
+            else { continue }
+            counts[year, default: 0] += 1
+        }
+        return counts.max(by: { $0.value < $1.value })?.key
     }
 
     private enum DateOrder {
@@ -457,14 +516,20 @@ actor TimesheetScannerManager {
         _ text: String,
         calendar: Calendar,
         dateOrder: DateOrder,
-        preferColonTimes: Bool
+        preferColonTimes: Bool,
+        preferredYear: Int
     ) -> [ScannedSessionDraft] {
         text.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
             .compactMap { line -> ScannedSessionDraft? in
                 if isLikelyHeader(line) { return nil }
-                guard let date = firstDate(in: line, calendar: calendar, dateOrder: dateOrder) else { return nil }
+                guard let date = firstDate(
+                    in: line,
+                    calendar: calendar,
+                    dateOrder: dateOrder,
+                    preferredYear: preferredYear
+                ) else { return nil }
                 let times = allTimes(in: line, preferColon: preferColonTimes)
                 guard let pair = pickClockPair(times) else { return nil }
                 return makeDraft(date: date, inTime: pair.0, outTime: pair.1, calendar: calendar, confidence: 0.9)
@@ -476,7 +541,8 @@ actor TimesheetScannerManager {
         _ text: String,
         calendar: Calendar,
         dateOrder: DateOrder,
-        preferColonTimes: Bool
+        preferColonTimes: Bool,
+        preferredYear: Int
     ) -> [ScannedSessionDraft] {
         struct MarkedDate {
             let date: Date
@@ -503,7 +569,12 @@ actor TimesheetScannerManager {
             for match in regex.matches(in: text, range: range) {
                 guard let full = Range(match.range, in: text) else { continue }
                 let token = String(text[full])
-                guard let parsed = parseDateToken(token, calendar: calendar, dateOrder: dateOrder) else { continue }
+                guard let parsed = parseDateToken(
+                    token,
+                    calendar: calendar,
+                    dateOrder: dateOrder,
+                    preferredYear: preferredYear
+                ) else { continue }
                 dates.append(
                     MarkedDate(
                         date: parsed.date,
@@ -578,7 +649,8 @@ actor TimesheetScannerManager {
         _ text: String,
         calendar: Calendar,
         dateOrder: DateOrder,
-        preferColonTimes: Bool
+        preferColonTimes: Bool,
+        preferredYear: Int
     ) -> [ScannedSessionDraft] {
         let lines = text.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
@@ -588,7 +660,12 @@ actor TimesheetScannerManager {
         var index = 0
         while index < lines.count {
             let window = lines[index..<min(index + 4, lines.count)].joined(separator: " ")
-            if let date = firstDate(in: window, calendar: calendar, dateOrder: dateOrder) {
+            if let date = firstDate(
+                in: window,
+                calendar: calendar,
+                dateOrder: dateOrder,
+                preferredYear: preferredYear
+            ) {
                 let times = allTimes(in: window, preferColon: preferColonTimes)
                 if let pair = pickClockPair(times) {
                     drafts.append(
@@ -652,13 +729,23 @@ actor TimesheetScannerManager {
         return hits >= 2 && allTimes(in: line, preferColon: false).count < 2
     }
 
-    private func firstDate(in text: String, calendar: Calendar, dateOrder: DateOrder) -> Date? {
+    private func firstDate(
+        in text: String,
+        calendar: Calendar,
+        dateOrder: DateOrder,
+        preferredYear: Int
+    ) -> Date? {
         let pattern = #"\b(\d{1,2})([./\-])(\d{1,2})(?:\2(\d{2,4}))?\b"#
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return nil }
         let range = NSRange(text.startIndex..., in: text)
         for match in regex.matches(in: text, range: range) {
             guard let tokenRange = Range(match.range, in: text) else { continue }
-            if let parsed = parseDateToken(String(text[tokenRange]), calendar: calendar, dateOrder: dateOrder) {
+            if let parsed = parseDateToken(
+                String(text[tokenRange]),
+                calendar: calendar,
+                dateOrder: dateOrder,
+                preferredYear: preferredYear
+            ) {
                 return parsed.date
             }
         }
@@ -670,7 +757,8 @@ actor TimesheetScannerManager {
     private func parseDateToken(
         _ token: String,
         calendar: Calendar,
-        dateOrder: DateOrder
+        dateOrder: DateOrder,
+        preferredYear: Int
     ) -> (date: Date, hasYear: Bool)? {
         let pattern = #"^(\d{1,2})([./\-])(\d{1,2})(?:\2(\d{2,4}))?$"#
         guard let regex = try? NSRegularExpression(pattern: pattern),
@@ -690,6 +778,7 @@ actor TimesheetScannerManager {
               let second = Int(secondText)
         else { return nil }
         let yearPart = group(4).flatMap(Int.init)
+        let currentYear = calendar.component(.year, from: Date())
 
         if yearPart == nil {
             // Israeli printed sheets usually use `/` for dates and `.` for clock times
@@ -708,8 +797,6 @@ actor TimesheetScannerManager {
             day = first
             month = second
         }
-        var year = yearPart ?? calendar.component(.year, from: Date())
-        if year < 100 { year += 2000 }
 
         // If the preferred order is impossible, fall back to the other order.
         if !(1...12).contains(month) || !(1...31).contains(day) {
@@ -717,9 +804,15 @@ actor TimesheetScannerManager {
         }
         guard (1...12).contains(month), (1...31).contains(day) else { return nil }
 
-        let currentYear = calendar.component(.year, from: Date())
-        if yearPart != nil, year < 1990 || year > currentYear + 1 {
-            return nil
+        let year: Int
+        if let yearPart {
+            guard let sanitized = sanitizeYear(yearPart, currentYear: currentYear) else {
+                return nil
+            }
+            year = sanitized
+        } else {
+            // Yearless row: use the sheet's dominant printed year, else "now".
+            year = preferredYear
         }
 
         var components = DateComponents()
@@ -727,7 +820,13 @@ actor TimesheetScannerManager {
         components.month = month
         components.day = day
         guard let date = calendar.date(from: components) else { return nil }
-        return (calendar.startOfDay(for: date), yearPart != nil)
+
+        // Still refuse future calendar days after building the date.
+        let today = calendar.startOfDay(for: Date())
+        let dayStart = calendar.startOfDay(for: date)
+        if dayStart > today { return nil }
+
+        return (dayStart, yearPart != nil)
     }
 
     private func allTimes(in text: String, preferColon: Bool) -> [(Int, Int)] {
