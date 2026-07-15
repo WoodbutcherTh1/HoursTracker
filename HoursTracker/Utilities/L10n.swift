@@ -12,6 +12,13 @@ enum L10n {
     // Home
     static var homeTitle: String { String(localized: "home.title") }
     static var homeReadyToStart: String { String(localized: "home.readyToStart") }
+    static var homeGreetingMorning: String { String(localized: "home.greeting.morning") }
+    static var homeGreetingAfternoon: String { String(localized: "home.greeting.afternoon") }
+    static var homeGreetingEvening: String { String(localized: "home.greeting.evening") }
+    static var homeGreetingNight: String { String(localized: "home.greeting.night") }
+    static var homeStatMonth: String { String(localized: "home.stat.month") }
+    static var homeStatWeek: String { String(localized: "home.stat.week") }
+    static var homeStatToday: String { String(localized: "home.stat.today") }
     static var homeClockIn: String { String(localized: "home.clockIn") }
     static var homeClockedIn: String { String(localized: "home.clockedIn") }
     static func homeSince(_ time: String) -> String {
