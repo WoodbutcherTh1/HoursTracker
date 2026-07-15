@@ -72,4 +72,12 @@ final class SyncingPersistenceStoreTests: XCTestCase {
         XCTAssertThrowsError(try store.saveSessions([TestData.session(day: 1)]))
         XCTAssertTrue(cloud.uploadedBatches.isEmpty)
     }
+
+    func testCloudSyncSupportedFollowsInjectedBackend() {
+        XCTAssertTrue(store.isCloudSyncSupported)
+
+        let localOnly = SyncingPersistenceStore(local: InMemoryStore(), cloud: NoOpCloudSyncManager.shared)
+        XCTAssertFalse(localOnly.isCloudSyncSupported)
+        XCTAssertEqual(localOnly.syncState, .unavailable)
+    }
 }

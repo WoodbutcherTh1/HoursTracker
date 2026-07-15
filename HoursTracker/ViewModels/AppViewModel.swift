@@ -15,6 +15,9 @@ final class AppViewModel: ObservableObject {
     private let exportManager = ExportManager()
     private let locationCapture = LocationCaptureHelper()
 
+    /// Hide the Settings sync section when this build has no CloudKit backend.
+    var isCloudSyncSupported: Bool { store.isCloudSyncSupported }
+
     var isSyncing: Bool {
         if case .syncing = syncState { return true }
         return false
@@ -30,6 +33,7 @@ final class AppViewModel: ObservableObject {
     ) {
         self.store = store
         self.locationManager = locationManager
+        syncState = store.syncState
         load()
         refreshReminders()
     }

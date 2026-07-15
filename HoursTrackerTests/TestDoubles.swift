@@ -6,6 +6,7 @@ final class InMemoryStore: SyncingStore {
     var storedSettings: WorkplaceSettings = .default
     var saveError: Error?
     var syncState: SyncState = .idle
+    var isCloudSyncSupported = false
 
     func loadSessions() -> [WorkSession] {
         storedSessions
@@ -53,6 +54,7 @@ final class MockLocationReminderManager: LocationReminderManaging {
 }
 
 final class RecordingCloud: CloudSyncing {
+    var isSupported = true
     var state: SyncState = .idle
     private(set) var uploadedBatches: [[WorkSession]] = []
     private(set) var deletedIDBatches: [Set<UUID>] = []

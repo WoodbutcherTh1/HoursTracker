@@ -1,6 +1,8 @@
 import Foundation
 
 protocol SyncingStore: PersistableStore {
+    /// Whether this build can sync via iCloud/CloudKit at all.
+    var isCloudSyncSupported: Bool { get }
     var syncState: SyncState { get }
     func syncNow() async throws -> SyncResult?
 }
@@ -13,12 +15,17 @@ final class SyncingPersistenceStore: SyncingStore {
 
     private(set) var syncState: SyncState = .idle
 
+    var isCloudSyncSupported: Bool { cloud.isSupported }
+
     init(
         local: PersistableStore = PersistenceManager.shared,
         cloud: CloudSyncing? = nil
     ) {
         self.local = local
-        self.cloud = cloud ?? NoOpCloudSyncManager.shared
+        self.cloud = cloud ?? CloudKitSyncManager.makeDefault()
+        if !self.cloud.isSupported {
+            syncState = .unavailable
+        }
     }
 
     func loadSessions() -> [WorkSession] {

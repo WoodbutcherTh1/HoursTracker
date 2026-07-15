@@ -77,6 +77,49 @@ enum ZipWriter {
         try archive.write(to: outputURL)
     }
 
+    /// Reads one entry written by `createArchive`. Used by tests (iOS has no `Process`/`unzip`).
+    static func data(forEntry path: String, inArchiveAt url: URL) throws -> Data {
+        try data(forEntry: path, in: Data(contentsOf: url))
+    }
+
+    static func data(forEntry path: String, in archive: Data) throws -> Data {
+        let needle = Data(path.utf8)
+        var offset = 0
+        while offset + 30 <= archive.count {
+            let signature = archive.uint32LE(at: offset)
+            if signature == 0x02014b50 || signature == 0x06054b50 {
+                break
+            }
+            guard signature == 0x04034b50 else { throw ExportError.zipFailed }
+
+            let compressionMethod = archive.uint16LE(at: offset + 8)
+            let compressedSize = Int(archive.uint32LE(at: offset + 18))
+            let uncompressedSize = Int(archive.uint32LE(at: offset + 22))
+            let fileNameLength = Int(archive.uint16LE(at: offset + 26))
+            let extraLength = Int(archive.uint16LE(at: offset + 28))
+            let nameStart = offset + 30
+            let nameEnd = nameStart + fileNameLength
+            let dataStart = nameEnd + extraLength
+            let dataEnd = dataStart + compressedSize
+            guard dataEnd <= archive.count else { throw ExportError.zipFailed }
+
+            let name = archive.subdata(in: nameStart..<nameEnd)
+            if name == needle {
+                let payload = archive.subdata(in: dataStart..<dataEnd)
+                switch compressionMethod {
+                case 0:
+                    return payload
+                case 8:
+                    return try inflate(payload, uncompressedSize: uncompressedSize)
+                default:
+                    throw ExportError.zipFailed
+                }
+            }
+            offset = dataEnd
+        }
+        throw ExportError.zipFailed
+    }
+
     private static func deflate(_ data: Data) throws -> Data {
         if data.isEmpty { return Data() }
 
@@ -97,6 +140,27 @@ enum ZipWriter {
 
         guard compressedSize > 0 else { throw ExportError.zipFailed }
         destination.count = compressedSize
+        return destination
+    }
+
+    private static func inflate(_ data: Data, uncompressedSize: Int) throws -> Data {
+        if data.isEmpty { return Data() }
+        let destinationCapacity = max(uncompressedSize, 1)
+        var destination = Data(count: destinationCapacity)
+        let decodedSize = destination.withUnsafeMutableBytes { destBuffer in
+            data.withUnsafeBytes { srcBuffer in
+                compression_decode_buffer(
+                    destBuffer.bindMemory(to: UInt8.self).baseAddress!,
+                    destinationCapacity,
+                    srcBuffer.bindMemory(to: UInt8.self).baseAddress!,
+                    data.count,
+                    nil,
+                    COMPRESSION_ZLIB
+                )
+            }
+        }
+        guard decodedSize > 0 else { throw ExportError.zipFailed }
+        destination.count = decodedSize
         return destination
     }
 
@@ -126,5 +190,16 @@ private extension Data {
     mutating func appendUInt32(_ value: UInt32) {
         var le = value.littleEndian
         append(Data(bytes: &le, count: 4))
+    }
+
+    func uint16LE(at offset: Int) -> UInt16 {
+        UInt16(self[offset]) | (UInt16(self[offset + 1]) << 8)
+    }
+
+    func uint32LE(at offset: Int) -> UInt32 {
+        UInt32(self[offset])
+            | (UInt32(self[offset + 1]) << 8)
+            | (UInt32(self[offset + 2]) << 16)
+            | (UInt32(self[offset + 3]) << 24)
     }
 }

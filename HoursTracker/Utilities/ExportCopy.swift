@@ -15,8 +15,10 @@ struct ExportCopy {
         Self.table[key]?[language] ?? Self.table[key]?[.english] ?? key
     }
 
-    private func format(_ key: String, _ args: CVarArg...) -> String {
-        String(format: t(key), locale: locale, arguments: args.map { $0 as Any })
+    private func format(_ key: String, _ value: String) -> String {
+        // Single-argument %@ templates only. Avoid `String(format:locale:arguments:)` —
+        // Xcode 16.4 rejects that overload as ambiguous even with an explicit `[Any]`.
+        String(format: t(key), value)
     }
 
     // MARK: Titles & sections

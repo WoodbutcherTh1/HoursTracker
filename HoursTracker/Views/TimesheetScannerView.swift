@@ -136,74 +136,83 @@ struct TimesheetScannerView: View {
 
     var body: some View {
         NavigationStack {
-            Group {
-                switch scannerVM.phase {
-                case .pick:
-                    pickView
-                case .processing:
-                    processingView
-                case .review:
-                    reviewView
-                case .failed(let message):
-                    failedView(message)
+            phaseContent
+                .navigationTitle(String(localized: "scanner.title", defaultValue: "Scan Timesheet"))
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar { cancelToolbar }
+                .onChange(of: scannerVM.photoItem) { _, item in
+                    Task { await scannerVM.processPhotoItem(item) }
                 }
-            }
-            .navigationTitle(String(localized: "scanner.title", defaultValue: "Scan Timesheet"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button(String(localized: "edit.cancel", defaultValue: "Cancel")) {
-                        dismiss()
+                .fileImporter(
+                    isPresented: $scannerVM.showFileImporter,
+                    allowedContentTypes: [.pdf, .image, .commaSeparatedText, .plainText],
+                    allowsMultipleSelection: false
+                ) { result in
+                    if case .success(let urls) = result, let url = urls.first {
+                        Task { await scannerVM.processFile(url: url) }
                     }
                 }
-            }
-            .onChange(of: scannerVM.photoItem) { _, item in
-                Task { await scannerVM.processPhotoItem(item) }
-            }
-            .fileImporter(
-                isPresented: $scannerVM.showFileImporter,
-                allowedContentTypes: [.pdf, .image, .commaSeparatedText, .plainText],
-                allowsMultipleSelection: false
-            ) { result in
-                if case .success(let urls) = result, let url = urls.first {
-                    Task { await scannerVM.processFile(url: url) }
+                .fullScreenCover(isPresented: $scannerVM.showCamera) {
+                    CameraPickerView { image in
+                        Task { await scannerVM.processCameraImage(image) }
+                    }
                 }
-            }
-            .fullScreenCover(isPresented: $scannerVM.showCamera) {
-                CameraPickerView { image in
-                    Task { await scannerVM.processCameraImage(image) }
+                .sheet(item: $scannerVM.editingDraft) { draft in
+                    ScannedDraftEditor(draft: draft) { updated in
+                        scannerVM.updateDraft(updated)
+                    }
                 }
+                .overlay { conflictOverlay }
+        }
+    }
+
+    @ViewBuilder
+    private var phaseContent: some View {
+        switch scannerVM.phase {
+        case .pick:
+            pickView
+        case .processing:
+            processingView
+        case .review:
+            reviewView
+        case .failed(let message):
+            failedView(message)
+        }
+    }
+
+    @ToolbarContentBuilder
+    private var cancelToolbar: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button(String(localized: "edit.cancel", defaultValue: "Cancel")) {
+                dismiss()
             }
-            .sheet(item: $scannerVM.editingDraft) { draft in
-                ScannedDraftEditor(draft: draft) { updated in
-                    scannerVM.updateDraft(updated)
+        }
+    }
+
+    @ViewBuilder
+    private var conflictOverlay: some View {
+        if showConflictAlert, let day = currentConflictDay {
+            ImportConflictPopup(
+                dates: allConflictDates,
+                currentDate: day,
+                onReplace: {
+                    overwriteDays.insert(Calendar.current.startOfDay(for: day))
+                    advanceConflictQueue()
+                },
+                onApplyAll: {
+                    for conflictDay in allConflictDates {
+                        overwriteDays.insert(Calendar.current.startOfDay(for: conflictDay))
+                    }
+                    conflictQueue = []
+                    currentConflictDay = nil
+                    showConflictAlert = false
+                    commitImport()
+                },
+                onKeep: {
+                    advanceConflictQueue()
                 }
-            }
-            .overlay {
-                if showConflictAlert, let currentConflictDay {
-                    ImportConflictPopup(
-                        dates: allConflictDates,
-                        currentDate: currentConflictDay,
-                        onReplace: {
-                            overwriteDays.insert(Calendar.current.startOfDay(for: currentConflictDay))
-                            advanceConflictQueue()
-                        },
-                        onApplyAll: {
-                            for day in allConflictDates {
-                                overwriteDays.insert(Calendar.current.startOfDay(for: day))
-                            }
-                            conflictQueue = []
-                            currentConflictDay = nil
-                            showConflictAlert = false
-                            commitImport()
-                        },
-                        onKeep: {
-                            advanceConflictQueue()
-                        }
-                    )
-                    .zIndex(100)
-                }
-            }
+            )
+            .zIndex(100)
         }
     }
 

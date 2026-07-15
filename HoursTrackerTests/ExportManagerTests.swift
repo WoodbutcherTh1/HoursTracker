@@ -200,22 +200,10 @@ final class ExportManagerTests: XCTestCase {
         XCTAssertEqual(url.pathExtension, "docx")
         XCTAssertFalse(try Data(contentsOf: url).isEmpty)
 
-        let tmp = FileManager.default.temporaryDirectory
-            .appendingPathComponent("docx-legend-\(UUID().uuidString)")
-        defer { try? FileManager.default.removeItem(at: tmp) }
-        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-        process.arguments = ["-qq", url.path, "-d", tmp.path]
-        try process.run()
-        process.waitUntilExit()
-        XCTAssertEqual(process.terminationStatus, 0)
-
-        let xml = try String(
-            contentsOf: tmp.appendingPathComponent("word/document.xml"),
-            encoding: .utf8
-        )
+        // iOS tests cannot spawn `/usr/bin/unzip` (`Process` is unavailable).
+        // Read the DOCX ZIP entry with the same Compression-backed helper that wrote it.
+        let xmlData = try ZipWriter.data(forEntry: "word/document.xml", inArchiveAt: url)
+        let xml = String(decoding: xmlData, as: UTF8.self)
         XCTAssertTrue(xml.contains("Payroll summary"))
         XCTAssertTrue(xml.contains("Hours breakdown"))
         XCTAssertTrue(xml.contains("Column guide"))
