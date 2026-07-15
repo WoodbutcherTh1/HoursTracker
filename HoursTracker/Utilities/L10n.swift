@@ -78,6 +78,7 @@ enum L10n {
     // Settings
     static var settingsTitle: String { String(localized: "settings.title") }
     static var settingsSave: String { String(localized: "settings.save") }
+    static var settingsSaved: String { String(localized: "settings.saved") }
     static var settingsWorkerInfo: String { String(localized: "settings.workerInfo") }
     static var settingsFullName: String { String(localized: "settings.fullName") }
     static var settingsIDNumber: String { String(localized: "settings.idNumber") }

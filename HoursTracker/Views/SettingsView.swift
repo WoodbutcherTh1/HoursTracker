@@ -8,6 +8,8 @@ struct SettingsView: View {
     @State private var locationStatus: String = ""
     @State private var showDeleteAllConfirm = false
     @State private var showArrivalExplainer = false
+    @State private var showSavedBanner = false
+    @State private var saveBannerTask: Task<Void, Never>?
 
     private let syncDateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -43,12 +45,23 @@ struct SettingsView: View {
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.settingsSave) {
-                        viewModel.saveSettings(draft)
+                        saveSettings()
                     }
                 }
             }
+            .overlay(alignment: .bottom) {
+                if showSavedBanner {
+                    savedBanner
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .padding(.bottom, 12)
+                }
+            }
+            .animation(.easeInOut(duration: 0.25), value: showSavedBanner)
             .onAppear {
                 draft = viewModel.settings
+            }
+            .onDisappear {
+                saveBannerTask?.cancel()
             }
             .confirmationDialog(
                 L10n.privacyDeleteAllConfirm,
@@ -71,6 +84,29 @@ struct SettingsView: View {
             } message: {
                 Text(L10n.settingsArrivalBody)
             }
+        }
+    }
+
+    private var savedBanner: some View {
+        Label(L10n.settingsSaved, systemImage: "checkmark.circle.fill")
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.white)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            .background(Color.green.gradient, in: Capsule())
+            .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
+            .accessibilityAddTraits(.isStaticText)
+    }
+
+    private func saveSettings() {
+        viewModel.saveSettings(draft)
+        draft = viewModel.settings
+        showSavedBanner = true
+        saveBannerTask?.cancel()
+        saveBannerTask = Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2))
+            guard !Task.isCancelled else { return }
+            showSavedBanner = false
         }
     }
 
