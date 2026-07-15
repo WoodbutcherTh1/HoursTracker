@@ -191,17 +191,17 @@ struct TimesheetScannerView: View {
 
     @ViewBuilder
     private var conflictOverlay: some View {
-        if showConflictAlert, let currentConflictDay {
+        if showConflictAlert, let day = currentConflictDay {
             ImportConflictPopup(
                 dates: allConflictDates,
-                currentDate: currentConflictDay,
+                currentDate: day,
                 onReplace: {
-                    overwriteDays.insert(Calendar.current.startOfDay(for: currentConflictDay))
+                    overwriteDays.insert(Calendar.current.startOfDay(for: day))
                     advanceConflictQueue()
                 },
                 onApplyAll: {
-                    for day in allConflictDates {
-                        overwriteDays.insert(Calendar.current.startOfDay(for: day))
+                    for conflictDay in allConflictDates {
+                        overwriteDays.insert(Calendar.current.startOfDay(for: conflictDay))
                     }
                     conflictQueue = []
                     currentConflictDay = nil
