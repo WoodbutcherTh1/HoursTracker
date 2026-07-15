@@ -50,9 +50,9 @@ struct HistoryView: View {
                     Button {
                         showScanner = true
                     } label: {
-                        Image(systemName: "doc.viewfinder")
+                        Image(systemName: "tablecells")
                     }
-                    .accessibilityLabel(String(localized: "scanner.title", defaultValue: "Scan Timesheet"))
+                    .accessibilityLabel(L10n.gridTitle)
 
                     Button {
                         showManualEntry = true
@@ -70,7 +70,7 @@ struct HistoryView: View {
                 .presentationDetents([.medium, .large])
             }
             .sheet(isPresented: $showScanner) {
-                TimesheetScannerView(appViewModel: viewModel)
+                BlankTimesheetEntryView(appViewModel: viewModel)
             }
             .sheet(isPresented: $showManualEntry) {
                 NavigationStack {

@@ -1171,6 +1171,468 @@
         }
       }
     },
+    "grid.addRow": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إضافة سطر"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add row"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הוסף שורה"
+          }
+        }
+      }
+    },
+    "grid.analyze": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حلّل وضَع في الجدول"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Analyze & fill form"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "נתח ומלא טופס"
+          }
+        }
+      }
+    },
+    "grid.analyze.empty": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اكتب أو الصق النص أولاً"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type or paste text first"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "קודם כתוב או הדבק טקסט"
+          }
+        }
+      }
+    },
+    "grid.analyze.failed": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ما قدرت أقرأ تواريخ وأوقات واضحة. جرّب صيغة زي: 01/07 07:00 16:00"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn't find clear dates and times. Try lines like: 01/07 07:00 16:00"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "לא הצלחתי לקרוא תאריכים ושעות ברורים. נסה שורות כמו: 01/07 07:00 16:00"
+          }
+        }
+      }
+    },
+    "grid.analyze.success %lld": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم استخراج %lld وردية — راجع الجدول واحفظ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Found %lld shift(s) — review the form and save"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "נמצאו %lld משמרות — בדוק בטופס ושמור"
+          }
+        }
+      }
+    },
+    "grid.clearRow": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مسح السطر"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear row"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "נקה שורה"
+          }
+        }
+      }
+    },
+    "grid.clearTime": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مسح الوقت"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear time"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "נקה שעה"
+          }
+        }
+      }
+    },
+    "grid.col.date": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تاريخ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Date"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "תאריך"
+          }
+        }
+      }
+    },
+    "grid.col.day": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يوم"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Day"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "יום"
+          }
+        }
+      }
+    },
+    "grid.col.in": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "دخول"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "In"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "כניסה"
+          }
+        }
+      }
+    },
+    "grid.col.out": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "خروج"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Out"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "יציאה"
+          }
+        }
+      }
+    },
+    "grid.emptyTime": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "--:--"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "--:--"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "--:--"
+          }
+        }
+      }
+    },
+    "grid.freeText.example": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مثال:\n01/07/2026 07:00 16:00\n02/07 08:30 17:15"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Example:\n01/07/2026 07:00 16:00\n02/07 08:30 17:15"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "דוגמה:\n01/07/2026 07:00 16:00\n02/07 08:30 17:15"
+          }
+        }
+      }
+    },
+    "grid.freeText.hint": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اكتب أو الصق كيف ما بدك — تواريخ وأوقات دخول/خروج. التطبيق بحلّلها وبحطها بالجدول."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Type or paste freely — dates with clock-in and clock-out. We'll parse them into the form."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "כתוב או הדבק חופשי — תאריכים עם כניסה ויציאה. ננתח ונמלא בטופס."
+          }
+        }
+      }
+    },
+    "grid.hint": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عبّي الدخول والخروج للأيام اللي اشتغلت فيها. اترك الباقي فاضي."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fill in and out for the days you worked. Leave the rest blank."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מלא כניסה ויציאה לימים שעבדת. השאר ריק בימים שלא."
+          }
+        }
+      }
+    },
+    "grid.importButton": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعبئة جدول الساعات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fill timesheet"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מילוי גיליון שעות"
+          }
+        }
+      }
+    },
+    "grid.mode.form": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نموذج"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Form"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "טופס"
+          }
+        }
+      }
+    },
+    "grid.mode.freeText": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نص حر"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Free text"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "טקסט חופשי"
+          }
+        }
+      }
+    },
+    "grid.save %lld": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حفظ %lld وردية"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save %lld shift(s)"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "שמור %lld משמרות"
+          }
+        }
+      }
+    },
+    "grid.scan": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مسح من صورة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan from photo"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "סריקה מתמונה"
+          }
+        }
+      }
+    },
+    "grid.title": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جدول الساعات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Timesheet"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "גיליון שעות"
+          }
+        }
+      }
+    },
     "history.empty": {
       "extractionState": "stale",
       "localizations": {

@@ -164,7 +164,8 @@ final class AppViewModel: ObservableObject {
     }
     func importScannedSessions(
         _ drafts: [ScannedSessionDraft],
-        overwriteDays: Set<Date> = []
+        overwriteDays: Set<Date> = [],
+        markAsAIImported: Bool = true
     ) {
         guard !drafts.isEmpty else { return }
         let calendar = Calendar.current
@@ -182,7 +183,7 @@ final class AppViewModel: ObservableObject {
                 sessions.removeAll { calendar.isDate($0.date, inSameDayAs: day) }
             }
 
-            var session = draft.toWorkSession()
+            var session = draft.toWorkSession(isAIImported: markAsAIImported)
             session.date = day
             session.clockIn = resolved.clockIn
             session.clockOut = resolved.clockOut
