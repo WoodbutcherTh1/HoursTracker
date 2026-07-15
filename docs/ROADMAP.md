@@ -36,6 +36,8 @@ The calculator handles the daily 100/125/150 split; Israeli law has more dimensi
 
 ## Phase 3 — UX & platform features
 
+> **Status (partial):** permission handling landed ahead of schedule — Always-location and notifications are now requested only when the user opts into arrival reminders in Settings, replacing the launch-time request this phase originally called out. A full onboarding flow is still open.
+
 - **Live Activity / Dynamic Island** for the running session — the live timer currently exists only inside the app; a Live Activity makes clock-out one glance away and reduces forgotten sessions (which the 23:00 alert only patches).
 - **Home-screen widget** showing today's status and the week's hours.
 - **Monthly summary view** — History is a flat list; add per-month totals (hours, overtime split, pay) with simple charts (Swift Charts) so exports aren't the only way to see aggregates.
@@ -45,11 +47,14 @@ The calculator handles the daily 100/125/150 split; Israeli law has more dimensi
 
 ## Phase 4 — Distribution & polish
 
-- **App icon and branding** — no icon assets exist yet.
+> **Status (mostly done):** app icon, privacy manifest (`PrivacyInfo.xcprivacy`), in-app privacy policy, delete-all-data action, localized Info.plist strings, encryption-exemption flag, and reviewer-friendly permission copy have all landed. Remaining below.
+
+- ~~App icon and branding~~ — done.
 - **Accessibility pass** — Dynamic Type audit on the custom-drawn views, VoiceOver labels on the timer and clock buttons; RTL is already exercised via ar/he.
-- **Unify localization** — `AppLocale`'s hardcoded notification strings duplicate the localization mechanism; fold them into the String Catalog and drop the manual language switch.
-- **Data export/import safety** — a full JSON backup/restore (the persistence format is already JSON) protects users who lose iCloud access.
-- **TestFlight / App Store preparation** — privacy manifest, App Store location-usage review notes (Always authorization needs strong justification), screenshots in all three languages.
+- **Unify localization** — now three mechanisms: the String Catalog, `AppLocale`'s hardcoded notification strings, and `ExportCopy`'s per-language report table. Each exists for a reason (background language selection; report language independent of UI locale), but string changes touch up to three places — consolidate behind one lookup that takes an explicit locale.
+- **Data export/import safety** — a full JSON backup/restore (the persistence format is already JSON) protects users who lose the device, especially now that cloud sync is off by default.
+- **TestFlight / App Store submission** — screenshots in all three languages, App Store metadata, review notes for the opt-in Always-location usage.
+- **Cloud sync (parked)** — CloudKit is compiled out behind `HTCloudKitEnabled` because personal-team provisioning cannot carry iCloud entitlements. Revisit (with `CKSyncEngine`) once a paid Apple Developer team is available.
 
 ## Suggested sequencing
 

@@ -207,6 +207,41 @@ final class PayRulesTests: XCTestCase {
     }
 }
 
+final class TaxCreditApplicationTests: XCTestCase {
+    func testCreditIsAppliedToIncomeTaxExactlyOnce() {
+        let settings = TestData.settings()
+        let gross = 20_000.0
+
+        let d = IsraeliTaxEstimator.estimateMonthlyDeductions(monthlyGross: gross, settings: settings)
+
+        // incomeTax is already net of the credit; total must not subtract it again.
+        XCTAssertEqual(d.total, d.incomeTax + d.nationalInsurance + d.healthTax, accuracy: 0.001)
+        // At this income the raw tax exceeds the credit, so the full credit applies.
+        let monthlyCredit = TaxCreditPointsCalculator.monthlyCreditValue(for: settings)
+        XCTAssertEqual(d.creditOffset, monthlyCredit, accuracy: 0.01)
+        XCTAssertGreaterThan(d.creditOffset, 0)
+    }
+
+    func testDailyNetConsistentWithMonthlyDeductions() {
+        let settings = TestData.settings()
+        let dailyGross = 1_000.0
+        let days = TaxCreditPointsCalculator.averageWorkingDaysPerMonth
+
+        let monthly = IsraeliTaxEstimator.estimateMonthlyDeductions(
+            monthlyGross: dailyGross * days,
+            settings: settings
+        )
+        let daily = IsraeliTaxEstimator.estimateDailyNet(fromDailyGross: dailyGross, settings: settings)
+
+        XCTAssertEqual(daily.net, dailyGross - monthly.total / days, accuracy: 0.01)
+        XCTAssertEqual(
+            daily.incomeTax + daily.nationalInsurance + daily.healthTax,
+            monthly.total / days,
+            accuracy: 0.01
+        )
+    }
+}
+
 @MainActor
 final class PayRulesViewModelTests: XCTestCase {
     func testClockInAutoTagsRestDay() {
@@ -219,6 +254,24 @@ final class PayRulesViewModelTests: XCTestCase {
         viewModel.clockIn()
 
         XCTAssertEqual(viewModel.sessions.first?.dayType, .restDay)
+    }
+
+    func testUpdateSessionKeepsExplicitOvernight() {
+        let store = InMemoryStore()
+        store.storedSettings = TestData.settings()
+        let session = TestData.session(day: 13, inHour: 8, outHour: 17)
+        store.storedSessions = [session]
+        let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+
+        // The shift editor passes explicit datetimes; a deliberate 14h
+        // overnight must not be flipped into a day shift by the OCR heuristic.
+        let newIn = TestData.date(2026, 1, 13, 17, 0)
+        let newOut = TestData.date(2026, 1, 14, 7, 0)
+        viewModel.updateSession(session, clockIn: newIn, clockOut: newOut, notes: nil)
+
+        XCTAssertEqual(viewModel.sessions[0].clockIn, newIn)
+        XCTAssertEqual(viewModel.sessions[0].clockOut, newOut)
+        XCTAssertTrue(viewModel.sessions[0].isNightShift)
     }
 
     func testClockInOnOrdinaryWeekdayStaysRegular() {

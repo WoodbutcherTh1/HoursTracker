@@ -17,13 +17,16 @@ enum IsraeliTaxEstimator {
     ]
 
     struct MonthlyDeductions: Equatable {
+        /// Income tax after the credit-point offset has been applied.
         let incomeTax: Double
         let nationalInsurance: Double
         let healthTax: Double
+        /// How much credit was applied to income tax (reporting only —
+        /// already reflected in `incomeTax`, so it must not be subtracted again).
         let creditOffset: Double
 
         var total: Double {
-            max(0, incomeTax + nationalInsurance + healthTax - creditOffset)
+            incomeTax + nationalInsurance + healthTax
         }
     }
 
