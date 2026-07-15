@@ -160,6 +160,40 @@ final class PayrollPeriodTests: XCTestCase {
 }
 
 final class TimesheetScannerParserTests: XCTestCase {
+    private var calendar: Calendar!
+
+    override func setUp() {
+        super.setUp()
+        calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+    }
+
+    private func assertDayMonthYear(
+        _ date: Date,
+        _ day: Int,
+        _ month: Int,
+        _ year: Int,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let c = calendar.dateComponents([.day, .month, .year], from: date)
+        XCTAssertEqual(c.day, day, file: file, line: line)
+        XCTAssertEqual(c.month, month, file: file, line: line)
+        XCTAssertEqual(c.year, year, file: file, line: line)
+    }
+
+    private func assertHourMinute(
+        _ date: Date,
+        _ hour: Int,
+        _ minute: Int,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) {
+        let c = calendar.dateComponents([.hour, .minute], from: date)
+        XCTAssertEqual(c.hour, hour, file: file, line: line)
+        XCTAssertEqual(c.minute, minute, file: file, line: line)
+    }
+
     func testParseLineOrientedTimesheet() async throws {
         let text = """
         Date In Out
@@ -184,12 +218,175 @@ final class TimesheetScannerParserTests: XCTestCase {
         12.07.2026
         08:00
         17:30
-        13.07
+        13/07
         09:00
         18:00
         """
         let drafts = await TimesheetScannerManager.shared.parseSessions(from: text)
         XCTAssertGreaterThanOrEqual(drafts.count, 2)
+    }
+
+    func testDottedClockTimesAreNotParsedAsDates() async throws {
+        // Real Israeli printed sheet: slash dates + dotted clock times (7.17 / 17.08).
+        // OCR also emits cells out of order (RTL: out, in, then date).
+        let text = """
+        תאריך יום כניסה יציאה
+        17.08
+        7.17
+        01/07/2024
+        17.04
+        7.05
+        02/07/2024
+        17.04
+        7.30
+        05/07/2024
+        17.42
+        7.13
+        06/07/2024
+        """
+        let drafts = await TimesheetScannerManager.shared.parseSessions(from: text)
+        XCTAssertEqual(drafts.count, 4)
+
+        assertDayMonthYear(drafts[0].date, 1, 7, 2024)
+        assertHourMinute(drafts[0].clockIn, 7, 17)
+        assertHourMinute(drafts[0].clockOut, 17, 8)
+
+        assertDayMonthYear(drafts[1].date, 2, 7, 2024)
+        assertHourMinute(drafts[1].clockIn, 7, 5)
+        assertHourMinute(drafts[1].clockOut, 17, 4)
+
+        assertDayMonthYear(drafts[2].date, 5, 7, 2024)
+        assertHourMinute(drafts[2].clockIn, 7, 30)
+        assertHourMinute(drafts[2].clockOut, 17, 4)
+
+        assertDayMonthYear(drafts[3].date, 6, 7, 2024)
+        assertHourMinute(drafts[3].clockIn, 7, 13)
+        assertHourMinute(drafts[3].clockOut, 17, 42)
+
+        // Must not invent May/August days from 7.05 / 17.08.
+        let months = Set(drafts.map { calendar.component(.month, from: $0.date) })
+        XCTAssertEqual(months, [7])
+    }
+
+    func testYearlessDottedTokenIsNotADateWhenYearBearingDatesExist() async throws {
+        let text = """
+        7.05
+        17.08
+        01/07/2024
+        """
+        let drafts = await TimesheetScannerManager.shared.parseSessions(from: text)
+        XCTAssertEqual(drafts.count, 1)
+        assertDayMonthYear(drafts[0].date, 1, 7, 2024)
+        assertHourMinute(drafts[0].clockIn, 7, 5)
+        assertHourMinute(drafts[0].clockOut, 17, 8)
+    }
+
+    func testDottedHeaderDateDoesNotStealRowTimes() async throws {
+        let text = """
+        Ameen Ab
+        15.7.2024
+        17.08
+        7.17
+        01/07/2024
+        17.04
+        7.05
+        02/07/2024
+        """
+        let drafts = await TimesheetScannerManager.shared.parseSessions(from: text)
+        XCTAssertEqual(drafts.count, 2)
+        assertDayMonthYear(drafts[0].date, 1, 7, 2024)
+        assertHourMinute(drafts[0].clockIn, 7, 17)
+        assertHourMinute(drafts[0].clockOut, 17, 8)
+        assertDayMonthYear(drafts[1].date, 2, 7, 2024)
+        // Header 15.7.2024 must not appear as a work day.
+        XCTAssertFalse(drafts.contains {
+            calendar.component(.day, from: $0.date) == 15
+                && calendar.component(.month, from: $0.date) == 7
+        })
+    }
+
+    func testEnglishMonthDayTableIgnoresTotalHoursDecimals() async throws {
+        // US-style export: MM-DD dates, colon clock times, dotted total_hours (9.85).
+        let text = """
+        date day entry exit total_hours
+        07-01 Wed 07:17 17:08 9.85
+        07-02 Thu 07:05 17:04 9.98
+        07-05 Sun 07:30 17:04 9.57
+        07-06 Mon 07:15 17:42 10.45
+        07-07 Tue 07:26 17:02 9.60
+        07-09 Thu 07:27 17:06 9.65
+        07-13 Mon 07:23 17:01 9.63
+        07-14 Tue 07:20 16:33 9.22
+        """
+        let drafts = await TimesheetScannerManager.shared.parseSessions(from: text)
+        XCTAssertEqual(drafts.count, 8)
+
+        let year = calendar.component(.year, from: Date())
+        assertDayMonthYear(drafts[0].date, 1, 7, year)
+        assertHourMinute(drafts[0].clockIn, 7, 17)
+        assertHourMinute(drafts[0].clockOut, 17, 8)
+        XCTAssertEqual(drafts[0].totalHours, 9.85, accuracy: 0.02)
+
+        assertDayMonthYear(drafts[3].date, 6, 7, year)
+        assertHourMinute(drafts[3].clockIn, 7, 15)
+        assertHourMinute(drafts[3].clockOut, 17, 42)
+
+        assertDayMonthYear(drafts[5].date, 9, 7, year)
+        assertDayMonthYear(drafts[7].date, 14, 7, year)
+        assertHourMinute(drafts[7].clockIn, 7, 20)
+        assertHourMinute(drafts[7].clockOut, 16, 33)
+
+        // total_hours like 10.45 must not become a fake 10:45 clock-in.
+        XCTAssertFalse(drafts.contains {
+            calendar.component(.hour, from: $0.clockIn) == 10
+                && calendar.component(.minute, from: $0.clockIn) == 45
+        })
+    }
+
+    func testPicksMorningAndEveningWhenExtraDecimalOnRow() async throws {
+        // Dotted Hebrew clocks + a total-hours-like 9.50 on the same reconstructed row.
+        let text = "01/07/2024 7.17 17.08 9.50"
+        let drafts = await TimesheetScannerManager.shared.parseSessions(from: text)
+        XCTAssertEqual(drafts.count, 1)
+        assertDayMonthYear(drafts[0].date, 1, 7, 2024)
+        assertHourMinute(drafts[0].clockIn, 7, 17)
+        assertHourMinute(drafts[0].clockOut, 17, 8)
+        XCTAssertEqual(drafts[0].totalHours, 9.85, accuracy: 0.02)
+    }
+
+    func testRejectsAbsurdShiftDurations() async throws {
+        let text = "01/07/2024 00:05 23:55"
+        let result = await TimesheetScannerManager.shared.parseResult(from: text)
+        // ~23.8h is rejected by finalize → manual fallback draft.
+        XCTAssertTrue(result.usedManualFallback)
+        XCTAssertTrue(result.drafts[0].needsManualReview)
+    }
+
+    func testRepairsOCRYear2001ToCurrentDecade() async throws {
+        // Classic OCR glitch: 2021/2024 misread as 2001/2004.
+        let text = "01/07/2001 08:00 17:00"
+        let drafts = await TimesheetScannerManager.shared.parseSessions(from: text)
+        XCTAssertEqual(drafts.count, 1)
+        let year = calendar.component(.year, from: drafts[0].date)
+        let current = calendar.component(.year, from: Date())
+        XCTAssertGreaterThanOrEqual(year, current - 5)
+        XCTAssertLessThanOrEqual(year, current + 1)
+        XCTAssertNotEqual(year, 2001)
+        assertHourMinute(drafts[0].clockIn, 8, 0)
+        assertHourMinute(drafts[0].clockOut, 17, 0)
+    }
+
+    func testRejectsAncientYearsThatCannotBeRepaired() async throws {
+        let text = "01/07/1985 08:00 17:00"
+        let result = await TimesheetScannerManager.shared.parseResult(from: text)
+        XCTAssertTrue(result.usedManualFallback)
+    }
+
+    func testRejectsFutureDates() async throws {
+        let current = calendar.component(.year, from: Date())
+        let text = "01/12/\(current + 2) 08:00 17:00"
+        let result = await TimesheetScannerManager.shared.parseResult(from: text)
+        XCTAssertTrue(result.usedManualFallback)
     }
 
     func testFallbackWhenNoSessions() async throws {
