@@ -417,10 +417,9 @@ actor TimesheetScannerManager {
 
         // Printed Hebrew sheets use `/` for table dates and `.` for times; a dotted
         // header date like 15.7.2024 must not steal the first row's clock times.
+        // Keep yearless slash dates (13/07) alongside year-bearing ones.
         if dates.contains(where: { $0.usesSlash && $0.hasYear }) {
-            dates = dates.filter { $0.usesSlash && $0.hasYear }
-        } else if dates.contains(where: \.hasYear) {
-            dates = dates.filter(\.hasYear)
+            dates = dates.filter(\.usesSlash)
         }
 
         guard !dates.isEmpty, times.count >= 2 else { return [] }
