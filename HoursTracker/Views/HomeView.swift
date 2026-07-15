@@ -12,7 +12,7 @@ struct LiveTimerView: View {
         Text(elapsedFormatted)
             .font(.system(size: 52, weight: .light, design: .rounded))
             .monospacedDigit()
-            .foregroundStyle(.primary)
+            .foregroundStyle(.white)
             .contentTransition(.numericText())
             .onReceive(timer) { date in
                 now = date
@@ -40,20 +40,25 @@ struct HomeView: View {
         return f
     }()
 
-    private let emerald = Color(red: 0.05, green: 0.62, blue: 0.48)
-    private let emeraldDeep = Color(red: 0.02, green: 0.45, blue: 0.38)
-    private let coral = Color(red: 0.90, green: 0.32, blue: 0.36)
-    private let crimson = Color(red: 0.72, green: 0.16, blue: 0.24)
     private let calendar = Calendar.current
 
     var body: some View {
         NavigationStack {
             ZStack {
-                subtleGlow
+                HomeNeon.bg.ignoresSafeArea()
+
+                // Ambient neon wash
+                Circle()
+                    .fill(HomeNeon.accent.opacity(viewModel.activeSession == nil ? 0.12 : 0.08))
+                    .frame(width: 320, height: 320)
+                    .blur(radius: 70)
+                    .offset(y: 40)
+                    .allowsHitTesting(false)
+
                 HomeAuroraRibbon()
-                    .frame(maxHeight: 140)
+                    .frame(maxHeight: 160)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.top, 4)
+                    .padding(.top, 8)
 
                 Group {
                     if let session = viewModel.activeSession {
@@ -62,21 +67,26 @@ struct HomeView: View {
                         clockedOutView
                     }
                 }
-                .padding(.horizontal, 22)
+                .padding(.horizontal, 18)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .background(Color(.systemGroupedBackground))
-            .navigationTitle(L10n.homeTitle)
             .toolbar {
+                ToolbarItem(placement: .principal) {
+                    HomeBrandTitle()
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showScanner = true
                     } label: {
-                        Image(systemName: "tablecells")
+                        Image(systemName: "doc.viewfinder")
+                            .foregroundStyle(HomeNeon.accent)
                     }
                     .accessibilityLabel(L10n.gridTitle)
                 }
             }
+            .toolbarBackground(HomeNeon.bg, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .sheet(isPresented: $viewModel.showDaySummary) {
                 if let breakdown = viewModel.lastCompletedBreakdown {
                     DaySummarySheet(breakdown: breakdown) {
@@ -91,101 +101,88 @@ struct HomeView: View {
         }
     }
 
-    private var subtleGlow: some View {
-        Circle()
-            .fill((viewModel.activeSession == nil ? emerald : coral).opacity(0.10))
-            .frame(width: 260, height: 260)
-            .blur(radius: 48)
-            .allowsHitTesting(false)
-    }
-
     private var clockedOutView: some View {
-        VStack(spacing: 18) {
+        VStack(spacing: 16) {
             greetingHeader
 
             statsRow
 
-            Spacer(minLength: 8)
+            Spacer(minLength: 6)
 
-            ZStack {
-                HomePulseRings(color: emerald)
-                Button {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    viewModel.clockIn()
-                } label: {
-                    Text(L10n.homeClockIn)
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 48)
-                        .padding(.vertical, 18)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [emerald, emeraldDeep],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .shadow(color: emerald.opacity(0.35), radius: 12, y: 6)
-                        )
-                }
-                .buttonStyle(ScalePressButtonStyle())
+            HomeAnimatedDoorButton(
+                mode: .clockIn,
+                title: L10n.homeClockIn
+            ) {
+                viewModel.clockIn()
             }
-            .frame(height: 180)
+            .frame(height: 140)
 
             Button {
                 showScanner = true
             } label: {
-                Label(
-                    L10n.gridImportButton,
-                    systemImage: "tablecells"
-                )
-                .font(.footnote.weight(.medium))
+                Label(L10n.gridImportButton, systemImage: "doc.viewfinder")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(HomeNeon.accent)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 10)
+                    .background(
+                        Capsule(style: .continuous)
+                            .stroke(HomeNeon.accent.opacity(0.55), lineWidth: 1.2)
+                            .background(Capsule().fill(HomeNeon.card.opacity(0.7)))
+                    )
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(ScalePressButtonStyle())
 
-            Spacer(minLength: 8)
+            Spacer(minLength: 6)
 
             HomeWeekSparkline(
                 dailyHours: weekDailyHours,
                 weekdayLabels: weekDayLabels,
-                accent: emerald
+                highlightedDayIndex: todayWeekdayIndex,
+                accent: HomeNeon.accent
             )
-            .padding(.bottom, 4)
+            .padding(.bottom, 2)
         }
     }
 
     private var greetingHeader: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             let greeting = DaypartGreeting.current(at: context.date, calendar: calendar)
-            ZStack(alignment: .leading) {
+            ZStack {
                 HomeFloatingParticles()
-                    .frame(height: 64)
+                    .frame(height: 70)
 
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(greeting.title)
-                        .font(.largeTitle.weight(.bold))
-                        .foregroundStyle(.primary)
-                        .contentTransition(.opacity)
-                        .animation(.easeInOut(duration: 0.35), value: greeting)
-
-                    Text(L10n.homeReadyToStart)
-                        .font(.subheadline.weight(.medium))
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Text(greeting.title)
+                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .foregroundStyle(.white)
+                    .contentTransition(.opacity)
+                    .animation(.easeInOut(duration: 0.35), value: greeting)
+                    .frame(maxWidth: .infinity)
             }
-            .padding(.top, 8)
+            .padding(.top, 4)
         }
     }
 
     private var statsRow: some View {
         HStack(spacing: 10) {
-            HomeStatChip(title: L10n.homeStatMonth, value: "\(monthShiftCount)")
-            HomeStatChip(title: L10n.homeStatWeek, value: HistoryPeriodHelper.formatHoursClock(weekHours))
-            HomeStatChip(title: L10n.homeStatToday, value: HistoryPeriodHelper.formatHoursClock(todayHours))
+            HomeNeonStatCard(
+                title: L10n.homeStatMonth,
+                value: "\(monthShiftCount)",
+                icon: .calendar,
+                sparkSeed: 0.4
+            )
+            HomeNeonStatCard(
+                title: L10n.homeStatWeek,
+                value: HistoryPeriodHelper.formatHoursClock(weekHours),
+                icon: .chart,
+                sparkSeed: 1.3
+            )
+            HomeNeonStatCard(
+                title: L10n.homeStatToday,
+                value: HistoryPeriodHelper.formatHoursClock(todayHours),
+                icon: .clock,
+                sparkSeed: 2.2
+            )
         }
     }
 
@@ -193,21 +190,23 @@ struct HomeView: View {
         let liveHours = max(0, liveNow.timeIntervalSince(session.clockIn) / 3600)
         let basicGross = liveHours * viewModel.settings.hourlyRate
 
-        return VStack(spacing: 18) {
+        return VStack(spacing: 16) {
             TimelineView(.periodic(from: .now, by: 60)) { context in
                 Text(DaypartGreeting.current(at: context.date, calendar: calendar).title)
                     .font(.title2.weight(.bold))
-                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity)
             }
 
             VStack(spacing: 4) {
                 Text(L10n.homeClockedIn)
                     .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.55))
                     .textCase(.uppercase)
                     .tracking(0.8)
                 Text(L10n.homeSince(timeFormatter.string(from: session.clockIn)))
                     .font(.subheadline.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.8))
             }
 
             VStack(spacing: 10) {
@@ -218,51 +217,40 @@ struct HomeView: View {
                 VStack(spacing: 2) {
                     Text(String(localized: "home.liveGrossBasic", defaultValue: "Estimated gross (hours × rate)"))
                         .font(.caption2)
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(.white.opacity(0.45))
                     Text(PayFormatter.string(basicGross, currencyCode: viewModel.settings.currencyCode))
                         .font(.headline.monospacedDigit())
+                        .foregroundStyle(HomeNeon.accent)
                         .contentTransition(.numericText())
                 }
             }
             .padding(.vertical, 18)
             .padding(.horizontal, 20)
             .frame(maxWidth: .infinity)
-            .background(Color(.secondarySystemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(HomeNeon.card)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke(HomeNeon.coral.opacity(0.25), lineWidth: 1)
+                    )
+            )
 
-            ZStack {
-                HomePulseRings(color: coral)
-                Button {
-                    UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-                    viewModel.clockOut()
-                } label: {
-                    Text(L10n.homeClockOut)
-                        .font(.title3.weight(.bold))
-                        .foregroundStyle(.white)
-                        .padding(.horizontal, 48)
-                        .padding(.vertical, 18)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(
-                                    LinearGradient(
-                                        colors: [coral, crimson],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .shadow(color: coral.opacity(0.35), radius: 12, y: 6)
-                        )
-                }
-                .buttonStyle(ScalePressButtonStyle())
+            HomeAnimatedDoorButton(
+                mode: .clockOut,
+                title: L10n.homeClockOut
+            ) {
+                viewModel.clockOut()
             }
-            .frame(height: 180)
+            .frame(height: 140)
 
-            Spacer(minLength: 8)
+            Spacer(minLength: 6)
 
             HomeWeekSparkline(
                 dailyHours: weekDailyHours,
                 weekdayLabels: weekDayLabels,
-                accent: coral
+                highlightedDayIndex: todayWeekdayIndex,
+                accent: HomeNeon.coral
             )
         }
     }
@@ -315,6 +303,19 @@ struct HomeView: View {
             guard let day = calendar.date(byAdding: .day, value: offset, to: interval.start) else { return "" }
             return HistoryPeriodHelper.weekdayLetter(for: day)
         }
+    }
+
+    /// Index of today inside the week sparkline row (0...6), if today is in this week.
+    private var todayWeekdayIndex: Int? {
+        let interval = weekInterval
+        let today = calendar.startOfDay(for: Date())
+        for offset in 0..<7 {
+            guard let day = calendar.date(byAdding: .day, value: offset, to: interval.start) else { continue }
+            if calendar.isDate(day, inSameDayAs: today) {
+                return offset
+            }
+        }
+        return nil
     }
 }
 

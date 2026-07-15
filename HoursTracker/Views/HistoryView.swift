@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 struct HistoryView: View {
     @ObservedObject var viewModel: AppViewModel
@@ -8,8 +9,15 @@ struct HistoryView: View {
     @State private var selectedDay: Date = Calendar.current.startOfDay(for: Date())
     @State private var payMode: PayDisplayMode = .net
     @State private var selectedSession: WorkSession?
+    @State private var editingSession: WorkSession?
+    @State private var sessionPendingDelete: WorkSession?
+    @State private var menuSession: WorkSession?
     @State private var showScanner = false
     @State private var showManualEntry = false
+    @State private var shareURL: URL?
+    @State private var showShareSheet = false
+    @State private var exportError: String?
+    @State private var copyToastVisible = false
 
     private let calendar = Calendar.current
 
@@ -69,6 +77,11 @@ struct HistoryView: View {
                 )
                 .presentationDetents([.medium, .large])
             }
+            .sheet(item: $editingSession) { session in
+                EditSessionView(viewModel: viewModel, session: session) {
+                    editingSession = nil
+                }
+            }
             .sheet(isPresented: $showScanner) {
                 BlankTimesheetEntryView(appViewModel: viewModel)
             }
@@ -77,6 +90,84 @@ struct HistoryView: View {
                     ManualEntryView(viewModel: viewModel)
                 }
             }
+            .sheet(isPresented: $showShareSheet) {
+                if let shareURL {
+                    ShareSheet(items: [shareURL])
+                }
+            }
+            .confirmationDialog(
+                L10n.editDeleteConfirm,
+                isPresented: Binding(
+                    get: { sessionPendingDelete != nil },
+                    set: { if !$0 { sessionPendingDelete = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button(L10n.editDelete, role: .destructive) {
+                    if let session = sessionPendingDelete {
+                        viewModel.deleteSession(session)
+                        viewModel.showSuccessToast(L10n.feedbackSessionDeleted)
+                    }
+                    sessionPendingDelete = nil
+                }
+                Button(L10n.editCancel, role: .cancel) {
+                    sessionPendingDelete = nil
+                }
+            }
+            .confirmationDialog(
+                String(localized: "history.rowMenu", defaultValue: "Shift options"),
+                isPresented: Binding(
+                    get: { menuSession != nil },
+                    set: { if !$0 { menuSession = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                if let session = menuSession {
+                    Button(String(localized: "history.copy", defaultValue: "Copy")) {
+                        copySession(session)
+                        menuSession = nil
+                    }
+                    Button(L10n.editTitle) {
+                        editingSession = session
+                        menuSession = nil
+                    }
+                    Button(String(localized: "history.exportShift", defaultValue: "Export")) {
+                        exportSession(session)
+                        menuSession = nil
+                    }
+                    Button(L10n.editDelete, role: .destructive) {
+                        sessionPendingDelete = session
+                        menuSession = nil
+                    }
+                }
+                Button(L10n.editCancel, role: .cancel) {
+                    menuSession = nil
+                }
+            }
+            .alert(
+                L10n.errorTitle,
+                isPresented: Binding(
+                    get: { exportError != nil },
+                    set: { if !$0 { exportError = nil } }
+                )
+            ) {
+                Button(L10n.errorOK, role: .cancel) { exportError = nil }
+            } message: {
+                Text(exportError ?? "")
+            }
+            .overlay(alignment: .bottom) {
+                if copyToastVisible {
+                    Text(String(localized: "history.copied", defaultValue: "Copied"))
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 8)
+                        .background(Color.green.gradient, in: Capsule())
+                        .padding(.bottom, 72)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: copyToastVisible)
             .onAppear {
                 alignToCurrentPayrollPeriod()
             }
@@ -226,25 +317,87 @@ struct HistoryView: View {
         if rows.isEmpty {
             emptyState
         } else {
-            ScrollView {
-                LazyVStack(spacing: 0) {
-                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, session in
-                        Button {
+            List {
+                ForEach(Array(rows.enumerated()), id: \.element.id) { index, session in
+                    sessionRow(session, striped: index.isMultiple(of: 2))
+                        .contentShape(Rectangle())
+                        .onTapGesture {
                             selectedSession = session
-                        } label: {
-                            sessionRow(session, striped: index.isMultiple(of: 2))
                         }
-                        .buttonStyle(.plain)
+                        .listRowInsets(EdgeInsets())
+                        .listRowSeparator(.hidden)
+                        .listRowBackground(Color.clear)
+                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                            Button(role: .destructive) {
+                                sessionPendingDelete = session
+                            } label: {
+                                Label(L10n.editDelete, systemImage: "trash")
+                            }
 
-                        Divider().padding(.leading, 14)
-                    }
+                            Button {
+                                exportSession(session)
+                            } label: {
+                                Label(
+                                    String(localized: "history.exportShift", defaultValue: "Export"),
+                                    systemImage: "square.and.arrow.up"
+                                )
+                            }
+                            .tint(.indigo)
+
+                            Button {
+                                editingSession = session
+                            } label: {
+                                Label(L10n.editTitle, systemImage: "pencil")
+                            }
+                            .tint(.blue)
+
+                            Button {
+                                menuSession = session
+                            } label: {
+                                Label(
+                                    String(localized: "history.more", defaultValue: "More"),
+                                    systemImage: "ellipsis"
+                                )
+                            }
+                            .tint(.gray)
+                        }
+                        .contextMenu {
+                            Button {
+                                copySession(session)
+                            } label: {
+                                Label(
+                                    String(localized: "history.copy", defaultValue: "Copy"),
+                                    systemImage: "doc.on.doc"
+                                )
+                            }
+                            Button {
+                                editingSession = session
+                            } label: {
+                                Label(L10n.editTitle, systemImage: "pencil")
+                            }
+                            Button {
+                                exportSession(session)
+                            } label: {
+                                Label(
+                                    String(localized: "history.exportShift", defaultValue: "Export"),
+                                    systemImage: "square.and.arrow.up"
+                                )
+                            }
+                            Button(role: .destructive) {
+                                sessionPendingDelete = session
+                            } label: {
+                                Label(L10n.editDelete, systemImage: "trash")
+                            }
+                        }
                 }
-                .background(Color(.systemBackground))
-                .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-                .padding(.horizontal, 10)
-                .padding(.top, 8)
-                .padding(.bottom, 12)
             }
+            .listStyle(.plain)
+            .scrollContentBackground(.hidden)
+            .background(Color(.systemGroupedBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .padding(.horizontal, 10)
+            .padding(.top, 8)
+            .padding(.bottom, 12)
         }
     }
 
@@ -276,8 +429,9 @@ struct HistoryView: View {
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 10)
-        .background(striped ? Color(.secondarySystemGroupedBackground).opacity(0.55) : Color.clear)
+        .background(striped ? Color(.secondarySystemGroupedBackground).opacity(0.55) : Color(.systemBackground))
         .contentShape(Rectangle())
+        .textSelection(.enabled)
     }
 
     private var emptyState: some View {
@@ -396,6 +550,44 @@ struct HistoryView: View {
             } else {
                 selectedDay = period.start
             }
+        }
+    }
+
+    // MARK: - Row actions
+
+    private func copySession(_ session: WorkSession) {
+        UIPasteboard.general.string = sessionCopyText(session)
+        copyToastVisible = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
+            copyToastVisible = false
+        }
+    }
+
+    private func sessionCopyText(_ session: WorkSession) -> String {
+        let breakdown = viewModel.breakdown(for: session)
+        let amount = payMode == .net ? breakdown.netPay : breakdown.grossPay
+        let out = session.clockOut.map { timeFormatter.string(from: $0) } ?? "—"
+        return [
+            shortDate(session.date),
+            timeFormatter.string(from: session.clockIn),
+            out,
+            HistoryPeriodHelper.formatHoursClock(breakdown.totalHours),
+            breakdown.formatted(amount)
+        ].joined(separator: "  |  ")
+    }
+
+    private func exportSession(_ session: WorkSession) {
+        let day = calendar.startOfDay(for: session.date)
+        do {
+            let url = try viewModel.export(
+                range: .custom(from: day, to: day),
+                format: .pdf,
+                language: .phone
+            )
+            shareURL = url
+            showShareSheet = true
+        } catch {
+            exportError = error.localizedDescription
         }
     }
 }

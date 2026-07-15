@@ -414,7 +414,8 @@ struct BlankTimesheetEntryView: View {
             .foregroundStyle(Color(.systemBackground))
             .lineLimit(1)
             .minimumScaleFactor(0.7)
-            .frame(width: width, maxWidth: flex ? .infinity : width, alignment: .center)
+            .frame(width: flex ? nil : width, alignment: .center)
+            .frame(maxWidth: flex ? .infinity : nil, alignment: .center)
             .padding(.vertical, 11)
             .padding(.horizontal, 4)
     }

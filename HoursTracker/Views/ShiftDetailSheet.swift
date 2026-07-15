@@ -52,7 +52,9 @@ struct ShiftDetailSheet: View {
                 }
             }
             .sheet(isPresented: $showEditor) {
-                EditSessionView(viewModel: viewModel, session: session)
+                EditSessionView(viewModel: viewModel, session: session) {
+                    dismiss()
+                }
             }
         }
     }
@@ -202,6 +204,8 @@ struct ShiftDetailSheet: View {
 struct EditSessionView: View {
     @ObservedObject var viewModel: AppViewModel
     let session: WorkSession
+    /// Called after a successful delete so parent sheets (e.g. Shift Details) can close too.
+    var onDeleted: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
 
     @State private var clockIn: Date
@@ -212,9 +216,14 @@ struct EditSessionView: View {
     @State private var isNightShift: Bool
     @State private var showDeleteConfirm = false
 
-    init(viewModel: AppViewModel, session: WorkSession) {
+    init(
+        viewModel: AppViewModel,
+        session: WorkSession,
+        onDeleted: (() -> Void)? = nil
+    ) {
         self.viewModel = viewModel
         self.session = session
+        self.onDeleted = onDeleted
         _clockIn = State(initialValue: session.clockIn)
         _clockOut = State(initialValue: session.clockOut ?? Date())
         _notes = State(initialValue: session.notes ?? "")
@@ -288,7 +297,11 @@ struct EditSessionView: View {
                 Button(L10n.editDelete, role: .destructive) {
                     viewModel.deleteSession(session)
                     viewModel.showSuccessToast(L10n.feedbackSessionDeleted)
-                    dismiss()
+                    if let onDeleted {
+                        onDeleted()
+                    } else {
+                        dismiss()
+                    }
                 }
                 Button(L10n.editCancel, role: .cancel) {}
             }
