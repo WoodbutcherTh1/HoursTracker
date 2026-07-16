@@ -4,6 +4,8 @@
 <dict>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+	<key>CFBundleDisplayName</key>
+	<string>HourTrackers</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -18,8 +20,6 @@
 	</array>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
-	<key>CFBundleDisplayName</key>
-	<string>HourTrackers</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
@@ -28,6 +28,16 @@
 	<string>8</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>HourTrackers uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Always location is used only for workplace arrival reminders via a single geofence around the workplace you saved. We do not continuously track you.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>HourTrackers uses your location while using the app only to save your workplace when you tap Set Location.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>HourTrackers needs photo access only to import a timesheet screenshot or image you choose.</string>
+	<key>UILaunchScreen</key>
+	<dict/>
 	<key>UISupportedInterfaceOrientations</key>
 	<array>
 		<string>UIInterfaceOrientationPortrait</string>
@@ -42,21 +52,5 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>NSCameraUsageDescription</key>
-	<string>HourTrackers uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>HourTrackers needs photo access only to import a timesheet screenshot or image you choose.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Background location is used only to remind you to clock in when you arrive at the workplace you saved. We do not continuously track you.</string>
-	<key>NSLocationAlwaysUsageDescription</key>
-	<string>Always location is used only for workplace arrival reminders. You can turn arrival reminders off anytime in Settings.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>HourTrackers uses your location while using the app only to save your workplace when you tap Set Location.</string>
-	<key>UIBackgroundModes</key>
-	<array>
-		<string>location</string>
-	</array>
-	<key>UILaunchScreen</key>
-	<dict/>
 </dict>
 </plist>

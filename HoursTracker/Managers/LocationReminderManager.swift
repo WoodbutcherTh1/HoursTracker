@@ -3,11 +3,14 @@ import CoreLocation
 import UserNotifications
 
 protocol LocationReminderManaging: AnyObject {
+    var authorizationStatus: CLAuthorizationStatus { get }
+    var areNotificationsDenied: Bool { get }
     func configure(settings: WorkplaceSettings, sessions: [WorkSession])
-    /// Request Always location + notifications only after the user opts into arrival reminders.
+    /// Staged: notifications + When-In-Use first, then Always once When-In-Use is granted.
     func requestArrivalReminderPermissions()
     func stopArrivalReminders()
     func updateWorkplaceLocation(latitude: Double, longitude: Double, radius: Double)
+    func refreshPermissionStatuses()
 }
 
 final class LocationReminderManager: NSObject, LocationReminderManaging {
@@ -19,16 +22,23 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
     private var settings = WorkplaceSettings.default
     private var sessions: [WorkSession] = []
     private var workplaceRegion: CLCircularRegion?
+    /// True while we still need to upgrade When-In-Use → Always for arrival reminders.
+    private var pendingAlwaysAuthorization = false
+
+    private(set) var authorizationStatus: CLAuthorizationStatus
+    private(set) var areNotificationsDenied = false
 
     private let workplaceRegionID = "workplace-geofence"
     private let clockOutReminderID = "clock-out-reminder"
     private let forgotClockOutID = "forgot-clock-out"
 
     private override init() {
+        authorizationStatus = locationManager.authorizationStatus
         super.init()
         locationManager.delegate = self
-        locationManager.pausesLocationUpdatesAutomatically = false
-        // Only enable background updates after Always authorization — enabling earlier can crash.
+        // Region monitoring (geofencing) relaunches the app on entry even when
+        // terminated. It does not require UIBackgroundModes: location or
+        // allowsBackgroundLocationUpdates — those are continuous tracking APIs.
     }
 
     func configure(settings: WorkplaceSettings, sessions: [WorkSession]) {
@@ -44,13 +54,20 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
     }
 
     func requestArrivalReminderPermissions() {
-        notificationCenter.requestAuthorization(options: [.alert, .sound, .badge]) { _, _ in }
-        locationManager.requestAlwaysAuthorization()
+        notificationCenter.requestAuthorization(options: [.alert, .sound, .badge]) { [weak self] granted, _ in
+            DispatchQueue.main.async {
+                guard let self else { return }
+                self.areNotificationsDenied = !granted
+                // Still stage location auth so the geofence can arm if the user
+                // later enables notifications in system Settings.
+                self.beginLocationAuthorizationFlow()
+            }
+        }
     }
 
     func stopArrivalReminders() {
+        pendingAlwaysAuthorization = false
         clearGeofence()
-        locationManager.allowsBackgroundLocationUpdates = false
     }
 
     func updateWorkplaceLocation(latitude: Double, longitude: Double, radius: Double) {
@@ -62,6 +79,36 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
         }
     }
 
+    func refreshPermissionStatuses() {
+        authorizationStatus = locationManager.authorizationStatus
+        notificationCenter.getNotificationSettings { [weak self] settings in
+            DispatchQueue.main.async {
+                self?.areNotificationsDenied = settings.authorizationStatus == .denied
+            }
+        }
+    }
+
+    // MARK: - Authorization staging
+
+    private func beginLocationAuthorizationFlow() {
+        authorizationStatus = locationManager.authorizationStatus
+        switch authorizationStatus {
+        case .notDetermined:
+            pendingAlwaysAuthorization = true
+            locationManager.requestWhenInUseAuthorization()
+        case .authorizedWhenInUse:
+            pendingAlwaysAuthorization = true
+            locationManager.requestAlwaysAuthorization()
+        case .authorizedAlways:
+            pendingAlwaysAuthorization = false
+            setupGeofence()
+        case .denied, .restricted:
+            pendingAlwaysAuthorization = false
+        @unknown default:
+            pendingAlwaysAuthorization = false
+        }
+    }
+
     // MARK: - Geofence
 
     private func clearGeofence() {
@@ -69,13 +116,20 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
             locationManager.stopMonitoring(for: existing)
             workplaceRegion = nil
         }
-        locationManager.stopMonitoringSignificantLocationChanges()
     }
 
     private func setupGeofence() {
         guard settings.arrivalRemindersEnabled,
               let lat = settings.locationLatitude,
               let lon = settings.locationLongitude else {
+            clearGeofence()
+            return
+        }
+
+        // Region monitoring works with Always (preferred) and can be armed while
+        // When-In-Use; delivery while terminated requires Always.
+        let status = locationManager.authorizationStatus
+        guard status == .authorizedAlways || status == .authorizedWhenInUse else {
             clearGeofence()
             return
         }
@@ -207,12 +261,24 @@ extension LocationReminderManager: CLLocationManagerDelegate {
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        if manager.authorizationStatus == .authorizedAlways {
-            manager.allowsBackgroundLocationUpdates = true
-            setupGeofence()
-        } else if manager.authorizationStatus == .authorizedWhenInUse {
-            manager.allowsBackgroundLocationUpdates = false
-            setupGeofence()
+        authorizationStatus = manager.authorizationStatus
+        switch manager.authorizationStatus {
+        case .authorizedWhenInUse:
+            if pendingAlwaysAuthorization {
+                manager.requestAlwaysAuthorization()
+            } else if settings.arrivalRemindersEnabled {
+                setupGeofence()
+            }
+        case .authorizedAlways:
+            pendingAlwaysAuthorization = false
+            if settings.arrivalRemindersEnabled {
+                setupGeofence()
+            }
+        case .denied, .restricted:
+            pendingAlwaysAuthorization = false
+            clearGeofence()
+        default:
+            break
         }
     }
 

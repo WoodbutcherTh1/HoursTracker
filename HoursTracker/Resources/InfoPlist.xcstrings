@@ -94,41 +94,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "نحتاج الموقع في الخلفية فقط لتذكيرك بتسجيل الدخول عند وصولك لمكان العمل الذي اخترته. لا نتتبعك باستمرار."
+            "value": "يُستخدم موقع «دائماً» فقط لتذكيرات الوصول عبر منطقة عمل واحدة حفظتها. لا نتتبعك باستمرار."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Background location is used only to remind you to clock in when you arrive at the workplace you saved. We do not continuously track you."
+            "value": "Always location is used only for workplace arrival reminders via a single geofence around the workplace you saved. We do not continuously track you."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "מיקום ברקע משמש רק כדי להזכיר לך להחתים כניסה כשאתה מגיע למקום העבודה ששמרת. אין מעקב רציף."
-          }
-        }
-      }
-    },
-    "NSLocationAlwaysUsageDescription": {
-      "localizations": {
-        "ar": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "نحتاج الموقع دائماً فقط لتذكير الوصول لمكان العمل. يمكن إيقاف تذكيرات الوصول من الإعدادات في أي وقت."
-          }
-        },
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Always location is used only for workplace arrival reminders. You can turn arrival reminders off anytime in Settings."
-          }
-        },
-        "he": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "מיקום תמיד משמש רק לתזכורות הגעה למקום העבודה. אפשר לכבות תזכורות הגעה בכל עת בהגדרות."
+            "value": "מיקום תמיד משמש רק לתזכורות הגעה דרך גדר וירטואלית אחת סביב מקום העבודה ששמרת. אין מעקב רציף."
           }
         }
       }
