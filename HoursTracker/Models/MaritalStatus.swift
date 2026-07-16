@@ -8,8 +8,8 @@ enum MaritalStatus: String, Codable, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .single: return String(localized: "tax.marital.single", defaultValue: "Single")
-        case .married: return String(localized: "tax.marital.married", defaultValue: "Married")
+        case .single: return AppLocale.tr("tax.marital.single")
+        case .married: return AppLocale.tr("tax.marital.married")
         }
     }
 }

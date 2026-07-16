@@ -4,6 +4,7 @@ import SwiftUI
 struct HoursTrackerApp: App {
     @StateObject private var viewModel = AppViewModel()
     @StateObject private var appLock = AppLockController()
+    @ObservedObject private var appLanguage = AppLanguageController.shared
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
@@ -25,7 +26,11 @@ struct HoursTrackerApp: App {
             }
             .animation(.easeInOut(duration: 0.2), value: appLock.isLocked)
             .animation(.easeInOut(duration: 0.15), value: scenePhase)
+            .environment(\.locale, appLanguage.locale)
+            .environment(\.layoutDirection, appLanguage.layoutDirection)
             .environmentObject(appLock)
+            .environmentObject(appLanguage)
+            .id(appLanguage.preference)
             .onAppear {
                 ExportTempFileStore.wipeAll()
                 viewModel.syncNow()

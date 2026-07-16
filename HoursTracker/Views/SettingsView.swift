@@ -5,10 +5,12 @@ import CoreLocation
 struct SettingsView: View {
     @ObservedObject var viewModel: AppViewModel
     @EnvironmentObject private var appLock: AppLockController
+    @EnvironmentObject private var appLanguage: AppLanguageController
 
     @State private var draft: WorkplaceSettings
     @State private var locationStatus: String = ""
     @State private var showDeleteAllConfirm = false
+    @State private var showFullDataExport = false
     @State private var showArrivalExplainer = false
     @State private var showDisableSyncConfirm = false
     @State private var isEditingIDNumber = false
@@ -40,6 +42,7 @@ struct SettingsView: View {
                     syncSection
                 }
                 toolsSection
+                languageSection
                 aboutSection
             }
             .scrollDismissesKeyboard(.interactively)
@@ -92,6 +95,9 @@ struct SettingsView: View {
                 }
             } message: {
                 Text(L10n.settingsArrivalBody)
+            }
+            .sheet(isPresented: $showFullDataExport) {
+                FullDataExportSheet(viewModel: viewModel)
             }
         }
     }
@@ -203,6 +209,26 @@ struct SettingsView: View {
                     Text(Calendar.current.weekdaySymbols[weekday - 1]).tag(weekday)
                 }
             }
+            .onChange(of: draft.restDayWeekday) { _, newValue in
+                if draft.secondRestDayWeekday == newValue {
+                    draft.secondRestDayWeekday = nil
+                }
+            }
+
+            Picker(
+                L10n.settingsSecondRestDay,
+                selection: Binding(
+                    get: { draft.secondRestDayWeekday ?? 0 },
+                    set: { draft.secondRestDayWeekday = $0 == 0 ? nil : $0 }
+                )
+            ) {
+                Text(L10n.settingsSecondRestDayNone).tag(0)
+                ForEach(1...7, id: \.self) { weekday in
+                    if weekday != draft.restDayWeekday {
+                        Text(Calendar.current.weekdaySymbols[weekday - 1]).tag(weekday)
+                    }
+                }
+            }
 
             Stepper(value: $draft.defaultBreakMinutes, in: 0...120, step: 5) {
                 HStack {
@@ -228,7 +254,7 @@ struct SettingsView: View {
 
     private var payrollSection: some View {
         Section {
-            Text(String(localized: "payroll.startDayHelp", defaultValue: "Choose which day your salary month starts. Example: 10 → from the 10th to the 9th of next month."))
+            Text(AppLocale.tr("payroll.startDayHelp"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
@@ -256,20 +282,20 @@ struct SettingsView: View {
                 startDay: draft.payrollStartDay
             )
             Text(String(
-                format: String(localized: "payroll.currentWindow %@", defaultValue: "Current window: %@"),
+                format: AppLocale.tr("payroll.currentWindow %@"),
                 HistoryPeriodHelper.shortRangeLabel(for: preview)
             ))
             .font(.caption)
             .foregroundStyle(.secondary)
         } header: {
-            Text(String(localized: "payroll.section", defaultValue: "Payroll Month (חודש שכר)"))
+            Text(AppLocale.tr("payroll.section"))
         }
     }
 
     private var taxSection: some View {
         Section {
             Picker(
-                String(localized: "tax.maritalStatus", defaultValue: "Marital Status"),
+                AppLocale.tr("tax.maritalStatus"),
                 selection: $draft.maritalStatus
             ) {
                 ForEach(MaritalStatus.allCases) { status in
@@ -278,7 +304,7 @@ struct SettingsView: View {
             }
 
             Toggle(
-                String(localized: "tax.hasChildren", defaultValue: "Has Children"),
+                AppLocale.tr("tax.hasChildren"),
                 isOn: $draft.hasChildren
             )
 
@@ -287,30 +313,30 @@ struct SettingsView: View {
                     value: $draft.numberOfChildren,
                     in: 0...15
                 ) {
-                    Text("\(String(localized: "tax.numberOfChildren", defaultValue: "Number of Children")): \(draft.numberOfChildren)")
+                    Text("\(AppLocale.tr("tax.numberOfChildren")): \(draft.numberOfChildren)")
                 }
             }
 
             if draft.maritalStatus == .married {
                 Toggle(
-                    String(localized: "tax.spouseEmployed", defaultValue: "Spouse is Employed"),
+                    AppLocale.tr("tax.spouseEmployed"),
                     isOn: $draft.spouseEmployed
                 )
             }
 
             LabeledContent(
-                String(localized: "tax.creditPoints", defaultValue: "Credit Points")
+                AppLocale.tr("tax.creditPoints")
             ) {
                 Text(String(format: "%.2f", TaxCreditPointsCalculator.creditPoints(for: draft)))
                     .monospacedDigit()
                     .foregroundStyle(.secondary)
             }
 
-            Text(String(localized: "tax.estimateNote", defaultValue: "Net pay is an estimate using Israeli tax brackets, credit points, National Insurance, and Health Tax."))
+            Text(AppLocale.tr("tax.estimateNote"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } header: {
-            Text(String(localized: "tax.section", defaultValue: "Tax & Family Status"))
+            Text(AppLocale.tr("tax.section"))
         }
     }
 
@@ -474,6 +500,20 @@ struct SettingsView: View {
         }
     }
 
+    private var languageSection: some View {
+        Section {
+            Picker(L10n.settingsAppLanguage, selection: $appLanguage.preference) {
+                ForEach(AppLanguageOption.allCases) { option in
+                    Text(option.pickerLabel).tag(option)
+                }
+            }
+        } header: {
+            Text(L10n.settingsAppLanguage)
+        } footer: {
+            Text(L10n.settingsAppLanguageHint)
+        }
+    }
+
     private var aboutSection: some View {
         Section(L10n.settingsAbout) {
             LabeledContent(L10n.settingsVersion, value: appVersionString)
@@ -488,6 +528,12 @@ struct SettingsView: View {
                 Link(destination: mailURL) {
                     Label(L10n.settingsSupport, systemImage: "envelope")
                 }
+            }
+
+            Button {
+                showFullDataExport = true
+            } label: {
+                Label(L10n.fullExportTitle, systemImage: "externaldrive.badge.timemachine")
             }
 
             Button(role: .destructive) {

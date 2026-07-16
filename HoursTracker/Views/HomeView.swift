@@ -87,12 +87,12 @@ struct HomeView: View {
             .toolbarBackground(HomeNeon.bg, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
-            .sheet(isPresented: $viewModel.showDaySummary) {
+            .sheet(isPresented: $viewModel.showDaySummary, onDismiss: {
+                viewModel.dismissDaySummary()
+            }) {
                 if let breakdown = viewModel.lastCompletedBreakdown {
-                    DaySummarySheet(breakdown: breakdown) {
-                        viewModel.dismissDaySummary()
-                    }
-                    .presentationDetents([.medium, .large])
+                    DaySummarySheet(viewModel: viewModel, breakdown: breakdown)
+                        .presentationDetents([.medium, .large])
                 }
             }
             .sheet(isPresented: $showScanner) {
@@ -148,15 +148,18 @@ struct HomeView: View {
     private var greetingHeader: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             let greeting = DaypartGreeting.current(at: context.date, calendar: calendar)
+            let title = greeting.title(withName: viewModel.settings.workerFullName)
             ZStack {
                 HomeFloatingParticles()
                     .frame(height: 70)
 
-                Text(greeting.title)
+                Text(title)
                     .font(.system(size: 36, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
                     .contentTransition(.opacity)
-                    .animation(.easeInOut(duration: 0.35), value: greeting)
+                    .animation(.easeInOut(duration: 0.35), value: title)
                     .frame(maxWidth: .infinity)
             }
             .padding(.top, 4)
@@ -192,9 +195,13 @@ struct HomeView: View {
 
         return VStack(spacing: 16) {
             TimelineView(.periodic(from: .now, by: 60)) { context in
-                Text(DaypartGreeting.current(at: context.date, calendar: calendar).title)
+                let title = DaypartGreeting.current(at: context.date, calendar: calendar)
+                    .title(withName: viewModel.settings.workerFullName)
+                Text(title)
                     .font(.title2.weight(.bold))
                     .foregroundStyle(.white)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
                     .frame(maxWidth: .infinity)
             }
 
@@ -215,7 +222,7 @@ struct HomeView: View {
                 }
 
                 VStack(spacing: 2) {
-                    Text(String(localized: "home.liveGrossBasic", defaultValue: "Estimated gross (hours × rate)"))
+                    Text(AppLocale.tr("home.liveGrossBasic"))
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.45))
                     Text(PayFormatter.string(basicGross, currencyCode: viewModel.settings.currencyCode))
@@ -288,13 +295,11 @@ struct HomeView: View {
     }
 
     private var weekDailyHours: [Double] {
-        let interval = weekInterval
-        return (0..<7).map { offset in
-            guard let day = calendar.date(byAdding: .day, value: offset, to: interval.start) else { return 0 }
-            return completedSessions
-                .filter { calendar.isDate($0.date, inSameDayAs: day) }
-                .reduce(0) { $0 + $1.totalHours }
-        }
+        HistoryPeriodHelper.dailyHoursForWeek(
+            containing: Date(),
+            sessions: viewModel.sessions,
+            calendar: calendar
+        )
     }
 
     private var weekDayLabels: [String] {
@@ -334,7 +339,7 @@ struct GrossNetBadge: View {
     var body: some View {
         HStack(spacing: 16) {
             VStack(spacing: 4) {
-                Text(String(localized: "pay.gross", defaultValue: "Gross (ברוטו)"))
+                Text(AppLocale.tr("pay.gross"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text(breakdown.formattedGrossPay)
@@ -345,7 +350,7 @@ struct GrossNetBadge: View {
             Divider().frame(height: 36)
 
             VStack(spacing: 4) {
-                Text(String(localized: "pay.net", defaultValue: "Net (נטו)"))
+                Text(AppLocale.tr("pay.net"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Text(breakdown.formattedNetPay)
@@ -361,8 +366,9 @@ struct GrossNetBadge: View {
 }
 
 struct DaySummarySheet: View {
+    @ObservedObject var viewModel: AppViewModel
     let breakdown: DayPayBreakdown
-    let onDismiss: () -> Void
+    @State private var showDeleteConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -380,13 +386,13 @@ struct DaySummarySheet: View {
                         summaryRow(L10n.summaryOT125, value: L10n.hoursLong(breakdown.ot125Hours))
                         summaryRow(L10n.summaryOT150, value: L10n.hoursLong(breakdown.ot150Hours))
                         summaryRow(
-                            String(localized: "shift.gas", defaultValue: "Travel / Gas"),
+                            AppLocale.tr("shift.gas"),
                             value: breakdown.formatted(breakdown.gasAllowance)
                         )
                         Divider()
                         GrossNetBadge(breakdown: breakdown)
                         summaryRow(
-                            String(localized: "tax.creditPoints", defaultValue: "Credit Points"),
+                            AppLocale.tr("tax.creditPoints"),
                             value: String(format: "%.2f", breakdown.creditPoints)
                         )
                     }
@@ -394,6 +400,12 @@ struct DaySummarySheet: View {
                     .background(Color(.secondarySystemGroupedBackground))
                     .clipShape(RoundedRectangle(cornerRadius: 12))
                     .padding(.horizontal)
+
+                    Button(L10n.summaryDeleteThisShift, role: .destructive) {
+                        showDeleteConfirm = true
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .padding(.top, 4)
                 }
                 .padding(.top, 28)
                 .padding(.bottom, 24)
@@ -401,10 +413,30 @@ struct DaySummarySheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.summaryDone, action: onDismiss)
+                    Button(L10n.summaryDone) {
+                        viewModel.dismissDaySummary()
+                    }
                 }
             }
+            .alert(
+                L10n.editDeleteConfirm,
+                isPresented: $showDeleteConfirm
+            ) {
+                Button(L10n.editDelete, role: .destructive) {
+                    deleteJustCompletedShift()
+                }
+                Button(L10n.editCancel, role: .cancel) {}
+            }
         }
+    }
+
+    private func deleteJustCompletedShift() {
+        if let id = viewModel.lastCompletedSessionID,
+           let session = viewModel.sessions.first(where: { $0.id == id }) {
+            viewModel.deleteSession(session)
+            viewModel.showSuccessToast(L10n.feedbackSessionDeleted)
+        }
+        viewModel.dismissDaySummary()
     }
 
     private func summaryRow(_ label: String, value: String, bold: Bool = false) -> some View {

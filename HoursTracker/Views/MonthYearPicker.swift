@@ -12,29 +12,32 @@ struct MonthYearPicker: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Picker(
-                String(localized: "export.month", defaultValue: "Month"),
-                selection: monthBinding
-            ) {
+        HStack(spacing: 8) {
+            Picker(selection: monthBinding) {
                 ForEach(months, id: \.self) { month in
                     Text(monthName(month)).tag(month)
                 }
+            } label: {
+                Text(AppLocale.tr("export.month"))
             }
+            .labelsHidden()
             .pickerStyle(.menu)
+            .accessibilityLabel(AppLocale.tr("export.month"))
 
-            Picker(
-                String(localized: "export.year", defaultValue: "Year"),
-                selection: yearBinding
-            ) {
+            Picker(selection: yearBinding) {
                 ForEach(years, id: \.self) { year in
                     Text(String(year)).tag(year)
                 }
+            } label: {
+                Text(AppLocale.tr("export.year"))
             }
+            .labelsHidden()
             .pickerStyle(.menu)
+            .accessibilityLabel(AppLocale.tr("export.year"))
         }
+        .environment(\.layoutDirection, .leftToRight)
         .accessibilityElement(children: .combine)
-        .accessibilityLabel(String(localized: "export.monthYear", defaultValue: "Month and year"))
+        .accessibilityLabel(AppLocale.tr("export.monthYear"))
     }
 
     private var monthBinding: Binding<Int> {
@@ -68,7 +71,8 @@ struct MonthYearPicker: View {
         components.month = month
         guard let date = calendar.date(from: components) else { return "\(month)" }
         let formatter = DateFormatter()
-        formatter.locale = .current
+        // Follow the in-app language override (same as the rest of the Export form).
+        formatter.locale = AppLocale.resolvedLocale
         formatter.setLocalizedDateFormatFromTemplate("MMMM")
         return formatter.string(from: date)
     }

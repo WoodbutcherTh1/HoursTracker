@@ -15,6 +15,7 @@ struct ExportReport {
 
 enum ExportFormat: CaseIterable, Identifiable {
     case pdf
+    case csv
     case txt
     case docx
     case markdown
@@ -24,6 +25,7 @@ enum ExportFormat: CaseIterable, Identifiable {
     var localizedName: String {
         switch self {
         case .pdf: return L10n.exportFormatPDF
+        case .csv: return L10n.exportFormatCSV
         case .txt: return L10n.exportFormatTXT
         case .docx: return L10n.exportFormatDOCX
         case .markdown: return L10n.exportFormatMD
@@ -33,6 +35,7 @@ enum ExportFormat: CaseIterable, Identifiable {
     var fileExtension: String {
         switch self {
         case .pdf: return "pdf"
+        case .csv: return "csv"
         case .txt: return "txt"
         case .docx: return "docx"
         case .markdown: return "md"
@@ -43,28 +46,37 @@ enum ExportFormat: CaseIterable, Identifiable {
 enum ExportDateRange: Equatable {
     case all
     case month(year: Int, month: Int)
+    /// Full calendar year (Jan 1 … Dec 31 inclusive).
+    case year(Int)
     case custom(from: Date, to: Date)
 }
 
 final class ExportManager {
     private var copy = ExportCopy(language: .phone)
 
+    /// Layout direction for the active export language (independent of device/UI).
+    private var isRTL: Bool { ExportLayout.isRTL(language: copy.language) }
+
     private lazy var dateFormatter: DateFormatter = {
         let f = DateFormatter()
         // Numeric date avoids English month names leaking into Hebrew/Arabic exports.
         f.dateFormat = "dd.MM.yy"
+        // Always Western digits / Gregorian calendar — language only affects weekday names.
+        f.calendar = Calendar(identifier: .gregorian)
         return f
     }()
 
     private lazy var timeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "HH:mm"
+        f.calendar = Calendar(identifier: .gregorian)
         return f
     }()
 
     private lazy var weekdayFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "EEEE"
+        f.calendar = Calendar(identifier: .gregorian)
         return f
     }()
 
@@ -97,6 +109,8 @@ final class ExportManager {
         switch format {
         case .pdf:
             return try exportPDF(report: report)
+        case .csv:
+            return try exportCSV(report: report)
         case .txt:
             return try exportTXT(report: report)
         case .docx:
@@ -123,7 +137,13 @@ final class ExportManager {
                 let components = calendar.dateComponents([.year, .month], from: $0.date)
                 return components.year == year && components.month == month
             }
+        case .year(let year):
+            let calendar = Calendar.current
+            return sessions.filter {
+                calendar.component(.year, from: $0.date) == year
+            }
         case .custom(let from, let to):
+            // `to` is inclusive (start of last day), matching PayrollPeriod.end.
             let start = Calendar.current.startOfDay(for: from)
             let end = Calendar.current.startOfDay(for: to).addingTimeInterval(86400 - 1)
             return sessions.filter { $0.date >= start && $0.date <= end }
@@ -137,13 +157,16 @@ final class ExportManager {
         case .month(let year, let month):
             let formatter = DateFormatter()
             formatter.locale = copy.locale
+            formatter.calendar = Calendar(identifier: .gregorian)
             formatter.dateFormat = "MMMM yyyy"
             var components = DateComponents()
             components.year = year
             components.month = month
             components.day = 1
-            let date = Calendar.current.date(from: components) ?? Date()
+            let date = Calendar(identifier: .gregorian).date(from: components) ?? Date()
             return formatter.string(from: date)
+        case .year(let year):
+            return copy.yearLabel(year)
         case .custom(let from, let to):
             return "\(dateFormatter.string(from: from)) – \(dateFormatter.string(from: to))"
         }
@@ -158,6 +181,7 @@ final class ExportManager {
         let contentWidth = pageWidth - margin * 2
         let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight))
         let totals = report.totals
+        let rtl = isRTL
 
         let data = renderer.pdfData { context in
             context.beginPage()
@@ -169,8 +193,17 @@ final class ExportManager {
             let bodyFont = UIFont.systemFont(ofSize: 9)
             let smallFont = UIFont.systemFont(ofSize: 8)
 
-            func attrs(_ font: UIFont, color: UIColor = .black) -> [NSAttributedString.Key: Any] {
-                [.font: font, .foregroundColor: color]
+            func attrs(
+                _ font: UIFont,
+                color: UIColor = .black,
+                align: NSTextAlignment? = nil,
+                lineBreakMode: NSLineBreakMode = .byWordWrapping
+            ) -> [NSAttributedString.Key: Any] {
+                let style = NSMutableParagraphStyle()
+                style.alignment = align ?? (rtl ? .right : .left)
+                style.baseWritingDirection = rtl ? .rightToLeft : .leftToRight
+                style.lineBreakMode = lineBreakMode
+                return [.font: font, .foregroundColor: color, .paragraphStyle: style]
             }
 
             func drawText(
@@ -181,9 +214,11 @@ final class ExportManager {
                 height: CGFloat = 18,
                 color: UIColor = .black
             ) {
-                text.draw(
-                    in: CGRect(x: x, y: y, width: width, height: height),
-                    withAttributes: attrs(font, color: color)
+                (text as NSString).draw(
+                    with: CGRect(x: x, y: y, width: width, height: height),
+                    options: [.usesLineFragmentOrigin, .usesFontLeading],
+                    attributes: attrs(font, color: color),
+                    context: nil
                 )
             }
 
@@ -197,32 +232,80 @@ final class ExportManager {
                 return ceil(rect.height)
             }
 
-            // Title band
+            /// Logical column weights (Day … Daily wage); mirrored with the headers in RTL.
+            let columnWeights: [CGFloat] = [1.55, 1.15, 0.85, 0.85, 0.75, 0.9, 0.8, 0.8, 0.8, 1.15, 1.25]
+            func columnFrames(count: Int) -> [CGRect] {
+                let weights = ExportLayout.visualOrder(Array(columnWeights.prefix(count)), isRTL: rtl)
+                let totalWeight = weights.reduce(0, +)
+                var frames: [CGRect] = []
+                var x = margin
+                for weight in weights {
+                    let width = contentWidth * (weight / totalWeight)
+                    frames.append(CGRect(x: x, y: y, width: width, height: 16))
+                    x += width
+                }
+                return frames
+            }
+
+            func drawCell(
+                _ text: String,
+                in frame: CGRect,
+                font: UIFont,
+                color: UIColor,
+                yOffset: CGFloat
+            ) {
+                let inset: CGFloat = 3
+                let rect = CGRect(
+                    x: frame.minX + inset,
+                    y: frame.minY + yOffset,
+                    width: max(0, frame.width - inset * 2),
+                    height: 14
+                )
+                (text as NSString).draw(
+                    with: rect,
+                    options: [.usesLineFragmentOrigin, .usesFontLeading],
+                    attributes: attrs(font, color: color, lineBreakMode: .byTruncatingTail),
+                    context: nil
+                )
+            }
+
+            func drawTableHeaderRow(columns: [String]) {
+                UIColor(red: 0.12, green: 0.22, blue: 0.33, alpha: 1).setFill()
+                UIRectFill(CGRect(x: margin, y: y, width: contentWidth, height: 20))
+                let frames = columnFrames(count: columns.count)
+                for (i, col) in columns.enumerated() {
+                    var frame = frames[i]
+                    frame.size.height = 20
+                    drawCell(col, in: frame, font: headerFont, color: .white, yOffset: 3)
+                }
+                y += 22
+            }
+
+            // Title band — tall enough for 20pt bold (a short rect squashes glyphs in PDF).
             UIColor(red: 0.12, green: 0.22, blue: 0.33, alpha: 1).setFill()
-            UIRectFill(CGRect(x: 0, y: 0, width: pageWidth, height: 52))
-            y = 16
-            drawText(copy.title, font: titleFont, x: margin, width: contentWidth, color: .white)
-            y = 60
+            UIRectFill(CGRect(x: 0, y: 0, width: pageWidth, height: 56))
+            y = 14
+            drawText(copy.title, font: titleFont, x: margin, width: contentWidth, height: 28, color: .white)
+            y = 64
 
             // Employee / workplace header
-            let headerLines = headerLines(report)
-            for line in headerLines {
+            for line in headerLines(report) {
                 drawText(line, font: bodyFont, x: margin, width: contentWidth, height: 14)
                 y += 14
             }
             y += 8
 
-            // Payroll summary cards
+            // Payroll summary cards (mirrored order in RTL)
             drawText(copy.payrollSummary, font: sectionFont, x: margin, width: contentWidth)
             y += 20
 
             let deductions = totals.incomeTax + totals.nationalInsurance + totals.healthTax
-            let cards: [(String, String)] = [
+            let cards = ExportLayout.visualOrder([
                 (copy.colSummaryTotalHours, formatHours(totals.totalHours)),
                 (copy.colGrossPay, formatMoney(totals.grossPay, currencyCode: totals.currencyCode)),
                 (copy.colDeductions, formatMoney(deductions, currencyCode: totals.currencyCode)),
                 (copy.colNetPay, formatMoney(totals.netPay, currencyCode: totals.currencyCode))
-            ]
+            ], isRTL: rtl)
             let cardGap: CGFloat = 10
             let cardWidth = (contentWidth - cardGap * 3) / 4
             let cardHeight: CGFloat = 48
@@ -245,24 +328,27 @@ final class ExportManager {
             }
             y += cardHeight + 14
 
-            // Hours + pay charts side by side
+            // Hours + pay charts side by side (hours on the right in RTL)
             let chartWidth = (contentWidth - 16) / 2
             let chartTop = y
-            y = drawBarChart(
+            let hoursX = rtl ? margin + chartWidth + 16 : margin
+            let payX = rtl ? margin : margin + chartWidth + 16
+            let hoursBottom = drawBarChart(
                 title: copy.hoursChart,
                 segments: [
                     (copy.colRegular, totals.regularHours, UIColor(red: 0.20, green: 0.55, blue: 0.40, alpha: 1)),
                     (copy.colOT125, totals.ot125Hours, UIColor(red: 0.90, green: 0.55, blue: 0.15, alpha: 1)),
                     (copy.colOT150, totals.ot150Hours, UIColor(red: 0.80, green: 0.25, blue: 0.25, alpha: 1))
                 ],
-                x: margin,
+                x: hoursX,
                 y: chartTop,
                 width: chartWidth,
+                isRTL: rtl,
                 titleFont: sectionFont,
                 labelFont: smallFont,
                 valueFormatter: formatHours
             )
-            let payY = drawBarChart(
+            let payBottom = drawBarChart(
                 title: copy.payChart,
                 segments: [
                     (copy.colRegular, totals.basePay, UIColor(red: 0.20, green: 0.45, blue: 0.70, alpha: 1)),
@@ -270,14 +356,15 @@ final class ExportManager {
                     (copy.colOT150, totals.ot150Pay, UIColor(red: 0.80, green: 0.25, blue: 0.25, alpha: 1)),
                     (copy.colGas, totals.gasAllowance, UIColor(red: 0.45, green: 0.45, blue: 0.55, alpha: 1))
                 ],
-                x: margin + chartWidth + 16,
+                x: payX,
                 y: chartTop,
                 width: chartWidth,
+                isRTL: rtl,
                 titleFont: sectionFont,
                 labelFont: smallFont,
                 valueFormatter: { formatMoney($0, currencyCode: totals.currencyCode) }
             )
-            y = max(y, payY) + 12
+            y = max(hoursBottom, payBottom) + 12
 
             // Column guide (compact)
             drawText(copy.legendTitle, font: sectionFont, x: margin, width: contentWidth)
@@ -296,7 +383,7 @@ final class ExportManager {
             }
             y += 10
 
-            // Daily payroll table
+            // Daily payroll table (columns mirrored in RTL)
             if y > pageHeight - 120 {
                 context.beginPage()
                 y = margin
@@ -304,41 +391,23 @@ final class ExportManager {
             drawText(copy.dailyTable, font: sectionFont, x: margin, width: contentWidth)
             y += 18
 
-            let columns = tableColumns()
-            let colWidth = contentWidth / CGFloat(columns.count)
-            UIColor(red: 0.12, green: 0.22, blue: 0.33, alpha: 1).setFill()
-            UIRectFill(CGRect(x: margin, y: y, width: contentWidth, height: 20))
-            for (i, col) in columns.enumerated() {
-                col.draw(
-                    in: CGRect(x: margin + CGFloat(i) * colWidth + 2, y: y + 3, width: colWidth - 4, height: 14),
-                    withAttributes: attrs(headerFont, color: .white)
-                )
-            }
-            y += 22
+            let columns = ExportLayout.visualOrder(tableColumns(), isRTL: rtl)
+            drawTableHeaderRow(columns: columns)
 
             for (rowIndex, row) in report.rows.enumerated() {
                 if y > pageHeight - 60 {
                     context.beginPage()
                     y = margin
-                    UIColor(red: 0.12, green: 0.22, blue: 0.33, alpha: 1).setFill()
-                    UIRectFill(CGRect(x: margin, y: y, width: contentWidth, height: 20))
-                    for (i, col) in columns.enumerated() {
-                        col.draw(
-                            in: CGRect(x: margin + CGFloat(i) * colWidth + 2, y: y + 3, width: colWidth - 4, height: 14),
-                            withAttributes: attrs(headerFont, color: .white)
-                        )
-                    }
-                    y += 22
+                    drawTableHeaderRow(columns: columns)
                 }
                 if rowIndex % 2 == 1 {
                     UIColor(red: 0.96, green: 0.97, blue: 0.98, alpha: 1).setFill()
                     UIRectFill(CGRect(x: margin, y: y, width: contentWidth, height: 16))
                 }
-                for (i, val) in rowValues(row).enumerated() {
-                    val.draw(
-                        in: CGRect(x: margin + CGFloat(i) * colWidth + 2, y: y + 1, width: colWidth - 4, height: 14),
-                        withAttributes: attrs(bodyFont)
-                    )
+                let values = ExportLayout.visualOrder(rowValues(row), isRTL: rtl)
+                let frames = columnFrames(count: values.count)
+                for (i, val) in values.enumerated() {
+                    drawCell(val, in: frames[i], font: bodyFont, color: .black, yOffset: 1)
                 }
                 y += 16
             }
@@ -350,11 +419,12 @@ final class ExportManager {
             }
             UIColor(red: 0.18, green: 0.28, blue: 0.38, alpha: 1).setFill()
             UIRectFill(CGRect(x: margin, y: y, width: contentWidth, height: 20))
-            for (i, val) in totalsValues(totals).enumerated() {
-                val.draw(
-                    in: CGRect(x: margin + CGFloat(i) * colWidth + 2, y: y + 3, width: colWidth - 4, height: 14),
-                    withAttributes: attrs(headerFont, color: .white)
-                )
+            let totalVals = ExportLayout.visualOrder(totalsValues(totals), isRTL: rtl)
+            let totalFrames = columnFrames(count: totalVals.count)
+            for (i, val) in totalVals.enumerated() {
+                var frame = totalFrames[i]
+                frame.size.height = 20
+                drawCell(val, in: frame, font: headerFont, color: .white, yOffset: 3)
             }
         }
 
@@ -362,19 +432,42 @@ final class ExportManager {
     }
 
     /// Draws a titled horizontal bar chart; returns the Y position below the chart.
+    /// RTL: labels on the right, bars fill right→left, values on the left.
     private func drawBarChart(
         title: String,
         segments: [(String, Double, UIColor)],
         x: CGFloat,
         y startY: CGFloat,
         width: CGFloat,
+        isRTL: Bool,
         titleFont: UIFont,
         labelFont: UIFont,
         valueFormatter: (Double) -> String
     ) -> CGFloat {
         var y = startY
-        let attrsTitle: [NSAttributedString.Key: Any] = [.font: titleFont]
-        let attrsLabel: [NSAttributedString.Key: Any] = [.font: labelFont, .foregroundColor: UIColor.darkGray]
+        let titleStyle = NSMutableParagraphStyle()
+        titleStyle.alignment = isRTL ? .right : .left
+        titleStyle.baseWritingDirection = isRTL ? .rightToLeft : .leftToRight
+        let attrsTitle: [NSAttributedString.Key: Any] = [
+            .font: titleFont,
+            .paragraphStyle: titleStyle
+        ]
+        let labelStyle = NSMutableParagraphStyle()
+        labelStyle.alignment = isRTL ? .right : .left
+        labelStyle.baseWritingDirection = isRTL ? .rightToLeft : .leftToRight
+        let attrsLabel: [NSAttributedString.Key: Any] = [
+            .font: labelFont,
+            .foregroundColor: UIColor.darkGray,
+            .paragraphStyle: labelStyle
+        ]
+        let valueStyle = NSMutableParagraphStyle()
+        valueStyle.alignment = isRTL ? .left : .right
+        let attrsValue: [NSAttributedString.Key: Any] = [
+            .font: labelFont,
+            .foregroundColor: UIColor.darkGray,
+            .paragraphStyle: valueStyle
+        ]
+
         title.draw(in: CGRect(x: x, y: y, width: width, height: 16), withAttributes: attrsTitle)
         y += 20
 
@@ -385,50 +478,105 @@ final class ExportManager {
         let barWidth = max(40, width - labelWidth - valueWidth - 8)
 
         for (label, value, color) in segments {
-            label.draw(in: CGRect(x: x, y: y, width: labelWidth, height: 14), withAttributes: attrsLabel)
-            let trackX = x + labelWidth + 4
-            UIColor(white: 0.92, alpha: 1).setFill()
-            UIRectFill(CGRect(x: trackX, y: y + 1, width: barWidth, height: barHeight))
             let fraction = total > 0 ? CGFloat(value / total) : 0
-            color.setFill()
-            UIRectFill(CGRect(x: trackX, y: y + 1, width: max(0, barWidth * fraction), height: barHeight))
-            valueFormatter(value).draw(
-                in: CGRect(x: trackX + barWidth + 4, y: y, width: valueWidth, height: 14),
-                withAttributes: attrsLabel
-            )
+            let filled = max(0, barWidth * fraction)
+            let valueText = valueFormatter(value)
+
+            if isRTL {
+                let valueX = x
+                let trackX = x + valueWidth + 4
+                let labelX = trackX + barWidth + 4
+                valueText.draw(
+                    in: CGRect(x: valueX, y: y, width: valueWidth, height: 14),
+                    withAttributes: attrsValue
+                )
+                UIColor(white: 0.92, alpha: 1).setFill()
+                UIRectFill(CGRect(x: trackX, y: y + 1, width: barWidth, height: barHeight))
+                color.setFill()
+                UIRectFill(CGRect(x: trackX + barWidth - filled, y: y + 1, width: filled, height: barHeight))
+                label.draw(
+                    in: CGRect(x: labelX, y: y, width: labelWidth, height: 14),
+                    withAttributes: attrsLabel
+                )
+            } else {
+                label.draw(
+                    in: CGRect(x: x, y: y, width: labelWidth, height: 14),
+                    withAttributes: attrsLabel
+                )
+                let trackX = x + labelWidth + 4
+                UIColor(white: 0.92, alpha: 1).setFill()
+                UIRectFill(CGRect(x: trackX, y: y + 1, width: barWidth, height: barHeight))
+                color.setFill()
+                UIRectFill(CGRect(x: trackX, y: y + 1, width: filled, height: barHeight))
+                valueText.draw(
+                    in: CGRect(x: trackX + barWidth + 4, y: y, width: valueWidth, height: 14),
+                    withAttributes: attrsValue
+                )
+            }
             y += 18
         }
         return y
     }
 
+    // MARK: - CSV
+
+    private func exportCSV(report: ExportReport) throws -> URL {
+        // Logical column order (not RTL-mirrored) — spreadsheets are LTR data tables.
+        var lines = [tableColumns().map(ExportSanitizer.csvCell).joined(separator: ",")]
+        for row in report.rows {
+            lines.append(rowValues(row).map(ExportSanitizer.csvCell).joined(separator: ","))
+        }
+        lines.append(totalsValues(report.totals).map(ExportSanitizer.csvCell).joined(separator: ","))
+
+        // UTF-8 BOM so Excel/Numbers detect Hebrew/Arabic headers correctly.
+        var data = Data([0xEF, 0xBB, 0xBF])
+        data.append(Data(lines.joined(separator: "\n").utf8))
+        data.append(Data("\n".utf8))
+        return try write(data: data, extension: "csv")
+    }
+
     // MARK: - TXT
 
     private func exportTXT(report: ExportReport) throws -> URL {
+        let rtl = isRTL
         var lines: [String] = []
-        lines.append(copy.title.uppercased())
-        lines.append(contentsOf: headerLines(report))
+        lines.append(ExportLayout.directedLine(copy.title.uppercased(), isRTL: rtl))
+        lines.append(contentsOf: headerLines(report).map { ExportLayout.directedLine($0, isRTL: rtl) })
         lines.append("")
-        lines.append(copy.payrollSummary)
-        lines.append(contentsOf: summaryLines(report.totals))
+        lines.append(ExportLayout.directedLine(copy.payrollSummary, isRTL: rtl))
+        lines.append(contentsOf: summaryLines(report.totals).map { ExportLayout.directedLine($0, isRTL: rtl) })
         lines.append("")
-        lines.append(copy.hoursChart)
-        lines.append(contentsOf: asciiBars(hoursSegments(report.totals), formatValue: formatHours))
+        lines.append(ExportLayout.directedLine(copy.hoursChart, isRTL: rtl))
+        lines.append(contentsOf: asciiBars(hoursSegments(report.totals), formatValue: formatHours).map {
+            ExportLayout.directedLine($0, isRTL: rtl)
+        })
         lines.append("")
-        lines.append(copy.payChart)
-        lines.append(contentsOf: asciiBars(paySegments(report.totals), formatValue: { formatMoney($0, currencyCode: report.totals.currencyCode) }))
+        lines.append(ExportLayout.directedLine(copy.payChart, isRTL: rtl))
+        lines.append(contentsOf: asciiBars(paySegments(report.totals), formatValue: {
+            formatMoney($0, currencyCode: report.totals.currencyCode)
+        }).map { ExportLayout.directedLine($0, isRTL: rtl) })
         lines.append("")
-        lines.append(contentsOf: columnLegendBlock())
+        lines.append(contentsOf: columnLegendBlock().map { ExportLayout.directedLine($0, isRTL: rtl) })
         lines.append("")
-        lines.append(copy.dailyTable)
-        let columns = tableColumns()
-        let widths = [10, 11, 7, 7, 7, 7, 7, 8, 10, 10, 10]
+        lines.append(ExportLayout.directedLine(copy.dailyTable, isRTL: rtl))
+        let columns = ExportLayout.visualOrder(tableColumns(), isRTL: rtl)
+        let widths = ExportLayout.visualOrder(
+            [10, 11, 7, 7, 7, 7, 7, 8, 10, 10, 10],
+            isRTL: rtl
+        )
         lines.append(formatFixedWidth(columns, widths: widths))
         lines.append(String(repeating: "-", count: widths.reduce(0, +)))
         for row in report.rows {
-            lines.append(formatFixedWidth(rowValues(row), widths: widths))
+            lines.append(formatFixedWidth(
+                ExportLayout.visualOrder(rowValues(row), isRTL: rtl),
+                widths: widths
+            ))
         }
         lines.append(String(repeating: "-", count: widths.reduce(0, +)))
-        lines.append(formatFixedWidth(totalsValues(report.totals), widths: widths))
+        lines.append(formatFixedWidth(
+            ExportLayout.visualOrder(totalsValues(report.totals), isRTL: rtl),
+            widths: widths
+        ))
         let data = lines.joined(separator: "\n").data(using: .utf8)!
         return try write(data: data, extension: "txt")
     }
@@ -436,43 +584,50 @@ final class ExportManager {
     // MARK: - Markdown
 
     private func exportMarkdown(report: ExportReport) throws -> URL {
+        let rtl = isRTL
         var lines: [String] = []
-        lines.append("# \(copy.title)")
+        lines.append("# \(ExportLayout.directedLine(copy.title, isRTL: rtl))")
         lines.append("")
         for line in headerLines(report) {
-            lines.append("- \(ExportSanitizer.markdownInline(line))")
+            lines.append("- \(ExportSanitizer.markdownInline(ExportLayout.directedLine(line, isRTL: rtl)))")
         }
         lines.append("")
-        lines.append("## \(copy.payrollSummary)")
+        lines.append("## \(ExportLayout.directedLine(copy.payrollSummary, isRTL: rtl))")
         lines.append("")
         for line in summaryLines(report.totals) {
-            lines.append("- \(line)")
+            lines.append("- \(ExportLayout.directedLine(line, isRTL: rtl))")
         }
         lines.append("")
-        lines.append("## \(copy.hoursChart)")
+        lines.append("## \(ExportLayout.directedLine(copy.hoursChart, isRTL: rtl))")
         lines.append("")
-        lines.append(contentsOf: asciiBars(hoursSegments(report.totals), formatValue: formatHours).map { "- `\($0)`" })
+        lines.append(contentsOf: asciiBars(hoursSegments(report.totals), formatValue: formatHours).map {
+            "- `\(ExportLayout.directedLine($0, isRTL: rtl))`"
+        })
         lines.append("")
-        lines.append("## \(copy.payChart)")
+        lines.append("## \(ExportLayout.directedLine(copy.payChart, isRTL: rtl))")
         lines.append("")
-        lines.append(contentsOf: asciiBars(paySegments(report.totals), formatValue: { formatMoney($0, currencyCode: report.totals.currencyCode) }).map { "- `\($0)`" })
+        lines.append(contentsOf: asciiBars(paySegments(report.totals), formatValue: {
+            formatMoney($0, currencyCode: report.totals.currencyCode)
+        }).map { "- `\(ExportLayout.directedLine($0, isRTL: rtl))`" })
         lines.append("")
-        lines.append("## \(copy.legendTitle)")
+        lines.append("## \(ExportLayout.directedLine(copy.legendTitle, isRTL: rtl))")
         lines.append("")
         for line in copy.legendLines {
-            lines.append("- \(line)")
+            lines.append("- \(ExportLayout.directedLine(line, isRTL: rtl))")
         }
         lines.append("")
-        lines.append("## \(copy.dailyTable)")
+        lines.append("## \(ExportLayout.directedLine(copy.dailyTable, isRTL: rtl))")
         lines.append("")
-        let columns = tableColumns()
+        let columns = ExportLayout.visualOrder(tableColumns(), isRTL: rtl)
         lines.append("| " + columns.joined(separator: " | ") + " |")
         lines.append("| " + columns.map { _ in "---" }.joined(separator: " | ") + " |")
         for row in report.rows {
-            let cells = rowValues(row).map(ExportSanitizer.markdownCell)
+            let cells = ExportLayout.visualOrder(rowValues(row), isRTL: rtl)
+                .map(ExportSanitizer.markdownCell)
             lines.append("| " + cells.joined(separator: " | ") + " |")
         }
-        let totalCells = totalsValues(report.totals).map(ExportSanitizer.markdownCell)
+        let totalCells = ExportLayout.visualOrder(totalsValues(report.totals), isRTL: rtl)
+            .map(ExportSanitizer.markdownCell)
         lines.append("| " + totalCells.joined(separator: " | ") + " |")
         let data = lines.joined(separator: "\n").data(using: .utf8)!
         return try write(data: data, extension: "md")
@@ -481,34 +636,34 @@ final class ExportManager {
     // MARK: - DOCX
 
     private func exportDOCX(report: ExportReport) throws -> URL {
+        let rtl = isRTL
+        // Keep logical cell order; `bidiVisual` mirrors the table when Word/Pages open it.
         let columns = tableColumns()
         var rowsXML = ""
-        rowsXML += docxRow(columns, isHeader: true)
+        rowsXML += docxRow(columns, isHeader: true, isRTL: rtl)
         for row in report.rows {
-            rowsXML += docxRow(rowValues(row))
+            rowsXML += docxRow(rowValues(row), isRTL: rtl)
         }
-        rowsXML += docxRow(totalsValues(report.totals), isHeader: true)
+        rowsXML += docxRow(totalsValues(report.totals), isHeader: true, isRTL: rtl)
 
-        func paragraphs(_ lines: [String]) -> String {
-            lines.map { "<w:p><w:r><w:t>\(escapeXML($0))</w:t></w:r></w:p>" }
-                .joined(separator: "\n            ")
-        }
+        let tblPr = rtl ? "<w:tblPr><w:bidiVisual/></w:tblPr>" : ""
 
         let documentXML = """
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
         <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
           <w:body>
-            <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>\(escapeXML(copy.title))</w:t></w:r></w:p>
-            \(paragraphs(headerLines(report)))
-            <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>\(escapeXML(copy.payrollSummary))</w:t></w:r></w:p>
-            \(paragraphs(summaryLines(report.totals)))
-            <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>\(escapeXML(copy.hoursChart))</w:t></w:r></w:p>
-            \(paragraphs(asciiBars(hoursSegments(report.totals), formatValue: formatHours)))
-            <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>\(escapeXML(copy.payChart))</w:t></w:r></w:p>
-            \(paragraphs(asciiBars(paySegments(report.totals), formatValue: { formatMoney($0, currencyCode: report.totals.currencyCode) })))
-            \(paragraphs(columnLegendBlock()))
-            <w:p><w:r><w:rPr><w:b/></w:rPr><w:t>\(escapeXML(copy.dailyTable))</w:t></w:r></w:p>
+            \(docxParagraph(copy.title, bold: true, isRTL: rtl))
+            \(headerLines(report).map { docxParagraph($0, isRTL: rtl) }.joined(separator: "\n            "))
+            \(docxParagraph(copy.payrollSummary, bold: true, isRTL: rtl))
+            \(summaryLines(report.totals).map { docxParagraph($0, isRTL: rtl) }.joined(separator: "\n            "))
+            \(docxParagraph(copy.hoursChart, bold: true, isRTL: rtl))
+            \(asciiBars(hoursSegments(report.totals), formatValue: formatHours).map { docxParagraph($0, isRTL: rtl) }.joined(separator: "\n            "))
+            \(docxParagraph(copy.payChart, bold: true, isRTL: rtl))
+            \(asciiBars(paySegments(report.totals), formatValue: { formatMoney($0, currencyCode: report.totals.currencyCode) }).map { docxParagraph($0, isRTL: rtl) }.joined(separator: "\n            "))
+            \(columnLegendBlock().map { docxParagraph($0, isRTL: rtl) }.joined(separator: "\n            "))
+            \(docxParagraph(copy.dailyTable, bold: true, isRTL: rtl))
             <w:tbl>
+              \(tblPr)
               \(rowsXML)
             </w:tbl>
           </w:body>
@@ -544,13 +699,28 @@ final class ExportManager {
         return outputURL
     }
 
-    private func docxRow(_ cells: [String], isHeader: Bool = false) -> String {
+    private func docxParagraph(_ text: String, bold: Bool = false, isRTL: Bool) -> String {
+        var pPrParts: [String] = []
+        if isRTL {
+            pPrParts.append("<w:bidi/>")
+            pPrParts.append("<w:jc w:val=\"right\"/>")
+        }
+        let pPr = pPrParts.isEmpty ? "" : "<w:pPr>\(pPrParts.joined())</w:pPr>"
+        let rPr = bold ? "<w:rPr><w:b/></w:rPr>" : ""
+        return "<w:p>\(pPr)<w:r>\(rPr)<w:t>\(escapeXML(text))</w:t></w:r></w:p>"
+    }
+
+    private func docxRow(_ cells: [String], isHeader: Bool = false, isRTL: Bool = false) -> String {
+        let pPr: String
+        if isRTL {
+            pPr = "<w:pPr><w:bidi/><w:jc w:val=\"right\"/></w:pPr>"
+        } else {
+            pPr = ""
+        }
         let cellXML = cells.map { cell in
             let text = escapeXML(cell)
-            if isHeader {
-                return "<w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>\(text)</w:t></w:r></w:p></w:tc>"
-            }
-            return "<w:tc><w:p><w:r><w:t>\(text)</w:t></w:r></w:p></w:tc>"
+            let rPr = isHeader ? "<w:rPr><w:b/></w:rPr>" : ""
+            return "<w:tc><w:p>\(pPr)<w:r>\(rPr)<w:t>\(text)</w:t></w:r></w:p></w:tc>"
         }.joined()
         return "<w:tr>\(cellXML)</w:tr>"
     }
@@ -679,9 +849,16 @@ final class ExportManager {
     }
 
     private func write(data: Data, extension ext: String) throws -> URL {
-        try ExportTempFileStore.write(
+        let stamp: String = {
+            let f = DateFormatter()
+            f.calendar = Calendar(identifier: .gregorian)
+            f.locale = Locale(identifier: "en_US_POSIX")
+            f.dateFormat = "yyyy-MM-dd"
+            return f.string(from: Date())
+        }()
+        return try ExportTempFileStore.write(
             data: data,
-            fileName: "HoursReport-\(UUID().uuidString).\(ext)"
+            fileName: "HoursTracker-Report-\(stamp).\(ext)"
         )
     }
 }

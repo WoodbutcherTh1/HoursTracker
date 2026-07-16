@@ -51,8 +51,36 @@ final class AppViewModelTests: XCTestCase {
 
         XCTAssertFalse(viewModel.isClockedIn)
         XCTAssertNotNil(viewModel.lastCompletedBreakdown)
+        XCTAssertNotNil(viewModel.lastCompletedSessionID)
+        XCTAssertEqual(viewModel.lastCompletedSessionID, store.storedSessions[0].id)
         XCTAssertTrue(viewModel.showDaySummary)
         XCTAssertFalse(store.storedSessions[0].isOpen)
+    }
+
+    func testDeleteLastCompletedSessionRemovesOnlyThatShift() throws {
+        let day = Calendar.current.startOfDay(for: Date())
+        let earlier = WorkSession(
+            date: day,
+            clockIn: day.addingTimeInterval(8 * 3600),
+            clockOut: day.addingTimeInterval(12 * 3600)
+        )
+        let (viewModel, store) = makeViewModel(sessions: [earlier])
+
+        viewModel.clockIn()
+        viewModel.clockOut()
+
+        let completedID = try XCTUnwrap(viewModel.lastCompletedSessionID)
+        XCTAssertNotEqual(completedID, earlier.id)
+        XCTAssertEqual(viewModel.sessions.count, 2)
+
+        let justCompleted = try XCTUnwrap(viewModel.sessions.first { $0.id == completedID })
+        viewModel.deleteSession(justCompleted)
+        viewModel.dismissDaySummary()
+
+        XCTAssertEqual(viewModel.sessions.map(\.id), [earlier.id])
+        XCTAssertEqual(store.storedSessions.map(\.id), [earlier.id])
+        XCTAssertNil(viewModel.lastCompletedSessionID)
+        XCTAssertFalse(viewModel.showDaySummary)
     }
 
     func testSessionOpenSinceYesterdayIsStillActive() {

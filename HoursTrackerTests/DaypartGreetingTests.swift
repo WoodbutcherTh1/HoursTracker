@@ -26,4 +26,37 @@ final class DaypartGreetingTests: XCTestCase {
         XCTAssertEqual(DaypartGreeting.current(at: date(hour: 23), calendar: calendar), .night)
         XCTAssertEqual(DaypartGreeting.current(at: date(hour: 3), calendar: calendar), .night)
     }
+
+    func testTitleWithNameFormatsFirstName() {
+        let isolated = "\u{2068}Dana\u{2069}"
+        XCTAssertEqual(
+            DaypartGreeting.morning.title(withName: "Dana"),
+            L10n.homeGreetingMorningName(isolated)
+        )
+        XCTAssertEqual(
+            DaypartGreeting.afternoon.title(withName: "Dana"),
+            L10n.homeGreetingAfternoonName(isolated)
+        )
+    }
+
+    func testTitleWithEmptyOrWhitespaceNameMatchesPlainTitle() {
+        XCTAssertEqual(DaypartGreeting.morning.title(withName: nil), DaypartGreeting.morning.title)
+        XCTAssertEqual(DaypartGreeting.morning.title(withName: ""), DaypartGreeting.morning.title)
+        XCTAssertEqual(DaypartGreeting.morning.title(withName: "   "), DaypartGreeting.morning.title)
+        XCTAssertEqual(DaypartGreeting.evening.title(withName: "\n\t"), DaypartGreeting.evening.title)
+    }
+
+    func testFirstNameUsesOnlyFirstToken() {
+        XCTAssertEqual(DaypartGreeting.firstName(from: "Dana Weiss"), "Dana")
+        XCTAssertEqual(DaypartGreeting.firstName(from: "  יוסי כהן  "), "יוסי")
+        XCTAssertNil(DaypartGreeting.firstName(from: nil))
+        XCTAssertNil(DaypartGreeting.firstName(from: "   "))
+
+        let isolated = "\u{2068}Dana\u{2069}"
+        XCTAssertEqual(
+            DaypartGreeting.night.title(withName: "Dana Weiss Cohen"),
+            L10n.homeGreetingNightName(isolated)
+        )
+        XCTAssertFalse(DaypartGreeting.night.title(withName: "Dana Weiss").contains("Weiss"))
+    }
 }

@@ -145,8 +145,14 @@ enum OvertimeCalculator {
             consumed = end
 
             let rates = tiers(for: session.dayType)
-            let gas = gasRemaining
-            gasRemaining = 0
+            // Travel allowance applies once per day, on the first session with paid hours.
+            let gas: Double
+            if hours > 0, gasRemaining > 0 {
+                gas = gasRemaining
+                gasRemaining = 0
+            } else {
+                gas = 0
+            }
 
             let basePay = base * rate * rates.base
             let tier1Pay = tier1 * rate * rates.tier1

@@ -39,14 +39,14 @@ struct ShiftDetailSheet: View {
                 .padding()
             }
             .background(Color(.systemGroupedBackground))
-            .navigationTitle(String(localized: "shift.detailTitle", defaultValue: "Shift Details"))
+            .navigationTitle(AppLocale.tr("shift.detailTitle"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(String(localized: "summary.done", defaultValue: "Done")) { dismiss() }
+                    Button(AppLocale.tr("summary.done")) { dismiss() }
                 }
                 ToolbarItem(placement: .primaryAction) {
-                    Button(String(localized: "edit.title", defaultValue: "Edit")) {
+                    Button(AppLocale.tr("edit.title")) {
                         showEditor = true
                     }
                 }
@@ -65,15 +65,15 @@ struct ShiftDetailSheet: View {
                 .font(.title3.weight(.semibold))
             HStack(spacing: 16) {
                 labeledTime(
-                    String(localized: "history.col.in", defaultValue: "In"),
+                    AppLocale.tr("history.col.in"),
                     timeFormatter.string(from: session.clockIn)
                 )
                 labeledTime(
-                    String(localized: "history.col.out", defaultValue: "Out"),
+                    AppLocale.tr("history.col.out"),
                     session.clockOut.map { timeFormatter.string(from: $0) } ?? "—"
                 )
                 labeledTime(
-                    String(localized: "history.col.hours", defaultValue: "Hours"),
+                    AppLocale.tr("history.col.hours"),
                     HistoryPeriodHelper.formatHoursClock(breakdown.totalHours)
                 )
             }
@@ -98,12 +98,12 @@ struct ShiftDetailSheet: View {
         let tiers = OvertimeCalculator.tiers(for: session.dayType)
 
         return VStack(spacing: 12) {
-            sectionTitle(String(localized: "shift.breakdown", defaultValue: "Pay Breakdown"))
+            sectionTitle(AppLocale.tr("shift.breakdown"))
 
             shiftAttributesLine
 
             payLine(
-                title: tierTitle(base: String(localized: "summary.regular", defaultValue: "Regular"), multiplier: tiers.base),
+                title: tierTitle(base: AppLocale.tr("summary.regular"), multiplier: tiers.base),
                 hours: breakdown.regularHours,
                 amount: breakdown.basePay
             )
@@ -118,7 +118,7 @@ struct ShiftDetailSheet: View {
                 amount: breakdown.ot150Pay
             )
             payLine(
-                title: String(localized: "shift.gas", defaultValue: "Travel / Gas"),
+                title: AppLocale.tr("shift.gas"),
                 hours: nil,
                 amount: breakdown.gasAllowance
             )
@@ -126,7 +126,7 @@ struct ShiftDetailSheet: View {
             Divider()
 
             HStack {
-                Text(String(localized: "tax.creditPoints", defaultValue: "Credit Points"))
+                Text(AppLocale.tr("tax.creditPoints"))
                 Spacer()
                 Text(String(format: "%.2f", breakdown.creditPoints))
                     .monospacedDigit()
@@ -195,9 +195,9 @@ struct ShiftDetailSheet: View {
 
     private var entrySourceLabel: String {
         if session.isAIImported {
-            return String(localized: "entry.ai", defaultValue: "Scanned")
+            return AppLocale.tr("entry.ai")
         }
-        return String(localized: "entry.manual", defaultValue: "Manual")
+        return AppLocale.tr("entry.manual")
     }
 }
 
@@ -289,10 +289,9 @@ struct EditSessionView: View {
                     .disabled(sameClockTimes)
                 }
             }
-            .confirmationDialog(
+            .alert(
                 L10n.editDeleteConfirm,
-                isPresented: $showDeleteConfirm,
-                titleVisibility: .visible
+                isPresented: $showDeleteConfirm
             ) {
                 Button(L10n.editDelete, role: .destructive) {
                     viewModel.deleteSession(session)

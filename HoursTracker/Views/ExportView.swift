@@ -6,48 +6,70 @@ struct ExportView: View {
 
     @State private var selectedFormat: ExportFormat = .pdf
     @State private var selectedLanguage: ExportLanguage = .phone
-    @State private var rangeMode: RangeMode = .all
+    @State private var rangeMode: RangeMode = .thisMonth
     @State private var selectedMonth = Date()
     @State private var customFrom = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
     @State private var customTo = Date()
-    @State private var exportedURL: URL?
-    @State private var showShareSheet = false
+    @State private var shareItem: ShareableFile?
     @State private var errorMessage: String?
 
+    /// Menu order is intentional: This month → Specific month → This year → Custom range.
     enum RangeMode: CaseIterable, Identifiable {
-        case all
+        case thisMonth
         case month
+        case thisYear
         case custom
 
         var id: Self { self }
 
         var label: String {
             switch self {
-            case .all: return L10n.exportAllDays
+            case .thisMonth: return L10n.exportThisMonth
             case .month: return L10n.exportSpecificMonth
+            case .thisYear: return L10n.exportThisYear
             case .custom: return L10n.exportCustomRange
             }
         }
     }
 
+    private var currentPayrollPeriod: PayrollPeriod {
+        HistoryPeriodHelper.payrollPeriod(
+            containing: Date(),
+            startDay: viewModel.settings.payrollStartDay
+        )
+    }
+
     var body: some View {
         NavigationStack {
             Form {
-                Section(L10n.exportDateRange) {
+                Section {
                     Picker(L10n.exportRange, selection: $rangeMode) {
                         ForEach(RangeMode.allCases) { mode in
                             Text(mode.label).tag(mode)
                         }
                     }
 
+                    if rangeMode == .thisMonth {
+                        Text(HistoryPeriodHelper.shortRangeLabel(for: currentPayrollPeriod))
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+
                     if rangeMode == .month {
-                        DatePicker(L10n.exportMonth, selection: $selectedMonth, displayedComponents: .date)
+                        HStack {
+                            Text(L10n.exportMonth)
+                            Spacer(minLength: 8)
+                            MonthYearPicker(selection: $selectedMonth)
+                        }
+                        .accessibilityElement(children: .combine)
                     }
 
                     if rangeMode == .custom {
                         DatePicker(L10n.exportFrom, selection: $customFrom, displayedComponents: .date)
                         DatePicker(L10n.exportTo, selection: $customTo, displayedComponents: .date)
                     }
+                } header: {
+                    Text(L10n.exportDateRange)
                 }
 
                 Section(L10n.exportFormat) {
@@ -83,10 +105,8 @@ struct ExportView: View {
                 }
             }
             .navigationTitle(L10n.exportTitle)
-            .sheet(isPresented: $showShareSheet) {
-                if let url = exportedURL {
-                    ShareSheet(items: [url])
-                }
+            .sheet(item: $shareItem) { item in
+                ShareSheet(items: [item.url])
             }
         }
     }
@@ -112,8 +132,11 @@ struct ExportView: View {
                 format: selectedFormat,
                 language: selectedLanguage
             )
-            exportedURL = url
-            showShareSheet = true
+            // Present on the next run loop so the sheet always has a non-nil item
+            // (avoids the blank first-presentation SwiftUI race).
+            DispatchQueue.main.async {
+                shareItem = ShareableFile(url: url)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -121,15 +144,25 @@ struct ExportView: View {
 
     private func buildRange() -> ExportDateRange {
         switch rangeMode {
-        case .all:
-            return .all
+        case .thisMonth:
+            let period = currentPayrollPeriod
+            return .custom(from: period.start, to: period.end)
         case .month:
             let components = Calendar.current.dateComponents([.year, .month], from: selectedMonth)
             return .month(year: components.year ?? 2026, month: components.month ?? 1)
+        case .thisYear:
+            let year = Calendar.current.component(.year, from: Date())
+            return .year(year)
         case .custom:
             return .custom(from: customFrom, to: customTo)
         }
     }
+}
+
+/// Identifiable file handle for `.sheet(item:)` share presentation.
+struct ShareableFile: Identifiable {
+    let id = UUID()
+    let url: URL
 }
 
 struct ShareSheet: UIViewControllerRepresentable {

@@ -8,6 +8,8 @@ struct HistoryView: View {
     /// Anchor month for the payroll cycle label / chevron navigation.
     @State private var periodAnchor: Date = Date()
     @State private var selectedDay: Date = Calendar.current.startOfDay(for: Date())
+    /// Page index into `periodWeeks` for the Health-style week strip.
+    @State private var selectedWeekIndex: Int = 0
     @State private var payMode: PayDisplayMode = .net
     @State private var selectedSession: WorkSession?
     @State private var editingSession: WorkSession?
@@ -15,8 +17,7 @@ struct HistoryView: View {
     @State private var menuSession: WorkSession?
     @State private var showScanner = false
     @State private var showManualEntry = false
-    @State private var shareURL: URL?
-    @State private var showShareSheet = false
+    @State private var shareItem: ShareableFile?
     @State private var exportError: String?
     @State private var copyToastVisible = false
 
@@ -42,12 +43,20 @@ struct HistoryView: View {
         )
     }
 
+    private var periodWeeks: [PayrollWeek] {
+        HistoryPeriodHelper.weekRows(for: activePeriod, calendar: calendar)
+    }
+
+    /// Weekday initials for the column order (locale `firstWeekday`).
+    private var weekdayHeaderLetters: [String] {
+        guard let week = periodWeeks.first else { return [] }
+        return week.days.map { HistoryPeriodHelper.weekdayLetter(for: $0.date) }
+    }
+
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                periodHeader
-                daySelector
-                tableHeader
+                historyChrome
                 sessionsContent
                 stickySummaryBar
             }
@@ -91,18 +100,15 @@ struct HistoryView: View {
                     ManualEntryView(viewModel: viewModel)
                 }
             }
-            .sheet(isPresented: $showShareSheet) {
-                if let shareURL {
-                    ShareSheet(items: [shareURL])
-                }
+            .sheet(item: $shareItem) { item in
+                ShareSheet(items: [item.url])
             }
-            .confirmationDialog(
+            .alert(
                 L10n.editDeleteConfirm,
                 isPresented: Binding(
                     get: { sessionPendingDelete != nil },
                     set: { if !$0 { sessionPendingDelete = nil } }
-                ),
-                titleVisibility: .visible
+                )
             ) {
                 Button(L10n.editDelete, role: .destructive) {
                     if let session = sessionPendingDelete {
@@ -116,7 +122,7 @@ struct HistoryView: View {
                 }
             }
             .confirmationDialog(
-                String(localized: "history.rowMenu", defaultValue: "Shift options"),
+                AppLocale.tr("history.rowMenu"),
                 isPresented: Binding(
                     get: { menuSession != nil },
                     set: { if !$0 { menuSession = nil } }
@@ -124,7 +130,7 @@ struct HistoryView: View {
                 titleVisibility: .visible
             ) {
                 if let session = menuSession {
-                    Button(String(localized: "history.copy", defaultValue: "Copy")) {
+                    Button(AppLocale.tr("history.copy")) {
                         copySession(session)
                         menuSession = nil
                     }
@@ -132,7 +138,7 @@ struct HistoryView: View {
                         editingSession = session
                         menuSession = nil
                     }
-                    Button(String(localized: "history.exportShift", defaultValue: "Export")) {
+                    Button(AppLocale.tr("history.exportShift")) {
                         exportSession(session)
                         menuSession = nil
                     }
@@ -158,7 +164,7 @@ struct HistoryView: View {
             }
             .overlay(alignment: .bottom) {
                 if copyToastVisible {
-                    Text(String(localized: "history.copied", defaultValue: "Copied"))
+                    Text(AppLocale.tr("history.copied"))
                         .font(.footnote.weight(.semibold))
                         .foregroundStyle(.white)
                         .padding(.horizontal, 14)
@@ -175,141 +181,224 @@ struct HistoryView: View {
             .onChange(of: viewModel.settings.payrollStartDay) { _, _ in
                 alignToCurrentPayrollPeriod()
             }
+            .onChange(of: selectedDay) { _, newDay in
+                syncWeekPage(to: newDay, animated: true)
+            }
+            .onChange(of: periodAnchor) { _, _ in
+                syncWeekPage(to: selectedDay, animated: false)
+            }
         }
     }
 
-    // MARK: - Header
+    // MARK: - Period + week chrome (one calm surface)
 
-    private var periodHeader: some View {
-        VStack(spacing: 4) {
-            HStack {
+    private var historyChrome: some View {
+        let weeks = periodWeeks
+        let pageBinding = Binding<Int>(
+            get: {
+                guard !weeks.isEmpty else { return 0 }
+                return min(max(0, selectedWeekIndex), weeks.count - 1)
+            },
+            set: { selectedWeekIndex = $0 }
+        )
+
+        return VStack(spacing: 14) {
+            HStack(spacing: 4) {
                 Button {
                     periodAnchor = HistoryPeriodHelper.shiftPayrollAnchor(periodAnchor, by: -1)
                     snapSelectedDayIntoPeriod()
                 } label: {
                     Image(systemName: "chevron.backward")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(width: 36, height: 36)
+                        .font(.body.weight(.semibold))
+                        .frame(width: 40, height: 40)
+                        .contentShape(Rectangle())
                 }
+                .buttonStyle(.plain)
 
-                Spacer()
+                Spacer(minLength: 0)
 
                 VStack(spacing: 2) {
                     Text(HistoryPeriodHelper.payrollPeriodTitle(for: activePeriod))
-                        .font(.headline)
+                        .font(.title3.weight(.semibold))
                     Text(HistoryPeriodHelper.shortRangeLabel(for: activePeriod))
-                        .font(.caption2)
+                        .font(.caption)
                         .foregroundStyle(.secondary)
                 }
+                .accessibilityElement(children: .combine)
 
-                Spacer()
+                Spacer(minLength: 0)
 
                 Button {
                     periodAnchor = HistoryPeriodHelper.shiftPayrollAnchor(periodAnchor, by: 1)
                     snapSelectedDayIntoPeriod()
                 } label: {
                     Image(systemName: "chevron.forward")
-                        .font(.subheadline.weight(.semibold))
-                        .frame(width: 36, height: 36)
+                        .font(.body.weight(.semibold))
+                        .frame(width: 40, height: 40)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+            }
+
+            TabView(selection: pageBinding) {
+                ForEach(Array(weeks.enumerated()), id: \.element.id) { index, week in
+                    weekPage(week)
+                        .tag(index)
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.top, 6)
+            .tabViewStyle(.page(indexDisplayMode: .never))
+            .frame(height: 68)
+        }
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+        .padding(.bottom, 12)
+        .background(Color(.systemGroupedBackground))
+    }
+
+    private func weekPage(_ week: PayrollWeek) -> some View {
+        HStack(spacing: 0) {
+            ForEach(Array(week.days.enumerated()), id: \.element.id) { index, day in
+                let letter = weekdayHeaderLetters.indices.contains(index)
+                    ? weekdayHeaderLetters[index]
+                    : ""
+                dayCell(day, weekdayLetter: letter)
+                    .frame(maxWidth: .infinity)
+            }
         }
     }
 
-    // MARK: - Day Selector
-
-    private var daySelector: some View {
-        ScrollViewReader { proxy in
-            ScrollView(.horizontal, showsIndicators: false) {
-                LazyHStack(spacing: 8) {
-                    ForEach(activePeriod.days, id: \.self) { day in
-                        dayChip(day)
-                            .id(day)
-                    }
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 10)
-            }
-            .onAppear {
-                proxy.scrollTo(selectedDay, anchor: .center)
-            }
-            .onChange(of: selectedDay) { _, newDay in
-                withAnimation(.easeInOut(duration: 0.22)) {
-                    proxy.scrollTo(newDay, anchor: .center)
-                }
-            }
-            .onChange(of: periodAnchor) { _, _ in
-                DispatchQueue.main.async {
-                    proxy.scrollTo(selectedDay, anchor: .center)
-                }
-            }
-        }
-        .background(Color(.secondarySystemGroupedBackground))
-    }
-
-    private func dayChip(_ day: Date) -> some View {
-        let isSelected = calendar.isDate(day, inSameDayAs: selectedDay)
-        let hasSession = !sessionsForDay(day).isEmpty
-        let isToday = calendar.isDateInToday(day)
+    private func dayCell(_ day: PayrollWeekDay, weekdayLetter: String) -> some View {
+        let isSelected = day.isInPeriod && calendar.isDate(day.date, inSameDayAs: selectedDay)
+        let hasSession = day.isInPeriod && !sessionsForDay(day.date).isEmpty
+        let isToday = calendar.isDateInToday(day.date)
+        let number = dayNumberFormatter.string(from: day.date)
 
         return Button {
-            selectedDay = calendar.startOfDay(for: day)
+            guard day.isInPeriod else { return }
+            withAnimation(.easeInOut(duration: 0.2)) {
+                selectedDay = calendar.startOfDay(for: day.date)
+            }
         } label: {
             VStack(spacing: 4) {
-                Text(HistoryPeriodHelper.weekdayLetter(for: day))
-                    .font(.system(size: 9, weight: .medium))
+                Text(weekdayLetter)
+                    .font(.caption2.weight(.medium))
                     .foregroundStyle(isSelected ? Color.accentColor : .secondary)
 
-                Text(dayNumberFormatter.string(from: day))
-                    .font(.subheadline.weight(.semibold).monospacedDigit())
-                    .foregroundStyle(.primary)
+                Text(number)
+                    .font(.body.weight(isSelected ? .bold : .regular).monospacedDigit())
+                    .foregroundStyle(dayNumberColor(
+                        isSelected: isSelected,
+                        isToday: isToday,
+                        isInPeriod: day.isInPeriod
+                    ))
+                    .frame(width: 34, height: 34)
+                    .background {
+                        if isSelected {
+                            Circle().fill(Color.accentColor)
+                        } else if isToday && day.isInPeriod {
+                            Circle().strokeBorder(Color.accentColor.opacity(0.7), lineWidth: 1.25)
+                        }
+                    }
 
                 Circle()
-                    .fill(hasSession ? Color.accentColor : Color.clear)
+                    .fill(hasSession && !isSelected ? Color.accentColor : Color.clear)
                     .frame(width: 4, height: 4)
             }
-            .frame(width: 40, height: 58)
-            .background(
-                Circle()
-                    .fill(isSelected ? Color(.systemBackground) : Color.clear)
-                    .shadow(color: isSelected ? .black.opacity(0.14) : .clear, radius: 5, y: 2)
-                    .frame(width: 42, height: 42)
-                    .offset(y: 2)
-            )
-            .overlay {
-                if isToday && !isSelected {
-                    Circle()
-                        .strokeBorder(Color.accentColor.opacity(0.4), lineWidth: 1.2)
-                        .frame(width: 42, height: 42)
-                        .offset(y: 2)
-                }
-            }
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+            .opacity(day.isInPeriod ? 1 : 0.28)
         }
         .buttonStyle(.plain)
+        .disabled(!day.isInPeriod)
+        .accessibilityLabel(dayAccessibilityLabel(day.date, hasSession: hasSession))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityHidden(!day.isInPeriod)
+    }
+
+    private func dayNumberColor(isSelected: Bool, isToday: Bool, isInPeriod: Bool) -> Color {
+        if !isInPeriod { return .secondary }
+        if isSelected { return .white }
+        if isToday { return .accentColor }
+        return .primary
+    }
+
+    /// Shared insets so column headers and session rows stay locked together.
+    private var historyTableInsets: EdgeInsets {
+        EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12)
+    }
+
+    private func dayAccessibilityLabel(_ day: Date, hasSession: Bool) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = .current
+        formatter.dateStyle = .full
+        formatter.timeStyle = .none
+        var label = formatter.string(from: day)
+        if hasSession {
+            label += ", " + L10n.historyDayHasShifts
+        }
+        return label
+    }
+
+    private func syncWeekPage(to day: Date, animated: Bool) {
+        let weeks = periodWeeks
+        guard let index = HistoryPeriodHelper.weekIndex(containing: day, in: weeks, calendar: calendar)
+        else {
+            selectedWeekIndex = 0
+            return
+        }
+        guard selectedWeekIndex != index else { return }
+        if animated {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                selectedWeekIndex = index
+            }
+        } else {
+            selectedWeekIndex = index
+        }
     }
 
     // MARK: - Table
 
     private var tableHeader: some View {
-        HStack(spacing: 0) {
-            headerCell(L10n.historyColDate)
-            headerCell(L10n.historyColIn)
-            headerCell(L10n.historyColOut)
-            headerCell(L10n.historyColHours)
-            headerCell(L10n.historyColAmount, alignEnd: true)
-        }
-        .padding(.horizontal, 14)
+        historyColumns(
+            date: L10n.historyColDate,
+            clockIn: L10n.historyColIn,
+            clockOut: L10n.historyColOut,
+            hours: L10n.historyColHours,
+            amount: L10n.historyColAmount,
+            amountColor: .secondary,
+            isHeader: true
+        )
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, historyTableInsets.leading)
         .padding(.vertical, 8)
-        .background(Color(.tertiarySystemFill))
+        .background(Color(.secondarySystemGroupedBackground))
     }
 
-    private func headerCell(_ title: String, alignEnd: Bool = false) -> some View {
-        Text(title)
-            .font(.caption2.weight(.semibold))
-            .foregroundStyle(.secondary)
-            .frame(maxWidth: .infinity, alignment: alignEnd ? .trailing : .leading)
+    /// One shared column geometry for headers and data rows.
+    private func historyColumns(
+        date: String,
+        clockIn: String,
+        clockOut: String,
+        hours: String,
+        amount: String,
+        amountColor: Color = .primary,
+        isHeader: Bool = false
+    ) -> some View {
+        HStack(spacing: 0) {
+            Text(date)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Text(clockIn)
+                .frame(maxWidth: .infinity, alignment: .center)
+            Text(clockOut)
+                .frame(maxWidth: .infinity, alignment: .center)
+            Text(hours)
+                .frame(maxWidth: .infinity, alignment: .center)
+            Text(amount)
+                .font(isHeader ? .caption2.weight(.semibold) : .caption.weight(.semibold).monospacedDigit())
+                .foregroundStyle(amountColor)
+                .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .font(isHeader ? .caption2.weight(.semibold) : .caption.monospacedDigit())
     }
 
     @ViewBuilder
@@ -318,87 +407,91 @@ struct HistoryView: View {
         if rows.isEmpty {
             emptyState
         } else {
-            List {
-                ForEach(Array(rows.enumerated()), id: \.element.id) { index, session in
-                    sessionRow(session, striped: index.isMultiple(of: 2))
-                        .contentShape(Rectangle())
-                        .onTapGesture {
-                            selectedSession = session
-                        }
-                        .listRowInsets(EdgeInsets())
-                        .listRowSeparator(.hidden)
-                        .listRowBackground(Color.clear)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: false) {
-                            Button(role: .destructive) {
-                                sessionPendingDelete = session
-                            } label: {
-                                Label(L10n.editDelete, systemImage: "trash")
-                            }
+            VStack(spacing: 0) {
+                tableHeader
 
-                            Button {
-                                exportSession(session)
-                            } label: {
-                                Label(
-                                    String(localized: "history.exportShift", defaultValue: "Export"),
-                                    systemImage: "square.and.arrow.up"
-                                )
+                List {
+                    ForEach(Array(rows.enumerated()), id: \.element.id) { index, session in
+                        sessionRow(session, striped: index.isMultiple(of: 2))
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                selectedSession = session
                             }
-                            .tint(.indigo)
+                            .listRowInsets(EdgeInsets())
+                            .listRowSeparator(.hidden)
+                            .listRowBackground(Color.clear)
+                            .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                                Button(role: .destructive) {
+                                    sessionPendingDelete = session
+                                } label: {
+                                    Label(L10n.editDelete, systemImage: "trash")
+                                }
 
-                            Button {
-                                editingSession = session
-                            } label: {
-                                Label(L10n.editTitle, systemImage: "pencil")
-                            }
-                            .tint(.blue)
+                                Button {
+                                    exportSession(session)
+                                } label: {
+                                    Label(
+                                        AppLocale.tr("history.exportShift"),
+                                        systemImage: "square.and.arrow.up"
+                                    )
+                                }
+                                .tint(.indigo)
 
-                            Button {
-                                menuSession = session
-                            } label: {
-                                Label(
-                                    String(localized: "history.more", defaultValue: "More"),
-                                    systemImage: "ellipsis"
-                                )
+                                Button {
+                                    editingSession = session
+                                } label: {
+                                    Label(L10n.editTitle, systemImage: "pencil")
+                                }
+                                .tint(.blue)
+
+                                Button {
+                                    menuSession = session
+                                } label: {
+                                    Label(
+                                        AppLocale.tr("history.more"),
+                                        systemImage: "ellipsis"
+                                    )
+                                }
+                                .tint(.gray)
                             }
-                            .tint(.gray)
-                        }
-                        .contextMenu {
-                            Button {
-                                copySession(session)
-                            } label: {
-                                Label(
-                                    String(localized: "history.copy", defaultValue: "Copy"),
-                                    systemImage: "doc.on.doc"
-                                )
+                            .contextMenu {
+                                Button {
+                                    copySession(session)
+                                } label: {
+                                    Label(
+                                        AppLocale.tr("history.copy"),
+                                        systemImage: "doc.on.doc"
+                                    )
+                                }
+                                Button {
+                                    editingSession = session
+                                } label: {
+                                    Label(L10n.editTitle, systemImage: "pencil")
+                                }
+                                Button {
+                                    exportSession(session)
+                                } label: {
+                                    Label(
+                                        AppLocale.tr("history.exportShift"),
+                                        systemImage: "square.and.arrow.up"
+                                    )
+                                }
+                                Button(role: .destructive) {
+                                    sessionPendingDelete = session
+                                } label: {
+                                    Label(L10n.editDelete, systemImage: "trash")
+                                }
                             }
-                            Button {
-                                editingSession = session
-                            } label: {
-                                Label(L10n.editTitle, systemImage: "pencil")
-                            }
-                            Button {
-                                exportSession(session)
-                            } label: {
-                                Label(
-                                    String(localized: "history.exportShift", defaultValue: "Export"),
-                                    systemImage: "square.and.arrow.up"
-                                )
-                            }
-                            Button(role: .destructive) {
-                                sessionPendingDelete = session
-                            } label: {
-                                Label(L10n.editDelete, systemImage: "trash")
-                            }
-                        }
+                    }
                 }
+                .listStyle(.plain)
+                .scrollContentBackground(.hidden)
             }
-            .listStyle(.plain)
-            .scrollContentBackground(.hidden)
-            .background(Color(.systemGroupedBackground))
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .padding(.horizontal, 10)
-            .padding(.top, 8)
-            .padding(.bottom, 12)
+            .background(Color(.systemBackground))
+            .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            .padding(.horizontal, 12)
+            .padding(.top, 4)
+            .padding(.bottom, 10)
         }
     }
 
@@ -406,31 +499,24 @@ struct HistoryView: View {
         let breakdown = viewModel.breakdown(for: session)
         let amount = payMode == .net ? breakdown.netPay : breakdown.grossPay
 
-        return HStack(spacing: 0) {
-            Text(shortDate(session.date))
-                .font(.caption.weight(.medium).monospacedDigit())
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Text(timeFormatter.string(from: session.clockIn))
-                .font(.caption.monospacedDigit())
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Text(session.clockOut.map { timeFormatter.string(from: $0) } ?? "—")
-                .font(.caption.monospacedDigit())
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Text(HistoryPeriodHelper.formatHoursClock(breakdown.totalHours))
-                .font(.caption.monospacedDigit())
-                .frame(maxWidth: .infinity, alignment: .leading)
-
-            Text(breakdown.formatted(amount))
-                .font(.caption.weight(.semibold).monospacedDigit())
-                .foregroundStyle(payMode == .net ? Color.green : Color.primary)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+        return historyColumns(
+            date: shortDate(session.date),
+            clockIn: timeFormatter.string(from: session.clockIn),
+            clockOut: session.clockOut.map { timeFormatter.string(from: $0) } ?? "—",
+            hours: HistoryPeriodHelper.formatHoursClock(breakdown.totalHours),
+            amount: breakdown.formatted(amount),
+            amountColor: payMode == .net ? .green : .primary
+        )
+        .padding(.horizontal, historyTableInsets.leading)
+        .padding(.vertical, 11)
+        .background {
+            if striped {
+                Color(.secondarySystemGroupedBackground).opacity(0.45)
+            }
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 10)
-        .background(striped ? Color(.secondarySystemGroupedBackground).opacity(0.55) : Color(.systemBackground))
+        .overlay(alignment: .bottom) {
+            Divider().opacity(0.35)
+        }
         .contentShape(Rectangle())
         .textSelection(.enabled)
     }
@@ -442,10 +528,10 @@ struct HistoryView: View {
                 .font(.system(size: 40))
                 .foregroundStyle(.secondary)
                 .symbolRenderingMode(.hierarchical)
-            Text(String(localized: "history.emptyPeriod", defaultValue: "אין משמרות לתקופה שנבחרה"))
+            Text(AppLocale.tr("history.emptyPeriod"))
                 .font(.subheadline.weight(.semibold))
                 .multilineTextAlignment(.center)
-            Text(String(localized: "history.emptyPeriodHint", defaultValue: "Swipe the days above or add a shift."))
+            Text(AppLocale.tr("history.emptyPeriodHint"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -479,7 +565,7 @@ struct HistoryView: View {
                     }
 
                     Text(String(
-                        format: String(localized: "history.totalPayValue %@"),
+                        format: AppLocale.tr("history.totalPayValue %@"),
                         payMode == .net ? totals.formattedNetPay : totals.formattedGrossPay
                     ))
                     .font(.subheadline.weight(.semibold).monospacedDigit())
@@ -492,7 +578,7 @@ struct HistoryView: View {
                         .font(.caption2)
                         .foregroundStyle(.secondary)
                     Text(String(
-                        format: String(localized: "history.totalHoursValue %@"),
+                        format: AppLocale.tr("history.totalHoursValue %@"),
                         HistoryPeriodHelper.formatHoursClock(totals.totalHours)
                     ))
                     .font(.subheadline.weight(.semibold).monospacedDigit())
@@ -541,6 +627,7 @@ struct HistoryView: View {
         if !period.contains(selectedDay, calendar: calendar) {
             selectedDay = period.start
         }
+        syncWeekPage(to: selectedDay, animated: false)
     }
 
     private func snapSelectedDayIntoPeriod() {
@@ -552,6 +639,7 @@ struct HistoryView: View {
                 selectedDay = period.start
             }
         }
+        syncWeekPage(to: selectedDay, animated: false)
     }
 
     // MARK: - Row actions
@@ -592,8 +680,9 @@ struct HistoryView: View {
                 format: .pdf,
                 language: .phone
             )
-            shareURL = url
-            showShareSheet = true
+            DispatchQueue.main.async {
+                shareItem = ShareableFile(url: url)
+            }
         } catch {
             exportError = error.localizedDescription
         }

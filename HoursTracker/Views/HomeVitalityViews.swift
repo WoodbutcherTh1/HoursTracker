@@ -35,6 +35,29 @@ enum DaypartGreeting: Equatable {
         case .night: return L10n.homeGreetingNight
         }
     }
+
+    /// Personalized greeting using the first token of `fullName`.
+    /// Empty / whitespace-only names keep the plain `title` unchanged.
+    func title(withName fullName: String?) -> String {
+        guard let first = Self.firstName(from: fullName) else { return title }
+        // Isolate the name so a Latin first name doesn't scramble RTL Hebrew/Arabic.
+        let isolated = "\u{2068}\(first)\u{2069}"
+        switch self {
+        case .morning: return L10n.homeGreetingMorningName(isolated)
+        case .afternoon: return L10n.homeGreetingAfternoonName(isolated)
+        case .evening: return L10n.homeGreetingEveningName(isolated)
+        case .night: return L10n.homeGreetingNightName(isolated)
+        }
+    }
+
+    /// First whitespace-separated token, or `nil` when the name is blank.
+    static func firstName(from fullName: String?) -> String? {
+        let trimmed = (fullName ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return nil }
+        guard let token = trimmed.split(whereSeparator: \.isWhitespace).first else { return nil }
+        let name = String(token)
+        return name.isEmpty ? nil : name
+    }
 }
 
 /// Soft drifting aurora band across the top of Home.
@@ -636,7 +659,7 @@ struct MiniWaveSparkline: View {
     }
 }
 
-/// Animated week hours sparkline with a traveling glow.
+/// Week hours chart: bar heights match real daily hours; glow traces the true tops.
 struct HomeWeekSparkline: View {
     let dailyHours: [Double]
     let weekdayLabels: [String]
@@ -645,33 +668,77 @@ struct HomeWeekSparkline: View {
     var accent: Color = HomeNeon.accent
 
     private let loopSeconds: Double = 5.5
+    private let chartHeight: CGFloat = 72
+    private let labelRowHeight: CGFloat = 14
+
+    private var hours: [Double] {
+        dailyHours.count == 7 ? dailyHours : Array(repeating: 0, count: 7)
+    }
+
+    private var heights: [Double] {
+        HistoryPeriodHelper.normalizedDayHeights(hours)
+    }
+
+    private var weekTotal: Double {
+        hours.reduce(0, +)
+    }
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 10) {
+            chart
+
             weekdayRow
 
-            GeometryReader { geo in
-                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-                    let t = timeline.date.timeIntervalSinceReferenceDate
-                    let values = mountainValues(dailyHours, time: t)
-                    let path = mountainPath(values: values, in: geo.size)
-                    let travel = CGFloat((t / loopSeconds).truncatingRemainder(dividingBy: 1))
-                    let trailStart = max(0, travel - 0.18)
+            Text(L10n.homeWeekTotal(HistoryPeriodHelper.formatHoursClock(weekTotal)))
+                .font(.caption2.weight(.semibold).monospacedDigit())
+                .foregroundStyle(Color.white.opacity(0.45))
+                .frame(maxWidth: .infinity)
+        }
+        .padding(.horizontal, 4)
+        .allowsHitTesting(false)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(
+            L10n.homeWeekTotal(HistoryPeriodHelper.formatHoursClock(weekTotal))
+        )
+    }
 
-                    ZStack {
-                        closedMountainPath(values: values, in: geo.size)
-                            .fill(
-                                LinearGradient(
-                                    colors: [accent.opacity(0.20), accent.opacity(0.02)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
+    private var chart: some View {
+        GeometryReader { geo in
+            let barHeights = heights
+            let columnWidth = geo.size.width / 7
+            let barMaxHeight = max(0, geo.size.height - labelRowHeight - 4)
+
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+                let t = timeline.date.timeIntervalSinceReferenceDate
+                let tops = barTopPoints(
+                    heights: barHeights,
+                    columnWidth: columnWidth,
+                    barMaxHeight: barMaxHeight,
+                    chartHeight: geo.size.height
+                )
+                let ridge = ridgePath(points: tops)
+                let travel = CGFloat((t / loopSeconds).truncatingRemainder(dividingBy: 1))
+                let trailStart = max(0, travel - 0.18)
+
+                ZStack(alignment: .topLeading) {
+                    HStack(alignment: .bottom, spacing: 0) {
+                        ForEach(0..<7, id: \.self) { index in
+                            dayColumn(
+                                index: index,
+                                hours: hours[index],
+                                heightFraction: barHeights[index],
+                                barMaxHeight: barMaxHeight,
+                                pulseTime: t
                             )
+                            .frame(width: columnWidth)
+                        }
+                    }
 
-                        path
-                            .stroke(accent.opacity(0.35), style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round))
+                    if tops.count > 1, barHeights.contains(where: { $0 > 0 }) {
+                        ridge
+                            .stroke(accent.opacity(0.22), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
 
-                        path
+                        ridge
                             .trim(from: trailStart, to: travel)
                             .stroke(
                                 LinearGradient(
@@ -679,25 +746,67 @@ struct HomeWeekSparkline: View {
                                     startPoint: .leading,
                                     endPoint: .trailing
                                 ),
-                                style: StrokeStyle(lineWidth: 3.5, lineCap: .round, lineJoin: .round)
+                                style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round)
                             )
-                            .shadow(color: accent.opacity(0.65), radius: 6)
+                            .shadow(color: accent.opacity(0.55), radius: 5)
 
-                        if let point = pointOnPath(values: values, in: geo.size, progress: travel) {
+                        if let point = pointAlongPolyline(tops, progress: travel) {
                             travelingShine(at: point, pulse: t)
                         }
                     }
                 }
             }
-            .frame(height: 72)
         }
-        .padding(.horizontal, 4)
-        .allowsHitTesting(false)
-        .accessibilityHidden(true)
+        .frame(height: chartHeight + labelRowHeight)
+    }
+
+    private func dayColumn(
+        index: Int,
+        hours: Double,
+        heightFraction: Double,
+        barMaxHeight: CGFloat,
+        pulseTime t: Double
+    ) -> some View {
+        let isToday = highlightedDayIndex == index
+        let pulse = (sin(t * (isToday ? 3.4 : 2.2) + Double(index) * 0.7) + 1) / 2
+        let barHeight = CGFloat(heightFraction) * barMaxHeight
+        let showLabel = hours > 0.01 || isToday
+
+        return VStack(spacing: 4) {
+            Text(showLabel ? HistoryPeriodHelper.formatHoursClock(hours) : " ")
+                .font(.system(size: 9, weight: isToday ? .bold : .semibold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(
+                    isToday
+                        ? accent.opacity(0.85 + 0.15 * pulse)
+                        : Color.white.opacity(hours > 0.01 ? 0.55 : 0.2)
+                )
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .frame(height: labelRowHeight)
+
+            Spacer(minLength: 0)
+
+            RoundedRectangle(cornerRadius: 4, style: .continuous)
+                .fill(
+                    LinearGradient(
+                        colors: [
+                            accent.opacity(isToday ? 0.95 : 0.55),
+                            accent.opacity(isToday ? 0.45 : 0.18)
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+                .frame(width: isToday ? 12 : 9, height: max(barHeight, hours > 0.01 ? 3 : 2))
+                .opacity(hours > 0.01 ? 1 : 0.25)
+                .shadow(color: isToday ? accent.opacity(0.55 * pulse) : .clear, radius: isToday ? 6 : 0)
+        }
+        .frame(maxHeight: .infinity)
     }
 
     private var weekdayRow: some View {
-        HStack {
+        HStack(spacing: 0) {
             ForEach(Array(weekdayLabels.enumerated()), id: \.offset) { index, label in
                 TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
                     let t = timeline.date.timeIntervalSinceReferenceDate
@@ -766,24 +875,22 @@ struct HomeWeekSparkline: View {
         .position(point)
     }
 
-    private func mountainValues(_ hours: [Double], time t: Double) -> [CGFloat] {
-        let safe = hours.isEmpty ? Array(repeating: 0.0, count: 7) : hours
-        let peak = safe.max() ?? 0
-        let base: [CGFloat]
-        if peak <= 0.01 {
-            base = [0.28, 0.55, 0.38, 0.82, 0.48, 0.70, 0.34]
-        } else {
-            base = safe.map { CGFloat($0 / peak) }
-        }
-        // Live undulation so the mountains themselves wave.
-        return base.enumerated().map { index, value in
-            let wobble = 0.06 * sin(t * 2.4 + Double(index) * 0.85)
-            return min(1, max(0.08, value + CGFloat(wobble)))
+    /// Tops of bars in chart coordinates (label row sits above the bars).
+    private func barTopPoints(
+        heights: [Double],
+        columnWidth: CGFloat,
+        barMaxHeight: CGFloat,
+        chartHeight: CGFloat
+    ) -> [CGPoint] {
+        heights.enumerated().map { index, fraction in
+            let barHeight = CGFloat(fraction) * barMaxHeight
+            let x = columnWidth * (CGFloat(index) + 0.5)
+            let y = chartHeight - max(barHeight, fraction > 0 ? 3 : 2)
+            return CGPoint(x: x, y: y)
         }
     }
 
-    private func mountainPath(values: [CGFloat], in size: CGSize) -> Path {
-        let points = controlPoints(values: values, in: size)
+    private func ridgePath(points: [CGPoint]) -> Path {
         guard points.count > 1 else { return Path() }
         var path = Path()
         path.move(to: points[0])
@@ -799,29 +906,7 @@ struct HomeWeekSparkline: View {
         return path
     }
 
-    private func closedMountainPath(values: [CGFloat], in size: CGSize) -> Path {
-        var path = mountainPath(values: values, in: size)
-        let points = controlPoints(values: values, in: size)
-        guard let first = points.first, let last = points.last else { return path }
-        path.addLine(to: CGPoint(x: last.x, y: size.height))
-        path.addLine(to: CGPoint(x: first.x, y: size.height))
-        path.closeSubpath()
-        return path
-    }
-
-    private func controlPoints(values: [CGFloat], in size: CGSize) -> [CGPoint] {
-        guard values.count > 1 else { return [] }
-        let step = size.width / CGFloat(values.count - 1)
-        return values.enumerated().map { index, value in
-            CGPoint(
-                x: CGFloat(index) * step,
-                y: size.height - value * (size.height - 10) - 6
-            )
-        }
-    }
-
-    private func pointOnPath(values: [CGFloat], in size: CGSize, progress: CGFloat) -> CGPoint? {
-        let points = controlPoints(values: values, in: size)
+    private func pointAlongPolyline(_ points: [CGPoint], progress: CGFloat) -> CGPoint? {
         guard points.count > 1 else { return nil }
         let clamped = min(max(progress, 0), 0.999)
         let segments = points.count - 1
@@ -830,18 +915,6 @@ struct HomeWeekSparkline: View {
         let frac = exact - CGFloat(index)
         let a = points[index]
         let b = points[index + 1]
-        let mid = CGPoint(x: (a.x + b.x) / 2, y: (a.y + b.y) / 2)
-        if frac < 0.5 {
-            return quadPoint(from: a, control: a, to: mid, t: frac * 2)
-        }
-        return quadPoint(from: mid, control: b, to: b, t: (frac - 0.5) * 2)
-    }
-
-    private func quadPoint(from start: CGPoint, control: CGPoint, to end: CGPoint, t: CGFloat) -> CGPoint {
-        let u = 1 - t
-        return CGPoint(
-            x: u * u * start.x + 2 * u * t * control.x + t * t * end.x,
-            y: u * u * start.y + 2 * u * t * control.y + t * t * end.y
-        )
+        return CGPoint(x: a.x + (b.x - a.x) * frac, y: a.y + (b.y - a.y) * frac)
     }
 }

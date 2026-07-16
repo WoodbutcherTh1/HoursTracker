@@ -4,8 +4,7 @@ struct ActivityLogView: View {
     @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var store = ActivityLogStore.shared
     @State private var selectedFormat: ActivityLogExportFormat = .txt
-    @State private var exportURL: URL?
-    @State private var showShare = false
+    @State private var shareItem: ShareableFile?
     @State private var showClearConfirm = false
     @State private var errorMessage: String?
 
@@ -76,10 +75,8 @@ struct ActivityLogView: View {
             }
             Button(L10n.editCancel, role: .cancel) {}
         }
-        .sheet(isPresented: $showShare) {
-            if let exportURL {
-                ShareSheet(items: [exportURL])
-            }
+        .sheet(item: $shareItem) { item in
+            ShareSheet(items: [item.url])
         }
         .alert(L10n.errorTitle, isPresented: Binding(
             get: { errorMessage != nil },
@@ -93,8 +90,10 @@ struct ActivityLogView: View {
 
     private func exportLog() {
         do {
-            exportURL = try store.export(format: selectedFormat)
-            showShare = true
+            let url = try store.export(format: selectedFormat)
+            DispatchQueue.main.async {
+                shareItem = ShareableFile(url: url)
+            }
         } catch {
             errorMessage = error.localizedDescription
         }

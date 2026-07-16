@@ -83,6 +83,34 @@ final class ExportManagerTests: XCTestCase {
         XCTAssertEqual(report.totals.totalPay, 2190, accuracy: 0.01)
     }
 
+    func testCSVExportContainsHeaderRowsAndTotals() throws {
+        let sessions = [
+            TestData.session(day: 1, inHour: 8, outHour: 16),
+            TestData.session(day: 2, inHour: 8, outHour: 17)
+        ]
+        let report = manager.buildReport(
+            sessions: sessions,
+            settings: settings,
+            range: .all,
+            language: .english
+        )
+
+        let url = try manager.export(report: report, format: .csv, language: .english)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        XCTAssertEqual(url.pathExtension, "csv")
+        let data = try Data(contentsOf: url)
+        // UTF-8 BOM
+        XCTAssertTrue(data.starts(with: Data([0xEF, 0xBB, 0xBF])))
+        let contents = String(decoding: data.dropFirst(3), as: UTF8.self)
+        let lines = contents.split(separator: "\n", omittingEmptySubsequences: true)
+        // header + 2 data rows + totals
+        XCTAssertEqual(lines.count, 4)
+        XCTAssertTrue(lines[0].contains("Day"))
+        XCTAssertTrue(lines[0].contains("Travel"))
+        XCTAssertTrue(lines.last?.contains("Total") == true || lines.last?.contains("total") == true)
+    }
+
     func testMarkdownExportUsesSelectedLanguage() throws {
         let report = manager.buildReport(
             sessions: [TestData.session(day: 1)],
@@ -232,5 +260,134 @@ final class ExportManagerTests: XCTestCase {
         XCTAssertEqual(ExportLanguage.arabic.resolvedLocale.language.languageCode?.identifier, "ar")
         XCTAssertEqual(ExportLanguage.hebrew.resolvedLocale.language.languageCode?.identifier, "he")
         XCTAssertEqual(ExportLanguage.english.resolvedLocale.language.languageCode?.identifier, "en")
+    }
+
+    func testThisMonthPayrollWindowIncludesOnlySessionsInsidePeriod() {
+        // Start day 18 → period containing 2026-07-01 is 18 Jun – 17 Jul (inclusive).
+        // Use Calendar.current so period bounds match ExportManager.filter / TestData dates.
+        let calendar = Calendar.current
+        let period = HistoryPeriodHelper.payrollPeriod(
+            containing: TestData.date(2026, 7, 1),
+            startDay: 18,
+            calendar: calendar
+        )
+        XCTAssertEqual(calendar.component(.day, from: period.start), 18)
+        XCTAssertEqual(calendar.component(.month, from: period.start), 6)
+        XCTAssertEqual(calendar.component(.day, from: period.end), 17)
+        XCTAssertEqual(calendar.component(.month, from: period.end), 7)
+
+        let before = TestData.session(month: 6, day: 17)
+        let start = TestData.session(month: 6, day: 18)
+        let mid = TestData.session(month: 7, day: 1)
+        let end = TestData.session(month: 7, day: 17)
+        let after = TestData.session(month: 7, day: 18)
+
+        let report = manager.buildReport(
+            sessions: [before, start, mid, end, after],
+            settings: settings,
+            range: .custom(from: period.start, to: period.end)
+        )
+
+        let ids = Set(report.rows.map(\.session.id))
+        XCTAssertEqual(ids, [start.id, mid.id, end.id])
+        XCTAssertTrue(report.dateRangeDescription.contains("18"))
+        XCTAssertTrue(report.dateRangeDescription.contains("17"))
+    }
+
+    func testYearRangeIncludesJan1AndDec31ExcludesNeighbors() {
+        let prevDec = TestData.session(year: 2025, month: 12, day: 31)
+        let jan1 = TestData.session(year: 2026, month: 1, day: 1)
+        let mid = TestData.session(year: 2026, month: 6, day: 15)
+        let dec31 = TestData.session(year: 2026, month: 12, day: 31)
+        let nextJan = TestData.session(year: 2027, month: 1, day: 1)
+
+        let report = manager.buildReport(
+            sessions: [prevDec, jan1, mid, dec31, nextJan],
+            settings: settings,
+            range: .year(2026)
+        )
+
+        let ids = Set(report.rows.map(\.session.id))
+        XCTAssertEqual(ids, [jan1.id, mid.id, dec31.id])
+        XCTAssertEqual(report.dateRangeDescription, "2026")
+    }
+
+    func testVisualOrderReversesOnlyForRTL() {
+        let columns = ["Day", "Date", "In", "Out"]
+        XCTAssertEqual(ExportLayout.visualOrder(columns, isRTL: false), columns)
+        XCTAssertEqual(ExportLayout.visualOrder(columns, isRTL: true), ["Out", "In", "Date", "Day"])
+        XCTAssertFalse(ExportLayout.isRTL(language: .english))
+        XCTAssertTrue(ExportLayout.isRTL(language: .hebrew))
+        XCTAssertTrue(ExportLayout.isRTL(language: .arabic))
+    }
+
+    func testHebrewDOCXContainsBidiMarkers() throws {
+        let report = manager.buildReport(
+            sessions: [TestData.session(day: 1)],
+            settings: settings,
+            range: .all,
+            language: .hebrew
+        )
+        let url = try manager.export(report: report, format: .docx, language: .hebrew)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let xml = String(decoding: try ZipWriter.data(forEntry: "word/document.xml", inArchiveAt: url), as: UTF8.self)
+        XCTAssertTrue(xml.contains("<w:bidi/>"))
+        XCTAssertTrue(xml.contains("<w:bidiVisual/>"))
+        XCTAssertTrue(xml.contains("w:val=\"right\""))
+    }
+
+    func testArabicDOCXContainsBidiMarkers() throws {
+        let report = manager.buildReport(
+            sessions: [TestData.session(day: 1)],
+            settings: settings,
+            range: .all,
+            language: .arabic
+        )
+        let url = try manager.export(report: report, format: .docx, language: .arabic)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let xml = String(decoding: try ZipWriter.data(forEntry: "word/document.xml", inArchiveAt: url), as: UTF8.self)
+        XCTAssertTrue(xml.contains("<w:bidi/>"))
+        XCTAssertTrue(xml.contains("<w:bidiVisual/>"))
+    }
+
+    func testEnglishDOCXHasNoBidiMarkers() throws {
+        let report = manager.buildReport(
+            sessions: [TestData.session(day: 1)],
+            settings: settings,
+            range: .all,
+            language: .english
+        )
+        let url = try manager.export(report: report, format: .docx, language: .english)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let xml = String(decoding: try ZipWriter.data(forEntry: "word/document.xml", inArchiveAt: url), as: UTF8.self)
+        XCTAssertFalse(xml.contains("<w:bidi/>"))
+        XCTAssertFalse(xml.contains("<w:bidiVisual/>"))
+        XCTAssertFalse(xml.contains("w:val=\"right\""))
+    }
+
+    func testHebrewTXTReversesTableColumnOrder() throws {
+        let report = manager.buildReport(
+            sessions: [TestData.session(day: 1)],
+            settings: settings,
+            range: .all,
+            language: .hebrew
+        )
+        let url = try manager.export(report: report, format: .txt, language: .hebrew)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let contents = try String(contentsOf: url, encoding: .utf8)
+        let hebrew = ExportCopy(language: .hebrew)
+        // Logical first column is Day; in RTL it must appear after Daily wage on the header line.
+        let headerLine = contents
+            .components(separatedBy: .newlines)
+            .first { $0.contains(hebrew.colDay) && $0.contains(hebrew.colDailyWage) }
+        XCTAssertNotNil(headerLine)
+        let dayIdx = headerLine!.range(of: hebrew.colDay)!.lowerBound
+        let wageIdx = headerLine!.range(of: hebrew.colDailyWage)!.lowerBound
+        XCTAssertLessThan(wageIdx, dayIdx, "RTL TXT should place Daily wage before Day (mirrored columns)")
+        XCTAssertTrue(contents.contains(ExportLayout.rightToLeftMark))
     }
 }

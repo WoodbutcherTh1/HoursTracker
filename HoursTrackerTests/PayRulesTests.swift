@@ -201,9 +201,28 @@ final class PayRulesTests: XCTestCase {
         let settings = try decoder.decode(WorkplaceSettings.self, from: Data(json.utf8))
 
         XCTAssertEqual(settings.restDayWeekday, 7)
+        XCTAssertNil(settings.secondRestDayWeekday)
         XCTAssertEqual(settings.defaultBreakMinutes, 0)
         XCTAssertEqual(settings.currencyCode, "ILS")
         XCTAssertEqual(settings.nightStandardDayHours, 7.0, accuracy: 0.001)
+    }
+
+    func testAutomaticDayTypeHonorsBothRestDays() {
+        var settings = TestData.settings()
+        // Saturday + Friday (Calendar: 7 and 6)
+        settings.restDayWeekday = 7
+        settings.secondRestDayWeekday = 6
+
+        let friday = TestData.date(2026, 7, 17)   // Friday
+        let saturday = TestData.date(2026, 7, 18) // Saturday
+        let sunday = TestData.date(2026, 7, 19)   // Sunday
+
+        XCTAssertEqual(Calendar.current.component(.weekday, from: friday), 6)
+        XCTAssertEqual(Calendar.current.component(.weekday, from: saturday), 7)
+
+        XCTAssertEqual(DayType.automatic(for: friday, settings: settings), .restDay)
+        XCTAssertEqual(DayType.automatic(for: saturday, settings: settings), .restDay)
+        XCTAssertEqual(DayType.automatic(for: sunday, settings: settings), .regular)
     }
 }
 
@@ -285,5 +304,20 @@ final class PayRulesViewModelTests: XCTestCase {
         viewModel.clockIn()
 
         XCTAssertEqual(viewModel.sessions.first?.dayType, .regular)
+    }
+
+    func testClockInAutoTagsSecondRestDay() {
+        let store = InMemoryStore()
+        var settings = TestData.settings()
+        let todayWeekday = Calendar.current.component(.weekday, from: Date())
+        // Primary is a different day; today is the second rest day.
+        settings.restDayWeekday = todayWeekday == 7 ? 1 : todayWeekday + 1
+        settings.secondRestDayWeekday = todayWeekday
+        store.storedSettings = settings
+        let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+
+        viewModel.clockIn()
+
+        XCTAssertEqual(viewModel.sessions.first?.dayType, .restDay)
     }
 }

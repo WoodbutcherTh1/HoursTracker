@@ -29,8 +29,49 @@ struct ExportCopy {
     var payChart: String { t("report.payChart") }
     var dailyTable: String { t("report.dailyTable") }
     var allDays: String { t("report.allDays") }
+
+    func yearLabel(_ year: Int) -> String {
+        format("report.year %@", String(year))
+    }
     var total: String { t("report.total") }
     var legendTitle: String { t("report.legend.title") }
+
+    // MARK: Full data export (PDF / CSV headers)
+
+    var fullExportTitle: String { t("fullExport.title") }
+    var fullExportExportedAt: String { t("fullExport.exportedAt") }
+    var fullExportProfile: String { t("fullExport.profile") }
+    var fullExportStatistics: String { t("fullExport.statistics") }
+    var fullExportSessions: String { t("fullExport.sessions") }
+    var fullExportActivityLog: String { t("fullExport.activityLog") }
+    var fullExportTotalShifts: String { t("fullExport.totalShifts") }
+    var fullExportOpenShifts: String { t("fullExport.openShifts") }
+    var fullExportOpen: String { t("fullExport.open") }
+    var fullExportNotes: String { t("fullExport.notes") }
+    var fullExportPayrollStart: String { t("fullExport.payrollStart") }
+    var fullExportCurrency: String { t("fullExport.currency") }
+
+    var fullExportCSVField: String { t("fullExport.csv.field") }
+    var fullExportCSVValue: String { t("fullExport.csv.value") }
+    var fullExportCSVId: String { t("fullExport.csv.id") }
+    var fullExportCSVIsOpen: String { t("fullExport.csv.isOpen") }
+    var fullExportCSVManual: String { t("fullExport.csv.manual") }
+    var fullExportCSVAIImported: String { t("fullExport.csv.aiImported") }
+    var fullExportCSVDayType: String { t("fullExport.csv.dayType") }
+    var fullExportCSVNight: String { t("fullExport.csv.night") }
+    var fullExportCSVModifiedAt: String { t("fullExport.csv.modifiedAt") }
+    var fullExportCSVEffectiveHours: String { t("fullExport.csv.effectiveHours") }
+    var fullExportCSVBasePay: String { t("fullExport.csv.basePay") }
+    var fullExportCSVOT125Pay: String { t("fullExport.csv.ot125Pay") }
+    var fullExportCSVOT150Pay: String { t("fullExport.csv.ot150Pay") }
+    var fullExportCSVIncomeTax: String { t("fullExport.csv.incomeTax") }
+    var fullExportCSVNationalInsurance: String { t("fullExport.csv.nationalInsurance") }
+    var fullExportCSVHealthTax: String { t("fullExport.csv.healthTax") }
+    var fullExportCSVTimestamp: String { t("fullExport.csv.timestamp") }
+    var fullExportCSVLevel: String { t("fullExport.csv.level") }
+    var fullExportCSVCategory: String { t("fullExport.csv.category") }
+    var fullExportCSVMessage: String { t("fullExport.csv.message") }
+    var fullExportCSVDetails: String { t("fullExport.csv.details") }
 
     // MARK: Header fields
 
@@ -117,6 +158,11 @@ struct ExportCopy {
             .english: "All days",
             .arabic: "جميع الأيام",
             .hebrew: "כל הימים"
+        ],
+        "report.year %@": [
+            .english: "%@",
+            .arabic: "%@",
+            .hebrew: "%@"
         ],
         "report.total": [
             .english: "Total",
@@ -292,6 +338,171 @@ struct ExportCopy {
             .english: "Daily wage: gross pay for that day.",
             .arabic: "الأجر اليومي: الأجر الإجمالي لذلك اليوم.",
             .hebrew: "שכר יומי: השכר ברוטו לאותו יום."
+        ],
+        "fullExport.title": [
+            .english: "HoursTracker — Full Data Export",
+            .arabic: "HoursTracker — تصدير كامل للبيانات",
+            .hebrew: "HoursTracker — ייצוא נתונים מלא"
+        ],
+        "fullExport.exportedAt": [
+            .english: "Exported",
+            .arabic: "تاريخ التصدير",
+            .hebrew: "יוצא בתאריך"
+        ],
+        "fullExport.profile": [
+            .english: "Profile & settings",
+            .arabic: "الملف الشخصي والإعدادات",
+            .hebrew: "פרופיל והגדרות"
+        ],
+        "fullExport.statistics": [
+            .english: "Lifetime statistics",
+            .arabic: "إحصاءات إجمالية",
+            .hebrew: "סטטיסטיקה מצטברת"
+        ],
+        "fullExport.sessions": [
+            .english: "All work sessions",
+            .arabic: "كل الورديات",
+            .hebrew: "כל המשמרות"
+        ],
+        "fullExport.activityLog": [
+            .english: "Activity log",
+            .arabic: "سجل النشاط",
+            .hebrew: "יומן פעילות"
+        ],
+        "fullExport.totalShifts": [
+            .english: "Total shifts",
+            .arabic: "إجمالي الورديات",
+            .hebrew: "סה״כ משמרות"
+        ],
+        "fullExport.openShifts": [
+            .english: "Open shifts",
+            .arabic: "ورديات مفتوحة",
+            .hebrew: "משמרות פתוחות"
+        ],
+        "fullExport.open": [
+            .english: "Open",
+            .arabic: "مفتوحة",
+            .hebrew: "פתוחה"
+        ],
+        "fullExport.notes": [
+            .english: "Notes",
+            .arabic: "ملاحظات",
+            .hebrew: "הערות"
+        ],
+        "fullExport.payrollStart": [
+            .english: "Payroll start day",
+            .arabic: "يوم بداية شهر الراتب",
+            .hebrew: "יום תחילת חודש שכר"
+        ],
+        "fullExport.currency": [
+            .english: "Currency",
+            .arabic: "العملة",
+            .hebrew: "מטבע"
+        ],
+        "fullExport.csv.field": [
+            .english: "Field",
+            .arabic: "الحقل",
+            .hebrew: "שדה"
+        ],
+        "fullExport.csv.value": [
+            .english: "Value",
+            .arabic: "القيمة",
+            .hebrew: "ערך"
+        ],
+        "fullExport.csv.id": [
+            .english: "ID",
+            .arabic: "المعرّف",
+            .hebrew: "מזהה"
+        ],
+        "fullExport.csv.isOpen": [
+            .english: "Open",
+            .arabic: "مفتوحة",
+            .hebrew: "פתוחה"
+        ],
+        "fullExport.csv.manual": [
+            .english: "Manual",
+            .arabic: "يدوي",
+            .hebrew: "ידני"
+        ],
+        "fullExport.csv.aiImported": [
+            .english: "AI imported",
+            .arabic: "مستورد بالذكاء الاصطناعي",
+            .hebrew: "יובא בבינה מלאכותית"
+        ],
+        "fullExport.csv.dayType": [
+            .english: "Day type",
+            .arabic: "نوع اليوم",
+            .hebrew: "סוג יום"
+        ],
+        "fullExport.csv.night": [
+            .english: "Night shift",
+            .arabic: "وردية ليلية",
+            .hebrew: "משמרת לילה"
+        ],
+        "fullExport.csv.modifiedAt": [
+            .english: "Modified",
+            .arabic: "آخر تعديل",
+            .hebrew: "עודכן"
+        ],
+        "fullExport.csv.effectiveHours": [
+            .english: "Effective hours",
+            .arabic: "ساعات فعّالة",
+            .hebrew: "שעות אפקטיביות"
+        ],
+        "fullExport.csv.basePay": [
+            .english: "Base pay",
+            .arabic: "أجر أساسي",
+            .hebrew: "שכר בסיס"
+        ],
+        "fullExport.csv.ot125Pay": [
+            .english: "125% pay",
+            .arabic: "أجر 125%",
+            .hebrew: "שכר 125%"
+        ],
+        "fullExport.csv.ot150Pay": [
+            .english: "150% pay",
+            .arabic: "أجر 150%",
+            .hebrew: "שכר 150%"
+        ],
+        "fullExport.csv.incomeTax": [
+            .english: "Income tax",
+            .arabic: "ضريبة دخل",
+            .hebrew: "מס הכנסה"
+        ],
+        "fullExport.csv.nationalInsurance": [
+            .english: "National insurance",
+            .arabic: "تأمين وطني",
+            .hebrew: "ביטוח לאומי"
+        ],
+        "fullExport.csv.healthTax": [
+            .english: "Health tax",
+            .arabic: "ضريبة صحة",
+            .hebrew: "מס בריאות"
+        ],
+        "fullExport.csv.timestamp": [
+            .english: "Timestamp",
+            .arabic: "الطابع الزمني",
+            .hebrew: "חותמת זמן"
+        ],
+        "fullExport.csv.level": [
+            .english: "Level",
+            .arabic: "المستوى",
+            .hebrew: "רמה"
+        ],
+        "fullExport.csv.category": [
+            .english: "Category",
+            .arabic: "الفئة",
+            .hebrew: "קטגוריה"
+        ],
+        "fullExport.csv.message": [
+            .english: "Message",
+            .arabic: "الرسالة",
+            .hebrew: "הודעה"
+        ],
+        "fullExport.csv.details": [
+            .english: "Details",
+            .arabic: "التفاصيل",
+            .hebrew: "פרטים"
         ]
     ]
 }

@@ -24,6 +24,8 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
     private var workplaceRegion: CLCircularRegion?
     /// True while we still need to upgrade When-In-Use → Always for arrival reminders.
     private var pendingAlwaysAuthorization = false
+    /// Last known geofence membership (updated via enter/exit/determineState).
+    private var isInsideWorkplace = false
 
     private(set) var authorizationStatus: CLAuthorizationStatus
     private(set) var areNotificationsDenied = false
@@ -48,9 +50,11 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
             setupGeofence()
         } else {
             clearGeofence()
+            isInsideWorkplace = false
+            cancelAllReminderNotifications()
+            return
         }
-        scheduleClockOutReminder()
-        scheduleForgotClockOutReminder()
+        rescheduleClockOutReminders()
     }
 
     func requestArrivalReminderPermissions() {
@@ -68,6 +72,8 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
     func stopArrivalReminders() {
         pendingAlwaysAuthorization = false
         clearGeofence()
+        isInsideWorkplace = false
+        cancelAllReminderNotifications()
     }
 
     func updateWorkplaceLocation(latitude: Double, longitude: Double, radius: Double) {
@@ -144,12 +150,49 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
             identifier: workplaceRegionID
         )
         region.notifyOnEntry = true
-        region.notifyOnExit = false
+        region.notifyOnExit = true
         workplaceRegion = region
         locationManager.startMonitoring(for: region)
+        // Sync inside/outside after relaunch so clock-out reminders can arm.
+        locationManager.requestState(for: region)
+    }
+
+    // MARK: - Policy helpers (testable)
+
+    /// App display name for notification titles (never the workplace name).
+    static func notificationTitle() -> String {
+        if let display = Bundle.main.object(forInfoDictionaryKey: "CFBundleDisplayName") as? String,
+           !display.isEmpty {
+            return display
+        }
+        if let name = Bundle.main.object(forInfoDictionaryKey: "CFBundleName") as? String,
+           !name.isEmpty {
+            return name
+        }
+        return L10n.brandName
+    }
+
+    static func isWorkDay(
+        _ date: Date,
+        settings: WorkplaceSettings,
+        calendar: Calendar = .current
+    ) -> Bool {
+        let weekday = calendar.component(.weekday, from: date)
+        return !settings.isRestDayWeekday(weekday)
     }
 
     // MARK: - Notifications
+
+    private func cancelAllReminderNotifications() {
+        notificationCenter.removePendingNotificationRequests(
+            withIdentifiers: [clockOutReminderID, forgotClockOutID]
+        )
+    }
+
+    private func rescheduleClockOutReminders() {
+        scheduleClockOutReminder()
+        scheduleForgotClockOutReminder()
+    }
 
     /// Any open session counts, not just today's — a session left open past
     /// midnight still needs its clock-out reminders.
@@ -162,10 +205,20 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
         return sessions.contains { Calendar.current.isDate($0.date, inSameDayAs: today) }
     }
 
+    private func remindersAreArmed() -> Bool {
+        settings.arrivalRemindersEnabled
+            && settings.hasWorkplaceLocation
+            && isInsideWorkplace
+            && Self.isWorkDay(Date(), settings: settings)
+    }
+
     private func sendClockInNotification() {
+        guard settings.arrivalRemindersEnabled else { return }
+        guard Self.isWorkDay(Date(), settings: settings) else { return }
         guard !hasAnySessionToday() else { return }
+
         let content = UNMutableNotificationContent()
-        content.title = settings.workplaceName
+        content.title = Self.notificationTitle()
         content.body = AppLocale.clockInPrompt()
         content.sound = .default
         let request = UNNotificationRequest(
@@ -178,7 +231,7 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
 
     func scheduleClockOutReminder() {
         notificationCenter.removePendingNotificationRequests(withIdentifiers: [clockOutReminderID])
-        guard hasOpenSession() else { return }
+        guard remindersAreArmed(), hasOpenSession() else { return }
         guard let reminderTime = estimatedClockOutTime() else { return }
 
         var components = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)
@@ -186,7 +239,7 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
 
         let content = UNMutableNotificationContent()
-        content.title = settings.workplaceName
+        content.title = Self.notificationTitle()
         content.body = AppLocale.clockOutReminder()
         content.sound = .default
 
@@ -196,7 +249,7 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
 
     func scheduleForgotClockOutReminder() {
         notificationCenter.removePendingNotificationRequests(withIdentifiers: [forgotClockOutID])
-        guard hasOpenSession() else { return }
+        guard remindersAreArmed(), hasOpenSession() else { return }
 
         var components = DateComponents()
         components.hour = 23
@@ -204,7 +257,7 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
         let trigger = UNCalendarNotificationTrigger(dateMatching: components, repeats: false)
 
         let content = UNMutableNotificationContent()
-        content.title = settings.workplaceName
+        content.title = Self.notificationTitle()
         content.body = AppLocale.forgotClockOut()
         content.sound = .default
 
@@ -257,7 +310,30 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
 extension LocationReminderManager: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didEnterRegion region: CLRegion) {
         guard region.identifier == workplaceRegionID else { return }
+        isInsideWorkplace = true
         sendClockInNotification()
+        rescheduleClockOutReminders()
+    }
+
+    func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
+        guard region.identifier == workplaceRegionID else { return }
+        isInsideWorkplace = false
+        // Away from the workplace → never remind (cancel any pending clock-out nags).
+        cancelAllReminderNotifications()
+    }
+
+    func locationManager(
+        _ manager: CLLocationManager,
+        didDetermineState state: CLRegionState,
+        for region: CLRegion
+    ) {
+        guard region.identifier == workplaceRegionID else { return }
+        isInsideWorkplace = (state == .inside)
+        if isInsideWorkplace {
+            rescheduleClockOutReminders()
+        } else {
+            cancelAllReminderNotifications()
+        }
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
@@ -277,6 +353,8 @@ extension LocationReminderManager: CLLocationManagerDelegate {
         case .denied, .restricted:
             pendingAlwaysAuthorization = false
             clearGeofence()
+            isInsideWorkplace = false
+            cancelAllReminderNotifications()
         default:
             break
         }

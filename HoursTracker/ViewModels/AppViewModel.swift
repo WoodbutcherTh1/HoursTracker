@@ -7,6 +7,8 @@ final class AppViewModel: ObservableObject {
     @Published private(set) var sessions: [WorkSession] = []
     @Published var settings: WorkplaceSettings = .default
     @Published var lastCompletedBreakdown: DayPayBreakdown?
+    /// Session that was just clocked out; used by the day-summary sheet to delete only that shift.
+    @Published private(set) var lastCompletedSessionID: UUID?
     @Published var showDaySummary = false
     @Published private(set) var syncState: SyncState = .idle
     @Published var errorMessage: String?
@@ -149,6 +151,7 @@ final class AppViewModel: ObservableObject {
         let dayCompleted = sessions.filter {
             calendar.isDate($0.date, inSameDayAs: sessions[index].date) && !$0.isOpen
         }
+        lastCompletedSessionID = sessions[index].id
         lastCompletedBreakdown = OvertimeCalculator.aggregate(sessions: dayCompleted, settings: settings)
         showDaySummary = true
         persist()
@@ -164,6 +167,7 @@ final class AppViewModel: ObservableObject {
     func dismissDaySummary() {
         showDaySummary = false
         lastCompletedBreakdown = nil
+        lastCompletedSessionID = nil
     }
 
     // MARK: - Manual Entry

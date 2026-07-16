@@ -19,8 +19,11 @@ struct WorkplaceSettings: Codable, Equatable {
     var spouseEmployed: Bool
     /// Day of month when the payroll cycle starts (1...28). Default 1 = calendar month.
     var payrollStartDay: Int
-    /// Weekly rest day in `Calendar` weekday numbering (1 = Sunday ... 7 = Saturday).
+    /// Primary weekly rest day in `Calendar` weekday numbering (1 = Sunday ... 7 = Saturday).
     var restDayWeekday: Int
+    /// Optional second weekly rest day (e.g. Friday when Saturday is the primary).
+    /// `nil` means the worker has only one weekly rest day.
+    var secondRestDayWeekday: Int?
     /// Unpaid break applied automatically to shifts of 6 hours or more.
     var defaultBreakMinutes: Int
     /// Standard day for night shifts before overtime starts (Hours of Work and Rest Law).
@@ -50,6 +53,7 @@ struct WorkplaceSettings: Codable, Equatable {
         spouseEmployed: false,
         payrollStartDay: 1,
         restDayWeekday: 7,
+        secondRestDayWeekday: nil,
         defaultBreakMinutes: 0,
         nightStandardDayHours: 7.0,
         currencyCode: "ILS",
@@ -65,12 +69,25 @@ struct WorkplaceSettings: Codable, Equatable {
         TaxCreditPointsCalculator.creditPoints(for: self)
     }
 
+    /// Weekdays that count as weekly rest days for automatic day-type detection.
+    var restDayWeekdays: Set<Int> {
+        var days: Set<Int> = [restDayWeekday]
+        if let secondRestDayWeekday {
+            days.insert(secondRestDayWeekday)
+        }
+        return days
+    }
+
+    func isRestDayWeekday(_ weekday: Int) -> Bool {
+        restDayWeekdays.contains(weekday)
+    }
+
     enum CodingKeys: String, CodingKey {
         case workplaceName, contractorName, workerFullName, workerIDNumber, employeeNumber
         case hourlyRate, dailyGasAllowance, standardDayHours, ot125HoursCap
         case locationLatitude, locationLongitude, locationRadiusMeters
         case maritalStatus, hasChildren, numberOfChildren, spouseEmployed, payrollStartDay
-        case restDayWeekday, defaultBreakMinutes, nightStandardDayHours, currencyCode
+        case restDayWeekday, secondRestDayWeekday, defaultBreakMinutes, nightStandardDayHours, currencyCode
         case arrivalRemindersEnabled
         case modifiedAt
     }
@@ -94,6 +111,7 @@ struct WorkplaceSettings: Codable, Equatable {
         spouseEmployed: Bool = false,
         payrollStartDay: Int = 1,
         restDayWeekday: Int = 7,
+        secondRestDayWeekday: Int? = nil,
         defaultBreakMinutes: Int = 0,
         nightStandardDayHours: Double = 7.0,
         currencyCode: String = "ILS",
@@ -118,6 +136,7 @@ struct WorkplaceSettings: Codable, Equatable {
         self.spouseEmployed = spouseEmployed
         self.payrollStartDay = payrollStartDay
         self.restDayWeekday = restDayWeekday
+        self.secondRestDayWeekday = secondRestDayWeekday
         self.defaultBreakMinutes = defaultBreakMinutes
         self.nightStandardDayHours = nightStandardDayHours
         self.currencyCode = currencyCode
@@ -146,6 +165,7 @@ struct WorkplaceSettings: Codable, Equatable {
         spouseEmployed = try c.decodeIfPresent(Bool.self, forKey: .spouseEmployed) ?? false
         payrollStartDay = try c.decodeIfPresent(Int.self, forKey: .payrollStartDay) ?? 1
         restDayWeekday = try c.decodeIfPresent(Int.self, forKey: .restDayWeekday) ?? 7
+        secondRestDayWeekday = try c.decodeIfPresent(Int.self, forKey: .secondRestDayWeekday)
         defaultBreakMinutes = try c.decodeIfPresent(Int.self, forKey: .defaultBreakMinutes) ?? 0
         nightStandardDayHours = try c.decodeIfPresent(Double.self, forKey: .nightStandardDayHours) ?? 7.0
         currencyCode = try c.decodeIfPresent(String.self, forKey: .currencyCode) ?? "ILS"
@@ -165,6 +185,11 @@ struct WorkplaceSettings: Codable, Equatable {
         numberOfChildren = min(15, max(0, numberOfChildren))
         payrollStartDay = HistoryPeriodHelper.normalizedStartDay(payrollStartDay)
         restDayWeekday = min(max(restDayWeekday, 1), 7)
+        if let second = secondRestDayWeekday {
+            let clamped = min(max(second, 1), 7)
+            // Must differ from the primary rest day.
+            secondRestDayWeekday = clamped == restDayWeekday ? nil : clamped
+        }
         defaultBreakMinutes = max(0, defaultBreakMinutes)
         nightStandardDayHours = min(24, max(0.1, nightStandardDayHours))
     }

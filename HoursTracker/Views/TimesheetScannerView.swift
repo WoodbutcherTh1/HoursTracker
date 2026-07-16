@@ -137,7 +137,7 @@ struct TimesheetScannerView: View {
     var body: some View {
         NavigationStack {
             phaseContent
-                .navigationTitle(String(localized: "scanner.title", defaultValue: "Scan Timesheet"))
+                .navigationTitle(AppLocale.tr("scanner.title"))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { cancelToolbar }
                 .onChange(of: scannerVM.photoItem) { _, item in
@@ -190,7 +190,7 @@ struct TimesheetScannerView: View {
     @ToolbarContentBuilder
     private var cancelToolbar: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            Button(String(localized: "edit.cancel", defaultValue: "Cancel")) {
+            Button(AppLocale.tr("edit.cancel")) {
                 dismiss()
             }
         }
@@ -279,7 +279,7 @@ struct TimesheetScannerView: View {
                 .foregroundStyle(.tint)
                 .symbolRenderingMode(.hierarchical)
 
-            Text(String(localized: "scanner.subtitle", defaultValue: "Import a photo, screenshot, or PDF of your timesheet."))
+            Text(AppLocale.tr("scanner.subtitle"))
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -291,7 +291,7 @@ struct TimesheetScannerView: View {
                     matching: .images
                 ) {
                     Label(
-                        String(localized: "scanner.photoLibrary", defaultValue: "Photo Library"),
+                        AppLocale.tr("scanner.photoLibrary"),
                         systemImage: "photo.on.rectangle"
                     )
                     .frame(maxWidth: .infinity)
@@ -303,7 +303,7 @@ struct TimesheetScannerView: View {
                     scannerVM.showCamera = true
                 } label: {
                     Label(
-                        String(localized: "scanner.camera", defaultValue: "Take Photo"),
+                        AppLocale.tr("scanner.camera"),
                         systemImage: "camera.fill"
                     )
                     .frame(maxWidth: .infinity)
@@ -315,7 +315,7 @@ struct TimesheetScannerView: View {
                     scannerVM.showFileImporter = true
                 } label: {
                     Label(
-                        String(localized: "scanner.file", defaultValue: "Choose File (PDF / Image)"),
+                        AppLocale.tr("scanner.file"),
                         systemImage: "folder"
                     )
                     .frame(maxWidth: .infinity)
@@ -333,9 +333,9 @@ struct TimesheetScannerView: View {
     private var processingView: some View {
         VStack(spacing: 24) {
             ScannerSkeletonView()
-            Text(String(localized: "scanner.analyzing", defaultValue: "Analyzing timesheet…"))
+            Text(AppLocale.tr("scanner.analyzing"))
                 .font(.headline)
-            Text(String(localized: "scanner.analyzingHint", defaultValue: "Reading dates and clock times with on-device OCR."))
+            Text(AppLocale.tr("scanner.analyzingHint"))
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -348,7 +348,7 @@ struct TimesheetScannerView: View {
     private var reviewView: some View {
         VStack(spacing: 0) {
             if scannerVM.usedManualFallback {
-                Text(String(localized: "scanner.fallbackBanner", defaultValue: "Couldn't auto-detect shifts. Edit the draft row(s) below, then approve."))
+                Text(AppLocale.tr("scanner.fallbackBanner"))
                     .font(.footnote)
                     .foregroundStyle(.orange)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -375,14 +375,14 @@ struct TimesheetScannerView: View {
                         scannerVM.addBlankRow()
                     } label: {
                         Label(
-                            String(localized: "scanner.addRow", defaultValue: "Add another day"),
+                            AppLocale.tr("scanner.addRow"),
                             systemImage: "plus.circle"
                         )
                     }
                 } header: {
-                    Text(String(localized: "scanner.reviewHeader", defaultValue: "Review extracted days"))
+                    Text(AppLocale.tr("scanner.reviewHeader"))
                 } footer: {
-                    Text(String(localized: "scanner.reviewFooter", defaultValue: "Uncheck days to skip. Tap a row to fix OCR mistakes before importing."))
+                    Text(AppLocale.tr("scanner.reviewFooter"))
                 }
             }
             .listStyle(.insetGrouped)
@@ -390,7 +390,7 @@ struct TimesheetScannerView: View {
             Button {
                 beginApproveFlow()
             } label: {
-                Text("\(String(localized: "scanner.approve", defaultValue: "Approve and Add to History")) (\(scannerVM.selectedCount))")
+                Text("\(AppLocale.tr("scanner.approve")) (\(scannerVM.selectedCount))")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
@@ -404,13 +404,13 @@ struct TimesheetScannerView: View {
     private func failedView(_ message: String) -> some View {
         ContentUnavailableView {
             Label(
-                String(localized: "scanner.failed", defaultValue: "Scan Failed"),
+                AppLocale.tr("scanner.failed"),
                 systemImage: "exclamationmark.triangle"
             )
         } description: {
             Text(message)
         } actions: {
-            Button(String(localized: "scanner.tryAgain", defaultValue: "Try Again")) {
+            Button(AppLocale.tr("scanner.tryAgain")) {
                 scannerVM.reset()
             }
             .buttonStyle(.borderedProminent)
@@ -441,7 +441,7 @@ struct ScannedDraftRow: View {
                             .font(.headline)
                             .foregroundStyle(.primary)
                         if draft.needsManualReview {
-                            Text(String(localized: "scanner.needsEdit", defaultValue: "Edit"))
+                            Text(AppLocale.tr("scanner.needsEdit"))
                                 .font(.caption2.weight(.semibold))
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
@@ -482,37 +482,37 @@ struct ScannedDraftEditor: View {
         NavigationStack {
             Form {
                 DatePicker(
-                    String(localized: "manual.workDay", defaultValue: "Work Day"),
+                    AppLocale.tr("manual.workDay"),
                     selection: $draft.date,
                     displayedComponents: .date
                 )
                 DatePicker(
-                    String(localized: "edit.clockIn", defaultValue: "Clock In"),
+                    AppLocale.tr("edit.clockIn"),
                     selection: $draft.clockIn,
                     displayedComponents: [.date, .hourAndMinute]
                 )
                 DatePicker(
-                    String(localized: "edit.clockOut", defaultValue: "Clock Out"),
+                    AppLocale.tr("edit.clockOut"),
                     selection: $draft.clockOut,
                     displayedComponents: [.date, .hourAndMinute]
                 )
                 TextField(
-                    String(localized: "edit.notesPlaceholder", defaultValue: "Optional notes"),
+                    AppLocale.tr("edit.notesPlaceholder"),
                     text: Binding(
                         get: { draft.notes ?? "" },
                         set: { draft.notes = $0.isEmpty ? nil : $0 }
                     )
                 )
             }
-            .navigationTitle(String(localized: "scanner.editRow", defaultValue: "Edit Day"))
+            .navigationTitle(AppLocale.tr("scanner.editRow"))
             .navigationBarTitleDisplayMode(.inline)
             .keyboardDismissible()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(String(localized: "edit.cancel", defaultValue: "Cancel")) { dismiss() }
+                    Button(AppLocale.tr("edit.cancel")) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(String(localized: "edit.save", defaultValue: "Save")) {
+                    Button(AppLocale.tr("edit.save")) {
                         var updated = draft
                         let resolved = WorkSession.resolveClockPair(
                             clockIn: draft.clockIn,

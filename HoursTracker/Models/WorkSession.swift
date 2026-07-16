@@ -22,7 +22,8 @@ enum DayType: String, Codable, CaseIterable, Identifiable {
     }
 
     static func automatic(for date: Date, settings: WorkplaceSettings, calendar: Calendar = .current) -> DayType {
-        calendar.component(.weekday, from: date) == settings.restDayWeekday ? .restDay : .regular
+        let weekday = calendar.component(.weekday, from: date)
+        return settings.isRestDayWeekday(weekday) ? .restDay : .regular
     }
 }
 

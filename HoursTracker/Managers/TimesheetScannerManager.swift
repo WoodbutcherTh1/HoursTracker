@@ -58,7 +58,7 @@ struct ScannedSessionDraft: Identifiable, Equatable {
             date: start,
             clockIn: clockIn,
             clockOut: clockOut,
-            notes: String(localized: "scanner.manualDraftNote", defaultValue: "Fill in manually"),
+            notes: AppLocale.tr("scanner.manualDraftNote"),
             isSelected: true,
             confidence: 0,
             needsManualReview: true
@@ -80,9 +80,9 @@ enum TimesheetScannerError: LocalizedError, Equatable {
     var errorDescription: String? {
         switch self {
         case .unsupportedFile:
-            return String(localized: "scanner.error.unsupported", defaultValue: "Unsupported file type.")
+            return AppLocale.tr("scanner.error.unsupported")
         case .pdfRenderFailed:
-            return String(localized: "scanner.error.pdf", defaultValue: "Could not read this PDF.")
+            return AppLocale.tr("scanner.error.pdf")
         case .fileTooLarge:
             return L10n.scannerErrorFileTooLarge
         }
@@ -414,7 +414,7 @@ actor TimesheetScannerManager {
             date: date,
             clockIn: resolved.clockIn,
             clockOut: resolved.clockOut,
-            notes: String(localized: "scanner.importedNote", defaultValue: "Imported from scan"),
+            notes: AppLocale.tr("scanner.importedNote"),
             confidence: confidence
         )
     }

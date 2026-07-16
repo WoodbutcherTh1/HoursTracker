@@ -1,7 +1,7 @@
 import Foundation
 
 enum AppLocale {
-    enum Language {
+    enum Language: Equatable {
         case arabic
         case hebrew
         case english
@@ -14,10 +14,50 @@ enum AppLocale {
             case .english: return L10n.languageNameEnglish
             }
         }
+
+        var localeIdentifier: String {
+            switch self {
+            case .arabic: return "ar"
+            case .hebrew: return "he"
+            case .english: return "en"
+            }
+        }
     }
 
+    /// Locale used for `String(localized:)` lookups under the in-app override.
+    static var resolvedLocale: Locale {
+        Locale(identifier: current.localeIdentifier)
+    }
+
+    /// Catalog lookup in the active in-app language (works outside SwiftUI too).
+    static func tr(_ key: String.LocalizationValue) -> String {
+        String(localized: key, locale: resolvedLocale)
+    }
+
+    /// Prefer the in-app language override; fall back to the device preferred languages.
     static var current: Language {
-        let preferred = Locale.preferredLanguages.first?.lowercased() ?? "en"
+        resolve(
+            preference: AppLanguageOption.load(),
+            preferredLanguages: Locale.preferredLanguages
+        )
+    }
+
+    /// Testable resolution: override wins; `.system` uses `preferredLanguages`.
+    static func resolve(
+        preference: AppLanguageOption,
+        preferredLanguages: [String]
+    ) -> Language {
+        switch preference {
+        case .english: return .english
+        case .hebrew: return .hebrew
+        case .arabic: return .arabic
+        case .system:
+            return language(fromPreferredLanguages: preferredLanguages)
+        }
+    }
+
+    static func language(fromPreferredLanguages preferredLanguages: [String]) -> Language {
+        let preferred = preferredLanguages.first?.lowercased() ?? "en"
         if preferred.hasPrefix("ar") { return .arabic }
         if preferred.hasPrefix("he") || preferred.hasPrefix("iw") { return .hebrew }
         return .english
