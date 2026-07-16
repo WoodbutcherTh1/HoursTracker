@@ -4181,19 +4181,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "عند التفعيل، يطلب التطبيق موقع «دائماً» ويذكّرك بتسجيل الدخول عند وصولك لمكان العمل المحفوظ."
+            "value": "عند التفعيل، يطلب التطبيق موقع «دائماً» ويذكّرك بتسجيل الدخول عند وصولك لمنطقة مكان العمل المحفوظ. لا يوجد تتبع مستمر."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "When enabled, the app asks for Always location and reminds you to clock in when you arrive at your saved workplace."
+            "value": "When enabled, the app asks for Always location and reminds you to clock in when you arrive at your saved workplace geofence. Continuous tracking is not used."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "כשמופעל, האפליקציה מבקשת מיקום תמיד ומזכירה להחתים כניסה בהגעה למקום העבודה השמור."
+            "value": "כשמופעל, האפליקציה מבקשת מיקום תמיד ומזכירה להחתים כניסה בהגעה לגדר הווירטואלית של מקום העבודה. אין מעקב רציף."
           }
         }
       }
@@ -4247,19 +4247,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "يستخدم الموقع في الخلفية فقط حول منطقة مكان العمل المحفوظ لتذكيرك بتسجيل الدخول. يمكنك إيقافه في أي وقت."
+            "value": "يستخدم موقع «دائماً» فقط لمراقبة منطقة عمل واحدة محفوظة لتذكيرك بتسجيل الدخول. لا يُستخدم التتبع المستمر في الخلفية. يمكنك إيقافه في أي وقت."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "This uses background location only around your saved workplace geofence so we can remind you to clock in. You can turn it off anytime."
+            "value": "This uses Always location only to monitor a single geofence around your saved workplace so we can remind you to clock in. Continuous background tracking is not used. You can turn it off anytime."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "המיקום ברקע ישמש רק סביב אזור מקום העבודה השמור כדי להזכיר להחתים כניסה. אפשר לכבות בכל עת."
+            "value": "נעשה שימוש במיקום תמיד רק לניטור גדר וירטואלית אחת סביב מקום העבודה השמור כדי להזכיר להחתים כניסה. אין מעקב רקע רציף. אפשר לכבות בכל עת."
           }
         }
       }
@@ -5866,6 +5866,182 @@
           "stringUnit": {
             "state": "translated",
             "value": "גיליון שעות"
+          }
+        }
+      }
+    },
+    "settings.locationDenied": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم رفض الوصول إلى الموقع. افتح الإعدادات للسماح بالموقع لميزات مكان العمل."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Location access is denied. Open Settings to allow location for workplace features."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "גישת מיקום נדחתה. פתחו את ההגדרות כדי לאפשר מיקום לתכונות מקום העבודה."
+          }
+        }
+      }
+    },
+    "settings.notificationsDenied": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الإشعارات متوقفة، لذا لا يمكن عرض تذكيرات الوصول. فعّلها من الإعدادات."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notifications are off, so arrival reminders cannot be shown. Enable them in Settings."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ההתראות כבויות, ולכן לא ניתן להציג תזכורות הגעה. הפעילו אותן בהגדרות."
+          }
+        }
+      }
+    },
+    "settings.openSystemSettings": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فتح الإعدادات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Settings"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "פתח הגדרות"
+          }
+        }
+      }
+    },
+    "sync.enabled": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المزامنة مع iCloud"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync with iCloud"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "סנכרון עם iCloud"
+          }
+        }
+      }
+    },
+    "sync.enabledHint": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عند التفعيل، تُرفع الورديات وإعدادات مكان العمل (وليس رقم الهوية) إلى قاعدة بيانات iCloud الخاصة بك لمزامنة أجهزتك. تبقى البيانات تحت حساب Apple — وليس على خوادمنا."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When on, work sessions and workplace settings (not your national ID) upload to your private iCloud database so your other Apple devices can sync. Data stays under your Apple ID — not on our servers."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "כשמופעל, משמרות והגדרות מקום עבודה (לא מספר הזהות) מועלים למסד הנתונים הפרטי שלך ב‑iCloud לסנכרון בין המכשירים. הנתונים נשארים תחת ה‑Apple ID שלך — לא בשרתים שלנו."
+          }
+        }
+      }
+    },
+    "sync.disableConfirm": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إيقاف مزامنة iCloud؟ يمكنك الإبقاء على النسخ الموجودة أو حذفها الآن."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn off iCloud sync? You can keep existing iCloud copies or delete them now."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "לכבות סנכרון iCloud? אפשר להשאיר עותקים קיימים ב‑iCloud או למחוק אותם עכשיו."
+          }
+        }
+      }
+    },
+    "sync.disableKeepCloud": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إيقاف مع الإبقاء على بيانات iCloud"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn Off, Keep iCloud Data"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "כבה והשאר נתוני iCloud"
+          }
+        }
+      }
+    },
+    "sync.disableDeleteCloud": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إيقاف وحذف بيانات iCloud"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Turn Off and Delete iCloud Data"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "כבה ומחק נתוני iCloud"
           }
         }
       }

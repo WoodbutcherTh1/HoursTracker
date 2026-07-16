@@ -11,6 +11,8 @@ final class AppViewModel: ObservableObject {
     @Published private(set) var syncState: SyncState = .idle
     @Published var errorMessage: String?
     @Published private(set) var successToast: String?
+    @Published private(set) var locationAuthorizationStatus: CLAuthorizationStatus = .notDetermined
+    @Published private(set) var areLocationNotificationsDenied = false
 
     private let store: SyncingStore
     private let locationManager: LocationReminderManaging
@@ -20,6 +22,24 @@ final class AppViewModel: ObservableObject {
 
     /// Hide the Settings sync section when this build has no CloudKit backend.
     var isCloudSyncSupported: Bool { store.isCloudSyncSupported }
+
+    /// User opt-in for private iCloud sync (default off).
+    var isICloudSyncEnabled: Bool {
+        get { store.isICloudSyncEnabled }
+        set { store.isICloudSyncEnabled = newValue }
+    }
+
+    func refreshLocationPermissionStatuses() {
+        locationAuthorizationStatus = locationManager.authorizationStatus
+        locationManager.refreshPermissionStatuses()
+        areLocationNotificationsDenied = locationManager.areNotificationsDenied
+        // Notification settings arrive asynchronously; re-read shortly after.
+        Task { @MainActor in
+            try? await Task.sleep(for: .milliseconds(300))
+            areLocationNotificationsDenied = locationManager.areNotificationsDenied
+            locationAuthorizationStatus = locationManager.authorizationStatus
+        }
+    }
 
     var isSyncing: Bool {
         if case .syncing = syncState { return true }
@@ -56,6 +76,7 @@ final class AppViewModel: ObservableObject {
         syncState = store.syncState
         load()
         refreshReminders()
+        refreshLocationPermissionStatuses()
     }
 
     // MARK: - Active Session
@@ -321,6 +342,7 @@ final class AppViewModel: ObservableObject {
         persistSettings()
         if remindersJustEnabled {
             locationManager.requestArrivalReminderPermissions()
+            refreshLocationPermissionStatuses()
             ActivityLogStore.shared.log(
                 L10n.logEventRemindersOn,
                 level: .info,
@@ -408,6 +430,7 @@ final class AppViewModel: ObservableObject {
     // MARK: - Sync
 
     func syncNow() {
+        guard isICloudSyncEnabled else { return }
         guard !isSyncing else { return }
         syncState = .syncing
         Task {
@@ -420,6 +443,20 @@ final class AppViewModel: ObservableObject {
                 syncState = store.syncState
             } catch {
                 syncState = store.syncState
+            }
+        }
+    }
+
+    /// Turns iCloud sync off and optionally erases already-uploaded private-DB copies.
+    func disableICloudSync(deleteRemoteData: Bool) {
+        isICloudSyncEnabled = false
+        guard deleteRemoteData, isCloudSyncSupported else { return }
+        let ids = Set(sessions.map(\.id))
+        Task {
+            do {
+                try await store.purgeCloudData(sessionIDs: ids)
+            } catch {
+                errorMessage = L10n.privacyDeleteCloudPartialFailure
             }
         }
     }

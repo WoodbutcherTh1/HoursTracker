@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 import CoreLocation
 
 struct SettingsView: View {
@@ -8,6 +9,7 @@ struct SettingsView: View {
     @State private var locationStatus: String = ""
     @State private var showDeleteAllConfirm = false
     @State private var showArrivalExplainer = false
+    @State private var showDisableSyncConfirm = false
 
     private let syncDateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -49,6 +51,7 @@ struct SettingsView: View {
             }
             .onAppear {
                 draft = viewModel.settings
+                viewModel.refreshLocationPermissionStatuses()
             }
             .confirmationDialog(
                 L10n.privacyDeleteAllConfirm,
@@ -61,6 +64,21 @@ struct SettingsView: View {
                     viewModel.showSuccessToast(L10n.feedbackDataDeleted)
                 }
                 Button(L10n.editCancel, role: .cancel) {}
+            }
+            .confirmationDialog(
+                L10n.syncDisableConfirm,
+                isPresented: $showDisableSyncConfirm,
+                titleVisibility: .visible
+            ) {
+                Button(L10n.syncDisableKeepCloud, role: .destructive) {
+                    viewModel.disableICloudSync(deleteRemoteData: false)
+                }
+                Button(L10n.syncDisableDeleteCloud, role: .destructive) {
+                    viewModel.disableICloudSync(deleteRemoteData: true)
+                }
+                Button(L10n.editCancel, role: .cancel) {
+                    viewModel.isICloudSyncEnabled = true
+                }
             }
             .alert(L10n.settingsArrivalTitle, isPresented: $showArrivalExplainer) {
                 Button(L10n.settingsArrivalContinue) {
@@ -279,6 +297,28 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
+            if showsLocationPermissionDenied {
+                Text(L10n.settingsLocationDenied)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                Button(L10n.settingsOpenSystemSettings) {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+            }
+
+            if viewModel.areLocationNotificationsDenied && draft.arrivalRemindersEnabled {
+                Text(L10n.settingsNotificationsDenied)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                Button(L10n.settingsOpenSystemSettings) {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+            }
+
             HStack {
                 Text(L10n.settingsGeofenceRadius)
                 Spacer()
@@ -313,40 +353,72 @@ struct SettingsView: View {
             }
             .onReceive(viewModel.locationCaptureErrors) { error in
                 guard error != nil else { return }
-                locationStatus = L10n.settingsLocationFailed
+                viewModel.refreshLocationPermissionStatuses()
+                if viewModel.locationAuthorizationStatus == .denied
+                    || viewModel.locationAuthorizationStatus == .restricted {
+                    locationStatus = L10n.settingsLocationDenied
+                } else {
+                    locationStatus = L10n.settingsLocationFailed
+                }
             }
 
             if !locationStatus.isEmpty {
                 Text(locationStatus)
                     .font(.caption)
-                    .foregroundStyle(locationStatus == L10n.settingsLocationFailed ? .red : .green)
+                    .foregroundStyle(
+                        locationStatus == L10n.settingsLocationFailed
+                            || locationStatus == L10n.settingsLocationDenied
+                            ? .red : .green
+                    )
             }
         } header: {
             Text(L10n.settingsLocationReminders)
         }
     }
 
+    private var showsLocationPermissionDenied: Bool {
+        let status = viewModel.locationAuthorizationStatus
+        return status == .denied || status == .restricted
+    }
+
     private var syncSection: some View {
         Section {
-            HStack {
-                Image(systemName: syncIcon)
-                    .foregroundStyle(syncColor)
-                Text(syncStatusText)
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
-            }
-
-            if case .unavailable = viewModel.syncState {
-                Text(L10n.syncUnavailableHint)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                Button {
-                    viewModel.syncNow()
-                } label: {
-                    Label(L10n.syncNow, systemImage: "icloud.and.arrow.up")
+            Toggle(L10n.syncEnabled, isOn: Binding(
+                get: { viewModel.isICloudSyncEnabled },
+                set: { newValue in
+                    if newValue {
+                        viewModel.isICloudSyncEnabled = true
+                    } else if viewModel.isICloudSyncEnabled {
+                        showDisableSyncConfirm = true
+                    }
                 }
-                .disabled(viewModel.isSyncing)
+            ))
+
+            Text(L10n.syncEnabledHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if viewModel.isICloudSyncEnabled {
+                HStack {
+                    Image(systemName: syncIcon)
+                        .foregroundStyle(syncColor)
+                    Text(syncStatusText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                if case .unavailable = viewModel.syncState {
+                    Text(L10n.syncUnavailableHint)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Button {
+                        viewModel.syncNow()
+                    } label: {
+                        Label(L10n.syncNow, systemImage: "icloud.and.arrow.up")
+                    }
+                    .disabled(viewModel.isSyncing)
+                }
             }
         } header: {
             Text(L10n.syncSection)

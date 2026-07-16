@@ -1,4 +1,5 @@
 import Foundation
+import CoreLocation
 @testable import HoursTracker
 
 final class InMemoryStore: SyncingStore {
@@ -7,6 +8,7 @@ final class InMemoryStore: SyncingStore {
     var saveError: Error?
     var syncState: SyncState = .idle
     var isCloudSyncSupported = false
+    var isICloudSyncEnabled = false
     private(set) var saveSettingsLocallyCallCount = 0
     private(set) var purgeCloudCallCount = 0
     private(set) var lastPurgedSessionIDs: Set<UUID> = []
@@ -47,10 +49,13 @@ final class InMemoryStore: SyncingStore {
 }
 
 final class MockLocationReminderManager: LocationReminderManaging {
+    var authorizationStatus: CLAuthorizationStatus = .notDetermined
+    var areNotificationsDenied = false
     private(set) var configureCallCount = 0
     private(set) var lastConfiguredSessions: [WorkSession] = []
     private(set) var arrivalPermissionRequests = 0
     private(set) var stopReminderCalls = 0
+    private(set) var refreshPermissionCalls = 0
 
     func configure(settings: WorkplaceSettings, sessions: [WorkSession]) {
         configureCallCount += 1
@@ -66,6 +71,18 @@ final class MockLocationReminderManager: LocationReminderManaging {
     }
 
     func updateWorkplaceLocation(latitude: Double, longitude: Double, radius: Double) {}
+
+    func refreshPermissionStatuses() {
+        refreshPermissionCalls += 1
+    }
+}
+
+final class InMemoryCloudSyncPreference: CloudSyncPreferencing {
+    var isEnabled: Bool
+
+    init(isEnabled: Bool = false) {
+        self.isEnabled = isEnabled
+    }
 }
 
 final class RecordingCloud: CloudSyncing {

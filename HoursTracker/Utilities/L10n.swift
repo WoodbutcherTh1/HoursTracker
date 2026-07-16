@@ -147,6 +147,9 @@ enum L10n {
     static var settingsLocationUpdated: String { String(localized: "settings.locationUpdated") }
     static var settingsRequestingLocation: String { String(localized: "settings.requestingLocation") }
     static var settingsLocationFailed: String { String(localized: "settings.locationFailed") }
+    static var settingsLocationDenied: String { String(localized: "settings.locationDenied") }
+    static var settingsNotificationsDenied: String { String(localized: "settings.notificationsDenied") }
+    static var settingsOpenSystemSettings: String { String(localized: "settings.openSystemSettings") }
     static var settingsArrivalReminders: String { String(localized: "settings.arrivalReminders") }
     static var settingsArrivalHint: String { String(localized: "settings.arrivalHint") }
     static var settingsArrivalNeedLocation: String { String(localized: "settings.arrivalNeedLocation") }
@@ -160,6 +163,11 @@ enum L10n {
 
     // Sync
     static var syncSection: String { String(localized: "sync.section") }
+    static var syncEnabled: String { String(localized: "sync.enabled") }
+    static var syncEnabledHint: String { String(localized: "sync.enabledHint") }
+    static var syncDisableConfirm: String { String(localized: "sync.disableConfirm") }
+    static var syncDisableKeepCloud: String { String(localized: "sync.disableKeepCloud") }
+    static var syncDisableDeleteCloud: String { String(localized: "sync.disableDeleteCloud") }
     static var syncNow: String { String(localized: "sync.now") }
     static var syncSyncing: String { String(localized: "sync.syncing") }
     static var syncSynced: String { String(localized: "sync.synced") }

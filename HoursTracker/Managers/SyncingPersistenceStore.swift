@@ -3,11 +3,14 @@ import Foundation
 protocol SyncingStore: PersistableStore {
     /// Whether this build can sync via iCloud/CloudKit at all.
     var isCloudSyncSupported: Bool { get }
+    /// User opt-in for private-iCloud sync (default off).
+    var isICloudSyncEnabled: Bool { get set }
     var syncState: SyncState { get }
     func syncNow() async throws -> SyncResult?
     /// Persists settings locally without uploading to CloudKit (used by delete-all).
     func saveSettingsLocally(_ settings: WorkplaceSettings) throws
     /// Deletes remote sessions and the settings record when CloudKit is supported.
+    /// Not gated by the user sync toggle (used by delete-all and toggle-off cleanup).
     func purgeCloudData(sessionIDs: Set<UUID>) async throws
 }
 
@@ -16,17 +19,25 @@ final class SyncingPersistenceStore: SyncingStore {
 
     private let local: PersistableStore
     private let cloud: CloudSyncing
+    private let syncPreference: CloudSyncPreferencing
 
     private(set) var syncState: SyncState = .idle
 
     var isCloudSyncSupported: Bool { cloud.isSupported }
 
+    var isICloudSyncEnabled: Bool {
+        get { syncPreference.isEnabled }
+        set { syncPreference.isEnabled = newValue }
+    }
+
     init(
         local: PersistableStore = PersistenceManager.shared,
-        cloud: CloudSyncing? = nil
+        cloud: CloudSyncing? = nil,
+        syncPreference: CloudSyncPreferencing = UserDefaultsCloudSyncPreference.shared
     ) {
         self.local = local
         self.cloud = cloud ?? CloudKitSyncManager.makeDefault()
+        self.syncPreference = syncPreference
         if !self.cloud.isSupported {
             syncState = .unavailable
         }
@@ -42,6 +53,7 @@ final class SyncingPersistenceStore: SyncingStore {
         let deletedIDs = Set(previousByID.keys).subtracting(sessions.map(\.id))
         let changed = sessions.filter { previousByID[$0.id] != $0 }
         try local.saveSessions(sessions)
+        guard syncPreference.isEnabled else { return }
         Task {
             if !deletedIDs.isEmpty {
                 await cloud.deleteSessions(ids: deletedIDs)
@@ -58,6 +70,7 @@ final class SyncingPersistenceStore: SyncingStore {
 
     func saveSettings(_ settings: WorkplaceSettings) throws {
         try local.saveSettings(settings)
+        guard syncPreference.isEnabled else { return }
         Task {
             await cloud.uploadSettings(settings)
         }
@@ -73,6 +86,13 @@ final class SyncingPersistenceStore: SyncingStore {
     }
 
     func syncNow() async throws -> SyncResult? {
+        guard syncPreference.isEnabled else {
+            if cloud.isSupported {
+                syncState = .idle
+            }
+            return nil
+        }
+
         syncState = .syncing
         let localSessions = local.loadSessions()
         let localSettings = local.loadSettings()

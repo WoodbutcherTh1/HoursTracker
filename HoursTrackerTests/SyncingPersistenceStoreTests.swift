@@ -10,7 +10,11 @@ final class SyncingPersistenceStoreTests: XCTestCase {
         super.setUp()
         local = InMemoryStore()
         cloud = RecordingCloud()
-        store = SyncingPersistenceStore(local: local, cloud: cloud)
+        store = SyncingPersistenceStore(
+            local: local,
+            cloud: cloud,
+            syncPreference: InMemoryCloudSyncPreference(isEnabled: true)
+        )
     }
 
     func testFirstSaveUploadsAllSessions() throws {
