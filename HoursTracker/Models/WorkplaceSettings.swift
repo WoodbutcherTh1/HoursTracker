@@ -116,13 +116,14 @@ struct WorkplaceSettings: Codable, Equatable {
         self.hasChildren = hasChildren
         self.numberOfChildren = numberOfChildren
         self.spouseEmployed = spouseEmployed
-        self.payrollStartDay = HistoryPeriodHelper.normalizedStartDay(payrollStartDay)
-        self.restDayWeekday = min(max(restDayWeekday, 1), 7)
-        self.defaultBreakMinutes = max(0, defaultBreakMinutes)
+        self.payrollStartDay = payrollStartDay
+        self.restDayWeekday = restDayWeekday
+        self.defaultBreakMinutes = defaultBreakMinutes
         self.nightStandardDayHours = nightStandardDayHours
         self.currencyCode = currencyCode
         self.arrivalRemindersEnabled = arrivalRemindersEnabled
         self.modifiedAt = modifiedAt
+        normalizeValidatedFields()
     }
 
     init(from decoder: Decoder) throws {
@@ -143,14 +144,28 @@ struct WorkplaceSettings: Codable, Equatable {
         hasChildren = try c.decodeIfPresent(Bool.self, forKey: .hasChildren) ?? false
         numberOfChildren = try c.decodeIfPresent(Int.self, forKey: .numberOfChildren) ?? 0
         spouseEmployed = try c.decodeIfPresent(Bool.self, forKey: .spouseEmployed) ?? false
-        payrollStartDay = HistoryPeriodHelper.normalizedStartDay(
-            try c.decodeIfPresent(Int.self, forKey: .payrollStartDay) ?? 1
-        )
-        restDayWeekday = min(max(try c.decodeIfPresent(Int.self, forKey: .restDayWeekday) ?? 7, 1), 7)
-        defaultBreakMinutes = max(0, try c.decodeIfPresent(Int.self, forKey: .defaultBreakMinutes) ?? 0)
+        payrollStartDay = try c.decodeIfPresent(Int.self, forKey: .payrollStartDay) ?? 1
+        restDayWeekday = try c.decodeIfPresent(Int.self, forKey: .restDayWeekday) ?? 7
+        defaultBreakMinutes = try c.decodeIfPresent(Int.self, forKey: .defaultBreakMinutes) ?? 0
         nightStandardDayHours = try c.decodeIfPresent(Double.self, forKey: .nightStandardDayHours) ?? 7.0
         currencyCode = try c.decodeIfPresent(String.self, forKey: .currencyCode) ?? "ILS"
         arrivalRemindersEnabled = try c.decodeIfPresent(Bool.self, forKey: .arrivalRemindersEnabled) ?? false
         modifiedAt = try c.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? Date()
+        normalizeValidatedFields()
+    }
+
+    /// Single source of truth for numeric bounds (init + decode).
+    mutating func normalizeValidatedFields() {
+        hourlyRate = max(0, hourlyRate)
+        dailyGasAllowance = max(0, dailyGasAllowance)
+        // Open-closed interval (0, 24]
+        standardDayHours = min(24, max(0.1, standardDayHours))
+        ot125HoursCap = max(0, ot125HoursCap)
+        locationRadiusMeters = min(2_000, max(50, locationRadiusMeters))
+        numberOfChildren = min(15, max(0, numberOfChildren))
+        payrollStartDay = HistoryPeriodHelper.normalizedStartDay(payrollStartDay)
+        restDayWeekday = min(max(restDayWeekday, 1), 7)
+        defaultBreakMinutes = max(0, defaultBreakMinutes)
+        nightStandardDayHours = min(24, max(0.1, nightStandardDayHours))
     }
 }

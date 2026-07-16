@@ -174,3 +174,39 @@ Manual: PrivacyInfo / PRIVACY.md / in-app strings describe the same opt-in iClou
 **Phase 4 (A11, A12, A14–A16):** CSV/formula injection + XML/Markdown escaping; bounded imports; pasteboard hygiene; os_log privacy sweep; settings validation/clamping.
 
 ---
+
+## Phase 4 — Input/output hardening (A11, A12, A14–A16)
+
+**Date:** 16 July 2026  
+**Status:** Complete — tests green; waiting for user `"continue"` before Phase 5.
+
+### (a) Tasks completed
+
+| Task | Summary |
+|---|---|
+| **A11** | `ExportSanitizer`: CSV formula-prefix neutralization (`'=+@` / tab / CR), XML `&quot;`/`&apos;`, Markdown pipe + leading-formatter escaping; wired into activity-log CSV/MD and export Markdown/XML. |
+| **A12** | Import size caps (50 MB binary / 5 MB text), UTType-based type checks, PDF page cap 50, `ZipWriter.data(forEntry:)` bounds-safe reads; localized `fileTooLarge`. |
+| **A14** | History copy uses pasteboard `localOnly` + 60s expiration. |
+| **A15** | Confirmed no `privacy: .public` on Logger identifiers/errors (already `.private` from earlier phases). |
+| **A16** | `WorkplaceSettings.normalizeValidatedFields()` clamps rates/radius/children/hours; Israeli ID checksum soft warning in Settings. |
+
+### (b) Notable files
+
+- `ExportSanitizer.swift`, `IsraeliIDValidator.swift` (new)
+- `ExportManager.swift`, `ActivityLogStore.swift`, `TimesheetScannerManager.swift`, `ZipWriter.swift`
+- `WorkplaceSettings.swift`, `HistoryView.swift`, `SettingsView.swift`, `TimesheetScannerView.swift`
+- Tests: `ExportSanitizerTests`, `WorkplaceSettingsValidationTests`, `TimesheetScannerBoundsTests`, `ZipWriterBoundsTests`
+
+### (c) Verification
+
+**132 tests, 0 failures.** Grep: no `privacy: .public`; no coordinate details in log call sites.
+
+### (d) Deferred
+
+- Physical 200-page PDF / >50 MB import UX is covered by unit bounds; full OCR stress remains manual on device.
+
+### (e) Next phase preview
+
+**Phase 5 (A13):** Optional biometric App Lock + scene-phase privacy overlay + masked national ID field in Settings.
+
+---

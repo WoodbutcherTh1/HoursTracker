@@ -104,6 +104,11 @@ struct SettingsView: View {
             TextField(L10n.settingsFullName, text: $draft.workerFullName)
             TextField(L10n.settingsIDNumber, text: $draft.workerIDNumber)
                 .keyboardType(.numberPad)
+            if IsraeliIDValidator.shouldWarn(for: draft.workerIDNumber) {
+                Text(L10n.settingsIDChecksumWarning)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+            }
             TextField(L10n.settingsEmployeeNumber, text: $draft.employeeNumber)
         }
     }

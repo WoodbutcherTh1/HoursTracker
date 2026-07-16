@@ -1,5 +1,6 @@
 import SwiftUI
 import UIKit
+import UniformTypeIdentifiers
 
 struct HistoryView: View {
     @ObservedObject var viewModel: AppViewModel
@@ -556,7 +557,14 @@ struct HistoryView: View {
     // MARK: - Row actions
 
     private func copySession(_ session: WorkSession) {
-        UIPasteboard.general.string = sessionCopyText(session)
+        let text = sessionCopyText(session)
+        UIPasteboard.general.setItems(
+            [[UTType.utf8PlainText.identifier: text]],
+            options: [
+                .localOnly: true,
+                .expirationDate: Date().addingTimeInterval(60)
+            ]
+        )
         copyToastVisible = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.4) {
             copyToastVisible = false

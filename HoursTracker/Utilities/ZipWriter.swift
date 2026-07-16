@@ -86,22 +86,33 @@ enum ZipWriter {
         let needle = Data(path.utf8)
         var offset = 0
         while offset + 30 <= archive.count {
-            let signature = archive.uint32LE(at: offset)
+            let signature = try archive.uint32LE(at: offset)
             if signature == 0x02014b50 || signature == 0x06054b50 {
                 break
             }
             guard signature == 0x04034b50 else { throw ExportError.zipFailed }
 
-            let compressionMethod = archive.uint16LE(at: offset + 8)
-            let compressedSize = Int(archive.uint32LE(at: offset + 18))
-            let uncompressedSize = Int(archive.uint32LE(at: offset + 22))
-            let fileNameLength = Int(archive.uint16LE(at: offset + 26))
-            let extraLength = Int(archive.uint16LE(at: offset + 28))
+            let compressionMethod = try archive.uint16LE(at: offset + 8)
+            let compressedSize = Int(try archive.uint32LE(at: offset + 18))
+            let uncompressedSize = Int(try archive.uint32LE(at: offset + 22))
+            let fileNameLength = Int(try archive.uint16LE(at: offset + 26))
+            let extraLength = Int(try archive.uint16LE(at: offset + 28))
+
+            guard compressedSize >= 0, uncompressedSize >= 0,
+                  fileNameLength >= 0, extraLength >= 0
+            else { throw ExportError.zipFailed }
+
             let nameStart = offset + 30
             let nameEnd = nameStart + fileNameLength
+            guard nameEnd >= nameStart, nameEnd <= archive.count else {
+                throw ExportError.zipFailed
+            }
             let dataStart = nameEnd + extraLength
+            guard dataStart >= nameEnd else { throw ExportError.zipFailed }
             let dataEnd = dataStart + compressedSize
-            guard dataEnd <= archive.count else { throw ExportError.zipFailed }
+            guard dataEnd >= dataStart, dataEnd <= archive.count else {
+                throw ExportError.zipFailed
+            }
 
             let name = archive.subdata(in: nameStart..<nameEnd)
             if name == needle {
@@ -192,12 +203,14 @@ private extension Data {
         append(Data(bytes: &le, count: 4))
     }
 
-    func uint16LE(at offset: Int) -> UInt16 {
-        UInt16(self[offset]) | (UInt16(self[offset + 1]) << 8)
+    func uint16LE(at offset: Int) throws -> UInt16 {
+        guard offset >= 0, offset + 2 <= count else { throw ExportError.zipFailed }
+        return UInt16(self[offset]) | (UInt16(self[offset + 1]) << 8)
     }
 
-    func uint32LE(at offset: Int) -> UInt32 {
-        UInt32(self[offset])
+    func uint32LE(at offset: Int) throws -> UInt32 {
+        guard offset >= 0, offset + 4 <= count else { throw ExportError.zipFailed }
+        return UInt32(self[offset])
             | (UInt32(self[offset + 1]) << 8)
             | (UInt32(self[offset + 2]) << 16)
             | (UInt32(self[offset + 3]) << 24)

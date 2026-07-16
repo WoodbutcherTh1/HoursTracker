@@ -6089,6 +6089,50 @@
           }
         }
       }
+    },
+    "settings.idChecksumWarning": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رقم الهوية لا يطابق مجموع التحقق الإسرائيلي. ما زال بإمكانك الحفظ."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This ID number doesn’t match the Israeli checksum. You can still save it."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מספר הזהות אינו תואם את סכום הביקורת הישראלי. עדיין אפשר לשמור."
+          }
+        }
+      }
+    },
+    "scanner.error.fileTooLarge": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الملف كبير جداً للاستيراد. اختر صورة أو PDF أصغر (أقل من 50 ميجابايت) أو ملف نصي (أقل من 5 ميجابايت)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file is too large to import. Choose a smaller image, PDF (under 50 MB), or text file (under 5 MB)."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הקובץ גדול מדי לייבוא. בחרו תמונה/PDF קטנים יותר (עד 50 מ״ב) או קובץ טקסט (עד 5 מ״ב)."
+          }
+        }
+      }
     }
   },
   "version": "1.1"

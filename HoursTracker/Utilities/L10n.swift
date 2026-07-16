@@ -127,6 +127,8 @@ enum L10n {
     static var settingsWorkerInfo: String { String(localized: "settings.workerInfo") }
     static var settingsFullName: String { String(localized: "settings.fullName") }
     static var settingsIDNumber: String { String(localized: "settings.idNumber") }
+    static var settingsIDChecksumWarning: String { String(localized: "settings.idChecksumWarning") }
+    static var scannerErrorFileTooLarge: String { String(localized: "scanner.error.fileTooLarge") }
     static var settingsEmployeeNumber: String { String(localized: "settings.employeeNumber") }
     static var settingsWorkplace: String { String(localized: "settings.workplace") }
     static var settingsWorkplaceName: String { String(localized: "settings.workplaceName") }

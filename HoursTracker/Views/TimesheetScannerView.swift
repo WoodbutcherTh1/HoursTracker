@@ -145,7 +145,14 @@ struct TimesheetScannerView: View {
                 }
                 .fileImporter(
                     isPresented: $scannerVM.showFileImporter,
-                    allowedContentTypes: [.pdf, .image, .commaSeparatedText, .plainText],
+                    allowedContentTypes: [
+                        .pdf,
+                        .image,
+                        .commaSeparatedText,
+                        .tabSeparatedText,
+                        .plainText,
+                        .text
+                    ],
                     allowsMultipleSelection: false
                 ) { result in
                     if case .success(let urls) = result, let url = urls.first {

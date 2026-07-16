@@ -246,11 +246,11 @@ final class ActivityLogStore: ObservableObject {
         for entry in entries {
             let stamp = stampFormatter.string(from: entry.timestamp)
             rows.append([
-                csv(stamp),
-                csv(entry.level.rawValue),
-                csv(entry.category),
-                csv(entry.message),
-                csv(entry.details ?? "")
+                ExportSanitizer.csvCell(stamp),
+                ExportSanitizer.csvCell(entry.level.rawValue),
+                ExportSanitizer.csvCell(entry.category),
+                ExportSanitizer.csvCell(entry.message),
+                ExportSanitizer.csvCell(entry.details ?? "")
             ].joined(separator: ","))
         }
         return rows.joined(separator: "\n")
@@ -265,18 +265,13 @@ final class ActivityLogStore: ObservableObject {
         ]
         for entry in entries {
             let stamp = stampFormatter.string(from: entry.timestamp)
-            let details = (entry.details ?? "").replacingOccurrences(of: "|", with: "\\|")
-            let message = entry.message.replacingOccurrences(of: "|", with: "\\|")
+            let details = ExportSanitizer.markdownCell(entry.details ?? "")
+            let message = ExportSanitizer.markdownCell(entry.message)
             lines.append("| \(stamp) | \(entry.level.rawValue) | \(entry.category) | \(message) | \(details) |")
         }
         return lines.joined(separator: "\n")
     }
 
-    private func csv(_ value: String) -> String {
-        let escaped = value.replacingOccurrences(of: "\"", with: "\"\"")
-        if escaped.contains(",") || escaped.contains("\"") || escaped.contains("\n") {
-            return "\"\(escaped)\""
-        }
-        return escaped
-    }
+    /// Test seam for CSV injection coverage.
+    func renderCSVForTesting() -> String { renderCSV() }
 }

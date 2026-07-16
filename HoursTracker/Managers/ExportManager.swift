@@ -440,7 +440,7 @@ final class ExportManager {
         lines.append("# \(copy.title)")
         lines.append("")
         for line in headerLines(report) {
-            lines.append("- \(line)")
+            lines.append("- \(ExportSanitizer.markdownInline(line))")
         }
         lines.append("")
         lines.append("## \(copy.payrollSummary)")
@@ -469,9 +469,11 @@ final class ExportManager {
         lines.append("| " + columns.joined(separator: " | ") + " |")
         lines.append("| " + columns.map { _ in "---" }.joined(separator: " | ") + " |")
         for row in report.rows {
-            lines.append("| " + rowValues(row).joined(separator: " | ") + " |")
+            let cells = rowValues(row).map(ExportSanitizer.markdownCell)
+            lines.append("| " + cells.joined(separator: " | ") + " |")
         }
-        lines.append("| " + totalsValues(report.totals).joined(separator: " | ") + " |")
+        let totalCells = totalsValues(report.totals).map(ExportSanitizer.markdownCell)
+        lines.append("| " + totalCells.joined(separator: " | ") + " |")
         let data = lines.joined(separator: "\n").data(using: .utf8)!
         return try write(data: data, extension: "md")
     }
@@ -554,10 +556,7 @@ final class ExportManager {
     }
 
     private func escapeXML(_ string: String) -> String {
-        string
-            .replacingOccurrences(of: "&", with: "&amp;")
-            .replacingOccurrences(of: "<", with: "&lt;")
-            .replacingOccurrences(of: ">", with: "&gt;")
+        ExportSanitizer.escapeXML(string)
     }
 
     // MARK: - Helpers

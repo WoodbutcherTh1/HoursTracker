@@ -2,6 +2,7 @@ import Foundation
 import UIKit
 import Vision
 import PDFKit
+import UniformTypeIdentifiers
 
 struct ScannedSessionDraft: Identifiable, Equatable {
     let id: UUID
@@ -71,9 +72,10 @@ struct TimesheetScanResult {
     let usedManualFallback: Bool
 }
 
-enum TimesheetScannerError: LocalizedError {
+enum TimesheetScannerError: LocalizedError, Equatable {
     case unsupportedFile
     case pdfRenderFailed
+    case fileTooLarge
 
     var errorDescription: String? {
         switch self {
@@ -81,6 +83,8 @@ enum TimesheetScannerError: LocalizedError {
             return String(localized: "scanner.error.unsupported", defaultValue: "Unsupported file type.")
         case .pdfRenderFailed:
             return String(localized: "scanner.error.pdf", defaultValue: "Could not read this PDF.")
+        case .fileTooLarge:
+            return L10n.scannerErrorFileTooLarge
         }
     }
 }
@@ -88,18 +92,27 @@ enum TimesheetScannerError: LocalizedError {
 actor TimesheetScannerManager {
     static let shared = TimesheetScannerManager()
 
+    /// Images and PDFs.
+    static let maxBinaryFileBytes: Int64 = 50 * 1024 * 1024
+    /// Plain-text / CSV imports.
+    static let maxTextFileBytes: Int64 = 5 * 1024 * 1024
+    /// Bound OCR / PDF work.
+    static let maxPDFPages = 50
+
     func scan(image: UIImage) async throws -> TimesheetScanResult {
         let text = (try? await recognizeText(in: image)) ?? ""
         return parseResult(from: text)
     }
 
     func scan(pdfURL: URL) async throws -> TimesheetScanResult {
+        try Self.validateFileSize(at: pdfURL, maxBytes: Self.maxBinaryFileBytes)
         guard let document = PDFDocument(url: pdfURL) else {
             throw TimesheetScannerError.pdfRenderFailed
         }
 
         var allText = ""
-        for index in 0..<document.pageCount {
+        let pageLimit = min(document.pageCount, Self.maxPDFPages)
+        for index in 0..<pageLimit {
             guard let page = document.page(at: index) else { continue }
             if let pageText = page.string, !pageText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 allText += pageText + "\n"
@@ -111,18 +124,65 @@ actor TimesheetScannerManager {
     }
 
     func scan(fileURL: URL) async throws -> TimesheetScanResult {
-        let ext = fileURL.pathExtension.lowercased()
-        if ext == "pdf" { return try await scan(pdfURL: fileURL) }
-        if ["png", "jpg", "jpeg", "heic", "tif", "tiff"].contains(ext),
-           let data = try? Data(contentsOf: fileURL),
-           let image = UIImage(data: data) {
+        let contentType = try fileURL.resourceValues(forKeys: [.contentTypeKey]).contentType
+
+        if let contentType, contentType.conforms(to: .pdf) {
+            return try await scan(pdfURL: fileURL)
+        }
+        if let contentType, contentType.conforms(to: .image) {
+            try Self.validateFileSize(at: fileURL, maxBytes: Self.maxBinaryFileBytes)
+            let data = try Data(contentsOf: fileURL)
+            guard let image = UIImage(data: data) else {
+                throw TimesheetScannerError.unsupportedFile
+            }
             return try await scan(image: image)
         }
-        if ["csv", "tsv", "txt", "md"].contains(ext),
-           let text = try? String(contentsOf: fileURL, encoding: .utf8) {
+        if let contentType, Self.isTextImportType(contentType) {
+            try Self.validateFileSize(at: fileURL, maxBytes: Self.maxTextFileBytes)
+            let text = try String(contentsOf: fileURL, encoding: .utf8)
+            return parseResult(from: text)
+        }
+
+        // Fallback for providers that omit contentType: extension as a last resort.
+        let ext = fileURL.pathExtension.lowercased()
+        if ext == "pdf" { return try await scan(pdfURL: fileURL) }
+        if ["png", "jpg", "jpeg", "heic", "tif", "tiff"].contains(ext) {
+            try Self.validateFileSize(at: fileURL, maxBytes: Self.maxBinaryFileBytes)
+            let data = try Data(contentsOf: fileURL)
+            guard let image = UIImage(data: data) else {
+                throw TimesheetScannerError.unsupportedFile
+            }
+            return try await scan(image: image)
+        }
+        if ["csv", "tsv", "txt", "md"].contains(ext) {
+            try Self.validateFileSize(at: fileURL, maxBytes: Self.maxTextFileBytes)
+            let text = try String(contentsOf: fileURL, encoding: .utf8)
             return parseResult(from: text)
         }
         throw TimesheetScannerError.unsupportedFile
+    }
+
+    nonisolated static func isTextImportType(_ type: UTType) -> Bool {
+        type.conforms(to: .plainText)
+            || type.conforms(to: .text)
+            || type.conforms(to: .commaSeparatedText)
+            || type.conforms(to: .tabSeparatedText)
+    }
+
+    nonisolated static func validateFileSize(at url: URL, maxBytes: Int64) throws {
+        let values = try url.resourceValues(forKeys: [.fileSizeKey])
+        let size = Int64(values.fileSize ?? 0)
+        if size <= 0 {
+            let attrs = try FileManager.default.attributesOfItem(atPath: url.path)
+            let attrSize = attrs[.size] as? NSNumber
+            if let attrSize, attrSize.int64Value > maxBytes {
+                throw TimesheetScannerError.fileTooLarge
+            }
+            return
+        }
+        if size > maxBytes {
+            throw TimesheetScannerError.fileTooLarge
+        }
     }
 
     // MARK: - Vision
