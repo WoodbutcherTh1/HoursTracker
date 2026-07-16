@@ -13,6 +13,7 @@ You are acting as a **senior iOS security engineer** preparing this app for App 
 - Do NOT change payroll/overtime/tax calculation logic (`OvertimeCalculator`, `IsraeliTaxEstimator`, `TaxCreditPointsCalculator`, `HistoryPeriodHelper`).
 - Every new user-facing string must be localized through `HoursTracker/Resources/Localizable.xcstrings` (English, Hebrew, Arabic) and used via the existing `L10n` pattern in `HoursTracker/Utilities/L10n.swift`.
 - Keep the project buildable via `xcodegen generate` and keep the full test suite green (`xcodebuild test -project HoursTracker.xcodeproj -scheme HoursTracker -destination 'platform=iOS Simulator,...'`). Add tests for every behavior change listed below.
+- **Encryption must stay transparent to in-app reads.** Every piece of stored user data (JSON stores, Keychain-held fields, activity log) must remain readable in full, at runtime, through the existing store interfaces (`PersistableStore` / `SyncingStore`, `WorkplaceSettings`, `ActivityLogStore`). Never create write-only storage, never scatter decryption logic into individual consumers (e.g. only inside an export renderer), and never make the complete data set impossible to enumerate through those interfaces. Protection classes and Keychain are for the at-rest layer only; the domain layer above them keeps working with plain values.
 - Work through the phases in order, respecting the guardrails in Part C. Verify with Part D.
 
 ---
@@ -64,6 +65,7 @@ The work is split into **6 phases** (mapped onto the tasks in Parts A and B belo
 
 **Required:**
 - Store the ID number in the **Keychain** with `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` (a small internal `KeychainStore` helper using the Security framework; no third-party wrappers). Remove it from the JSON payload and from the CloudKit settings record: encode it as an empty/absent field, and read it back from Keychain on load. Handle migration: on first load after update, if the JSON still contains a value, move it to Keychain and rewrite the JSON without it.
+- Keep the field's public API unchanged: after loading, `WorkplaceSettings.workerIDNumber` still carries the plain value in memory, so every current and future consumer reads it the same way — the Keychain indirection lives only inside the persistence layer (load/save), not in view models or renderers.
 - Alternatively (if Keychain complicates the sync design too much): encrypt the field with CryptoKit `AES.GCM` using a per-device key held in the Keychain, and store only ciphertext in JSON/CloudKit. Pick one approach, implement it fully, and document the decision in `docs/ARCHITECTURE.md`.
 - Data minimization: the ID number is only used in export headers (`ExportManager.headerLines`). Keep the feature, but make sure the export path reads it just-in-time and nothing logs it.
 - Make sure `deleteAllUserData()` also removes the Keychain item.
@@ -81,6 +83,7 @@ The work is split into **6 phases** (mapped onto the tasks in Parts A and B belo
 **Required:**
 - Write export files into a dedicated subdirectory (e.g. `tmp/Exports/`) with complete file protection.
 - Delete the file after the share sheet completes: pass a `completionWithItemsHandler` through `ShareSheet` (`HoursTracker/Views/ExportView.swift`) and the share paths in `HistoryView` / `ActivityLogView`, or at minimum delete all files in the exports directory on every app launch and on scene-phase background.
+- Build this as one small reusable helper (create protected temp file → share → clean up) rather than logic wired to the current report formats, so any file-producing flow added later automatically gets the same protection and cleanup.
 - Wipe the exports directory inside `deleteAllUserData()`.
 
 ### A5. Make "Delete All My Data" actually delete everything (App Store Guideline 5.1.1)
