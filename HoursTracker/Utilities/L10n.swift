@@ -284,6 +284,9 @@ enum L10n {
     static var privacyBodyContact: String { String(localized: "privacy.body.contact") }
     static var privacyDeleteAll: String { String(localized: "privacy.deleteAll") }
     static var privacyDeleteAllConfirm: String { String(localized: "privacy.deleteAllConfirm") }
+    static var privacyDeleteCloudPartialFailure: String {
+        String(localized: "privacy.deleteCloudPartialFailure")
+    }
 
     // Activity log
     static var logTitle: String { String(localized: "log.title") }

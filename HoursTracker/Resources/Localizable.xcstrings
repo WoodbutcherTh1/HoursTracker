@@ -4731,19 +4731,41 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "هذا يمسح كل الورديات ويعيد الإعدادات على هذا الجهاز. لا يمكن التراجع."
+            "value": "هذا يمسح كل الورديات والإعدادات والسجلات على هذا الجهاز، وأي نسخ في iCloud الخاصة بك إن وُجدت. لا يمكن التراجع."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "This erases all shifts and resets settings on this device. This cannot be undone."
+            "value": "This erases all shifts, settings, and logs on this device, and any copies in your private iCloud when sync is available. This cannot be undone."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "פעולה זו תמחק את כל המשמרות ותאפס הגדרות במכשיר זה. לא ניתן לבטל."
+            "value": "פעולה זו תמחק את כל המשמרות, ההגדרות והיומנים במכשיר זה, וגם עותקים ב-iCloud הפרטי שלך כשסנכרון זמין. לא ניתן לבטל."
+          }
+        }
+      }
+    },
+    "privacy.deleteCloudPartialFailure": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم مسح البيانات على هذا الجهاز، لكن تعذّر حذف بعض نسخ iCloud. حاول مجدداً عند الاتصال."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data on this device was erased, but some iCloud copies could not be deleted. Try again when online."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הנתונים במכשיר נמחקו, אך לא הצלחנו למחוק חלק מהעותקים ב-iCloud. נסו שוב כשיש חיבור."
           }
         }
       }
