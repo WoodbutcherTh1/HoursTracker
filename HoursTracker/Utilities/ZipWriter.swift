@@ -74,7 +74,7 @@ enum ZipWriter {
         endRecord.appendUInt16(0)
 
         archive.append(endRecord)
-        try archive.write(to: outputURL)
+        try ProtectedFileWriter.shared.write(archive, to: outputURL)
     }
 
     /// Reads one entry written by `createArchive`. Used by tests (iOS has no `Process`/`unzip`).

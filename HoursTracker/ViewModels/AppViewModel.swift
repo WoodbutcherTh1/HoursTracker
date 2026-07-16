@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import UserNotifications
 
 @MainActor
 final class AppViewModel: ObservableObject {
@@ -342,20 +343,39 @@ final class AppViewModel: ObservableObject {
         )
     }
 
-    /// Erases all sessions and resets settings on this device (Guideline 5.1.1 data control).
+    /// Erases all local data and, when CloudKit is supported, remote copies too
+    /// (Guideline 5.1.1 data control). National ID Keychain item is cleared via settings reset.
     func deleteAllUserData() {
+        let cloudSessionIDs = Set(sessions.map(\.id))
         sessions = []
         settings = .default
-        persist()
-        persistSettings()
+        do {
+            try store.saveSessions(sessions)
+            // Avoid re-uploading default settings; cloud purge removes the record instead.
+            try store.saveSettingsLocally(settings)
+        } catch {
+            errorMessage = L10n.errorSaveFailed
+        }
         locationManager.stopArrivalReminders()
         refreshReminders()
+        ExportTempFileStore.wipeAll()
+        UNUserNotificationCenter.current().removeAllPendingNotificationRequests()
+        UNUserNotificationCenter.current().removeAllDeliveredNotifications()
         ActivityLogStore.shared.wipeForPrivacy()
         ActivityLogStore.shared.log(
             L10n.logEventDataDeleted,
             level: .warning,
             category: "privacy"
         )
+
+        guard store.isCloudSyncSupported else { return }
+        Task {
+            do {
+                try await store.purgeCloudData(sessionIDs: cloudSessionIDs)
+            } catch {
+                errorMessage = L10n.privacyDeleteCloudPartialFailure
+            }
+        }
     }
 
     func captureCurrentLocation() {
@@ -381,8 +401,7 @@ final class AppViewModel: ObservableObject {
         ActivityLogStore.shared.log(
             L10n.logEventLocationSet,
             level: .success,
-            category: "location",
-            details: String(format: "%.5f, %.5f", location.coordinate.latitude, location.coordinate.longitude)
+            category: "location"
         )
     }
 

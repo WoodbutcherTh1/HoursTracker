@@ -529,7 +529,8 @@ final class ExportManager {
         </Relationships>
         """
 
-        let outputURL = FileManager.default.temporaryDirectory
+        try ExportTempFileStore.prepareDirectory()
+        let outputURL = ExportTempFileStore.exportsDirectory
             .appendingPathComponent("HoursReport-\(UUID().uuidString).docx")
 
         let entries: [ZipWriter.Entry] = [
@@ -679,10 +680,10 @@ final class ExportManager {
     }
 
     private func write(data: Data, extension ext: String) throws -> URL {
-        let url = FileManager.default.temporaryDirectory
-            .appendingPathComponent("HoursReport-\(UUID().uuidString).\(ext)")
-        try data.write(to: url)
-        return url
+        try ExportTempFileStore.write(
+            data: data,
+            fileName: "HoursReport-\(UUID().uuidString).\(ext)"
+        )
     }
 }
 

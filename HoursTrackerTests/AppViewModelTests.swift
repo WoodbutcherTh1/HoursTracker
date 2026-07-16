@@ -132,4 +132,54 @@ final class AppViewModelTests: XCTestCase {
 
         XCTAssertNotNil(viewModel.errorMessage)
     }
+
+    func testDeleteAllUserDataClearsLocalStateAndUsesLocalSettingsSave() async {
+        let session = TestData.session(day: 1)
+        let store = InMemoryStore()
+        store.isCloudSyncSupported = true
+        store.storedSessions = [session]
+        store.storedSettings = TestData.settings()
+        let location = MockLocationReminderManager()
+        let viewModel = AppViewModel(store: store, locationManager: location)
+
+        let exportURL = try? ExportTempFileStore.write(
+            data: Data("leftover".utf8),
+            fileName: "HoursReport-delete-all.txt"
+        )
+
+        viewModel.deleteAllUserData()
+
+        XCTAssertTrue(viewModel.sessions.isEmpty)
+        XCTAssertEqual(viewModel.settings.workerIDNumber, "")
+        XCTAssertEqual(viewModel.settings.workplaceName, "")
+        XCTAssertEqual(viewModel.settings.hourlyRate, WorkplaceSettings.default.hourlyRate)
+        XCTAssertEqual(store.saveSettingsLocallyCallCount, 1)
+        XCTAssertEqual(location.stopReminderCalls, 1)
+        if let exportURL {
+            XCTAssertFalse(FileManager.default.fileExists(atPath: exportURL.path))
+        }
+
+        let deadline = Date().addingTimeInterval(2)
+        while store.purgeCloudCallCount == 0, Date() < deadline {
+            await Task.yield()
+        }
+        XCTAssertEqual(store.purgeCloudCallCount, 1)
+        XCTAssertEqual(store.lastPurgedSessionIDs, [session.id])
+    }
+
+    func testDeleteAllUserDataSurfacesCloudPurgeFailure() async {
+        let store = InMemoryStore()
+        store.isCloudSyncSupported = true
+        store.purgeCloudError = NSError(domain: "test", code: 99)
+        store.storedSessions = [TestData.session(day: 2)]
+        let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+
+        viewModel.deleteAllUserData()
+
+        let deadline = Date().addingTimeInterval(2)
+        while viewModel.errorMessage == nil, Date() < deadline {
+            await Task.yield()
+        }
+        XCTAssertEqual(viewModel.errorMessage, L10n.privacyDeleteCloudPartialFailure)
+    }
 }

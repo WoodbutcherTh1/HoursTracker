@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 enum ActivityLogLevel: String, Codable, CaseIterable {
     case info
@@ -53,6 +54,7 @@ enum ActivityLogExportFormat: String, CaseIterable, Identifiable {
 }
 
 /// Persistent on-device activity log the user can browse and export.
+/// Details must never contain PII, GPS coordinates, or free-text notes.
 @MainActor
 final class ActivityLogStore: ObservableObject {
     static let shared = ActivityLogStore()
@@ -60,7 +62,9 @@ final class ActivityLogStore: ObservableObject {
     @Published private(set) var entries: [ActivityLogEntry] = []
 
     private let maxEntries = 500
-    private let fileManager = FileManager.default
+    private let fileManager: FileManager
+    private let fileWriter: FileWriting
+    private let logger = Logger(subsystem: "com.hourstracker.app", category: "activityLog")
     private let encoder: JSONEncoder = {
         let e = JSONEncoder()
         e.dateEncodingStrategy = .iso8601
@@ -73,13 +77,23 @@ final class ActivityLogStore: ObservableObject {
         return d
     }()
 
-    private var logURL: URL {
+    var logURL: URL {
         fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("activity_log.json")
     }
 
-    private init() {
+    /// Matches legacy "lat, lon" details written before coordinate scrubbing.
+    static let coordinateDetailsPattern = /^[+-]?\d+(\.\d+)?\s*,\s*[+-]?\d+(\.\d+)?$/
+
+    init(
+        fileManager: FileManager = .default,
+        fileWriter: FileWriting = ProtectedFileWriter.shared
+    ) {
+        self.fileManager = fileManager
+        self.fileWriter = fileWriter
         load()
+        scrubCoordinateDetailsIfNeeded()
+        migrateProtectionIfNeeded()
     }
 
     func log(
@@ -127,9 +141,12 @@ final class ActivityLogStore: ObservableObject {
         }
 
         let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
-        let url = fileManager.temporaryDirectory
-            .appendingPathComponent("HourTrackers-Log-\(stamp).\(format.fileExtension)")
-        try data.write(to: url, options: .atomic)
+        let url = try ExportTempFileStore.write(
+            data: data,
+            fileName: "HourTrackers-Log-\(stamp).\(format.fileExtension)",
+            writer: fileWriter,
+            fileManager: fileManager
+        )
         log(
             L10n.logEventLogExported,
             level: .success,
@@ -137,6 +154,36 @@ final class ActivityLogStore: ObservableObject {
             details: format.fileExtension.uppercased()
         )
         return url
+    }
+
+    /// Test seam: replace in-memory entries without persisting first.
+    func replaceEntriesForTesting(_ newEntries: [ActivityLogEntry]) {
+        entries = newEntries
+    }
+
+    /// Removes coordinate-like details from historical "location" entries.
+    func scrubCoordinateDetailsIfNeeded() {
+        var changed = false
+        let scrubbed = entries.map { entry -> ActivityLogEntry in
+            guard entry.category == "location",
+                  let details = entry.details,
+                  details.wholeMatch(of: Self.coordinateDetailsPattern) != nil
+            else {
+                return entry
+            }
+            changed = true
+            return ActivityLogEntry(
+                id: entry.id,
+                timestamp: entry.timestamp,
+                level: entry.level,
+                category: entry.category,
+                message: entry.message,
+                details: nil
+            )
+        }
+        guard changed else { return }
+        entries = scrubbed
+        persist()
     }
 
     // MARK: - Persistence
@@ -153,8 +200,24 @@ final class ActivityLogStore: ObservableObject {
     }
 
     private func persist() {
-        guard let data = try? encoder.encode(entries) else { return }
-        try? data.write(to: logURL, options: .atomic)
+        do {
+            let data = try encoder.encode(entries)
+            try fileWriter.write(data, to: logURL)
+        } catch {
+            logger.error("Failed to persist activity log: \(error.localizedDescription, privacy: .private)")
+        }
+    }
+
+    private func migrateProtectionIfNeeded() {
+        do {
+            try ProtectedFileMigration.ensureProtection(
+                at: logURL,
+                fileManager: fileManager,
+                writer: fileWriter
+            )
+        } catch {
+            logger.error("Failed to migrate activity log protection: \(error.localizedDescription, privacy: .private)")
+        }
     }
 
     // MARK: - Renderers

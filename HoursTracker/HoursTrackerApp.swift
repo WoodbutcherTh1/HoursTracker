@@ -10,12 +10,17 @@ struct HoursTrackerApp: App {
             MainTabView(viewModel: viewModel)
                 .keyboardDismissible()
                 .onAppear {
+                    ExportTempFileStore.wipeAll()
                     viewModel.syncNow()
                     KeyboardTapDismissInstaller.shared.installIfNeeded()
                 }
                 .onChange(of: scenePhase) { _, phase in
+                    // Wipe on background only — `.inactive` also fires while the share
+                    // sheet is presented and would delete the file mid-share.
                     if phase == .active {
                         viewModel.syncNow()
+                    } else if phase == .background {
+                        ExportTempFileStore.wipeAll()
                     }
                 }
         }

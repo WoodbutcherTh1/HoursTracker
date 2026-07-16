@@ -48,4 +48,43 @@ final class ActivityLogStoreTests: XCTestCase {
         store.wipeForPrivacy()
         XCTAssertTrue(store.entries.isEmpty)
     }
+
+    func testScrubRemovesCoordinateDetailsFromLocationEntries() {
+        let polluted = ActivityLogEntry(
+            level: .success,
+            category: "location",
+            message: "Workplace location set",
+            details: "32.08530, 34.78180"
+        )
+        let clean = ActivityLogEntry(
+            level: .info,
+            category: "location",
+            message: "Arrival reminders enabled",
+            details: nil
+        )
+        let unrelated = ActivityLogEntry(
+            level: .success,
+            category: "clock",
+            message: "Clocked in",
+            details: "2026-07-16T08:00:00Z"
+        )
+        store.replaceEntriesForTesting([polluted, clean, unrelated])
+
+        store.scrubCoordinateDetailsIfNeeded()
+
+        XCTAssertNil(store.entries.first { $0.id == polluted.id }?.details)
+        XCTAssertNil(store.entries.first { $0.id == clean.id }?.details)
+        XCTAssertEqual(store.entries.first { $0.id == unrelated.id }?.details, "2026-07-16T08:00:00Z")
+    }
+
+    func testExportWritesIntoExportsTempDirectory() throws {
+        store.log("Clocked in", level: .success, category: "clock")
+        let url = try store.export(format: .txt)
+        defer { ExportTempFileStore.remove(url) }
+        XCTAssertTrue(url.path.contains("/Exports/"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+        if let protection = try ProtectedFileMigration.protection(at: url) {
+            XCTAssertEqual(protection, .completeUnlessOpen)
+        }
+    }
 }
