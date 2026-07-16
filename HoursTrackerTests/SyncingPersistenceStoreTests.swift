@@ -4,16 +4,19 @@ import XCTest
 final class SyncingPersistenceStoreTests: XCTestCase {
     private var local: InMemoryStore!
     private var cloud: RecordingCloud!
+    private var tombstones: InMemoryTombstoneStore!
     private var store: SyncingPersistenceStore!
 
     override func setUp() {
         super.setUp()
         local = InMemoryStore()
         cloud = RecordingCloud()
+        tombstones = InMemoryTombstoneStore()
         store = SyncingPersistenceStore(
             local: local,
             cloud: cloud,
-            syncPreference: InMemoryCloudSyncPreference(isEnabled: true)
+            syncPreference: InMemoryCloudSyncPreference(isEnabled: true),
+            tombstones: tombstones
         )
     }
 
@@ -103,5 +106,23 @@ final class SyncingPersistenceStoreTests: XCTestCase {
         try await store.purgeCloudData(sessionIDs: ids)
         XCTAssertEqual(cloud.purgeCallCount, 1)
         XCTAssertEqual(cloud.lastPurgedSessionIDs, ids)
+        XCTAssertEqual(tombstones.tombstoneIDs, ids)
+    }
+
+    func testLocalDeletionRecordsTombstoneEvenWhenSyncDisabled() throws {
+        let kept = TestData.session(day: 1)
+        let removed = TestData.session(day: 2)
+        local.storedSessions = [kept, removed]
+        store = SyncingPersistenceStore(
+            local: local,
+            cloud: cloud,
+            syncPreference: InMemoryCloudSyncPreference(isEnabled: false),
+            tombstones: tombstones
+        )
+
+        try store.saveSessions([kept])
+
+        XCTAssertEqual(tombstones.tombstoneIDs, [removed.id])
+        XCTAssertTrue(cloud.deletedIDBatches.isEmpty)
     }
 }

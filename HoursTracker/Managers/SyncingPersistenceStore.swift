@@ -20,6 +20,8 @@ final class SyncingPersistenceStore: SyncingStore {
     private let local: PersistableStore
     private let cloud: CloudSyncing
     private let syncPreference: CloudSyncPreferencing
+    private let tombstones: SessionTombstoneStoring
+    private let writeQueue = CloudWriteQueue()
 
     private(set) var syncState: SyncState = .idle
 
@@ -33,11 +35,13 @@ final class SyncingPersistenceStore: SyncingStore {
     init(
         local: PersistableStore = PersistenceManager.shared,
         cloud: CloudSyncing? = nil,
-        syncPreference: CloudSyncPreferencing = UserDefaultsCloudSyncPreference.shared
+        syncPreference: CloudSyncPreferencing = UserDefaultsCloudSyncPreference.shared,
+        tombstones: SessionTombstoneStoring = SessionTombstoneStore.shared
     ) {
         self.local = local
         self.cloud = cloud ?? CloudKitSyncManager.makeDefault()
         self.syncPreference = syncPreference
+        self.tombstones = tombstones
         if !self.cloud.isSupported {
             syncState = .unavailable
         }
@@ -52,14 +56,19 @@ final class SyncingPersistenceStore: SyncingStore {
         let previousByID = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
         let deletedIDs = Set(previousByID.keys).subtracting(sessions.map(\.id))
         let changed = sessions.filter { previousByID[$0.id] != $0 }
+        if !deletedIDs.isEmpty {
+            tombstones.record(ids: deletedIDs)
+        }
         try local.saveSessions(sessions)
         guard syncPreference.isEnabled else { return }
         Task {
-            if !deletedIDs.isEmpty {
-                await cloud.deleteSessions(ids: deletedIDs)
-            }
-            if !changed.isEmpty {
-                await cloud.uploadSessions(changed)
+            await writeQueue.enqueue { [cloud] in
+                if !deletedIDs.isEmpty {
+                    await cloud.deleteSessions(ids: deletedIDs)
+                }
+                if !changed.isEmpty {
+                    await cloud.uploadSessions(changed)
+                }
             }
         }
     }
@@ -72,7 +81,9 @@ final class SyncingPersistenceStore: SyncingStore {
         try local.saveSettings(settings)
         guard syncPreference.isEnabled else { return }
         Task {
-            await cloud.uploadSettings(settings)
+            await writeQueue.enqueue { [cloud] in
+                await cloud.uploadSettings(settings)
+            }
         }
     }
 
@@ -82,6 +93,9 @@ final class SyncingPersistenceStore: SyncingStore {
 
     func purgeCloudData(sessionIDs: Set<UUID>) async throws {
         guard cloud.isSupported else { return }
+        if !sessionIDs.isEmpty {
+            tombstones.record(ids: sessionIDs)
+        }
         try await cloud.purgeUserCloudData(sessionIDs: sessionIDs)
     }
 
@@ -94,13 +108,16 @@ final class SyncingPersistenceStore: SyncingStore {
         }
 
         syncState = .syncing
+        tombstones.prune()
         let localSessions = local.loadSessions()
         let localSettings = local.loadSettings()
+        let deleted = tombstones.tombstoneIDs
 
         do {
             let result = try await cloud.sync(
                 localSessions: localSessions,
-                localSettings: localSettings
+                localSettings: localSettings,
+                tombstoneIDs: deleted
             )
             try local.saveSessions(result.sessions)
             try local.saveSettings(result.settings)

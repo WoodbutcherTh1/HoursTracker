@@ -90,4 +90,69 @@ final class SyncMergeTests: XCTestCase {
         XCTAssertEqual(merged.workplaceName, "Remote")
         XCTAssertEqual(merged.workerIDNumber, "local-id")
     }
+
+    func testTombstonedRemoteSessionIsNotResurrected() {
+        let deletedID = UUID()
+        let survivor = TestData.session(day: 1)
+        let ghost = TestData.session(day: 2, id: deletedID)
+        let otherRemote = TestData.session(day: 3)
+
+        let merged = CloudKitSyncManager.mergeSessions(
+            local: [survivor],
+            remote: [ghost, otherRemote],
+            tombstoneIDs: [deletedID]
+        )
+
+        XCTAssertEqual(Set(merged.map(\.id)), Set([survivor.id, otherRemote.id]))
+        XCTAssertFalse(merged.contains { $0.id == deletedID })
+    }
+
+    func testTombstoneRemovesStaleLocalCopy() {
+        let deletedID = UUID()
+        let staleLocal = TestData.session(day: 1, id: deletedID)
+        let remoteOther = TestData.session(day: 2)
+
+        let merged = CloudKitSyncManager.mergeSessions(
+            local: [staleLocal],
+            remote: [remoteOther],
+            tombstoneIDs: [deletedID]
+        )
+
+        XCTAssertEqual(merged.map(\.id), [remoteOther.id])
+    }
+
+    func testConflictResolverPrefersNewerModifiedAt() {
+        let older = Date(timeIntervalSince1970: 1)
+        let newer = Date(timeIntervalSince1970: 2)
+        let intended = "intended"
+        let server = "server"
+
+        XCTAssertEqual(
+            CloudKitSyncManager.resolveConflictWinner(
+                intendedModifiedAt: newer,
+                serverModifiedAt: older,
+                intended: intended,
+                server: server
+            ),
+            "intended"
+        )
+        XCTAssertEqual(
+            CloudKitSyncManager.resolveConflictWinner(
+                intendedModifiedAt: older,
+                serverModifiedAt: newer,
+                intended: intended,
+                server: server
+            ),
+            "server"
+        )
+        XCTAssertEqual(
+            CloudKitSyncManager.resolveConflictWinner(
+                intendedModifiedAt: newer,
+                serverModifiedAt: newer,
+                intended: intended,
+                server: server
+            ),
+            "intended"
+        )
+    }
 }

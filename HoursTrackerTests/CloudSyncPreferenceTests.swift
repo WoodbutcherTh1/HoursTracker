@@ -12,7 +12,12 @@ final class CloudSyncPreferenceTests: XCTestCase {
         preference = InMemoryCloudSyncPreference(isEnabled: false)
         local = InMemoryStore()
         cloud = RecordingCloud()
-        store = SyncingPersistenceStore(local: local, cloud: cloud, syncPreference: preference)
+        store = SyncingPersistenceStore(
+            local: local,
+            cloud: cloud,
+            syncPreference: preference,
+            tombstones: InMemoryTombstoneStore()
+        )
     }
 
     func testDefaultPreferenceIsOff() {

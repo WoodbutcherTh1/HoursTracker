@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  Copy these keys into HoursTracker/HoursTracker.entitlements ONLY for paid-team
+  CloudKit builds that also set HTCloudKitEnabled = true in Info.plist.
+
+  Personal-team / local builds must keep HoursTracker.entitlements empty — creating
+  CKContainer without these entitlements aborts the process at launch.
+-->
+<dict>
+	<key>com.apple.developer.icloud-container-identifiers</key>
+	<array>
+		<string>iCloud.com.hourstracker.app</string>
+	</array>
+	<key>com.apple.developer.icloud-services</key>
+	<array>
+		<string>CloudKit</string>
+	</array>
+</dict>
+</plist>

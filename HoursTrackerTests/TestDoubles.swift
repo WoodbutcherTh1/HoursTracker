@@ -85,6 +85,31 @@ final class InMemoryCloudSyncPreference: CloudSyncPreferencing {
     }
 }
 
+final class InMemoryTombstoneStore: SessionTombstoneStoring {
+    private var storage: [UUID: SessionTombstone] = [:]
+
+    var tombstoneIDs: Set<UUID> { Set(storage.keys) }
+
+    func record(ids: Set<UUID>, at date: Date = Date()) {
+        for id in ids {
+            storage[id] = SessionTombstone(id: id, deletedAt: date)
+        }
+    }
+
+    func prune(olderThan interval: TimeInterval) {
+        let cutoff = Date().addingTimeInterval(-interval)
+        storage = storage.filter { $0.value.deletedAt >= cutoff }
+    }
+
+    func remove(ids: Set<UUID>) {
+        for id in ids { storage.removeValue(forKey: id) }
+    }
+
+    func removeAll() {
+        storage = [:]
+    }
+}
+
 final class RecordingCloud: CloudSyncing {
     var isSupported = true
     var state: SyncState = .idle
@@ -101,8 +126,17 @@ final class RecordingCloud: CloudSyncing {
         true
     }
 
-    func sync(localSessions: [WorkSession], localSettings: WorkplaceSettings) async throws -> SyncResult {
-        SyncResult(sessions: localSessions, settings: localSettings)
+    func sync(
+        localSessions: [WorkSession],
+        localSettings: WorkplaceSettings,
+        tombstoneIDs: Set<UUID>
+    ) async throws -> SyncResult {
+        let sessions = CloudKitSyncManager.mergeSessions(
+            local: localSessions,
+            remote: [],
+            tombstoneIDs: tombstoneIDs
+        )
+        return SyncResult(sessions: sessions, settings: localSettings)
     }
 
     func uploadSessions(_ sessions: [WorkSession]) async {

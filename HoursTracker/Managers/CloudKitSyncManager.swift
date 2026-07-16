@@ -21,7 +21,11 @@ protocol CloudSyncing: AnyObject {
     var isSupported: Bool { get }
     var state: SyncState { get }
     func checkAvailability() async -> Bool
-    func sync(localSessions: [WorkSession], localSettings: WorkplaceSettings) async throws -> SyncResult
+    func sync(
+        localSessions: [WorkSession],
+        localSettings: WorkplaceSettings,
+        tombstoneIDs: Set<UUID>
+    ) async throws -> SyncResult
     func uploadSessions(_ sessions: [WorkSession]) async
     func uploadSettings(_ settings: WorkplaceSettings) async
     func deleteSessions(ids: Set<UUID>) async
@@ -37,9 +41,18 @@ final class NoOpCloudSyncManager: CloudSyncing {
 
     func checkAvailability() async -> Bool { false }
 
-    func sync(localSessions: [WorkSession], localSettings: WorkplaceSettings) async throws -> SyncResult {
+    func sync(
+        localSessions: [WorkSession],
+        localSettings: WorkplaceSettings,
+        tombstoneIDs: Set<UUID>
+    ) async throws -> SyncResult {
         state = .unavailable
-        return SyncResult(sessions: localSessions, settings: localSettings)
+        let sessions = CloudKitSyncManager.mergeSessions(
+            local: localSessions,
+            remote: [],
+            tombstoneIDs: tombstoneIDs
+        )
+        return SyncResult(sessions: sessions, settings: localSettings)
     }
 
     func uploadSessions(_ sessions: [WorkSession]) async {}
@@ -48,6 +61,14 @@ final class NoOpCloudSyncManager: CloudSyncing {
     func purgeUserCloudData(sessionIDs: Set<UUID>) async throws {}
 }
 
+/// CloudKit private-DB sync.
+///
+/// **Entitlements:** A CloudKit-enabled build requires
+/// `com.apple.developer.icloud-container-identifiers` /
+/// `com.apple.developer.icloud-services` for container `iCloud.com.hourstracker.app`
+/// (see `docs/HoursTracker.entitlements.cloudkit.example`). Personal-team installs keep
+/// `HoursTracker.entitlements` empty and `HTCloudKitEnabled` false so `CKContainer`
+/// is never created.
 final class CloudKitSyncManager: CloudSyncing {
     static let shared = CloudKitSyncManager()
 
@@ -58,6 +79,7 @@ final class CloudKitSyncManager: CloudSyncing {
     private let encoder: JSONEncoder
     private let decoder: JSONDecoder
     private let logger = Logger(subsystem: "com.hourstracker.app", category: "cloudkit")
+    private let writeQueue = CloudWriteQueue()
 
     private(set) var state: SyncState = .unavailable
 
@@ -90,6 +112,7 @@ final class CloudKitSyncManager: CloudSyncing {
             return
         }
 
+        // Requires CloudKit entitlements — see docs/HoursTracker.entitlements.cloudkit.example.
         container = CKContainer(identifier: containerIdentifier)
         state = .idle
     }
@@ -113,7 +136,11 @@ final class CloudKitSyncManager: CloudSyncing {
         }
     }
 
-    func sync(localSessions: [WorkSession], localSettings: WorkplaceSettings) async throws -> SyncResult {
+    func sync(
+        localSessions: [WorkSession],
+        localSettings: WorkplaceSettings,
+        tombstoneIDs: Set<UUID>
+    ) async throws -> SyncResult {
         guard await checkAvailability() else {
             state = .unavailable
             return SyncResult(sessions: localSessions, settings: localSettings)
@@ -131,8 +158,19 @@ final class CloudKitSyncManager: CloudSyncing {
 
         let (cloudSessions, cloudSettings) = try await (remoteSessions, remoteSettings)
 
-        let mergedSessions = Self.mergeSessions(local: localSessions, remote: cloudSessions)
+        let mergedSessions = Self.mergeSessions(
+            local: localSessions,
+            remote: cloudSessions,
+            tombstoneIDs: tombstoneIDs
+        )
         let mergedSettings = Self.mergeSettings(local: localSettings, remote: cloudSettings)
+
+        // Push deletions for anything still living remotely after a local delete.
+        let remoteIDs = Set(cloudSessions.map(\.id))
+        let staleRemote = tombstoneIDs.intersection(remoteIDs)
+        if !staleRemote.isEmpty {
+            await deleteSessions(ids: staleRemote)
+        }
 
         await uploadSessions(mergedSessions)
         await uploadSettings(mergedSettings)
@@ -142,69 +180,154 @@ final class CloudKitSyncManager: CloudSyncing {
     }
 
     func uploadSessions(_ sessions: [WorkSession]) async {
-        guard let database, await checkAvailability() else { return }
-        for session in sessions {
-            do {
-                let record = try makeSessionRecord(session)
-                _ = try await database.save(record)
-            } catch {
-                // Individual record failures should not block other uploads.
-                logger.error("Failed to upload session \(session.id, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        await writeQueue.enqueue { [weak self] in
+            guard let self, let database = self.database, await self.checkAvailability() else { return }
+            for session in sessions {
+                do {
+                    try await self.saveSession(session, database: database)
+                } catch {
+                    self.logger.error(
+                        "Failed to upload session: \(error.localizedDescription, privacy: .private)"
+                    )
+                }
             }
         }
     }
 
     func uploadSettings(_ settings: WorkplaceSettings) async {
-        guard let database, await checkAvailability() else { return }
-        do {
-            let record = try makeSettingsRecord(settings)
-            _ = try await database.save(record)
-        } catch {
-            // Settings upload is best-effort when offline.
-            logger.error("Failed to upload settings: \(error.localizedDescription, privacy: .public)")
+        await writeQueue.enqueue { [weak self] in
+            guard let self, let database = self.database, await self.checkAvailability() else { return }
+            do {
+                try await self.saveSettings(settings, database: database)
+            } catch {
+                self.logger.error(
+                    "Failed to upload settings: \(error.localizedDescription, privacy: .private)"
+                )
+            }
         }
     }
 
     func deleteSessions(ids: Set<UUID>) async {
-        do {
-            try await deleteSessionRecords(ids: ids)
-        } catch {
-            // Deletions are retried on the next full sync.
-            logger.error("Failed to delete \(ids.count) session(s): \(error.localizedDescription, privacy: .private)")
+        await writeQueue.enqueue { [weak self] in
+            guard let self else { return }
+            do {
+                try await self.deleteSessionRecords(ids: ids)
+            } catch {
+                self.logger.error(
+                    "Failed to delete sessions: \(error.localizedDescription, privacy: .private)"
+                )
+            }
         }
     }
 
     func purgeUserCloudData(sessionIDs: Set<UUID>) async throws {
-        try await deleteSessionRecords(ids: sessionIDs)
-        try await deleteSettingsRecord()
+        try await writeQueue.enqueueThrowing { [weak self] in
+            guard let self else { return }
+            try await self.deleteSessionRecords(ids: sessionIDs)
+            try await self.deleteSettingsRecord()
+        }
+    }
+
+    // MARK: - Conflict-aware saves
+
+    private func saveSession(_ session: WorkSession, database: CKDatabase) async throws {
+        let record = try makeSessionRecord(session)
+        do {
+            try await modifyRecords(database: database, recordsToSave: [record], recordIDsToDelete: nil)
+        } catch let error as CKError where error.code == .serverRecordChanged {
+            let resolved = try resolveSessionConflict(intended: session, error: error)
+            try await modifyRecords(database: database, recordsToSave: [resolved], recordIDsToDelete: nil)
+        }
+    }
+
+    private func saveSettings(_ settings: WorkplaceSettings, database: CKDatabase) async throws {
+        let record = try makeSettingsRecord(settings)
+        do {
+            try await modifyRecords(database: database, recordsToSave: [record], recordIDsToDelete: nil)
+        } catch let error as CKError where error.code == .serverRecordChanged {
+            let resolved = try resolveSettingsConflict(intended: settings, error: error)
+            try await modifyRecords(database: database, recordsToSave: [resolved], recordIDsToDelete: nil)
+        }
+    }
+
+    /// Newer `modifiedAt` wins; keep the server record's change tag when re-saving.
+    static func resolveConflictWinner<T>(
+        intendedModifiedAt: Date,
+        serverModifiedAt: Date?,
+        intended: T,
+        server: T?
+    ) -> T {
+        guard let server, let serverModifiedAt else { return intended }
+        return intendedModifiedAt >= serverModifiedAt ? intended : server
+    }
+
+    private func resolveSessionConflict(intended: WorkSession, error: CKError) throws -> CKRecord {
+        guard let serverRecord = error.serverRecord else {
+            return try makeSessionRecord(intended)
+        }
+        let serverSession = session(from: serverRecord)
+        let winner = Self.resolveConflictWinner(
+            intendedModifiedAt: intended.modifiedAt,
+            serverModifiedAt: serverSession?.modifiedAt,
+            intended: intended,
+            server: serverSession
+        )
+        serverRecord["payload"] = try encoder.encode(winner)
+        serverRecord["modifiedAt"] = winner.modifiedAt
+        return serverRecord
+    }
+
+    private func resolveSettingsConflict(intended: WorkplaceSettings, error: CKError) throws -> CKRecord {
+        guard let serverRecord = error.serverRecord else {
+            return try makeSettingsRecord(intended)
+        }
+        let serverSettings = settings(from: serverRecord)
+        var winner = Self.resolveConflictWinner(
+            intendedModifiedAt: intended.modifiedAt,
+            serverModifiedAt: serverSettings?.modifiedAt,
+            intended: intended,
+            server: serverSettings
+        )
+        // National ID never syncs — prefer the intended in-memory value.
+        winner.workerIDNumber = intended.workerIDNumber
+        var sanitized = winner
+        sanitized.workerIDNumber = ""
+        serverRecord["payload"] = try encoder.encode(sanitized)
+        serverRecord["modifiedAt"] = winner.modifiedAt
+        return serverRecord
     }
 
     private func deleteSessionRecords(ids: Set<UUID>) async throws {
         guard let database, await checkAvailability(), !ids.isEmpty else { return }
         let recordIDs = ids.map { CKRecord.ID(recordName: $0.uuidString) }
-        try await modifyRecords(database: database, recordIDsToDelete: recordIDs)
+        try await modifyRecords(database: database, recordsToSave: nil, recordIDsToDelete: recordIDs)
     }
 
     private func deleteSettingsRecord() async throws {
         guard let database, await checkAvailability() else { return }
         let recordID = CKRecord.ID(recordName: settingsRecordName)
         do {
-            try await modifyRecords(database: database, recordIDsToDelete: [recordID])
+            try await modifyRecords(
+                database: database,
+                recordsToSave: nil,
+                recordIDsToDelete: [recordID]
+            )
         } catch let error as CKError where error.code == .unknownItem {
-            // Already absent — treat as success for delete-all.
             return
         }
     }
 
     private func modifyRecords(
         database: CKDatabase,
-        recordIDsToDelete: [CKRecord.ID]
+        recordsToSave: [CKRecord]?,
+        recordIDsToDelete: [CKRecord.ID]?
     ) async throws {
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
             let operation = CKModifyRecordsOperation(
-                recordsToSave: nil,
+                recordsToSave: recordsToSave,
                 recordIDsToDelete: recordIDsToDelete
             )
+            operation.savePolicy = .changedKeys
             operation.modifyRecordsResultBlock = { result in
                 switch result {
                 case .success:
@@ -267,9 +390,18 @@ final class CloudKitSyncManager: CloudSyncing {
 
     // MARK: - Merge
 
-    static func mergeSessions(local: [WorkSession], remote: [WorkSession]) -> [WorkSession] {
+    /// Last-write-wins by `modifiedAt`, never resurrecting tombstoned IDs.
+    static func mergeSessions(
+        local: [WorkSession],
+        remote: [WorkSession],
+        tombstoneIDs: Set<UUID> = []
+    ) -> [WorkSession] {
         var merged = Dictionary(uniqueKeysWithValues: local.map { ($0.id, $0) })
+        for id in tombstoneIDs {
+            merged.removeValue(forKey: id)
+        }
         for remoteSession in remote {
+            if tombstoneIDs.contains(remoteSession.id) { continue }
             if let localSession = merged[remoteSession.id] {
                 merged[remoteSession.id] = localSession.modifiedAt >= remoteSession.modifiedAt
                     ? localSession
