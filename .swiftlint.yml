@@ -1,0 +1,32 @@
+# Security-oriented SwiftLint config for HoursTracker.
+# Installed in CI via Homebrew (`brew install swiftlint`), not as an SPM plugin.
+# Style noise is intentionally excluded; CI fails only on data-safety custom rules.
+
+included:
+  - HoursTracker
+
+excluded:
+  - HoursTrackerTests
+  - HoursTracker.xcodeproj
+  - docs
+  - .build
+  - DerivedData
+
+# Custom rules are enabled via the `custom_rules` identifier (not each rule's key).
+only_rules:
+  - custom_rules
+
+custom_rules:
+  no_raw_data_write:
+    name: "No raw Data.write"
+    message: "Use ProtectedFileWriter / FileWriting for persisted writes (atomic + Data Protection)."
+    regex: '\.write\(to:\s*'
+    excluded:
+      - HoursTracker/Utilities/ProtectedFileWriter.swift
+    severity: error
+
+  no_logger_privacy_public:
+    name: "No Logger privacy: .public"
+    message: "Use privacy: .private for identifiers and error payloads (static category labels may stay unannotated)."
+    regex: 'privacy:\s*\.public'
+    severity: error
