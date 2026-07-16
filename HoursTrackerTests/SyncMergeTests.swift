@@ -75,4 +75,19 @@ final class SyncMergeTests: XCTestCase {
 
         XCTAssertEqual(merged.workplaceName, "Remote")
     }
+
+    func testSettingsMergeKeepsLocalNationalIDEvenWhenRemoteWins() {
+        var local = TestData.settings()
+        local.workerIDNumber = "local-id"
+        local.modifiedAt = Date(timeIntervalSince1970: 1_000)
+        var remote = TestData.settings()
+        remote.workerIDNumber = "remote-id"
+        remote.workplaceName = "Remote"
+        remote.modifiedAt = Date(timeIntervalSince1970: 2_000)
+
+        let merged = CloudKitSyncManager.mergeSettings(local: local, remote: remote)
+
+        XCTAssertEqual(merged.workplaceName, "Remote")
+        XCTAssertEqual(merged.workerIDNumber, "local-id")
+    }
 }

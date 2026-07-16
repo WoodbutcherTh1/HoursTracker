@@ -5,6 +5,10 @@ protocol SyncingStore: PersistableStore {
     var isCloudSyncSupported: Bool { get }
     var syncState: SyncState { get }
     func syncNow() async throws -> SyncResult?
+    /// Persists settings locally without uploading to CloudKit (used by delete-all).
+    func saveSettingsLocally(_ settings: WorkplaceSettings) throws
+    /// Deletes remote sessions and the settings record when CloudKit is supported.
+    func purgeCloudData(sessionIDs: Set<UUID>) async throws
 }
 
 final class SyncingPersistenceStore: SyncingStore {
@@ -57,6 +61,15 @@ final class SyncingPersistenceStore: SyncingStore {
         Task {
             await cloud.uploadSettings(settings)
         }
+    }
+
+    func saveSettingsLocally(_ settings: WorkplaceSettings) throws {
+        try local.saveSettings(settings)
+    }
+
+    func purgeCloudData(sessionIDs: Set<UUID>) async throws {
+        guard cloud.isSupported else { return }
+        try await cloud.purgeUserCloudData(sessionIDs: sessionIDs)
     }
 
     func syncNow() async throws -> SyncResult? {

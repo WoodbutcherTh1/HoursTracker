@@ -80,4 +80,24 @@ final class SyncingPersistenceStoreTests: XCTestCase {
         XCTAssertFalse(localOnly.isCloudSyncSupported)
         XCTAssertEqual(localOnly.syncState, .unavailable)
     }
+
+    func testSaveSettingsLocallyDoesNotUpload() throws {
+        let settings = TestData.settings()
+        try store.saveSettingsLocally(settings)
+
+        // Give any accidental Task a moment; upload must stay empty.
+        let exp = expectation(description: "settle")
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) { exp.fulfill() }
+        wait(for: [exp], timeout: 1)
+        XCTAssertEqual(local.storedSettings, settings)
+        XCTAssertEqual(cloud.uploadedSettingsCount, 0)
+        XCTAssertTrue(cloud.uploadedBatches.isEmpty)
+    }
+
+    func testPurgeCloudDataForwardsSessionIDs() async throws {
+        let ids: Set<UUID> = [UUID(), UUID()]
+        try await store.purgeCloudData(sessionIDs: ids)
+        XCTAssertEqual(cloud.purgeCallCount, 1)
+        XCTAssertEqual(cloud.lastPurgedSessionIDs, ids)
+    }
 }

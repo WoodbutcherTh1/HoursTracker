@@ -7,6 +7,10 @@ final class InMemoryStore: SyncingStore {
     var saveError: Error?
     var syncState: SyncState = .idle
     var isCloudSyncSupported = false
+    private(set) var saveSettingsLocallyCallCount = 0
+    private(set) var purgeCloudCallCount = 0
+    private(set) var lastPurgedSessionIDs: Set<UUID> = []
+    var purgeCloudError: Error?
 
     func loadSessions() -> [WorkSession] {
         storedSessions
@@ -24,6 +28,17 @@ final class InMemoryStore: SyncingStore {
     func saveSettings(_ settings: WorkplaceSettings) throws {
         if let saveError { throw saveError }
         storedSettings = settings
+    }
+
+    func saveSettingsLocally(_ settings: WorkplaceSettings) throws {
+        saveSettingsLocallyCallCount += 1
+        try saveSettings(settings)
+    }
+
+    func purgeCloudData(sessionIDs: Set<UUID>) async throws {
+        purgeCloudCallCount += 1
+        lastPurgedSessionIDs = sessionIDs
+        if let purgeCloudError { throw purgeCloudError }
     }
 
     func syncNow() async throws -> SyncResult? {
@@ -57,7 +72,11 @@ final class RecordingCloud: CloudSyncing {
     var isSupported = true
     var state: SyncState = .idle
     private(set) var uploadedBatches: [[WorkSession]] = []
+    private(set) var uploadedSettingsCount = 0
     private(set) var deletedIDBatches: [Set<UUID>] = []
+    private(set) var purgeCallCount = 0
+    private(set) var lastPurgedSessionIDs: Set<UUID> = []
+    var purgeError: Error?
     var onUpload: (() -> Void)?
     var onDelete: (() -> Void)?
 
@@ -74,11 +93,37 @@ final class RecordingCloud: CloudSyncing {
         onUpload?()
     }
 
-    func uploadSettings(_ settings: WorkplaceSettings) async {}
+    func uploadSettings(_ settings: WorkplaceSettings) async {
+        uploadedSettingsCount += 1
+    }
 
     func deleteSessions(ids: Set<UUID>) async {
         deletedIDBatches.append(ids)
         onDelete?()
+    }
+
+    func purgeUserCloudData(sessionIDs: Set<UUID>) async throws {
+        purgeCallCount += 1
+        lastPurgedSessionIDs = sessionIDs
+        if let purgeError { throw purgeError }
+        deletedIDBatches.append(sessionIDs)
+        onDelete?()
+    }
+}
+
+final class RecordingFileWriter: FileWriting {
+    private(set) var urls: [URL] = []
+    private(set) var payloads: [Data] = []
+    var writingOptions: Data.WritingOptions { ProtectedFileWriter.writingOptions }
+
+    func write(_ data: Data, to url: URL) throws {
+        try FileManager.default.createDirectory(
+            at: url.deletingLastPathComponent(),
+            withIntermediateDirectories: true
+        )
+        try data.write(to: url, options: writingOptions)
+        urls.append(url)
+        payloads.append(data)
     }
 }
 

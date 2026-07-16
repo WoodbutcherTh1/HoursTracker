@@ -25,6 +25,8 @@ protocol CloudSyncing: AnyObject {
     func uploadSessions(_ sessions: [WorkSession]) async
     func uploadSettings(_ settings: WorkplaceSettings) async
     func deleteSessions(ids: Set<UUID>) async
+    /// Deletes remote sessions and the settings record. Throws on partial failure.
+    func purgeUserCloudData(sessionIDs: Set<UUID>) async throws
 }
 
 /// Local-only stub used when CloudKit is unavailable or injected in tests.
@@ -43,6 +45,7 @@ final class NoOpCloudSyncManager: CloudSyncing {
     func uploadSessions(_ sessions: [WorkSession]) async {}
     func uploadSettings(_ settings: WorkplaceSettings) async {}
     func deleteSessions(ids: Set<UUID>) async {}
+    func purgeUserCloudData(sessionIDs: Set<UUID>) async throws {}
 }
 
 final class CloudKitSyncManager: CloudSyncing {
@@ -163,24 +166,54 @@ final class CloudKitSyncManager: CloudSyncing {
     }
 
     func deleteSessions(ids: Set<UUID>) async {
-        guard let database, await checkAvailability(), !ids.isEmpty else { return }
-        let recordIDs = ids.map { CKRecord.ID(recordName: $0.uuidString) }
         do {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
-                let operation = CKModifyRecordsOperation(recordsToSave: nil, recordIDsToDelete: recordIDs)
-                operation.modifyRecordsResultBlock = { result in
-                    switch result {
-                    case .success:
-                        continuation.resume()
-                    case .failure(let error):
-                        continuation.resume(throwing: error)
-                    }
-                }
-                database.add(operation)
-            }
+            try await deleteSessionRecords(ids: ids)
         } catch {
             // Deletions are retried on the next full sync.
-            logger.error("Failed to delete \(ids.count) session(s): \(error.localizedDescription, privacy: .public)")
+            logger.error("Failed to delete \(ids.count) session(s): \(error.localizedDescription, privacy: .private)")
+        }
+    }
+
+    func purgeUserCloudData(sessionIDs: Set<UUID>) async throws {
+        try await deleteSessionRecords(ids: sessionIDs)
+        try await deleteSettingsRecord()
+    }
+
+    private func deleteSessionRecords(ids: Set<UUID>) async throws {
+        guard let database, await checkAvailability(), !ids.isEmpty else { return }
+        let recordIDs = ids.map { CKRecord.ID(recordName: $0.uuidString) }
+        try await modifyRecords(database: database, recordIDsToDelete: recordIDs)
+    }
+
+    private func deleteSettingsRecord() async throws {
+        guard let database, await checkAvailability() else { return }
+        let recordID = CKRecord.ID(recordName: settingsRecordName)
+        do {
+            try await modifyRecords(database: database, recordIDsToDelete: [recordID])
+        } catch let error as CKError where error.code == .unknownItem {
+            // Already absent — treat as success for delete-all.
+            return
+        }
+    }
+
+    private func modifyRecords(
+        database: CKDatabase,
+        recordIDsToDelete: [CKRecord.ID]
+    ) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            let operation = CKModifyRecordsOperation(
+                recordsToSave: nil,
+                recordIDsToDelete: recordIDsToDelete
+            )
+            operation.modifyRecordsResultBlock = { result in
+                switch result {
+                case .success:
+                    continuation.resume()
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+            database.add(operation)
         }
     }
 
@@ -250,7 +283,10 @@ final class CloudKitSyncManager: CloudSyncing {
 
     static func mergeSettings(local: WorkplaceSettings, remote: WorkplaceSettings?) -> WorkplaceSettings {
         guard let remote else { return local }
-        return local.modifiedAt >= remote.modifiedAt ? local : remote
+        var winner = local.modifiedAt >= remote.modifiedAt ? local : remote
+        // National ID is Keychain-only (ThisDeviceOnly) and is never synced.
+        winner.workerIDNumber = local.workerIDNumber
+        return winner
     }
 
     // MARK: - Records
@@ -266,7 +302,10 @@ final class CloudKitSyncManager: CloudSyncing {
     private func makeSettingsRecord(_ settings: WorkplaceSettings) throws -> CKRecord {
         let recordID = CKRecord.ID(recordName: settingsRecordName)
         let record = CKRecord(recordType: settingsRecordType, recordID: recordID)
-        record["payload"] = try encoder.encode(settings)
+        // Never upload the national ID — it lives only in the local Keychain.
+        var sanitized = settings
+        sanitized.workerIDNumber = ""
+        record["payload"] = try encoder.encode(sanitized)
         record["modifiedAt"] = settings.modifiedAt
         return record
     }
