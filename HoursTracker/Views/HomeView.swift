@@ -3,6 +3,7 @@ import UIKit
 
 struct LiveTimerView: View {
     let startDate: Date
+    var fontSize: CGFloat = 52
     var onTick: ((Date) -> Void)?
 
     @State private var now = Date()
@@ -10,9 +11,11 @@ struct LiveTimerView: View {
 
     var body: some View {
         Text(elapsedFormatted)
-            .font(.system(size: 52, weight: .light, design: .rounded))
+            .font(.system(size: fontSize, weight: .light, design: .rounded))
             .monospacedDigit()
             .foregroundStyle(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
             .contentTransition(.numericText())
             .onReceive(timer) { date in
                 now = date
@@ -60,15 +63,18 @@ struct HomeView: View {
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.top, 8)
 
-                Group {
-                    if let session = viewModel.activeSession {
-                        clockedInView(session: session)
-                    } else {
-                        clockedOutView
+                GeometryReader { geo in
+                    let metrics = HomeLayoutMetrics(width: geo.size.width)
+                    Group {
+                        if let session = viewModel.activeSession {
+                            clockedInView(session: session, metrics: metrics)
+                        } else {
+                            clockedOutView(metrics: metrics)
+                        }
                     }
+                    .padding(.horizontal, metrics.horizontalPadding)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
                 }
-                .padding(.horizontal, 18)
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
             .toolbar {
                 ToolbarItem(placement: .principal) {
@@ -101,13 +107,13 @@ struct HomeView: View {
         }
     }
 
-    private var clockedOutView: some View {
-        VStack(spacing: 16) {
-            greetingHeader
+    private func clockedOutView(metrics: HomeLayoutMetrics) -> some View {
+        VStack(spacing: metrics.stackSpacing) {
+            greetingHeader(metrics: metrics)
 
-            statsRow
+            statsRow(metrics: metrics)
 
-            Spacer(minLength: 6)
+            Spacer(minLength: 4)
 
             HomeAnimatedDoorButton(
                 mode: .clockIn,
@@ -115,16 +121,18 @@ struct HomeView: View {
             ) {
                 viewModel.clockIn()
             }
-            .frame(height: 140)
+            .frame(height: metrics.doorHeight)
 
             Button {
                 showScanner = true
             } label: {
                 Label(L10n.gridImportButton, systemImage: "doc.viewfinder")
                     .font(.footnote.weight(.semibold))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                     .foregroundStyle(HomeNeon.accent)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 10)
+                    .padding(.horizontal, metrics.isCompact ? 14 : 18)
+                    .padding(.vertical, metrics.isCompact ? 8 : 10)
                     .background(
                         Capsule(style: .continuous)
                             .stroke(HomeNeon.accent.opacity(0.55), lineWidth: 1.2)
@@ -133,7 +141,7 @@ struct HomeView: View {
             }
             .buttonStyle(ScalePressButtonStyle())
 
-            Spacer(minLength: 6)
+            Spacer(minLength: 4)
 
             HomeWeekSparkline(
                 dailyHours: weekDailyHours,
@@ -145,64 +153,75 @@ struct HomeView: View {
         }
     }
 
-    private var greetingHeader: some View {
+    private func greetingHeader(metrics: HomeLayoutMetrics) -> some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             let greeting = DaypartGreeting.current(at: context.date, calendar: calendar)
             let title = greeting.title(withName: viewModel.settings.workerFullName)
             ZStack {
                 HomeFloatingParticles()
-                    .frame(height: 70)
+                    .frame(height: metrics.particleHeight)
 
                 Text(title)
-                    .font(.system(size: 36, weight: .bold, design: .rounded))
+                    .font(.system(size: metrics.greetingFontSize, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.55)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.45)
                     .contentTransition(.opacity)
                     .animation(.easeInOut(duration: 0.35), value: title)
                     .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 4)
             }
             .padding(.top, 4)
         }
     }
 
-    private var statsRow: some View {
-        HStack(spacing: 10) {
+    private func statsRow(metrics: HomeLayoutMetrics) -> some View {
+        HStack(spacing: metrics.statsSpacing) {
             HomeNeonStatCard(
                 title: L10n.homeStatMonth,
                 value: "\(monthShiftCount)",
                 icon: .calendar,
-                sparkSeed: 0.4
+                sparkSeed: 0.4,
+                compact: metrics.isCompact,
+                showSparkline: metrics.showStatSparkline
             )
             HomeNeonStatCard(
                 title: L10n.homeStatWeek,
                 value: HistoryPeriodHelper.formatHoursClock(weekHours),
                 icon: .chart,
-                sparkSeed: 1.3
+                sparkSeed: 1.3,
+                compact: metrics.isCompact,
+                showSparkline: metrics.showStatSparkline
             )
             HomeNeonStatCard(
                 title: L10n.homeStatToday,
                 value: HistoryPeriodHelper.formatHoursClock(todayHours),
                 icon: .clock,
-                sparkSeed: 2.2
+                sparkSeed: 2.2,
+                compact: metrics.isCompact,
+                showSparkline: metrics.showStatSparkline
             )
         }
     }
 
-    private func clockedInView(session: WorkSession) -> some View {
+    private func clockedInView(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {
         let liveHours = max(0, liveNow.timeIntervalSince(session.clockIn) / 3600)
         let basicGross = liveHours * viewModel.settings.hourlyRate
+        let timerSize: CGFloat = metrics.isCompact ? 42 : 52
 
-        return VStack(spacing: 16) {
+        return VStack(spacing: metrics.stackSpacing) {
             TimelineView(.periodic(from: .now, by: 60)) { context in
                 let title = DaypartGreeting.current(at: context.date, calendar: calendar)
                     .title(withName: viewModel.settings.workerFullName)
                 Text(title)
-                    .font(.title2.weight(.bold))
+                    .font(.system(size: metrics.isCompact ? 22 : 26, weight: .bold, design: .rounded))
                     .foregroundStyle(.white)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(2)
+                    .minimumScaleFactor(0.5)
                     .frame(maxWidth: .infinity)
+                    .padding(.horizontal, 4)
             }
 
             VStack(spacing: 4) {
@@ -214,10 +233,12 @@ struct HomeView: View {
                 Text(L10n.homeSince(timeFormatter.string(from: session.clockIn)))
                     .font(.subheadline.weight(.medium))
                     .foregroundStyle(.white.opacity(0.8))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
             }
 
             VStack(spacing: 10) {
-                LiveTimerView(startDate: session.clockIn) { date in
+                LiveTimerView(startDate: session.clockIn, fontSize: timerSize) { date in
                     liveNow = date
                 }
 
@@ -225,14 +246,18 @@ struct HomeView: View {
                     Text(AppLocale.tr("home.liveGrossBasic"))
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.45))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
                     Text(PayFormatter.string(basicGross, currencyCode: viewModel.settings.currencyCode))
                         .font(.headline.monospacedDigit())
                         .foregroundStyle(HomeNeon.accent)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                         .contentTransition(.numericText())
                 }
             }
-            .padding(.vertical, 18)
-            .padding(.horizontal, 20)
+            .padding(.vertical, metrics.isCompact ? 14 : 18)
+            .padding(.horizontal, metrics.isCompact ? 14 : 20)
             .frame(maxWidth: .infinity)
             .background(
                 RoundedRectangle(cornerRadius: 18, style: .continuous)
@@ -249,9 +274,9 @@ struct HomeView: View {
             ) {
                 viewModel.clockOut()
             }
-            .frame(height: 140)
+            .frame(height: metrics.doorHeight)
 
-            Spacer(minLength: 6)
+            Spacer(minLength: 4)
 
             HomeWeekSparkline(
                 dailyHours: weekDailyHours,

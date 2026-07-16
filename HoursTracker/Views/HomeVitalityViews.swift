@@ -10,6 +10,23 @@ enum HomeNeon {
     static let coralDeep = Color(red: 0.72, green: 0.12, blue: 0.22)
 }
 
+/// Width-based spacing/type for Home so SE / 13 mini stay readable.
+struct HomeLayoutMetrics {
+    let width: CGFloat
+
+    /// iPhone SE / 13 mini class (~375pt and below after padding).
+    var isCompact: Bool { width < 390 }
+    var isVeryCompact: Bool { width < 350 }
+
+    var horizontalPadding: CGFloat { isVeryCompact ? 12 : (isCompact ? 14 : 18) }
+    var stackSpacing: CGFloat { isCompact ? 12 : 16 }
+    var greetingFontSize: CGFloat { isVeryCompact ? 26 : (isCompact ? 28 : 34) }
+    var statsSpacing: CGFloat { isCompact ? 6 : 10 }
+    var doorHeight: CGFloat { isCompact ? 118 : 140 }
+    var showStatSparkline: Bool { !isVeryCompact }
+    var particleHeight: CGFloat { isCompact ? 54 : 70 }
+}
+
 /// Time-of-day greeting that flips automatically (morning → afternoon → evening → night).
 enum DaypartGreeting: Equatable {
     case morning
@@ -469,36 +486,42 @@ struct HomeNeonStatCard: View {
     let value: String
     let icon: HomeStatIconKind
     var sparkSeed: Double = 0
+    var compact: Bool = false
+    var showSparkline: Bool = true
 
     var body: some View {
-        VStack(spacing: 8) {
+        VStack(spacing: compact ? 5 : 8) {
             animatedIcon
-                .frame(height: 28)
+                .frame(height: compact ? 22 : 28)
 
             Text(title)
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.white.opacity(0.55))
                 .lineLimit(1)
-                .minimumScaleFactor(0.8)
+                .minimumScaleFactor(0.65)
+                .multilineTextAlignment(.center)
 
             Text(value)
-                .font(.title3.weight(.bold).monospacedDigit())
+                .font((compact ? Font.callout : Font.title3).weight(.bold).monospacedDigit())
                 .foregroundStyle(.white)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.55)
                 .lineLimit(1)
+                .multilineTextAlignment(.center)
 
-            MiniWaveSparkline(seed: sparkSeed, accent: HomeNeon.accent)
-                .frame(height: 22)
-                .padding(.top, 2)
+            if showSparkline {
+                MiniWaveSparkline(seed: sparkSeed, accent: HomeNeon.accent)
+                    .frame(height: compact ? 16 : 22)
+                    .padding(.top, 2)
+            }
         }
-        .padding(.vertical, 12)
-        .padding(.horizontal, 8)
+        .padding(.vertical, compact ? 8 : 12)
+        .padding(.horizontal, compact ? 4 : 8)
         .frame(maxWidth: .infinity)
         .background(
-            RoundedRectangle(cornerRadius: 16, style: .continuous)
+            RoundedRectangle(cornerRadius: compact ? 14 : 16, style: .continuous)
                 .fill(HomeNeon.card.opacity(0.92))
                 .overlay(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    RoundedRectangle(cornerRadius: compact ? 14 : 16, style: .continuous)
                         .stroke(HomeNeon.accent.opacity(0.22), lineWidth: 1)
                 )
                 .shadow(color: HomeNeon.accent.opacity(0.12), radius: 10, y: 2)
@@ -774,7 +797,7 @@ struct HomeWeekSparkline: View {
 
         return VStack(spacing: 4) {
             Text(showLabel ? HistoryPeriodHelper.formatHoursClock(hours) : " ")
-                .font(.system(size: 9, weight: isToday ? .bold : .semibold, design: .rounded))
+                .font(.system(size: 8, weight: isToday ? .bold : .semibold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(
                     isToday
@@ -782,7 +805,8 @@ struct HomeWeekSparkline: View {
                         : Color.white.opacity(hours > 0.01 ? 0.55 : 0.2)
                 )
                 .lineLimit(1)
-                .minimumScaleFactor(0.7)
+                .minimumScaleFactor(0.55)
+                .frame(maxWidth: .infinity)
                 .frame(height: labelRowHeight)
 
             Spacer(minLength: 0)
