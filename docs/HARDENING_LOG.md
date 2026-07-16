@@ -76,3 +76,59 @@ xcodebuild test -project HoursTracker.xcodeproj -scheme HoursTracker \
 **Phase 2 (A6–A8):** Remove `UIBackgroundModes: location` and `allowsBackgroundLocationUpdates`; stage When-In-Use → Always permission with Settings denial UI; add explicit off-by-default iCloud sync toggle so `syncNow`/uploads no-op without consent.
 
 ---
+
+## Phase 2 — Location & permissions (A6–A8)
+
+**Date:** 16 July 2026  
+**Status:** Complete — tests green; waiting for user `"continue"` before Phase 3.
+
+### (a) Tasks completed
+
+| Task | Summary |
+|---|---|
+| **A6** | Removed `UIBackgroundModes: location` from `project.yml` + `Info.plist`. Removed `allowsBackgroundLocationUpdates`, `pausesLocationUpdatesAutomatically = false`, and stray `stopMonitoringSignificantLocationChanges`. Removed deprecated `NSLocationAlwaysUsageDescription`. Documented that region monitoring relaunches the app without background-location mode. |
+| **A7** | Staged arrival-reminder flow: notifications callback → When-In-Use → Always. `LocationCaptureHelper` waits for authorization before `requestLocation`. Settings shows denial rows for location/notifications with deep-link to system Settings. |
+| **A8** | Added `CloudSyncPreference` (`iCloudSyncEnabled`, default off). `syncNow` / uploads / remote deletes no-op unless enabled. Settings toggle with explanation; turning off offers keep vs delete iCloud copies. Updated `docs/PRIVACY.md` + ARCHITECTURE. |
+
+### (b) Files changed and why
+
+| File | Why |
+|---|---|
+| `project.yml` / `Info.plist` | Drop background location mode + deprecated Always key; keep display name/version under xcodegen |
+| `LocationReminderManager.swift` | Staged auth; no background-location APIs; permission status API |
+| `LocationCaptureHelper.swift` | Wait for When-In-Use before `requestLocation` |
+| `CloudSyncPreference.swift` | **New** — user opt-in persistence |
+| `SyncingPersistenceStore.swift` | Gate cloud ops on preference |
+| `AppViewModel.swift` | Sync guard, disable+purge, published permission status |
+| `SettingsView.swift` | Denial UI + iCloud toggle / disable dialog |
+| `L10n.swift` + `Localizable.xcstrings` + `InfoPlist.xcstrings` | New/updated strings (en/he/ar) |
+| `docs/PRIVACY.md`, `docs/ARCHITECTURE.md` | Truthful location + iCloud opt-in wording |
+| `HoursTrackerTests/LocationPermissionFlowTests.swift` | **New** |
+| `HoursTrackerTests/CloudSyncPreferenceTests.swift` | **New** |
+| Test doubles / SyncingPersistenceStoreTests | Preference injection |
+
+### (c) Verification
+
+```
+xcodegen generate
+xcodebuild test -project HoursTracker.xcodeproj -scheme HoursTracker \
+  -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.3.1'
+```
+**112 tests, 0 failures.**
+
+Manual Phase 2 items (simulator):
+- [x] Info.plist has no `UIBackgroundModes: location` / no `NSLocationAlwaysUsageDescription` (asserted in tests)
+- [ ] Device: enable arrival reminders → staged prompts → geofence entry notification without background location mode (requires physical device)
+- [x] Sync toggle default off; uploads gated (unit-tested)
+
+### (d) Skipped / deferred / discoveries
+
+- **UserDefaults** used for `iCloudSyncEnabled` — Phase 3 **must** add `NSPrivacyAccessedAPITypes` reason `CA92.1`.
+- In-app `PrivacyPolicyView` string catalog still has older “background location” wording in places; Phase 3 A10 will fully reconcile policy strings with `docs/PRIVACY.md`.
+- Geofence-while-terminated cannot be fully automated on simulator; code comment documents region-monitoring relaunch behavior.
+
+### (e) Next phase preview
+
+**Phase 3 (A9–A10):** CloudKit tombstones + conflict handling + serialized uploads; truthful privacy manifest (“data not collected”) and aligned privacy-policy / display-name consistency; declare UserDefaults accessed-API reason.
+
+---
