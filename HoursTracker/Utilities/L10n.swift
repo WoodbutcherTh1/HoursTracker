@@ -128,7 +128,23 @@ enum L10n {
     static var settingsFullName: String { String(localized: "settings.fullName") }
     static var settingsIDNumber: String { String(localized: "settings.idNumber") }
     static var settingsIDChecksumWarning: String { String(localized: "settings.idChecksumWarning") }
+    static var settingsEditIDNumber: String { String(localized: "settings.editIDNumber") }
+    static var settingsHideIDNumber: String { String(localized: "settings.hideIDNumber") }
+    static var settingsIDNumberMasked: String { String(localized: "settings.idNumberMasked") }
     static var scannerErrorFileTooLarge: String { String(localized: "scanner.error.fileTooLarge") }
+
+    // App Lock / screen privacy
+    static var appName: String { String(localized: "app.name") }
+    static var appLockSection: String { String(localized: "appLock.section") }
+    static var appLockEnabled: String { String(localized: "appLock.enabled") }
+    static var appLockHint: String { String(localized: "appLock.hint") }
+    static var appLockTitle: String { String(localized: "appLock.title") }
+    static var appLockSubtitle: String { String(localized: "appLock.subtitle") }
+    static var appLockUnlock: String { String(localized: "appLock.unlock") }
+    static var appLockReason: String { String(localized: "appLock.reason") }
+    static var appLockUnavailable: String { String(localized: "appLock.unavailable") }
+    static var appLockFailed: String { String(localized: "appLock.failed") }
+    static var privacyOverlayMessage: String { String(localized: "privacy.overlayMessage") }
     static var settingsEmployeeNumber: String { String(localized: "settings.employeeNumber") }
     static var settingsWorkplace: String { String(localized: "settings.workplace") }
     static var settingsWorkplaceName: String { String(localized: "settings.workplaceName") }

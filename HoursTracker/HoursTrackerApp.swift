@@ -3,26 +3,50 @@ import SwiftUI
 @main
 struct HoursTrackerApp: App {
     @StateObject private var viewModel = AppViewModel()
+    @StateObject private var appLock = AppLockController()
     @Environment(\.scenePhase) private var scenePhase
 
     var body: some Scene {
         WindowGroup {
-            MainTabView(viewModel: viewModel)
-                .keyboardDismissible()
-                .onAppear {
-                    ExportTempFileStore.wipeAll()
+            ZStack {
+                MainTabView(viewModel: viewModel)
+                    .keyboardDismissible()
+
+                if appLock.isEnabled && appLock.isLocked {
+                    AppLockView(controller: appLock)
+                        .transition(.opacity)
+                }
+
+                // Always redact for app-switcher snapshots, regardless of App Lock.
+                if scenePhase != .active {
+                    PrivacyOverlayView()
+                        .transition(.opacity)
+                }
+            }
+            .animation(.easeInOut(duration: 0.2), value: appLock.isLocked)
+            .animation(.easeInOut(duration: 0.15), value: scenePhase)
+            .environmentObject(appLock)
+            .onAppear {
+                ExportTempFileStore.wipeAll()
+                viewModel.syncNow()
+                KeyboardTapDismissInstaller.shared.installIfNeeded()
+                if appLock.isEnabled {
+                    Task { await appLock.unlock() }
+                }
+            }
+            .onChange(of: scenePhase) { _, phase in
+                appLock.handleScenePhase(phase)
+                // Wipe on background only — `.inactive` also fires while the share
+                // sheet is presented and would delete the file mid-share.
+                if phase == .active {
                     viewModel.syncNow()
-                    KeyboardTapDismissInstaller.shared.installIfNeeded()
-                }
-                .onChange(of: scenePhase) { _, phase in
-                    // Wipe on background only — `.inactive` also fires while the share
-                    // sheet is presented and would delete the file mid-share.
-                    if phase == .active {
-                        viewModel.syncNow()
-                    } else if phase == .background {
-                        ExportTempFileStore.wipeAll()
+                    if appLock.isEnabled && appLock.isLocked {
+                        Task { await appLock.unlock() }
                     }
+                } else if phase == .background {
+                    ExportTempFileStore.wipeAll()
                 }
+            }
         }
     }
 }

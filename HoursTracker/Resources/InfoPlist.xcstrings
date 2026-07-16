@@ -110,6 +110,28 @@
           }
         }
       }
+    },
+    "NSFaceIDUsageDescription": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستخدم HoursTracker Face ID فقط لفتح قفل التطبيق عند تفعيل قفل التطبيق."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HoursTracker uses Face ID only to unlock the app when App Lock is enabled."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "HoursTracker משתמשת ב‑Face ID רק לפתיחת האפליקציה כשנעילת האפליקציה מופעלת."
+          }
+        }
+      }
     }
   },
   "version": "1.0"

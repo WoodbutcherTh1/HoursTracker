@@ -210,3 +210,45 @@ Manual: PrivacyInfo / PRIVACY.md / in-app strings describe the same opt-in iClou
 **Phase 5 (A13):** Optional biometric App Lock + scene-phase privacy overlay + masked national ID field in Settings.
 
 ---
+
+## Phase 5 — App Lock & UI privacy (A13)
+
+**Date:** 16 July 2026  
+**Status:** Complete — tests green; waiting for user `"continue"` before Phase 6.
+
+### (a) Tasks completed
+
+| Task | Summary |
+|---|---|
+| **A13a** | Optional App Lock (default **off**): `UserDefaults` `appLockEnabled`; `LocalAuthentication` via `.deviceOwnerAuthentication` (Face ID / Touch ID / device passcode). No secrets stored for the lock. |
+| **A13b** | Lock on cold start when enabled; re-lock after **30s** background grace (`AppLockPolicy.gracePeriod`). Short inactive→active blips do not re-lock (`backgroundedAt == nil` → no resume lock). |
+| **A13c** | Full-screen `AppLockView` over content while locked; auto-prompt unlock on appear / return to active. |
+| **A13d** | `PrivacyOverlayView` when `scenePhase != .active` (app switcher snapshot protection). |
+| **A13e** | Settings national ID shown masked (`•••••` + last 4) with Edit/Hide; Security section toggle + hint. |
+| **A13f** | `NSFaceIDUsageDescription` in `project.yml` / Info.plist / InfoPlist.xcstrings; L10n strings for lock UI. |
+
+### (b) Notable files
+
+- **New:** `AppLockPreference.swift`, `BiometricAuthenticating.swift`, `AppLockController.swift`, `AppLockView.swift` (+ `PrivacyOverlayView`), `AppLockTests.swift`
+- **Updated:** `HoursTrackerApp.swift`, `SettingsView.swift`, `L10n.swift`, `Localizable.xcstrings`, `InfoPlist.xcstrings`, `Info.plist`, `project.yml`
+
+### (c) Verification
+
+```
+xcodegen generate
+xcodebuild test -project HoursTracker.xcodeproj -scheme HoursTracker \
+  -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.3.1'
+```
+
+**143 tests, 0 failures.** Coverage includes grace policy, masking, controller lock/unlock, resume-after-grace.
+
+### (d) Deferred / notes
+
+- Biometric enrollment / Face ID denial UX is device-dependent; unavailable path surfaces localized error and keeps lock.
+- App Lock preference uses UserDefaults (already covered by privacy manifest `CA92.1`).
+
+### (e) Next phase preview
+
+**Phase 6 (A17 + Part B):** CI SHA-pinning, permissions, SwiftLint, secret scan, `SECURITY.md`, `THREAT_MODEL.md`, `DATA_INVENTORY.md`, PR template, `RELEASE_CHECKLIST.md`, ARCHITECTURE networking gate.
+
+---

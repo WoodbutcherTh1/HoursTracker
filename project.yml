@@ -55,6 +55,7 @@ targets:
         NSLocationWhenInUseUsageDescription: "HoursTracker uses your location while using the app only to save your workplace when you tap Set Location."
         NSCameraUsageDescription: "HoursTracker uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times."
         NSPhotoLibraryUsageDescription: "HoursTracker needs photo access only to import a timesheet screenshot or image you choose."
+        NSFaceIDUsageDescription: "HoursTracker uses Face ID only to unlock the app when App Lock is enabled."
         ITSAppUsesNonExemptEncryption: false
         CFBundleLocalizations:
           - en

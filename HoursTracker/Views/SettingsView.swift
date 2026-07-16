@@ -4,12 +4,14 @@ import CoreLocation
 
 struct SettingsView: View {
     @ObservedObject var viewModel: AppViewModel
+    @EnvironmentObject private var appLock: AppLockController
 
     @State private var draft: WorkplaceSettings
     @State private var locationStatus: String = ""
     @State private var showDeleteAllConfirm = false
     @State private var showArrivalExplainer = false
     @State private var showDisableSyncConfirm = false
+    @State private var isEditingIDNumber = false
 
     private let syncDateFormatter: DateFormatter = {
         let f = DateFormatter()
@@ -33,6 +35,7 @@ struct SettingsView: View {
                 payrollSection
                 taxSection
                 locationSection
+                securitySection
                 if viewModel.isCloudSyncSupported {
                     syncSection
                 }
@@ -102,14 +105,45 @@ struct SettingsView: View {
     private var workerSection: some View {
         Section(L10n.settingsWorkerInfo) {
             TextField(L10n.settingsFullName, text: $draft.workerFullName)
-            TextField(L10n.settingsIDNumber, text: $draft.workerIDNumber)
-                .keyboardType(.numberPad)
-            if IsraeliIDValidator.shouldWarn(for: draft.workerIDNumber) {
-                Text(L10n.settingsIDChecksumWarning)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
+            if isEditingIDNumber {
+                TextField(L10n.settingsIDNumber, text: $draft.workerIDNumber)
+                    .keyboardType(.numberPad)
+                if IsraeliIDValidator.shouldWarn(for: draft.workerIDNumber) {
+                    Text(L10n.settingsIDChecksumWarning)
+                        .font(.caption)
+                        .foregroundStyle(.orange)
+                }
+                Button(L10n.settingsHideIDNumber) {
+                    isEditingIDNumber = false
+                }
+            } else {
+                HStack {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(L10n.settingsIDNumber)
+                            .font(.subheadline)
+                            .foregroundStyle(.secondary)
+                        Text(AppLockPolicy.maskedNationalID(draft.workerIDNumber))
+                            .font(.body.monospacedDigit())
+                            .accessibilityLabel(L10n.settingsIDNumberMasked)
+                    }
+                    Spacer()
+                    Button(L10n.settingsEditIDNumber) {
+                        isEditingIDNumber = true
+                    }
+                }
             }
             TextField(L10n.settingsEmployeeNumber, text: $draft.employeeNumber)
+        }
+    }
+
+    private var securitySection: some View {
+        Section {
+            Toggle(L10n.appLockEnabled, isOn: $appLock.isEnabled)
+            Text(L10n.appLockHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text(L10n.appLockSection)
         }
     }
 

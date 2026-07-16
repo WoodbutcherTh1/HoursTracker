@@ -30,6 +30,8 @@
 	<false/>
 	<key>NSCameraUsageDescription</key>
 	<string>HoursTracker uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>HoursTracker uses Face ID only to unlock the app when App Lock is enabled.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Always location is used only for workplace arrival reminders via a single geofence around the workplace you saved. We do not continuously track you.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
