@@ -13,6 +13,10 @@ struct HoursTrackerApp: App {
             ZStack {
                 MainTabView(viewModel: viewModel)
                     .keyboardDismissible()
+                    // Remount tabs when language changes so UIKit tab items + L10n
+                    // strings refresh. Keep this off the splash/`@State` so changing
+                    // language does not replay the launch animation.
+                    .id(appLanguage.preference)
 
                 if appLock.isEnabled && appLock.isLocked {
                     AppLockView(controller: appLock)
@@ -38,7 +42,6 @@ struct HoursTrackerApp: App {
             .environment(\.layoutDirection, appLanguage.layoutDirection)
             .environmentObject(appLock)
             .environmentObject(appLanguage)
-            .id(appLanguage.preference)
             .onAppear {
                 ExportTempFileStore.wipeAll()
                 viewModel.syncNow()
@@ -70,8 +73,10 @@ struct HoursTrackerApp: App {
 
 struct MainTabView: View {
     @ObservedObject var viewModel: AppViewModel
+    @EnvironmentObject private var appLanguage: AppLanguageController
 
     var body: some View {
+        let _ = appLanguage.preference // keep tab labels tied to language changes
         TabView {
             HomeView(viewModel: viewModel)
                 .tabItem {

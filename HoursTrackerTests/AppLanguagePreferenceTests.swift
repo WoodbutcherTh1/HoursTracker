@@ -75,4 +75,60 @@ final class AppLanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(AppLanguageOption.hebrew.layoutDirection, .rightToLeft)
         XCTAssertEqual(AppLanguageOption.arabic.layoutDirection, .rightToLeft)
     }
+
+    func testLocalizedStringsComeFromLanguageSpecificLproj() {
+        let english = AppLocale.localizedString("tab.home", language: .english)
+        let hebrew = AppLocale.localizedString("tab.home", language: .hebrew)
+        let arabic = AppLocale.localizedString("tab.home", language: .arabic)
+
+        XCTAssertEqual(english, "Home")
+        XCTAssertEqual(hebrew, "בית")
+        XCTAssertEqual(arabic, "الرئيسية")
+        XCTAssertNotEqual(english, hebrew)
+        XCTAssertNotEqual(english, arabic)
+
+        XCTAssertEqual(
+            AppLocale.localizedString("home.clockIn", language: .hebrew),
+            "כניסה"
+        )
+        XCTAssertEqual(
+            AppLocale.localizedString("settings.appLanguage", language: .arabic),
+            "لغة التطبيق"
+        )
+        XCTAssertEqual(
+            AppLocale.localizedString("history.emptyPeriod", language: .hebrew),
+            "אין משמרות ביום זה"
+        )
+    }
+
+    func testDateLabelsFollowExplicitAppLocaleNotDevice() {
+        var components = DateComponents()
+        components.year = 2026
+        components.month = 7
+        components.day = 16
+        let date = Calendar(identifier: .gregorian).date(from: components)!
+
+        let hebrewMonth = HistoryPeriodHelper.monthTitle(
+            for: date,
+            locale: Locale(identifier: "he")
+        )
+        let englishMonth = HistoryPeriodHelper.monthTitle(
+            for: date,
+            locale: Locale(identifier: "en")
+        )
+        XCTAssertTrue(hebrewMonth.contains("2026"))
+        XCTAssertFalse(hebrewMonth.localizedCaseInsensitiveContains("July"))
+        XCTAssertTrue(englishMonth.localizedCaseInsensitiveContains("July"))
+
+        let hebrewLetter = HistoryPeriodHelper.weekdayLetter(
+            for: date,
+            locale: Locale(identifier: "he")
+        )
+        let englishLetter = HistoryPeriodHelper.weekdayLetter(
+            for: date,
+            locale: Locale(identifier: "en")
+        )
+        XCTAssertEqual(englishLetter, "T") // Thursday
+        XCTAssertNotEqual(hebrewLetter, englishLetter)
+    }
 }

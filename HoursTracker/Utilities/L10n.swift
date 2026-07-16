@@ -1,11 +1,9 @@
 import Foundation
 
 enum L10n {
-    private static var locale: Locale { AppLocale.resolvedLocale }
-
     /// Resolve a catalog key in the active in-app language (immediate, no restart).
-    private static func t(_ key: String.LocalizationValue) -> String {
-        String(localized: key, locale: locale)
+    private static func t(_ key: String) -> String {
+        AppLocale.tr(key)
     }
 
     static var brandName: String { t("app.brandName") }
@@ -62,6 +60,8 @@ enum L10n {
     static var historyTitle: String { t("history.title") }
     static var historyEmpty: String { t("history.empty") }
     static var historyEmptyDescription: String { t("history.emptyDescription") }
+    static var historyEmptyPeriod: String { t("history.emptyPeriod") }
+    static var historyEmptyPeriodHint: String { t("history.emptyPeriodHint") }
     static var historyColDate: String { t("history.col.date") }
     static var historyColIn: String { t("history.col.in") }
     static var historyColOut: String { t("history.col.out") }

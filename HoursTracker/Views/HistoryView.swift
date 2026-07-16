@@ -23,17 +23,15 @@ struct HistoryView: View {
 
     private let calendar = Calendar.current
 
-    private let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.timeStyle = .short
-        return f
-    }()
+    private var timeFormatter: DateFormatter {
+        AppLocale.makeDateFormatter(timeStyle: .short)
+    }
 
-    private let dayNumberFormatter: DateFormatter = {
-        let f = DateFormatter()
+    private var dayNumberFormatter: DateFormatter {
+        let f = AppLocale.makeDateFormatter()
         f.dateFormat = "d"
         return f
-    }()
+    }
 
     private var activePeriod: PayrollPeriod {
         HistoryPeriodHelper.payrollPeriod(
@@ -328,10 +326,7 @@ struct HistoryView: View {
     }
 
     private func dayAccessibilityLabel(_ day: Date, hasSession: Bool) -> String {
-        let formatter = DateFormatter()
-        formatter.locale = .current
-        formatter.dateStyle = .full
-        formatter.timeStyle = .none
+        let formatter = AppLocale.makeDateFormatter(dateStyle: .full)
         var label = formatter.string(from: day)
         if hasSession {
             label += ", " + L10n.historyDayHasShifts
@@ -528,10 +523,10 @@ struct HistoryView: View {
                 .font(.system(size: 40))
                 .foregroundStyle(.secondary)
                 .symbolRenderingMode(.hierarchical)
-            Text(AppLocale.tr("history.emptyPeriod"))
+            Text(L10n.historyEmptyPeriod)
                 .font(.subheadline.weight(.semibold))
                 .multilineTextAlignment(.center)
-            Text(AppLocale.tr("history.emptyPeriodHint"))
+            Text(L10n.historyEmptyPeriodHint)
                 .font(.caption)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -610,10 +605,7 @@ struct HistoryView: View {
     }
 
     private func shortDate(_ date: Date) -> String {
-        let f = DateFormatter()
-        f.locale = .current
-        f.setLocalizedDateFormatFromTemplate("dd/MM")
-        return f.string(from: date)
+        AppLocale.makeDateFormatter(template: "dd/MM").string(from: date)
     }
 
     private func alignToCurrentPayrollPeriod() {

@@ -92,6 +92,7 @@ final class AppLanguageController: ObservableObject {
     var layoutDirection: LayoutDirection { preference.layoutDirection }
 
     private func persistAndApply() {
+        // Persist before observers rebuild so AppLocale/L10n see the new choice.
         defaults.set(preference.rawValue, forKey: AppLanguageOption.storageKey)
         applyAppleLanguages(for: preference)
     }

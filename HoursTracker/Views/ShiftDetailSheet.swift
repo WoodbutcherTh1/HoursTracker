@@ -8,17 +8,13 @@ struct ShiftDetailSheet: View {
     @Environment(\.dismiss) private var dismiss
     @State private var showEditor = false
 
-    private let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .full
-        return f
-    }()
+    private var dateFormatter: DateFormatter {
+        AppLocale.makeDateFormatter(dateStyle: .full)
+    }
 
-    private let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.timeStyle = .short
-        return f
-    }()
+    private var timeFormatter: DateFormatter {
+        AppLocale.makeDateFormatter(timeStyle: .short)
+    }
 
     var body: some View {
         NavigationStack {

@@ -54,14 +54,15 @@ enum HistoryPeriodHelper {
         min(max(day, 1), 28)
     }
 
-    static func monthTitle(for date: Date, locale: Locale = .current) -> String {
+    static func monthTitle(for date: Date, locale: Locale = AppLocale.resolvedLocale) -> String {
         let formatter = DateFormatter()
         formatter.locale = locale
+        formatter.calendar = Calendar(identifier: .gregorian)
         formatter.setLocalizedDateFormatFromTemplate("MMMM yyyy")
         return formatter.string(from: date)
     }
 
-    static func payrollPeriodTitle(for period: PayrollPeriod, locale: Locale = .current) -> String {
+    static func payrollPeriodTitle(for period: PayrollPeriod, locale: Locale = AppLocale.resolvedLocale) -> String {
         monthTitle(for: period.labelMonth, locale: locale)
     }
 
@@ -197,16 +198,18 @@ enum HistoryPeriodHelper {
         return String(format: "%02d:%02d", h, m)
     }
 
-    static func weekdayLetter(for date: Date, locale: Locale = .current) -> String {
+    static func weekdayLetter(for date: Date, locale: Locale = AppLocale.resolvedLocale) -> String {
         let formatter = DateFormatter()
         formatter.locale = locale
+        formatter.calendar = Calendar(identifier: .gregorian)
         formatter.setLocalizedDateFormatFromTemplate("EEEEE")
         return formatter.string(from: date)
     }
 
-    static func shortRangeLabel(for period: PayrollPeriod, locale: Locale = .current) -> String {
+    static func shortRangeLabel(for period: PayrollPeriod, locale: Locale = AppLocale.resolvedLocale) -> String {
         let f = DateFormatter()
         f.locale = locale
+        f.calendar = Calendar(identifier: .gregorian)
         f.setLocalizedDateFormatFromTemplate("dd/MM")
         return "\(f.string(from: period.start)) – \(f.string(from: period.end))"
     }

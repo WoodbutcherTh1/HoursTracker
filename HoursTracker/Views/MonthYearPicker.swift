@@ -70,10 +70,6 @@ struct MonthYearPicker: View {
         var components = DateComponents()
         components.month = month
         guard let date = calendar.date(from: components) else { return "\(month)" }
-        let formatter = DateFormatter()
-        // Follow the in-app language override (same as the rest of the Export form).
-        formatter.locale = AppLocale.resolvedLocale
-        formatter.setLocalizedDateFormatFromTemplate("MMMM")
-        return formatter.string(from: date)
+        return AppLocale.makeDateFormatter(template: "MMMM").string(from: date)
     }
 }

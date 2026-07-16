@@ -15,12 +15,9 @@ struct SettingsView: View {
     @State private var showDisableSyncConfirm = false
     @State private var isEditingIDNumber = false
 
-    private let syncDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .short
-        f.timeStyle = .short
-        return f
-    }()
+    private var syncDateFormatter: DateFormatter {
+        AppLocale.makeDateFormatter(dateStyle: .short, timeStyle: .short)
+    }
 
     init(viewModel: AppViewModel) {
         self.viewModel = viewModel

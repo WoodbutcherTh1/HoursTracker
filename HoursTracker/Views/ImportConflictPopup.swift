@@ -8,12 +8,9 @@ struct ImportConflictPopup: View {
     let onApplyAll: () -> Void
     let onKeep: () -> Void
 
-    private let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = .current
-        f.setLocalizedDateFormatFromTemplate("dd/MM/yy")
-        return f
-    }()
+    private var dateFormatter: DateFormatter {
+        AppLocale.makeDateFormatter(template: "dd/MM/yy")
+    }
 
     var body: some View {
         ZStack {

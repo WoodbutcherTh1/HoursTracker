@@ -37,11 +37,9 @@ struct HomeView: View {
     @State private var showScanner = false
     @State private var liveNow = Date()
 
-    private let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.timeStyle = .short
-        return f
-    }()
+    private var timeFormatter: DateFormatter {
+        AppLocale.makeDateFormatter(timeStyle: .short)
+    }
 
     private let calendar = Calendar.current
 

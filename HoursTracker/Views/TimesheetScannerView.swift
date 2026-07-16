@@ -115,24 +115,17 @@ struct TimesheetScannerView: View {
     @State private var currentConflictDay: Date?
     @State private var pendingImportDrafts: [ScannedSessionDraft] = []
 
-    private let dateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateStyle = .medium
-        return f
-    }()
+    private var dateFormatter: DateFormatter {
+        AppLocale.makeDateFormatter(dateStyle: .medium)
+    }
 
-    private let shortDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.locale = .current
-        f.setLocalizedDateFormatFromTemplate("dd/MM")
-        return f
-    }()
+    private var shortDateFormatter: DateFormatter {
+        AppLocale.makeDateFormatter(template: "dd/MM")
+    }
 
-    private let timeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.timeStyle = .short
-        return f
-    }()
+    private var timeFormatter: DateFormatter {
+        AppLocale.makeDateFormatter(timeStyle: .short)
+    }
 
     var body: some View {
         NavigationStack {

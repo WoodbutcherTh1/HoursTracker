@@ -24,14 +24,51 @@ enum AppLocale {
         }
     }
 
-    /// Locale used for `String(localized:)` lookups under the in-app override.
+    /// Locale used for formatters / SwiftUI environment under the in-app override.
     static var resolvedLocale: Locale {
         Locale(identifier: current.localeIdentifier)
     }
 
+    /// Date/time formatter locked to the in-app language (never device locale).
+    static func makeDateFormatter(
+        dateStyle: DateFormatter.Style = .none,
+        timeStyle: DateFormatter.Style = .none,
+        template: String? = nil
+    ) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = resolvedLocale
+        formatter.calendar = Calendar(identifier: .gregorian)
+        if let template {
+            formatter.setLocalizedDateFormatFromTemplate(template)
+        } else {
+            formatter.dateStyle = dateStyle
+            formatter.timeStyle = timeStyle
+        }
+        return formatter
+    }
+
     /// Catalog lookup in the active in-app language (works outside SwiftUI too).
-    static func tr(_ key: String.LocalizationValue) -> String {
-        String(localized: key, locale: resolvedLocale)
+    static func tr(_ key: String) -> String {
+        localizedString(key, language: current)
+    }
+
+    /// Resolve a key from the matching `*.lproj` (not `String(localized:locale:)`,
+    /// which often keeps the launch language and only flips layout direction).
+    static func localizedString(_ key: String, language: Language) -> String {
+        let code = language.localeIdentifier
+        if let path = Bundle.main.path(forResource: code, ofType: "lproj"),
+           let bundle = Bundle(path: path) {
+            let value = bundle.localizedString(forKey: key, value: nil, table: nil)
+            if value != key { return value }
+        }
+        // Fall back through English, then the development bundle.
+        if language != .english,
+           let path = Bundle.main.path(forResource: "en", ofType: "lproj"),
+           let bundle = Bundle(path: path) {
+            let value = bundle.localizedString(forKey: key, value: nil, table: nil)
+            if value != key { return value }
+        }
+        return Bundle.main.localizedString(forKey: key, value: key, table: nil)
     }
 
     /// Prefer the in-app language override; fall back to the device preferred languages.
