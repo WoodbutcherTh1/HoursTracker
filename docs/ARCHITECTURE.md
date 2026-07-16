@@ -144,7 +144,8 @@ Key entry points:
 
 ### Persistence & sync
 
-- **Local**: `PersistenceManager` writes `work_sessions.json` and `workplace_settings.json` to Documents with ISO-8601 dates via `ProtectedFileWriter` (atomic + `.completeFileProtectionUnlessOpen`). Save failures throw (surfaced as a UI alert); load failures fall back to empty/default state and are logged. Existing files are re-written once on launch to upgrade their protection class.
+- **Local**: `PersistenceManager` writes `work_sessions.json` and `workplace_settings.json` to Documents with ISO-8601 dates via `ProtectedFileWriter` (atomic + `.completeFileProtectionUnlessOpen`). Save failures throw (surfaced as a UI alert). **Decode failures quarantine** the corrupt file to a `.corrupt` sibling (timestamped if needed) then fall back to empty/default so a future save cannot silently overwrite recoverable bytes. Existing files are re-written once on launch to upgrade their protection class. SwiftLint forbids raw `Data.write(to:)` outside `ProtectedFileWriter`.
+- **Activity log data rule**: `ActivityLogStore` details must never contain PII, GPS coordinates, or free-text notes — only event names, counts, durations, and format identifiers.
 - **National ID (teudat zehut)**: Stored in the Keychain (`KeychainStore`, `kSecAttrAccessibleWhenUnlockedThisDeviceOnly`), not in JSON or CloudKit. `WorkplaceSettings.workerIDNumber` remains a plain in-memory field for all consumers; only the persistence layer strips it on save and rehydrates it on load. On first launch after upgrade, a plaintext value still present in JSON is migrated into Keychain and the JSON is rewritten empty. Decision: Keychain (not CryptoKit field encryption) so the ciphertext never appears in iCloud sync payloads and deletion is a single `SecItemDelete`. The ID is device-local and does not sync across devices.
 - **Cloud sync is compiled out by default.** `CKContainer` aborts the process when the iCloud entitlements are missing, and personal-team provisioning cannot carry them, so CloudKit only activates when `HTCloudKitEnabled` is set in Info.plist *and* the entitlements are restored (`CloudKitSyncManager.makeDefault()` otherwise returns the `NoOpCloudSyncManager` stub, and Settings hides the sync section via `CloudSyncing.isSupported`). Everything below describes the enabled configuration.
 - **Cloud**: `CloudKitSyncManager` stores each session as one `WorkSession` record whose `payload` field is the JSON-encoded struct (plus a `modifiedAt` field); settings live in a single well-known record (`workplace-settings`). There is no per-field schema — the payload blob is the source of truth.
@@ -209,4 +210,17 @@ open HoursTracker.xcodeproj
 xcodebuild test -scheme HoursTracker -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
-The suite covers the overtime engine (`OvertimeCalculatorTests`), CloudKit merge logic (`SyncMergeTests`), export filtering and totals (`ExportManagerTests`), clock-out prediction (`ClockOutEstimationTests`), incremental sync writes (`SyncingPersistenceStoreTests`), and view-model flows against in-memory mocks (`AppViewModelTests`, doubles in `TestDoubles.swift`). CI (`.github/workflows/ci.yml`) regenerates the project and runs the suite on every push and pull request.
+The suite covers the overtime engine (`OvertimeCalculatorTests`), CloudKit merge logic (`SyncMergeTests`), export filtering and totals (`ExportManagerTests`), clock-out prediction (`ClockOutEstimationTests`), incremental sync writes (`SyncingPersistenceStoreTests`), and view-model flows against in-memory mocks (`AppViewModelTests`, doubles in `TestDoubles.swift`). CI (`.github/workflows/ci.yml`) regenerates the project and runs the suite on every push and pull request; Actions are SHA-pinned with `permissions: contents: read`, plus SwiftLint (security custom rules) and gitleaks.
+
+## Networking gate (future features)
+
+HoursTracker ships **without** a general networking layer. CloudKit private database (user + build opt-in) is the only permitted remote store today.
+
+If any feature ever adds HTTPS / URLSession / other network I/O:
+
+1. Keep **App Transport Security defaults** — no ATS exception domains unless a written exception is approved and time-boxed.
+2. Consider **certificate pinning** (or equivalent trust controls) for any first-party API; document the pin rotation process before shipping.
+3. Update `PrivacyInfo.xcprivacy`, `docs/PRIVACY.md`, `docs/DATA_INVENTORY.md`, and the App Store privacy questionnaire for any new data collection or destination.
+4. Do **not** add analytics, ads, or crash-reporting SDKs without a separate privacy review; prefer Apple frameworks only.
+
+This gate is intentional documentation so networking cannot land as tribal knowledge.

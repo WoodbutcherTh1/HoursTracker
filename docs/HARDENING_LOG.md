@@ -252,3 +252,51 @@ xcodebuild test -project HoursTracker.xcodeproj -scheme HoursTracker \
 **Phase 6 (A17 + Part B):** CI SHA-pinning, permissions, SwiftLint, secret scan, `SECURITY.md`, `THREAT_MODEL.md`, `DATA_INVENTORY.md`, PR template, `RELEASE_CHECKLIST.md`, ARCHITECTURE networking gate.
 
 ---
+
+## Phase 6 — CI, supply chain & security docs (A17 + Part B)
+
+**Date:** 16 July 2026  
+**Status:** Complete — tests green; waiting for user `"continue"` before final summary (`docs/HARDENING_SUMMARY.md`).
+
+### (a) Tasks completed
+
+| Task | Summary |
+|---|---|
+| **A17** | CI: pin `actions/checkout` + `gitleaks/gitleaks-action` to full SHAs; top-level `permissions: contents: read`; SwiftLint (Homebrew) strict with security custom rules; secret scan job; `SECURITY.md` + `docs/THREAT_MODEL.md`. |
+| **B1** | `ProtectedFileWriter` remains the sole production write path; SwiftLint `no_raw_data_write` forbids raw `.write(to:)` outside it. |
+| **B2** | `docs/DATA_INVENTORY.md` — field → storage → protection → retention → deletion. |
+| **B3** | `.github/pull_request_template.md` privacy review gate. |
+| **B4** | Documented ActivityLogStore non-PII details rule in inventory + ARCHITECTURE (code comment already present). |
+| **B5** | Corrupt JSON loads quarantine to `.corrupt` sibling (`CorruptFileQuarantine`); delete-all wipes sidecars. |
+| **B6** | `docs/RELEASE_CHECKLIST.md` for App Store / device verification. |
+| **B7** | ARCHITECTURE networking gate (ATS, pinning consideration, privacy updates). |
+
+### (b) Notable files
+
+- **CI / lint:** `.github/workflows/ci.yml`, `.swiftlint.yml`, `.github/pull_request_template.md`
+- **Docs:** `SECURITY.md`, `docs/THREAT_MODEL.md`, `docs/DATA_INVENTORY.md`, `docs/RELEASE_CHECKLIST.md`, `docs/ARCHITECTURE.md`
+- **Code:** `CorruptFileQuarantine.swift`; load paths in Persistence / ActivityLog / Tombstones; delete-all sidecar wipe
+- **Tests:** `CorruptFileQuarantineTests.swift`
+
+### (c) Verification
+
+```
+swiftlint lint --strict --config .swiftlint.yml   # 0 violations (app sources)
+xcodegen generate
+xcodebuild test -project HoursTracker.xcodeproj -scheme HoursTracker \
+  -destination 'platform=iOS Simulator,name=iPhone 16,OS=18.3.1'
+```
+
+**146 tests, 0 failures.** Grep gate: no raw `.write(to:)` in `HoursTracker/` except `ProtectedFileWriter.swift`.
+
+### (d) Deferred / notes
+
+- Gitleaks is a CI-only tool (not an app dependency). Private-repo license requirements for gitleaks-action, if any, are an ops concern for the repo owner.
+- Quarantined `.corrupt` files are recoverable by the user/developer but not auto-merged back; delete-all removes them.
+- Final phase after this: `docs/HARDENING_SUMMARY.md` (finding → fix → evidence, residual risks, manual App Store steps).
+
+### (e) Next phase preview
+
+**Final deliverable:** `docs/HARDENING_SUMMARY.md` executive summary mapping every finding → fix → verification evidence, residual risks / accepted trade-offs, and manual App Store Connect steps still owned by the submitter.
+
+---
