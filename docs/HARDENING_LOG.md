@@ -256,7 +256,7 @@ xcodebuild test -project HoursTracker.xcodeproj -scheme HoursTracker \
 ## Phase 6 — CI, supply chain & security docs (A17 + Part B)
 
 **Date:** 16 July 2026  
-**Status:** Complete — tests green; waiting for user `"continue"` before final summary (`docs/HARDENING_SUMMARY.md`).
+**Status:** Complete — tests green; final summary delivered in `docs/HARDENING_SUMMARY.md`.
 
 ### (a) Tasks completed
 
@@ -297,6 +297,28 @@ xcodebuild test -project HoursTracker.xcodeproj -scheme HoursTracker \
 
 ### (e) Next phase preview
 
-**Final deliverable:** `docs/HARDENING_SUMMARY.md` executive summary mapping every finding → fix → verification evidence, residual risks / accepted trade-offs, and manual App Store Connect steps still owned by the submitter.
+**Final deliverable:** `docs/HARDENING_SUMMARY.md` — complete (see below).
+
+---
+
+## Final — Hardening summary
+
+**Date:** 16 July 2026  
+**Status:** Complete.
+
+### (a) Delivered
+
+`docs/HARDENING_SUMMARY.md` — executive table (A1–A17 + Part B), residual risks / accepted trade-offs, and manual App Store / device steps for the submitter.
+
+### (b) Final re-verification (Part D)
+
+- `swiftlint lint --strict --config .swiftlint.yml` — 0 violations  
+- `xcodegen generate` + full `xcodebuild test` — **146 tests, 0 failures**  
+- Grep: no `privacy: .public`; no raw `.write(to:)` outside `ProtectedFileWriter.swift`  
+- Privacy triad re-check: `PrivacyInfo.xcprivacy` (empty collected types, no tracking, UserDefaults `CA92.1`) aligns with `docs/PRIVACY.md` and in-app policy (on-device data; iCloud opt-in; no developer collection/analytics)
+
+### (c) Remaining owner actions
+
+Listed under **Manual App Store / device steps** in `docs/HARDENING_SUMMARY.md` and `docs/RELEASE_CHECKLIST.md` (questionnaire, public policy URL, device Data Protection check, CloudKit entitlements if shipping sync).
 
 ---
