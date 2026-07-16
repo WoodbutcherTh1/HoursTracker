@@ -125,6 +125,7 @@ final class ActivityLogStore: ObservableObject {
     func wipeForPrivacy() {
         entries = []
         persist()
+        CorruptFileQuarantine.removeSidecars(for: logURL, fileManager: fileManager)
     }
 
     func export(format: ActivityLogExportFormat) throws -> URL {
@@ -189,14 +190,20 @@ final class ActivityLogStore: ObservableObject {
     // MARK: - Persistence
 
     private func load() {
-        guard fileManager.fileExists(atPath: logURL.path),
-              let data = try? Data(contentsOf: logURL),
-              let decoded = try? decoder.decode([ActivityLogEntry].self, from: data)
-        else {
+        guard fileManager.fileExists(atPath: logURL.path) else {
             entries = []
             return
         }
-        entries = decoded
+        do {
+            let data = try Data(contentsOf: logURL)
+            entries = try decoder.decode([ActivityLogEntry].self, from: data)
+        } catch {
+            logger.error("Failed to load activity log: \(error.localizedDescription, privacy: .private)")
+            if let quarantined = CorruptFileQuarantine.quarantine(at: logURL, fileManager: fileManager) {
+                logger.error("Quarantined corrupt activity log as \(quarantined.lastPathComponent, privacy: .private)")
+            }
+            entries = []
+        }
     }
 
     private func persist() {

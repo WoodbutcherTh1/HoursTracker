@@ -115,8 +115,17 @@ final class PersistenceManager: PersistableStore {
             return try decoder.decode(T.self, from: data)
         } catch {
             logger.error("Failed to load \(url.lastPathComponent, privacy: .private): \(error.localizedDescription, privacy: .private)")
+            if let quarantined = CorruptFileQuarantine.quarantine(at: url, fileManager: fileManager) {
+                logger.error("Quarantined corrupt store as \(quarantined.lastPathComponent, privacy: .private)")
+            }
             return nil
         }
+    }
+
+    /// Removes `.corrupt` sidecars next to sessions/settings (Delete All My Data).
+    func wipeQuarantinedSidecars() {
+        CorruptFileQuarantine.removeSidecars(for: sessionsURL, fileManager: fileManager)
+        CorruptFileQuarantine.removeSidecars(for: settingsURL, fileManager: fileManager)
     }
 
     private func save<T: Encodable>(_ value: T, to url: URL) throws {

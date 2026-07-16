@@ -87,14 +87,26 @@ final class SessionTombstoneStore: SessionTombstoneStoring {
     }
 
     private func load() {
-        guard fileManager.fileExists(atPath: fileURL.path),
-              let data = try? Data(contentsOf: fileURL),
-              let decoded = try? decoder.decode([SessionTombstone].self, from: data)
-        else {
+        guard fileManager.fileExists(atPath: fileURL.path) else {
             tombstones = [:]
             return
         }
-        tombstones = Dictionary(uniqueKeysWithValues: decoded.map { ($0.id, $0) })
+        do {
+            let data = try Data(contentsOf: fileURL)
+            let decoded = try decoder.decode([SessionTombstone].self, from: data)
+            tombstones = Dictionary(uniqueKeysWithValues: decoded.map { ($0.id, $0) })
+        } catch {
+            logger.error("Failed to load tombstones: \(error.localizedDescription, privacy: .private)")
+            if let quarantined = CorruptFileQuarantine.quarantine(at: fileURL, fileManager: fileManager) {
+                logger.error("Quarantined corrupt tombstones as \(quarantined.lastPathComponent, privacy: .private)")
+            }
+            tombstones = [:]
+        }
+    }
+
+    /// Removes `.corrupt` sidecars (Delete All My Data).
+    func wipeQuarantinedSidecars() {
+        CorruptFileQuarantine.removeSidecars(for: fileURL, fileManager: fileManager)
     }
 
     private func persist() {
