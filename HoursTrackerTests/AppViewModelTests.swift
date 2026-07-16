@@ -57,6 +57,36 @@ final class AppViewModelTests: XCTestCase {
         XCTAssertFalse(store.storedSessions[0].isOpen)
     }
 
+    func testSecondShiftSummaryIsForThatShiftOnly() throws {
+        let day = Calendar.current.startOfDay(for: Date())
+        // Morning shift already completed: 8 hours.
+        let morning = WorkSession(
+            date: day,
+            clockIn: day.addingTimeInterval(8 * 3600),
+            clockOut: day.addingTimeInterval(16 * 3600)
+        )
+        let (viewModel, _) = makeViewModel(sessions: [morning])
+
+        viewModel.clockIn()
+        viewModel.clockOut()
+
+        let completedID = try XCTUnwrap(viewModel.lastCompletedSessionID)
+        XCTAssertNotEqual(completedID, morning.id)
+        let summary = try XCTUnwrap(viewModel.lastCompletedBreakdown)
+        let justClosed = try XCTUnwrap(viewModel.sessions.first { $0.id == completedID })
+
+        // Summary matches the just-closed shift, not the whole day (~8h+).
+        XCTAssertEqual(summary.totalHours, justClosed.effectiveHours, accuracy: 0.05)
+        XCTAssertLessThan(summary.totalHours, 1.0)
+
+        let dayTotal = OvertimeCalculator.aggregate(
+            sessions: viewModel.sessions.filter { !$0.isOpen },
+            settings: viewModel.settings
+        )
+        XCTAssertGreaterThan(dayTotal.totalHours, 7.0)
+        XCTAssertNotEqual(summary.totalHours, dayTotal.totalHours, accuracy: 0.5)
+    }
+
     func testDeleteLastCompletedSessionRemovesOnlyThatShift() throws {
         let day = Calendar.current.startOfDay(for: Date())
         let earlier = WorkSession(

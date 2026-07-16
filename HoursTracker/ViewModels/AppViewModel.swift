@@ -145,14 +145,14 @@ final class AppViewModel: ObservableObject {
             sessions[index].breakMinutes = settings.defaultBreakMinutes
         }
         sessions[index].touch()
-        // The completion sheet summarizes the whole day, so a second shift on
-        // the same day shows combined totals rather than restarting from zero.
-        let calendar = Calendar.current
-        let dayCompleted = sessions.filter {
-            calendar.isDate($0.date, inSameDayAs: sessions[index].date) && !$0.isOpen
-        }
+        // Summarize only the shift just closed (day-aware so same-day OT/gas
+        // sharing stays correct, but totals are for this session alone).
         lastCompletedSessionID = sessions[index].id
-        lastCompletedBreakdown = OvertimeCalculator.aggregate(sessions: dayCompleted, settings: settings)
+        lastCompletedBreakdown = OvertimeCalculator.breakdown(
+            for: sessions[index],
+            in: sessions,
+            settings: settings
+        )
         showDaySummary = true
         persist()
         refreshReminders()

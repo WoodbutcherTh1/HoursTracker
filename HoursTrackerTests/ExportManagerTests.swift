@@ -128,7 +128,7 @@ final class ExportManagerTests: XCTestCase {
         XCTAssertTrue(contents.contains("Payroll summary"))
         XCTAssertTrue(contents.contains("Hours breakdown"))
         XCTAssertTrue(contents.contains("Pay breakdown"))
-        XCTAssertTrue(contents.contains("Column guide"))
+        XCTAssertTrue(contents.contains("Estimated deductions"))
         XCTAssertTrue(contents.contains("Daily details"))
         XCTAssertTrue(contents.contains("Day"))
         XCTAssertTrue(contents.contains("Travel"))
@@ -192,7 +192,7 @@ final class ExportManagerTests: XCTestCase {
         XCTAssertFalse(contents.contains(" OT"))
     }
 
-    func testTXTExportIncludesPayrollChartsAndLegend() throws {
+    func testTXTExportIncludesPayrollChartsAndDeductions() throws {
         let report = manager.buildReport(
             sessions: [TestData.session(day: 1)],
             settings: settings,
@@ -208,10 +208,11 @@ final class ExportManagerTests: XCTestCase {
         XCTAssertTrue(contents.contains("Hours breakdown"))
         XCTAssertTrue(contents.contains("Pay breakdown"))
         XCTAssertTrue(contents.contains("█") || contents.contains("░"))
-        XCTAssertTrue(contents.contains("Column guide"))
-        let legendIndex = contents.range(of: "Column guide")!.lowerBound
+        XCTAssertTrue(contents.contains("Estimated deductions"))
+        XCTAssertFalse(contents.contains("Column guide"))
+        let deductionsIndex = contents.range(of: "Estimated deductions")!.lowerBound
         let tableIndex = contents.range(of: "Daily details")!.lowerBound
-        XCTAssertLessThan(legendIndex, tableIndex)
+        XCTAssertLessThan(deductionsIndex, tableIndex)
     }
 
     func testDOCXExportIncludesPayrollSections() throws {
@@ -234,7 +235,8 @@ final class ExportManagerTests: XCTestCase {
         let xml = String(decoding: xmlData, as: UTF8.self)
         XCTAssertTrue(xml.contains("Payroll summary"))
         XCTAssertTrue(xml.contains("Hours breakdown"))
-        XCTAssertTrue(xml.contains("Column guide"))
+        XCTAssertTrue(xml.contains("Estimated deductions"))
+        XCTAssertFalse(xml.contains("Column guide"))
         XCTAssertTrue(xml.contains("Daily details"))
     }
 

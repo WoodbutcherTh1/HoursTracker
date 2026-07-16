@@ -366,28 +366,31 @@ final class ExportManager {
             )
             y = max(hoursBottom, payBottom) + 12
 
-            // Column guide (compact)
-            drawText(copy.legendTitle, font: sectionFont, x: margin, width: contentWidth)
-            y += 16
-            for line in copy.legendLines {
-                let h = wrappedHeight(line, font: smallFont, width: contentWidth)
-                if y + h > pageHeight - 90 {
-                    context.beginPage()
-                    y = margin
-                }
-                line.draw(
-                    in: CGRect(x: margin, y: y, width: contentWidth, height: h),
-                    withAttributes: attrs(smallFont, color: UIColor.darkGray)
-                )
-                y += h + 2
-            }
-            y += 10
-
-            // Daily payroll table (columns mirrored in RTL)
-            if y > pageHeight - 120 {
+            // Estimated deductions chart (replaces the old column guide)
+            if y > pageHeight - 110 {
                 context.beginPage()
                 y = margin
             }
+            y = drawBarChart(
+                title: copy.deductionsChart,
+                segments: [
+                    (copy.colIncomeTax, totals.incomeTax, UIColor(red: 0.75, green: 0.28, blue: 0.32, alpha: 1)),
+                    (copy.colNationalInsurance, totals.nationalInsurance, UIColor(red: 0.55, green: 0.40, blue: 0.70, alpha: 1)),
+                    (copy.colHealthTax, totals.healthTax, UIColor(red: 0.20, green: 0.55, blue: 0.65, alpha: 1))
+                ],
+                x: margin,
+                y: y,
+                width: contentWidth,
+                isRTL: rtl,
+                titleFont: sectionFont,
+                labelFont: smallFont,
+                valueFormatter: { formatMoney($0, currencyCode: totals.currencyCode) }
+            ) + 12
+
+            // Daily table starts on its own page (below the summary/charts page),
+            // so it isn't split with only a few rows under the graphs.
+            context.beginPage()
+            y = margin
             drawText(copy.dailyTable, font: sectionFont, x: margin, width: contentWidth)
             y += 18
 
@@ -556,7 +559,10 @@ final class ExportManager {
             formatMoney($0, currencyCode: report.totals.currencyCode)
         }).map { ExportLayout.directedLine($0, isRTL: rtl) })
         lines.append("")
-        lines.append(contentsOf: columnLegendBlock().map { ExportLayout.directedLine($0, isRTL: rtl) })
+        lines.append(ExportLayout.directedLine(copy.deductionsChart, isRTL: rtl))
+        lines.append(contentsOf: asciiBars(deductionSegments(report.totals), formatValue: {
+            formatMoney($0, currencyCode: report.totals.currencyCode)
+        }).map { ExportLayout.directedLine($0, isRTL: rtl) })
         lines.append("")
         lines.append(ExportLayout.directedLine(copy.dailyTable, isRTL: rtl))
         let columns = ExportLayout.visualOrder(tableColumns(), isRTL: rtl)
@@ -610,11 +616,11 @@ final class ExportManager {
             formatMoney($0, currencyCode: report.totals.currencyCode)
         }).map { "- `\(ExportLayout.directedLine($0, isRTL: rtl))`" })
         lines.append("")
-        lines.append("## \(ExportLayout.directedLine(copy.legendTitle, isRTL: rtl))")
+        lines.append("## \(ExportLayout.directedLine(copy.deductionsChart, isRTL: rtl))")
         lines.append("")
-        for line in copy.legendLines {
-            lines.append("- \(ExportLayout.directedLine(line, isRTL: rtl))")
-        }
+        lines.append(contentsOf: asciiBars(deductionSegments(report.totals), formatValue: {
+            formatMoney($0, currencyCode: report.totals.currencyCode)
+        }).map { "- `\(ExportLayout.directedLine($0, isRTL: rtl))`" })
         lines.append("")
         lines.append("## \(ExportLayout.directedLine(copy.dailyTable, isRTL: rtl))")
         lines.append("")
@@ -660,7 +666,8 @@ final class ExportManager {
             \(asciiBars(hoursSegments(report.totals), formatValue: formatHours).map { docxParagraph($0, isRTL: rtl) }.joined(separator: "\n            "))
             \(docxParagraph(copy.payChart, bold: true, isRTL: rtl))
             \(asciiBars(paySegments(report.totals), formatValue: { formatMoney($0, currencyCode: report.totals.currencyCode) }).map { docxParagraph($0, isRTL: rtl) }.joined(separator: "\n            "))
-            \(columnLegendBlock().map { docxParagraph($0, isRTL: rtl) }.joined(separator: "\n            "))
+            \(docxParagraph(copy.deductionsChart, bold: true, isRTL: rtl))
+            \(asciiBars(deductionSegments(report.totals), formatValue: { formatMoney($0, currencyCode: report.totals.currencyCode) }).map { docxParagraph($0, isRTL: rtl) }.joined(separator: "\n            "))
             \(docxParagraph(copy.dailyTable, bold: true, isRTL: rtl))
             <w:tbl>
               \(tblPr)
@@ -774,6 +781,14 @@ final class ExportManager {
         ]
     }
 
+    private func deductionSegments(_ totals: DayPayBreakdown) -> [(String, Double)] {
+        [
+            (copy.colIncomeTax, totals.incomeTax),
+            (copy.colNationalInsurance, totals.nationalInsurance),
+            (copy.colHealthTax, totals.healthTax)
+        ]
+    }
+
     private func asciiBars(
         _ segments: [(String, Double)],
         formatValue: (Double) -> String
@@ -786,10 +801,6 @@ final class ExportManager {
                 + String(repeating: "░", count: max(0, maxBars - count))
             return "\(label): \(bar) \(formatValue(value))"
         }
-    }
-
-    private func columnLegendBlock() -> [String] {
-        [copy.legendTitle] + copy.legendLines
     }
 
     private func tableColumns() -> [String] {

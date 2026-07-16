@@ -6,6 +6,7 @@ struct HoursTrackerApp: App {
     @StateObject private var appLock = AppLockController()
     @ObservedObject private var appLanguage = AppLanguageController.shared
     @Environment(\.scenePhase) private var scenePhase
+    @State private var showLaunchSplash = true
 
     var body: some Scene {
         WindowGroup {
@@ -23,9 +24,16 @@ struct HoursTrackerApp: App {
                     PrivacyOverlayView()
                         .transition(.opacity)
                 }
+
+                if showLaunchSplash {
+                    LaunchHourglassSplash()
+                        .transition(.opacity)
+                        .zIndex(100)
+                }
             }
             .animation(.easeInOut(duration: 0.2), value: appLock.isLocked)
             .animation(.easeInOut(duration: 0.15), value: scenePhase)
+            .animation(.easeInOut(duration: 0.45), value: showLaunchSplash)
             .environment(\.locale, appLanguage.locale)
             .environment(\.layoutDirection, appLanguage.layoutDirection)
             .environmentObject(appLock)
@@ -37,6 +45,10 @@ struct HoursTrackerApp: App {
                 KeyboardTapDismissInstaller.shared.installIfNeeded()
                 if appLock.isEnabled {
                     Task { await appLock.unlock() }
+                }
+                Task { @MainActor in
+                    try? await Task.sleep(for: .milliseconds(2100))
+                    showLaunchSplash = false
                 }
             }
             .onChange(of: scenePhase) { _, phase in

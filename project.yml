@@ -39,8 +39,9 @@ targets:
       properties:
         CFBundleDisplayName: HoursTracker
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "8"
-        UILaunchScreen: {}
+        CFBundleVersion: "11"
+        UILaunchScreen:
+          UIColorName: LaunchBackground
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
           - UIInterfaceOrientationPortraitUpsideDown

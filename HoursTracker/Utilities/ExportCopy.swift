@@ -27,6 +27,7 @@ struct ExportCopy {
     var payrollSummary: String { t("report.payrollSummary") }
     var hoursChart: String { t("report.hoursChart") }
     var payChart: String { t("report.payChart") }
+    var deductionsChart: String { t("report.deductionsChart") }
     var dailyTable: String { t("report.dailyTable") }
     var allDays: String { t("report.allDays") }
 
@@ -34,7 +35,6 @@ struct ExportCopy {
         format("report.year %@", String(year))
     }
     var total: String { t("report.total") }
-    var legendTitle: String { t("report.legend.title") }
 
     // MARK: Full data export (PDF / CSV headers)
 
@@ -108,24 +108,9 @@ struct ExportCopy {
     var colOT125: String { t("report.col.ot125") }
     var colOT150: String { t("report.col.ot150") }
     var colGas: String { t("report.col.travel") }
-
-    // MARK: Legend
-
-    var legendLines: [String] {
-        [
-            t("report.legend.day"),
-            t("report.legend.date"),
-            t("report.legend.in"),
-            t("report.legend.out"),
-            t("report.legend.break"),
-            t("report.legend.totalHours"),
-            t("report.legend.rate100"),
-            t("report.legend.rate125"),
-            t("report.legend.rate150"),
-            t("report.legend.travel"),
-            t("report.legend.dailyWage")
-        ]
-    }
+    var colIncomeTax: String { t("report.col.incomeTax") }
+    var colNationalInsurance: String { t("report.col.nationalInsurance") }
+    var colHealthTax: String { t("report.col.healthTax") }
 
     /// Explicit table so each export language is complete and self-contained.
     private static let table: [String: [AppLocale.Language: String]] = [
@@ -148,6 +133,26 @@ struct ExportCopy {
             .english: "Pay breakdown",
             .arabic: "توزيع الأجر",
             .hebrew: "פילוח שכר"
+        ],
+        "report.deductionsChart": [
+            .english: "Estimated deductions",
+            .arabic: "الخصومات التقديرية",
+            .hebrew: "ניכויים משוערים"
+        ],
+        "report.col.incomeTax": [
+            .english: "Income tax",
+            .arabic: "ضريبة دخل",
+            .hebrew: "מס הכנסה"
+        ],
+        "report.col.nationalInsurance": [
+            .english: "National insurance",
+            .arabic: "تأمين وطني",
+            .hebrew: "ביטוח לאומי"
+        ],
+        "report.col.healthTax": [
+            .english: "Health tax",
+            .arabic: "ضريبة صحة",
+            .hebrew: "מס בריאות"
         ],
         "report.dailyTable": [
             .english: "Daily details",
