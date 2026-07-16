@@ -12,6 +12,7 @@ struct PrivacyPolicyView: View {
                     .foregroundStyle(.secondary)
 
                 group(L10n.privacySectionData, L10n.privacyBodyData)
+                group(L10n.privacySectionICloud, L10n.privacyBodyICloud)
                 group(L10n.privacySectionLocation, L10n.privacyBodyLocation)
                 group(L10n.privacySectionCamera, L10n.privacyBodyCamera)
                 group(L10n.privacySectionTracking, L10n.privacyBodyTracking)

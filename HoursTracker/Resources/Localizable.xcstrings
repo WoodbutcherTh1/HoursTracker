@@ -2066,19 +2066,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "HourTrackers"
+            "value": "HoursTracker"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "HourTrackers"
+            "value": "HoursTracker"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "HourTrackers"
+            "value": "HoursTracker"
           }
         }
       }
@@ -4423,19 +4423,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "آخر تحديث: 14 تموز 2026"
+            "value": "آخر تحديث: 16 تموز 2026"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Last updated: 14 July 2026"
+            "value": "Last updated: 16 July 2026"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "עודכן לאחרונה: 14 ביולי 2026"
+            "value": "עודכן לאחרונה: 16 ביולי 2026"
           }
         }
       }
@@ -4467,19 +4467,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "يحفظ HourTrackers ملف العامل وإعدادات مكان العمل والورديات على هذا الجهاز. لا نبيع البيانات ولا نرسلها إلى خوادمنا."
+            "value": "يحفظ HoursTracker ملف العامل وإعدادات مكان العمل والورديات على هذا الجهاز. يبقى رقم الهوية في سلسلة مفاتيح الجهاز. لا نبيع البيانات ولا نرسلها إلى خوادمنا. مزامنة iCloud الاختيارية (متوقفة افتراضياً) تخزّن الورديات والإعدادات في قاعدة iCloud الخاصة بك فقط."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "HourTrackers stores your worker profile, workplace settings, and work sessions on this device. Data is not sold and is not sent to our servers."
+            "value": "HoursTracker stores your worker profile, workplace settings, and work sessions on this device. Your national ID stays in the device Keychain. Data is not sold and is not sent to our servers. Optional iCloud sync (off by default) stores sessions and settings in your private iCloud database only."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "האפליקציה שומרת את פרופיל העובד, הגדרות מקום העבודה והמשמרות במכשיר זה. אין מכירת נתונים ואין שליחה לשרתים שלנו."
+            "value": "HoursTracker שומרת את פרופיל העובד, הגדרות מקום העבודה והמשמרות במכשיר זה. מספר הזהות נשמר ב‑Keychain של המכשיר. אין מכירת נתונים ואין שליחה לשרתים שלנו. סנכרון iCloud אופציונלי (כבוי כברירת מחדל) שומר משמרות והגדרות רק במסד הנתונים הפרטי שלך ב‑iCloud."
           }
         }
       }
@@ -4511,19 +4511,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "موقع «أثناء الاستخدام» فقط لتعيين مكان العمل. موقع «دائماً»/الخلفية يُستخدم فقط إذا فعّلت تذكيرات الوصول لمراقبة منطقة عمل واحدة. لا يوجد تتبع مستمر."
+            "value": "موقع «أثناء الاستخدام» فقط لتعيين مكان العمل. موقع «دائماً» يُستخدم فقط إذا فعّلت تذكيرات الوصول لمراقبة منطقة عمل واحدة. لا يُستخدم التتبع المستمر في الخلفية."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "While Using location is only for Set Location. Always/background location is used only if you enable Arrival reminders, to monitor a single workplace geofence. Continuous tracking is not used."
+            "value": "While Using location is only for Set Location. Always location is used only if you enable Arrival reminders, to monitor a single workplace geofence. Continuous background tracking is not used."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "מיקום בזמן שימוש מיועד רק להגדרת מיקום. מיקום תמיד/רקע משמש רק אם הפעלת תזכורות הגעה, לניטור גדר וירטואלית אחת. אין מעקב רציף."
+            "value": "מיקום בזמן שימוש מיועד רק להגדרת מיקום. מיקום תמיד משמש רק אם הפעלת תזכורות הגעה, לניטור גדר וירטואלית אחת. אין מעקב רקע רציף."
           }
         }
       }
@@ -4643,19 +4643,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "من الإعدادات يمكنك تعديل الملف، إيقاف تذكيرات الوصول، حذف الورديات، مسح سجل النشاط أو تصديره، أو حذف كل البيانات على هذا الجهاز."
+            "value": "من الإعدادات يمكنك تعديل الملف، إيقاف تذكيرات الوصول، تفعيل أو إيقاف مزامنة iCloud (وحذف نسخ المزامنة)، حذف الورديات، مسح سجل النشاط أو تصديره، أو حذف كل البيانات على هذا الجهاز وفي iCloud الخاصة بك عند توفر المزامنة."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "In Settings you can edit profile fields, turn off arrival reminders, delete shifts, clear the activity log, export the log, or delete all data on this device."
+            "value": "In Settings you can edit profile fields, turn off arrival reminders, turn iCloud sync on or off (and delete iCloud copies), delete shifts, clear or export the activity log, or delete all data on this device and in your private iCloud when sync is available."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "בהגדרות אפשר לערוך פרופיל, לכבות תזכורות הגעה, למחוק משמרות, לנקות/לייצא יומן פעילות, או למחוק את כל הנתונים במכשיר."
+            "value": "בהגדרות אפשר לערוך פרופיל, לכבות תזכורות הגעה, להפעיל/לכבות סנכרון iCloud (ולמחוק עותקי iCloud), למחוק משמרות, לנקות/לייצא יומן פעילות, או למחוק את כל הנתונים במכשיר וב‑iCloud הפרטי כשסנכרון זמין."
           }
         }
       }
@@ -5391,19 +5391,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "HourTrackers"
+            "value": "HoursTracker"
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "HourTrackers"
+            "value": "HoursTracker"
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "HourTrackers"
+            "value": "HoursTracker"
           }
         }
       }
@@ -6042,6 +6042,50 @@
           "stringUnit": {
             "state": "translated",
             "value": "כבה ומחק נתוני iCloud"
+          }
+        }
+      }
+    },
+    "privacy.section.icloud": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مزامنة iCloud"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud sync"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "סנכרון iCloud"
+          }
+        }
+      }
+    },
+    "privacy.body.icloud": {
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مزامنة iCloud متوقفة افتراضياً. إذا فعّلتها، تُخزَّن الورديات وإعدادات مكان العمل (وليس رقم الهوية) في قاعدة iCloud الخاصة بك تحت حساب Apple. لا ندير خادماً يستلم هذه البيانات."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iCloud sync is off by default. If you turn it on, sessions and workplace settings (not your national ID) are stored in your private iCloud database under your Apple ID. We do not operate a server that receives this data."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "סנכרון iCloud כבוי כברירת מחדל. אם תפעילו אותו, משמרות והגדרות מקום עבודה (לא מספר הזהות) יישמרו במסד הנתונים הפרטי שלכם ב‑iCloud תחת ה‑Apple ID. אין לנו שרת שמקבל את הנתונים."
           }
         }
       }

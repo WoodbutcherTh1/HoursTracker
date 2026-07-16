@@ -1,4 +1,4 @@
-# HourTrackers
+# HoursTracker
 
 iOS app for tracking daily work hours with Israeli overtime law calculations (Regular / 125% / 150%), geofence reminders, and multi-format export.
 

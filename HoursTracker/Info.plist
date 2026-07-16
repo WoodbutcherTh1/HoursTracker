@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>HourTrackers</string>
+	<string>HoursTracker</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -29,13 +29,13 @@
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCameraUsageDescription</key>
-	<string>HourTrackers uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times.</string>
+	<string>HoursTracker uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
 	<string>Always location is used only for workplace arrival reminders via a single geofence around the workplace you saved. We do not continuously track you.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>HourTrackers uses your location while using the app only to save your workplace when you tap Set Location.</string>
+	<string>HoursTracker uses your location while using the app only to save your workplace when you tap Set Location.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
-	<string>HourTrackers needs photo access only to import a timesheet screenshot or image you choose.</string>
+	<string>HoursTracker needs photo access only to import a timesheet screenshot or image you choose.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

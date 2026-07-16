@@ -6,7 +6,7 @@ protocol CloudSyncPreferencing: AnyObject {
     var isEnabled: Bool { get set }
 }
 
-/// Persists the toggle in UserDefaults (reason code CA92.1 to be declared in Phase 3 privacy manifest).
+/// Persists the toggle in UserDefaults (declared as CA92.1 in PrivacyInfo.xcprivacy).
 final class UserDefaultsCloudSyncPreference: CloudSyncPreferencing {
     static let shared = UserDefaultsCloudSyncPreference()
     static let storageKey = "iCloudSyncEnabled"

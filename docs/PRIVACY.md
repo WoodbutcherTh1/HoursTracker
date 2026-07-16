@@ -1,11 +1,11 @@
-# Privacy Policy — HourTrackers
+# Privacy Policy — HoursTracker
 
 **Last updated:** 16 July 2026
 
-HourTrackers (“the App”) is a personal work-hours companion for a single worker. This policy explains what data the App stores and how it is used.
+HoursTracker (“the App”) is a personal work-hours companion for a single worker. This policy explains what data the App stores and how it is used.
 
 ## Who we are
-HourTrackers is provided by the app developer for personal timesheet and pay estimation use.
+HoursTracker is provided by the app developer for personal timesheet and pay estimation use.
 
 ## Data we store on your device
 The App stores the following on your iPhone/iPad only (unless you explicitly enable iCloud sync in Settings):

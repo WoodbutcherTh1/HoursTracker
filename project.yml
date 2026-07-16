@@ -37,7 +37,7 @@ targets:
     info:
       path: HoursTracker/Info.plist
       properties:
-        CFBundleDisplayName: HourTrackers
+        CFBundleDisplayName: HoursTracker
         CFBundleShortVersionString: "1.0"
         CFBundleVersion: "8"
         UILaunchScreen: {}
@@ -52,9 +52,9 @@ targets:
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
         NSLocationAlwaysAndWhenInUseUsageDescription: "Always location is used only for workplace arrival reminders via a single geofence around the workplace you saved. We do not continuously track you."
-        NSLocationWhenInUseUsageDescription: "HourTrackers uses your location while using the app only to save your workplace when you tap Set Location."
-        NSCameraUsageDescription: "HourTrackers uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times."
-        NSPhotoLibraryUsageDescription: "HourTrackers needs photo access only to import a timesheet screenshot or image you choose."
+        NSLocationWhenInUseUsageDescription: "HoursTracker uses your location while using the app only to save your workplace when you tap Set Location."
+        NSCameraUsageDescription: "HoursTracker uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times."
+        NSPhotoLibraryUsageDescription: "HoursTracker needs photo access only to import a timesheet screenshot or image you choose."
         ITSAppUsesNonExemptEncryption: false
         CFBundleLocalizations:
           - en

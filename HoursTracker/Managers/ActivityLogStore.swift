@@ -143,7 +143,7 @@ final class ActivityLogStore: ObservableObject {
         let stamp = ISO8601DateFormatter().string(from: Date()).replacingOccurrences(of: ":", with: "-")
         let url = try ExportTempFileStore.write(
             data: data,
-            fileName: "HourTrackers-Log-\(stamp).\(format.fileExtension)",
+            fileName: "HoursTracker-Log-\(stamp).\(format.fileExtension)",
             writer: fileWriter,
             fileManager: fileManager
         )
@@ -229,7 +229,7 @@ final class ActivityLogStore: ObservableObject {
     }
 
     private func renderTXT() -> String {
-        var lines = ["HourTrackers — Activity Log", ""]
+        var lines = ["HoursTracker — Activity Log", ""]
         for entry in entries {
             let stamp = stampFormatter.string(from: entry.timestamp)
             var line = "[\(stamp)] [\(entry.level.rawValue.uppercased())] [\(entry.category)] \(entry.message)"
@@ -258,7 +258,7 @@ final class ActivityLogStore: ObservableObject {
 
     private func renderMarkdown() -> String {
         var lines = [
-            "# HourTrackers — Activity Log",
+            "# HoursTracker — Activity Log",
             "",
             "| Time | Level | Category | Message | Details |",
             "| --- | --- | --- | --- | --- |"

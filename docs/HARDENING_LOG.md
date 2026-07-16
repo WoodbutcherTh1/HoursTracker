@@ -132,3 +132,45 @@ Manual Phase 2 items (simulator):
 **Phase 3 (A9–A10):** CloudKit tombstones + conflict handling + serialized uploads; truthful privacy manifest (“data not collected”) and aligned privacy-policy / display-name consistency; declare UserDefaults accessed-API reason.
 
 ---
+
+## Phase 3 — CloudKit correctness & privacy declarations (A9–A10)
+
+**Date:** 16 July 2026  
+**Status:** Complete — tests green; waiting for user `"continue"` before Phase 4.
+
+### (a) Tasks completed
+
+| Task | Summary |
+|---|---|
+| **A9** | Session deletion tombstones (`SessionTombstoneStore`); merge never resurrects tombstoned IDs; sync deletes stale remote tombstones; `CKModifyRecordsOperation` + `.changedKeys` with `serverRecordChanged` LWW retry; `CloudWriteQueue` serializes uploads/deletes; CloudKit entitlements documented via `docs/HoursTracker.entitlements.cloudkit.example` (personal-team entitlements stay empty). |
+| **A10** | Privacy manifest: empty collected types + `NSPrivacyTracking=false` + UserDefaults `CA92.1`; `docs/PRIVACY_MANIFEST.md` reasoning; reconciled `docs/PRIVACY.md` + in-app policy strings (incl. iCloud section); display name unified to **HoursTracker**. |
+
+### (b) Files changed (high level)
+
+- `SessionTombstoneStore.swift`, `CloudWriteQueue.swift` (new)
+- `CloudKitSyncManager.swift`, `SyncingPersistenceStore.swift`
+- `PrivacyInfo.xcprivacy`, `docs/PRIVACY_MANIFEST.md`, `docs/HoursTracker.entitlements.cloudkit.example`
+- Privacy / brand strings (`Localizable.xcstrings`, `InfoPlist.xcstrings`, `project.yml`, `Info.plist`, `PRIVACY.md`, `README.md`, activity-log titles)
+- `PrivacyPolicyView.swift`, `L10n.swift`, `ARCHITECTURE.md`
+- Tests: SyncMerge, SyncingPersistenceStore, SessionTombstoneStore, CloudSyncPreference
+
+### (c) Verification
+
+```
+xcodegen generate
+xcodebuild test … iPhone 16, OS=18.3.1
+```
+**118 tests, 0 failures.**
+
+Manual: PrivacyInfo / PRIVACY.md / in-app strings describe the same opt-in iCloud + no developer collection story; display name is HoursTracker across plist/catalogs.
+
+### (d) Skipped / deferred / discoveries
+
+- Live CloudKit conflict/tombstone behavior still needs a dual-device check on a paid-team CloudKit build (not available in personal-team CI).
+- XML comments were kept out of `PrivacyInfo.xcprivacy` (reasoning lives in `docs/PRIVACY_MANIFEST.md`) for safer App Store ingestion.
+
+### (e) Next phase preview
+
+**Phase 4 (A11, A12, A14–A16):** CSV/formula injection + XML/Markdown escaping; bounded imports; pasteboard hygiene; os_log privacy sweep; settings validation/clamping.
+
+---

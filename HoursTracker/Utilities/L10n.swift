@@ -280,6 +280,8 @@ enum L10n {
     static var privacyUpdated: String { String(localized: "privacy.updated") }
     static var privacySectionData: String { String(localized: "privacy.section.data") }
     static var privacyBodyData: String { String(localized: "privacy.body.data") }
+    static var privacySectionICloud: String { String(localized: "privacy.section.icloud") }
+    static var privacyBodyICloud: String { String(localized: "privacy.body.icloud") }
     static var privacySectionLocation: String { String(localized: "privacy.section.location") }
     static var privacyBodyLocation: String { String(localized: "privacy.body.location") }
     static var privacySectionCamera: String { String(localized: "privacy.section.camera") }
