@@ -421,24 +421,46 @@ def render_scenes() -> tuple[list[Path], float]:
 
 
 def make_audio(duration: float) -> Path | None:
+    """Build a soft harp bed from Mixkit 'Harp Relax' (free commercial license)."""
     AUDIO_DIR.mkdir(parents=True, exist_ok=True)
     out = AUDIO_DIR / "bed.m4a"
+    local_music = Path(__file__).resolve().parent / "music-harp-relax-mixkit.mp3"
+    fade_out_start = max(0.1, duration - 2.0)
+    if local_music.exists():
+        src = str(local_music)
+    else:
+        # Fallback: download Mixkit track if local copy missing
+        src = str(AUDIO_DIR / "harp-relax.mp3")
+        try:
+            subprocess.run(
+                [
+                    "curl",
+                    "-fsSL",
+                    "-A",
+                    "Mozilla/5.0",
+                    "-o",
+                    src,
+                    "https://assets.mixkit.co/music/669/669.mp3",
+                ],
+                check=True,
+                capture_output=True,
+            )
+        except subprocess.CalledProcessError as e:
+            print("Music download failed:", e.stderr.decode()[:500] if e.stderr else e)
+            return None
+
     cmd = [
         "ffmpeg",
         "-y",
-        "-f",
-        "lavfi",
         "-i",
-        (
-            f"aevalsrc="
-            f"0.04*sin(2*PI*174.61*t)+0.03*sin(2*PI*220*t)+0.025*sin(2*PI*261.63*t)"
-            f"+0.015*sin(2*PI*329.63*t)"
-            f":s=44100:d={duration + 0.3}"
-        ),
-        "-af",
-        f"afade=t=in:st=0:d=1.5,afade=t=out:st={max(0.1, duration - 1.8)}:d=1.8,lowpass=f=1600,volume=0.9",
+        src,
         "-t",
         str(duration),
+        "-af",
+        (
+            f"afade=t=in:st=0:d=1.2,afade=t=out:st={fade_out_start}:d=2.0,"
+            "volume=0.55,loudnorm=I=-16:TP=-1.5:LRA=11"
+        ),
         "-c:a",
         "aac",
         "-b:a",
