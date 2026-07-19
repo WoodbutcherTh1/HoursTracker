@@ -241,7 +241,7 @@ struct HomeView: View {
                 }
 
                 VStack(spacing: 2) {
-                    Text(AppLocale.tr("home.liveGrossBasic"))
+                    Text(L10n.homeLiveGrossBasic)
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.45))
                         .lineLimit(1)

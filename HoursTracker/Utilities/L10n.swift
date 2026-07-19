@@ -41,6 +41,7 @@ enum L10n {
     static func homeSince(_ time: String) -> String {
         String(format: t("home.since %@"), time)
     }
+    static var homeLiveGrossBasic: String { t("home.liveGrossBasic") }
     static var homeClockOut: String { t("home.clockOut") }
     static var homeShiftComplete: String { t("home.shiftComplete") }
     static func homeWeekTotal(_ hours: String) -> String {
