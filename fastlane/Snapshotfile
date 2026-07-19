@@ -1,0 +1,7 @@
+# Watch screenshots are driven by the `watch_screenshots` lane in Fastfile
+# (scan + HoursTrackerWatchUITests), not classic iOS `snapshot`.
+# Kept here so `fastlane snapshot` discoverability points at the right lane.
+
+# Required watch sizes (confirm in App Store Connect before upload):
+# - 45mm-class → Apple Watch Series 11 (46mm) simulator
+# - 49mm Ultra → Apple Watch Ultra 3 (49mm) simulator

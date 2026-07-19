@@ -41,7 +41,7 @@ struct HomeView: View {
         AppLocale.makeDateFormatter(timeStyle: .short)
     }
 
-    private let calendar = Calendar.current
+    private var calendar: Calendar { AppLocale.calendar }
 
     var body: some View {
         NavigationStack {
@@ -119,6 +119,7 @@ struct HomeView: View {
             ) {
                 viewModel.clockIn()
             }
+            .accessibilityIdentifier("phone.clock.toggle")
             .frame(height: metrics.doorHeight)
 
             Button {
@@ -241,7 +242,7 @@ struct HomeView: View {
                 }
 
                 VStack(spacing: 2) {
-                    Text(AppLocale.tr("home.liveGrossBasic"))
+                    Text(L10n.homeLiveGrossBasic)
                         .font(.caption2)
                         .foregroundStyle(.white.opacity(0.45))
                         .lineLimit(1)
@@ -272,6 +273,7 @@ struct HomeView: View {
             ) {
                 viewModel.clockOut()
             }
+            .accessibilityIdentifier("phone.clock.toggle")
             .frame(height: metrics.doorHeight)
 
             Spacer(minLength: 4)

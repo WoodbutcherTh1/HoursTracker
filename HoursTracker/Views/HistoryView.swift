@@ -7,7 +7,7 @@ struct HistoryView: View {
 
     /// Anchor month for the payroll cycle label / chevron navigation.
     @State private var periodAnchor: Date = Date()
-    @State private var selectedDay: Date = Calendar.current.startOfDay(for: Date())
+    @State private var selectedDay: Date = AppLocale.calendar.startOfDay(for: Date())
     /// Page index into `periodWeeks` for the Health-style week strip.
     @State private var selectedWeekIndex: Int = 0
     @State private var payMode: PayDisplayMode = .net
@@ -21,7 +21,7 @@ struct HistoryView: View {
     @State private var exportError: String?
     @State private var copyToastVisible = false
 
-    private let calendar = Calendar.current
+    private var calendar: Calendar { AppLocale.calendar }
 
     private var timeFormatter: DateFormatter {
         AppLocale.makeDateFormatter(timeStyle: .short)
@@ -212,6 +212,7 @@ struct HistoryView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("phone.history.period.prev")
 
                 Spacer(minLength: 0)
 
@@ -236,6 +237,7 @@ struct HistoryView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityIdentifier("phone.history.period.next")
             }
 
             TabView(selection: pageBinding) {
@@ -308,9 +310,18 @@ struct HistoryView: View {
         }
         .buttonStyle(.plain)
         .disabled(!day.isInPeriod)
+        .accessibilityIdentifier(historyDayIdentifier(day.date))
         .accessibilityLabel(dayAccessibilityLabel(day.date, hasSession: hasSession))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityHidden(!day.isInPeriod)
+    }
+
+    private func historyDayIdentifier(_ day: Date) -> String {
+        let comps = calendar.dateComponents([.year, .month, .day], from: day)
+        let y = comps.year ?? 0
+        let m = comps.month ?? 0
+        let d = comps.day ?? 0
+        return String(format: "phone.history.day.%04d-%02d-%02d", y, m, d)
     }
 
     private func dayNumberColor(isSelected: Bool, isToday: Bool, isInPeriod: Bool) -> Color {
@@ -588,7 +599,13 @@ struct HistoryView: View {
     // MARK: - Data
 
     private var filteredSessions: [WorkSession] {
-        viewModel.sortedSessions.filter {
+        // Marketing captures: show a dense multi-day list (not one sparse day).
+        if PhoneScreenshotDemoData.isEnabled {
+            let closed = viewModel.sortedSessions.filter { $0.clockOut != nil }
+            let cutoff = calendar.date(byAdding: .day, value: -10, to: calendar.startOfDay(for: Date()))!
+            return closed.filter { $0.date >= cutoff }
+        }
+        return viewModel.sortedSessions.filter {
             calendar.isDate($0.date, inSameDayAs: selectedDay)
         }
     }
