@@ -39,8 +39,13 @@ final class HoursTrackerWatchUITests: XCTestCase {
         }
         app.launch()
 
-        let toggle = app.buttons["watch.clock.toggle"]
-        XCTAssertTrue(toggle.waitForExistence(timeout: 8), "Clock toggle missing")
+        let toggle = app.buttons["watch.clock.door"]
+        XCTAssertTrue(toggle.waitForExistence(timeout: 8), "Clock door missing")
+        XCTAssertTrue(
+            app.staticTexts["watch.clock.buildStamp"].waitForExistence(timeout: 4)
+                || app.staticTexts["b14"].waitForExistence(timeout: 2),
+            "Build stamp b14 missing — wrong/old watch binary"
+        )
         // Allow `.task` screenshot seed to apply.
         RunLoop.current.run(until: Date().addingTimeInterval(1.0))
 
