@@ -41,6 +41,9 @@ struct SettingsView: View {
                 if viewModel.isCloudSyncSupported {
                     syncSection
                 }
+                if !PhoneScreenshotDemoData.isEnabled {
+                    BackupSettingsSection(viewModel: viewModel)
+                }
                 toolsSection
                 languageSection
                 aboutSection
