@@ -151,6 +151,10 @@ final class AppViewModel: ObservableObject {
         sessions: [WorkSession],
         settings: WorkplaceSettings,
         calendar: Calendar = .current,
+        // TODO(expectedShiftStart): Temporary hardcoded typical start (08:00) + grace.
+        // WorkplaceSettings has no expected shift-start field yet; keep this until we add an
+        // optional `expectedShiftStart` setting and drive the forgot-clock-in threshold from it
+        // (still with a ~30–45 min grace after the configured time). See PR #14 discussion.
         typicalStartHour: Int = 8,
         graceMinutes: Int = 30
     ) -> Bool {

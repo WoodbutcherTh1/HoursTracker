@@ -137,6 +137,9 @@ struct ForgotClockInSheet: View {
     }
 
     /// Default suggested arrival: 08:00 today, or “now” if before 08:00.
+    /// TODO(expectedShiftStart): Same temporary 08:00 default as
+    /// `AppViewModel.shouldOfferForgotClockIn` — replace with settings
+    /// `expectedShiftStart` when that optional field is added.
     static func defaultArrival(now: Date = Date(), calendar: Calendar = .current) -> Date {
         let start = calendar.startOfDay(for: now)
         let eight = calendar.date(bySettingHour: 8, minute: 0, second: 0, of: start) ?? start
