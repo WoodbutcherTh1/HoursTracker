@@ -533,8 +533,12 @@ final class AppViewModel: ObservableObject {
 
     func drainWidgetPendingEvents() {
         let pending = WidgetPendingEventStore.load()
+        WatchSyncLog.event("phone AppGroup drain count=\(pending.count)")
         guard !pending.isEmpty else { return }
         for event in pending {
+            WatchSyncLog.event(
+                "phone AppGroup apply \(event.kind.rawValue) id=\(event.id.uuidString.prefix(8))"
+            )
             _ = applyWatchClockEvent(event)
             WidgetPendingEventStore.remove(id: event.id)
         }
@@ -665,8 +669,14 @@ final class AppViewModel: ObservableObject {
             )
         }
         watchBridge.onClockEvent = { [weak self] event in
-            self?.applyWatchClockEvent(event)
+            guard let self else { return }
+            _ = self.applyWatchClockEvent(event)
+            // WCSession path — also clear App Group so cold-launch drain is a no-op.
+            WidgetPendingEventStore.remove(id: event.id)
         }
+        // Drain App Group *before* first snapshot push so a killed-phone recovery
+        // lands sessions before we broadcast stale state back to the watch.
+        drainWidgetPendingEvents()
         watchBridge.activate()
         pushWatchSnapshot()
     }
@@ -701,7 +711,11 @@ final class AppViewModel: ObservableObject {
     ///   (event name + result only; no PII).
     @discardableResult
     func applyWatchClockEvent(_ event: WatchClockEvent) -> Bool {
+        WatchSyncLog.event(
+            "applyWatchClockEvent ENTER \(event.kind.rawValue) id=\(event.id.uuidString.prefix(8)) session=\(event.sessionID.uuidString.prefix(8))"
+        )
         if watchDedupe.contains(event.id) {
+            WatchSyncLog.event("applyWatchClockEvent SKIP dedupe id=\(event.id.uuidString.prefix(8))")
             watchBridge.acknowledge(eventID: event.id)
             return false
         }
@@ -711,6 +725,7 @@ final class AppViewModel: ObservableObject {
             if sessions.contains(where: { $0.id == event.sessionID }) {
                 watchDedupe.insert(event.id)
                 watchBridge.acknowledge(eventID: event.id)
+                WatchSyncLog.event("applyWatchClockEvent REJECT clockIn session exists")
                 ActivityLogStore.shared.log(
                     L10n.logEventWatchClockInRejected,
                     level: .warning,
@@ -723,6 +738,7 @@ final class AppViewModel: ObservableObject {
                 // Ack so the watch queue does not retry forever while open.
                 watchDedupe.insert(event.id)
                 watchBridge.acknowledge(eventID: event.id)
+                WatchSyncLog.event("applyWatchClockEvent REJECT clockIn already open")
                 ActivityLogStore.shared.log(
                     L10n.logEventWatchClockInRejected,
                     level: .warning,
@@ -742,6 +758,10 @@ final class AppViewModel: ObservableObject {
             sessions.append(session)
             watchDedupe.insert(event.id)
             persist()
+            let hasOpen = sessions.contains(where: \.isOpen)
+            WatchSyncLog.event(
+                "applyWatchClockEvent OK clockIn sessions=\(sessions.count) open=\(hasOpen)"
+            )
             ActivityLogStore.shared.log(
                 L10n.logEventClockIn,
                 level: .success,
@@ -757,6 +777,7 @@ final class AppViewModel: ObservableObject {
             else {
                 watchDedupe.insert(event.id)
                 watchBridge.acknowledge(eventID: event.id)
+                WatchSyncLog.event("applyWatchClockEvent REJECT clockOut no open session")
                 ActivityLogStore.shared.log(
                     L10n.logEventWatchClockOutRejected,
                     level: .warning,
@@ -785,6 +806,9 @@ final class AppViewModel: ObservableObject {
             )
             watchDedupe.insert(event.id)
             persist()
+            WatchSyncLog.event(
+                "applyWatchClockEvent OK clockOut sessions=\(sessions.count) completed=\(sessions.filter { $0.clockOut != nil }.count)"
+            )
             ActivityLogStore.shared.log(
                 L10n.logEventClockOut,
                 level: .success,

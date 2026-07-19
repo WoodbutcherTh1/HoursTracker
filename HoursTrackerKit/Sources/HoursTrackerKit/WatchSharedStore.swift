@@ -1,9 +1,17 @@
 import Foundation
 
-/// App Group bridge so the watch app and its WidgetKit extension share one snapshot file.
+/// App Group bridge shared by iPhone, watch app, and WidgetKit extensions.
+/// Snapshot + pending clock events live here so a killed iPhone can still drain
+/// watch-originated clocks on next launch.
 public enum WatchSharedStore {
     public static let appGroupID = "group.com.hourstracker.app"
     public static let snapshotFileName = "watch_snapshot.json"
+    /// Single pending-event file for watch app clocks, complications, and iOS widgets.
+    public static let pendingEventsFileName = "shared_pending_clock_events.json"
+
+    public static var pendingEventsURL: URL? {
+        containerURL?.appendingPathComponent(pendingEventsFileName)
+    }
 
     private static let encoder: JSONEncoder = {
         let e = JSONEncoder()
