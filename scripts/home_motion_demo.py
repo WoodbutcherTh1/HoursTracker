@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Animated full-home mockup for HourTrackers vitality review.
+"""Animated full-home mockup for HoursTracker vitality review.
 
 Renders a phone-sized dark UI and exports an MP4 so motion is visible:
 - aurora + floating particles
@@ -309,7 +309,7 @@ def render_frame(t: float) -> Image.Image:
     draw = ImageDraw.Draw(img)
 
     # status-ish top
-    draw.text((24, 14), "HourTrackers", font=font(EN_BOLD, 18), fill=WHITE)
+    draw.text((24, 14), "HoursTracker", font=font(EN_BOLD, 18), fill=WHITE)
     # toolbar glyph
     draw.rounded_rectangle((W - 46, 12, W - 18, 36), radius=6, outline=MUTED, width=1)
 

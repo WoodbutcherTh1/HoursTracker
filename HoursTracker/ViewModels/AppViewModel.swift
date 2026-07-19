@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import HoursTrackerKit
 import UserNotifications
 
 @MainActor
@@ -21,6 +22,8 @@ final class AppViewModel: ObservableObject {
     private let exportManager = ExportManager()
     private let locationCapture = LocationCaptureHelper()
     private var successToastTask: Task<Void, Never>?
+    private let watchDedupe = WatchEventDedupeStore()
+    private let watchBridge = PhoneWatchConnectivityManager.shared
 
     /// Hide the Settings sync section when this build has no CloudKit backend.
     var isCloudSyncSupported: Bool { store.isCloudSyncSupported }
@@ -76,9 +79,14 @@ final class AppViewModel: ObservableObject {
         self.store = store
         self.locationManager = locationManager
         syncState = store.syncState
-        load()
+        if PhoneScreenshotDemoData.isEnabled {
+            seedScreenshotDemo()
+        } else {
+            load()
+        }
         refreshReminders()
         refreshLocationPermissionStatuses()
+        configureWatchBridge()
     }
 
     // MARK: - Active Session
@@ -488,6 +496,7 @@ final class AppViewModel: ObservableObject {
     // MARK: - Sync
 
     func syncNow() {
+        guard !PhoneScreenshotDemoData.isEnabled else { return }
         guard isICloudSyncEnabled else { return }
         guard !isSyncing else { return }
         syncState = .syncing
@@ -562,6 +571,26 @@ final class AppViewModel: ObservableObject {
         settings = store.loadSettings()
     }
 
+    /// Overwrite local store with synthetic guest data for App Preview / screenshots.
+    private func seedScreenshotDemo() {
+        let demo = PhoneScreenshotDemoData.makeDemo()
+        sessions = demo.sessions
+        settings = demo.settings
+        do {
+            try store.saveSessions(sessions)
+            try store.saveSettingsLocally(settings)
+            try KeychainStore.delete(.workerIDNumber)
+        } catch {
+            errorMessage = L10n.errorSaveFailed
+        }
+        switch PhoneScreenshotDemoData.preferredLanguage {
+        case .hebrew: AppLanguageController.shared.preference = .hebrew
+        case .arabic: AppLanguageController.shared.preference = .arabic
+        case .english: AppLanguageController.shared.preference = .english
+        case .system: break
+        }
+    }
+
     private func persist() {
         do {
             try store.saveSessions(sessions)
@@ -569,6 +598,7 @@ final class AppViewModel: ObservableObject {
             errorMessage = L10n.errorSaveFailed
         }
         refreshReminders()
+        pushWatchSnapshot()
     }
 
     private func persistSettings() {
@@ -577,9 +607,147 @@ final class AppViewModel: ObservableObject {
         } catch {
             errorMessage = L10n.errorSaveFailed
         }
+        pushWatchSnapshot()
     }
 
     private func refreshReminders() {
         locationManager.configure(settings: settings, sessions: sessions)
+    }
+
+    // MARK: - Apple Watch (WatchConnectivity)
+
+    private func configureWatchBridge() {
+        guard !PhoneScreenshotDemoData.isEnabled else { return }
+        watchBridge.snapshotProvider = { [weak self] in
+            self?.makeWatchSnapshot() ?? WatchSnapshot(
+                sessions: [],
+                paySettings: WatchPaySettings(from: .default, language: .system)
+            )
+        }
+        watchBridge.onClockEvent = { [weak self] event in
+            self?.applyWatchClockEvent(event)
+        }
+        watchBridge.activate()
+        pushWatchSnapshot()
+    }
+
+    func makeWatchSnapshot() -> WatchSnapshot {
+        let language: WatchLanguageCode
+        switch AppLanguageOption.load() {
+        case .system: language = .system
+        case .english: language = .english
+        case .hebrew: language = .hebrew
+        case .arabic: language = .arabic
+        }
+        // WatchPaySettings(from:) strips ID / tax / location / PII by construction.
+        let pay = WatchPaySettings(from: settings, language: language)
+        return WatchSnapshot(sessions: sessions, paySettings: pay)
+    }
+
+    func pushWatchSnapshot() {
+        watchBridge.pushSnapshot(makeWatchSnapshot())
+    }
+
+    /// Fold a watch-originated clock event into `sessions` idempotently.
+    ///
+    /// Ack policy: always ack after handling so the watch queue cannot loop.
+    /// - Duplicate event UUID → silent ack (idempotent replay; not a business reject).
+    /// - Other rejects (already open / session exists / no open session) → ack + ActivityLog
+    ///   (event name + result only; no PII).
+    @discardableResult
+    func applyWatchClockEvent(_ event: WatchClockEvent) -> Bool {
+        if watchDedupe.contains(event.id) {
+            watchBridge.acknowledge(eventID: event.id)
+            return false
+        }
+
+        switch event.kind {
+        case .clockIn:
+            if sessions.contains(where: { $0.id == event.sessionID }) {
+                watchDedupe.insert(event.id)
+                watchBridge.acknowledge(eventID: event.id)
+                ActivityLogStore.shared.log(
+                    L10n.logEventWatchClockInRejected,
+                    level: .warning,
+                    category: "clock",
+                    details: "watch result: session already exists"
+                )
+                return false
+            }
+            guard canClockIn else {
+                // Ack so the watch queue does not retry forever while open.
+                watchDedupe.insert(event.id)
+                watchBridge.acknowledge(eventID: event.id)
+                ActivityLogStore.shared.log(
+                    L10n.logEventWatchClockInRejected,
+                    level: .warning,
+                    category: "clock",
+                    details: "watch result: already clocked in"
+                )
+                return false
+            }
+            let session = WorkSession(
+                id: event.sessionID,
+                date: Calendar.current.startOfDay(for: event.timestamp),
+                clockIn: event.timestamp,
+                clockOut: nil,
+                isManualEntry: false,
+                dayType: DayType.automatic(for: event.timestamp, settings: settings)
+            )
+            sessions.append(session)
+            watchDedupe.insert(event.id)
+            persist()
+            ActivityLogStore.shared.log(
+                L10n.logEventClockIn,
+                level: .success,
+                category: "clock",
+                details: "watch"
+            )
+            watchBridge.acknowledge(eventID: event.id)
+            return true
+
+        case .clockOut:
+            guard let index = sessions.firstIndex(where: { $0.id == event.sessionID && $0.isOpen })
+                    ?? sessions.firstIndex(where: { $0.isOpen })
+            else {
+                watchDedupe.insert(event.id)
+                watchBridge.acknowledge(eventID: event.id)
+                ActivityLogStore.shared.log(
+                    L10n.logEventWatchClockOutRejected,
+                    level: .warning,
+                    category: "clock",
+                    details: "watch result: no open session"
+                )
+                return false
+            }
+            let clockOutDate = event.timestamp
+            sessions[index].clockOut = clockOutDate
+            sessions[index].isNightShift = WorkSession.qualifiesAsNightShift(
+                clockIn: sessions[index].clockIn,
+                clockOut: clockOutDate
+            )
+            if settings.defaultBreakMinutes > 0,
+               sessions[index].breakMinutes == 0,
+               sessions[index].totalHours >= 6 {
+                sessions[index].breakMinutes = settings.defaultBreakMinutes
+            }
+            sessions[index].touch()
+            lastCompletedSessionID = sessions[index].id
+            lastCompletedBreakdown = OvertimeCalculator.breakdown(
+                for: sessions[index],
+                in: sessions,
+                settings: settings
+            )
+            watchDedupe.insert(event.id)
+            persist()
+            ActivityLogStore.shared.log(
+                L10n.logEventClockOut,
+                level: .success,
+                category: "clock",
+                details: "watch"
+            )
+            watchBridge.acknowledge(eventID: event.id)
+            return true
+        }
     }
 }

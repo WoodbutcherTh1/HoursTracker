@@ -460,16 +460,19 @@ struct HomePrimaryActionButton: View {
     }
 }
 
-/// Brand mark: Hour (white) + Trackers (neon).
+/// Brand mark for the canonical product name **HoursTracker**
+/// (`CFBundleDisplayName` / `L10n.brandName`): "Hours" (white) + "Tracker" (neon).
+/// Always LTR so RTL layouts never reverse it to "TrackerHours".
 struct HomeBrandTitle: View {
     var body: some View {
         HStack(spacing: 0) {
-            Text("Hour")
+            Text(verbatim: "Hours")
                 .foregroundStyle(.white)
-            Text("Trackers")
+            Text(verbatim: "Tracker")
                 .foregroundStyle(HomeNeon.accent)
         }
         .font(.headline.weight(.bold))
+        .environment(\.layoutDirection, .leftToRight)
         .accessibilityLabel(L10n.brandName)
     }
 }

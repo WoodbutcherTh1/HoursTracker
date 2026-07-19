@@ -51,6 +51,7 @@ enum L10n {
     }
     static var homeForgotClockInConfirm: String { t("home.forgotClockIn.confirm") }
     static var homeClockOut: String { t("home.clockOut") }
+    static var homeLiveGrossBasic: String { t("home.liveGrossBasic") }
     static var homeShiftComplete: String { t("home.shiftComplete") }
     static func homeWeekTotal(_ hours: String) -> String {
         String(format: t("home.weekTotal %@"), hours)
@@ -374,6 +375,8 @@ enum L10n {
     static var logFormatMarkdown: String { t("log.format.markdown") }
     static var logEventClockIn: String { t("log.event.clockIn") }
     static var logEventClockOut: String { t("log.event.clockOut") }
+    static var logEventWatchClockInRejected: String { t("log.event.watchClockInRejected") }
+    static var logEventWatchClockOutRejected: String { t("log.event.watchClockOutRejected") }
     static var logEventManualEntry: String { t("log.event.manualEntry") }
     static func logEventImport(_ count: Int) -> String {
         String(format: t("log.event.import %lld"), count)

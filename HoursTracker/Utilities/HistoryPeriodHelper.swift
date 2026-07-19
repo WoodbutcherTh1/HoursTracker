@@ -24,7 +24,7 @@ struct PayrollPeriod: Equatable {
     /// Month used for the header label (the month that contains `start`).
     let labelMonth: Date
 
-    func contains(_ date: Date, calendar: Calendar = .current) -> Bool {
+    func contains(_ date: Date, calendar: Calendar = AppLocale.calendar) -> Bool {
         let day = calendar.startOfDay(for: date)
         return day >= calendar.startOfDay(for: start) && day <= calendar.startOfDay(for: end)
     }
@@ -71,7 +71,7 @@ enum HistoryPeriodHelper {
     static func payrollPeriod(
         forMonthAnchor monthAnchor: Date,
         startDay: Int,
-        calendar: Calendar = .current
+        calendar: Calendar = AppLocale.calendar
     ) -> PayrollPeriod {
         let day = normalizedStartDay(startDay)
         var startComponents = calendar.dateComponents([.year, .month], from: monthAnchor)
@@ -95,7 +95,7 @@ enum HistoryPeriodHelper {
     static func payrollPeriod(
         containing date: Date,
         startDay: Int,
-        calendar: Calendar = .current
+        calendar: Calendar = AppLocale.calendar
     ) -> PayrollPeriod {
         let day = normalizedStartDay(startDay)
         let dateDay = calendar.component(.day, from: date)
@@ -106,11 +106,11 @@ enum HistoryPeriodHelper {
         return payrollPeriod(forMonthAnchor: anchor, startDay: day, calendar: calendar)
     }
 
-    static func shiftPayrollAnchor(_ anchor: Date, by months: Int, calendar: Calendar = .current) -> Date {
+    static func shiftPayrollAnchor(_ anchor: Date, by months: Int, calendar: Calendar = AppLocale.calendar) -> Date {
         calendar.date(byAdding: .month, value: months, to: anchor) ?? anchor
     }
 
-    static func days(from start: Date, through end: Date, calendar: Calendar = .current) -> [Date] {
+    static func days(from start: Date, through end: Date, calendar: Calendar = AppLocale.calendar) -> [Date] {
         let startDay = calendar.startOfDay(for: start)
         let endDay = calendar.startOfDay(for: end)
         guard startDay <= endDay else { return [startDay] }
@@ -126,7 +126,7 @@ enum HistoryPeriodHelper {
     }
 
     /// Start of the calendar week that contains `date` (honors `calendar.firstWeekday`).
-    static func startOfWeek(containing date: Date, calendar: Calendar = .current) -> Date {
+    static func startOfWeek(containing date: Date, calendar: Calendar = AppLocale.calendar) -> Date {
         let day = calendar.startOfDay(for: date)
         let weekday = calendar.component(.weekday, from: day)
         let delta = (weekday - calendar.firstWeekday + 7) % 7
@@ -137,7 +137,7 @@ enum HistoryPeriodHelper {
     /// Days before `period.start` / after `period.end` are included with `isInPeriod == false`.
     static func weekRows(
         for period: PayrollPeriod,
-        calendar: Calendar = .current
+        calendar: Calendar = AppLocale.calendar
     ) -> [PayrollWeek] {
         let periodDays = period.days
         guard let first = periodDays.first, let last = periodDays.last else { return [] }
@@ -169,7 +169,7 @@ enum HistoryPeriodHelper {
     static func weekIndex(
         containing day: Date,
         in weeks: [PayrollWeek],
-        calendar: Calendar = .current
+        calendar: Calendar = AppLocale.calendar
     ) -> Int? {
         let target = calendar.startOfDay(for: day)
         return weeks.firstIndex { week in
@@ -177,7 +177,7 @@ enum HistoryPeriodHelper {
         }
     }
 
-    static func daysInMonth(containing date: Date, calendar: Calendar = .current) -> [Date] {
+    static func daysInMonth(containing date: Date, calendar: Calendar = AppLocale.calendar) -> [Date] {
         guard let range = calendar.range(of: .day, in: .month, for: date),
               let start = calendar.date(from: calendar.dateComponents([.year, .month], from: date))
         else { return [] }
@@ -187,7 +187,7 @@ enum HistoryPeriodHelper {
         }
     }
 
-    static func shiftMonth(_ date: Date, by value: Int, calendar: Calendar = .current) -> Date {
+    static func shiftMonth(_ date: Date, by value: Int, calendar: Calendar = AppLocale.calendar) -> Date {
         calendar.date(byAdding: .month, value: value, to: date) ?? date
     }
 
@@ -219,7 +219,7 @@ enum HistoryPeriodHelper {
     static func dailyHoursForWeek(
         containing date: Date,
         sessions: [WorkSession],
-        calendar: Calendar = .current
+        calendar: Calendar = AppLocale.calendar
     ) -> [Double] {
         let interval = calendar.dateInterval(of: .weekOfYear, for: date)
             ?? DateInterval(start: calendar.startOfDay(for: date), duration: 0)
