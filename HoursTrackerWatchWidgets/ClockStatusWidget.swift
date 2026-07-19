@@ -1,8 +1,9 @@
+import AppIntents
 import HoursTrackerKit
 import SwiftUI
 import WidgetKit
 
-/// Deep-link into the watch Clock screen (simplest complication interaction).
+/// Deep-link into the watch Clock screen (tap outside the button).
 enum WatchDeepLink {
     static let clock = URL(string: "hourstracker-watch://clock")!
 }
@@ -70,21 +71,24 @@ struct ClockStatusWidgetView: View {
         Group {
             switch family {
             case .accessoryCircular:
-                ZStack {
-                    AccessoryWidgetBackground()
-                    VStack(spacing: 1) {
-                        Image(systemName: entry.isClockedIn ? "checkmark.circle.fill" : "clock")
-                            .font(.title3)
-                        if entry.isClockedIn, let start = entry.clockIn {
-                            Text(elapsed(from: start, now: entry.date))
-                                .font(.system(.caption2, design: .rounded).monospacedDigit())
-                                .minimumScaleFactor(0.6)
-                        } else {
-                            Text("Out")
-                                .font(.caption2)
+                Button(intent: ToggleClockIntent()) {
+                    ZStack {
+                        AccessoryWidgetBackground()
+                        VStack(spacing: 1) {
+                            Image(systemName: entry.isClockedIn ? "checkmark.circle.fill" : "clock")
+                                .font(.title3)
+                            if entry.isClockedIn, let start = entry.clockIn {
+                                Text(elapsed(from: start, now: entry.date))
+                                    .font(.system(.caption2, design: .rounded).monospacedDigit())
+                                    .minimumScaleFactor(0.6)
+                            } else {
+                                Text("Out")
+                                    .font(.caption2)
+                            }
                         }
                     }
                 }
+                .buttonStyle(.plain)
             case .accessoryRectangular, .accessoryInline, .accessoryCorner:
                 VStack(alignment: .leading, spacing: 2) {
                     Text(entry.isClockedIn ? "Clocked In" : "Clocked Out")
@@ -96,9 +100,17 @@ struct ClockStatusWidgetView: View {
                         Text("Tap to clock in")
                             .font(.caption2)
                     }
+                    Button(intent: ToggleClockIntent()) {
+                        Text(entry.isClockedIn ? "Clock Out" : "Clock In")
+                            .font(.caption2.weight(.semibold))
+                    }
+                    .buttonStyle(.plain)
                 }
             default:
-                Text(entry.isClockedIn ? "In" : "Out")
+                Button(intent: ToggleClockIntent()) {
+                    Text(entry.isClockedIn ? "In" : "Out")
+                }
+                .buttonStyle(.plain)
             }
         }
         .widgetURL(WatchDeepLink.clock)
@@ -116,5 +128,6 @@ struct ClockStatusWidgetView: View {
 #Preview(as: .accessoryCircular) {
     ClockStatusWidget()
 } timeline: {
+    // Demo data only — not live payroll.
     ClockStatusEntry(date: .now, isClockedIn: true, clockIn: Date().addingTimeInterval(-5400), currencyCode: "ILS")
 }

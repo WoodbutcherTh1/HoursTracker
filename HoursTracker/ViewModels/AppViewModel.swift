@@ -2,6 +2,7 @@ import Foundation
 import CoreLocation
 import HoursTrackerKit
 import UserNotifications
+import WidgetKit
 
 @MainActor
 final class AppViewModel: ObservableObject {
@@ -16,6 +17,9 @@ final class AppViewModel: ObservableObject {
     @Published private(set) var successToast: String?
     @Published private(set) var locationAuthorizationStatus: CLAuthorizationStatus = .notDetermined
     @Published private(set) var areLocationNotificationsDenied = false
+    /// Deep link / Quick Export fallback: switch to Export and present share when ready.
+    @Published var pendingOpenExportReady = false
+    @Published var pendingShareExportURL: URL?
 
     private let store: SyncingStore
     private let locationManager: LocationReminderManaging
@@ -497,6 +501,8 @@ final class AppViewModel: ObservableObject {
 
     func syncNow() {
         guard !PhoneScreenshotDemoData.isEnabled else { return }
+        // Always reconcile App Group widget/watch clock events + export hand-offs.
+        reconcileSharedSurfaces()
         guard isICloudSyncEnabled else { return }
         guard !isSyncing else { return }
         syncState = .syncing
@@ -506,12 +512,46 @@ final class AppViewModel: ObservableObject {
                     sessions = result.sessions
                     settings = result.settings
                     refreshReminders()
+                    pushWatchSnapshot()
                 }
                 syncState = store.syncState
             } catch {
                 syncState = store.syncState
             }
         }
+    }
+
+    /// Drain widget-originated clock events and export deep-link flags from the App Group.
+    func reconcileSharedSurfaces() {
+        guard !PhoneScreenshotDemoData.isEnabled else { return }
+        drainWidgetPendingEvents()
+        if WidgetQuickExportStore.consumeOpenExportReady() {
+            pendingOpenExportReady = true
+        }
+        presentShareFromQuickExportIfNeeded()
+    }
+
+    func drainWidgetPendingEvents() {
+        let pending = WidgetPendingEventStore.load()
+        guard !pending.isEmpty else { return }
+        for event in pending {
+            _ = applyWatchClockEvent(event)
+            WidgetPendingEventStore.remove(id: event.id)
+        }
+    }
+
+    /// Path A: notification Share action (or app foreground after Quick Export) → share sheet.
+    func presentShareFromQuickExportIfNeeded() {
+        guard let manifest = WidgetQuickExportStore.loadManifest(),
+              let url = WidgetQuickExportStore.fileURL(named: manifest.fileName),
+              FileManager.default.fileExists(atPath: url.path)
+        else { return }
+        pendingShareExportURL = url
+    }
+
+    func clearPendingShareExport() {
+        pendingShareExportURL = nil
+        WidgetQuickExportStore.clearManifest()
     }
 
     /// Turns iCloud sync off and optionally erases already-uploaded private-DB copies.
@@ -645,7 +685,12 @@ final class AppViewModel: ObservableObject {
     }
 
     func pushWatchSnapshot() {
-        watchBridge.pushSnapshot(makeWatchSnapshot())
+        let snapshot = makeWatchSnapshot()
+        watchBridge.pushSnapshot(snapshot)
+        // Mirror into the App Group so iOS widgets + watch complications stay in sync.
+        if WatchSharedStore.saveSnapshot(snapshot) {
+            WidgetCenter.shared.reloadAllTimelines()
+        }
     }
 
     /// Fold a watch-originated clock event into `sessions` idempotently.
