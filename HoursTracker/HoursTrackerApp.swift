@@ -3,18 +3,20 @@ import HoursTrackerKit
 
 @main
 struct HoursTrackerApp: App {
+    @UIApplicationDelegateAdaptor(HoursTrackerAppDelegate.self) private var appDelegate
     @StateObject private var viewModel = AppViewModel()
     @StateObject private var appLock = AppLockController()
     @ObservedObject private var appLanguage = AppLanguageController.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var showLaunchSplash = true
+    @State private var selectedTab: MainTab = .home
 
     private var isScreenshotMode: Bool { PhoneScreenshotDemoData.isEnabled }
 
     var body: some Scene {
         WindowGroup {
             ZStack {
-                MainTabView(viewModel: viewModel)
+                MainTabView(viewModel: viewModel, selectedTab: $selectedTab)
                     .keyboardDismissible()
                     // Remount tabs when language changes so UIKit tab items + L10n
                     // strings refresh. Keep this off the splash/`@State` so changing
@@ -50,6 +52,11 @@ struct HoursTrackerApp: App {
             .environmentObject(appLanguage)
             .onAppear {
                 ExportTempFileStore.wipeAll()
+                AppNotificationCenter.shared.install()
+                AppNotificationCenter.shared.onShareExport = {
+                    viewModel.presentShareFromQuickExportIfNeeded()
+                    selectedTab = .export
+                }
                 if !isScreenshotMode {
                     viewModel.syncNow()
                 }
@@ -62,6 +69,7 @@ struct HoursTrackerApp: App {
                     let splashMs: UInt64 = isScreenshotMode ? 400 : 2100
                     try? await Task.sleep(for: .milliseconds(splashMs))
                     showLaunchSplash = false
+                    handleExportHandoffs()
                 }
                 // Manual matrix: simctl -e HT_MATRIX_ACTION=clockIn|clockOut|toggle
                 Task { @MainActor in
@@ -102,6 +110,7 @@ struct HoursTrackerApp: App {
                 // sheet is presented and would delete the file mid-share.
                 if phase == .active {
                     viewModel.syncNow()
+                    handleExportHandoffs()
                     if appLock.isEnabled && appLock.isLocked {
                         Task { await appLock.unlock() }
                     }
@@ -109,22 +118,68 @@ struct HoursTrackerApp: App {
                     ExportTempFileStore.wipeAll()
                 }
             }
+            .onChange(of: viewModel.pendingOpenExportReady) { _, ready in
+                if ready {
+                    selectedTab = .export
+                }
+            }
+            .onOpenURL { url in
+                handleOpenURL(url)
+            }
         }
+    }
+
+    private func handleOpenURL(_ url: URL) {
+        guard url.scheme == "hourstracker" else { return }
+        if url.host == "export" {
+            WidgetQuickExportStore.markOpenExportReady()
+            viewModel.pendingOpenExportReady = true
+            selectedTab = .export
+        }
+    }
+
+    private func handleExportHandoffs() {
+        viewModel.reconcileSharedSurfaces()
+        if viewModel.pendingOpenExportReady {
+            selectedTab = .export
+        }
+        if viewModel.pendingShareExportURL != nil {
+            selectedTab = .export
+        }
+    }
+}
+
+enum MainTab: Hashable {
+    case home
+    case history
+    case export
+    case settings
+}
+
+final class HoursTrackerAppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]? = nil
+    ) -> Bool {
+        AppNotificationCenter.shared.install()
+        return true
     }
 }
 
 struct MainTabView: View {
     @ObservedObject var viewModel: AppViewModel
+    @Binding var selectedTab: MainTab
     @EnvironmentObject private var appLanguage: AppLanguageController
 
     var body: some View {
         let _ = appLanguage.preference // keep tab labels tied to language changes
-        TabView {
+        TabView(selection: $selectedTab) {
             HomeView(viewModel: viewModel)
                 .accessibilityIdentifier("phone.tab.home")
                 .tabItem {
                     Label(L10n.tabHome, systemImage: "clock.fill")
                 }
+                .tag(MainTab.home)
                 .alert(
                     L10n.errorTitle,
                     isPresented: Binding(
@@ -144,18 +199,21 @@ struct MainTabView: View {
                 .tabItem {
                     Label(L10n.tabHistory, systemImage: "list.bullet.rectangle")
                 }
+                .tag(MainTab.history)
 
             ExportView(viewModel: viewModel)
                 .accessibilityIdentifier("phone.tab.export")
                 .tabItem {
                     Label(L10n.tabExport, systemImage: "square.and.arrow.up")
                 }
+                .tag(MainTab.export)
 
             SettingsView(viewModel: viewModel)
                 .accessibilityIdentifier("phone.tab.settings")
                 .tabItem {
                     Label(L10n.tabSettings, systemImage: "gearshape.fill")
                 }
+                .tag(MainTab.settings)
         }
         .overlay(alignment: .bottom) {
             if let message = viewModel.successToast {

@@ -110,9 +110,36 @@ struct ExportView: View {
             }
             .navigationTitle(L10n.exportTitle)
             .sheet(item: $shareItem) { item in
-                ShareSheet(items: [item.url])
+                ShareSheet(items: [item.url]) {
+                    viewModel.clearPendingShareExport()
+                }
+            }
+            .onAppear {
+                fulfillPendingHandoffs()
+            }
+            .onChange(of: viewModel.pendingOpenExportReady) { _, ready in
+                if ready { fulfillPendingHandoffs() }
+            }
+            .onChange(of: viewModel.pendingShareExportURL) { _, url in
+                if url != nil { fulfillPendingHandoffs() }
             }
         }
+    }
+
+    /// Path A: present share for widget-generated CSV.
+    /// Path B: auto-run this-month export when opened via `hourstracker://export?ready=1`.
+    private func fulfillPendingHandoffs() {
+        if let url = viewModel.pendingShareExportURL {
+            DispatchQueue.main.async {
+                shareItem = ShareableFile(url: url)
+            }
+            return
+        }
+        guard viewModel.pendingOpenExportReady else { return }
+        viewModel.pendingOpenExportReady = false
+        rangeMode = .thisMonth
+        selectedFormat = .csv
+        export()
     }
 
     private func label(for language: ExportLanguage) -> String {
@@ -172,6 +199,11 @@ struct ShareableFile: Identifiable {
 struct ShareSheet: UIViewControllerRepresentable {
     let items: [Any]
     var onComplete: (() -> Void)?
+
+    init(items: [Any], onComplete: (() -> Void)? = nil) {
+        self.items = items
+        self.onComplete = onComplete
+    }
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
         let controller = UIActivityViewController(activityItems: items, applicationActivities: nil)

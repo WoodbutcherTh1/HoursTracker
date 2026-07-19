@@ -90,6 +90,7 @@ final class WatchConnectivitySessionManager: NSObject, ObservableObject {
             onSnapshot?(snap)
         case .eventAck(let id):
             pendingQueue.remove(id: id)
+            WidgetPendingEventStore.remove(id: id)
         case .clockEvent, .requestSnapshot:
             break
         }
