@@ -42,6 +42,14 @@ enum L10n {
         String(format: t("home.since %@"), time)
     }
     static var homeLiveGrossBasic: String { t("home.liveGrossBasic") }
+    static var homeWeekLoading: String { t("home.weekLoading") }
+    static var homeForgotClockIn: String { t("home.forgotClockIn") }
+    static var homeForgotClockInArrivalPrompt: String { t("home.forgotClockIn.arrivalPrompt") }
+    static var homeForgotClockInConfirmTitle: String { t("home.forgotClockIn.confirmTitle") }
+    static func homeForgotClockInConfirmMessage(_ time: String) -> String {
+        String(format: t("home.forgotClockIn.confirmMessage %@"), time)
+    }
+    static var homeForgotClockInConfirm: String { t("home.forgotClockIn.confirm") }
     static var homeClockOut: String { t("home.clockOut") }
     static var homeShiftComplete: String { t("home.shiftComplete") }
     static func homeWeekTotal(_ hours: String) -> String {

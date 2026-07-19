@@ -2756,6 +2756,122 @@
         }
       }
     },
+    "home.forgotClockIn": {
+      "comment": "Home CTA when the worker likely arrived but has no open shift.",
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نسيت تسجّل دخول؟"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Forgot to clock in?"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "שכחת להחתים?"
+          }
+        }
+      }
+    },
+    "home.forgotClockIn.arrivalPrompt": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "وينتا وصلت عالشغل؟"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "When did you arrive at work?"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מתי הגעת לעבודה?"
+          }
+        }
+      }
+    },
+    "home.forgotClockIn.confirm": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ابدأ الوردية"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start Shift"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "התחל משמרת"
+          }
+        }
+      }
+    },
+    "home.forgotClockIn.confirmMessage %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تبدّي الوردية الساعة %@؟"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start the shift at %@?"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "להתחיל את המשמרת ב־%@?"
+          }
+        }
+      }
+    },
+    "home.forgotClockIn.confirmTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تأكيد وقت الوصول"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Confirm arrival time"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "אישור שעת הגעה"
+          }
+        }
+      }
+    },
     "home.greeting.afternoon": {
       "extractionState": "stale",
       "localizations": {
@@ -3121,6 +3237,30 @@
           "stringUnit": {
             "state": "translated",
             "value": "HoursTracker"
+          }
+        }
+      }
+    },
+    "home.weekLoading": {
+      "comment": "Sparkline label for today while a shift is still open.",
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جاري التحميل…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loading…"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "בטעינה…"
           }
         }
       }

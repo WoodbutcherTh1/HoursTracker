@@ -117,6 +117,29 @@ final class AppLanguagePreferenceTests: XCTestCase {
         XCTAssertNotEqual(english, arabic)
     }
 
+    func testHomeForgotClockInAndWeekLoadingLocalizedInAllLanguages() {
+        XCTAssertEqual(
+            AppLocale.localizedString("home.weekLoading", language: .hebrew),
+            "בטעינה…"
+        )
+        XCTAssertEqual(
+            AppLocale.localizedString("home.forgotClockIn", language: .hebrew),
+            "שכחת להחתים?"
+        )
+        XCTAssertEqual(
+            AppLocale.localizedString("home.forgotClockIn", language: .english),
+            "Forgot to clock in?"
+        )
+        XCTAssertEqual(
+            AppLocale.localizedString("home.forgotClockIn", language: .arabic),
+            "نسيت تسجّل دخول؟"
+        )
+        XCTAssertEqual(
+            AppLocale.localizedString("home.forgotClockIn.arrivalPrompt", language: .arabic),
+            "وينتا وصلت عالشغل؟"
+        )
+    }
+
     func testDateLabelsFollowExplicitAppLocaleNotDevice() {
         var components = DateComponents()
         components.year = 2026

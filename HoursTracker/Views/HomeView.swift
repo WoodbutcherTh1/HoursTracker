@@ -35,6 +35,7 @@ struct LiveTimerView: View {
 struct HomeView: View {
     @ObservedObject var viewModel: AppViewModel
     @State private var showScanner = false
+    @State private var showForgotClockIn = false
     @State private var liveNow = Date()
 
     private var timeFormatter: DateFormatter {
@@ -102,6 +103,10 @@ struct HomeView: View {
             .sheet(isPresented: $showScanner) {
                 BlankTimesheetEntryView(appViewModel: viewModel)
             }
+            .sheet(isPresented: $showForgotClockIn) {
+                ForgotClockInSheet(viewModel: viewModel)
+                    .presentationDetents([.medium, .large])
+            }
         }
     }
 
@@ -120,6 +125,27 @@ struct HomeView: View {
                 viewModel.clockIn()
             }
             .frame(height: metrics.doorHeight)
+
+            if viewModel.shouldOfferForgotClockIn {
+                Button {
+                    showForgotClockIn = true
+                } label: {
+                    Label(L10n.homeForgotClockIn, systemImage: "clock.badge.questionmark")
+                        .font(.footnote.weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .foregroundStyle(HomeNeon.coral)
+                        .padding(.horizontal, metrics.isCompact ? 14 : 18)
+                        .padding(.vertical, metrics.isCompact ? 8 : 10)
+                        .background(
+                            Capsule(style: .continuous)
+                                .stroke(HomeNeon.coral.opacity(0.55), lineWidth: 1.2)
+                                .background(Capsule().fill(HomeNeon.card.opacity(0.7)))
+                        )
+                }
+                .buttonStyle(ScalePressButtonStyle())
+                .accessibilityHint(L10n.homeForgotClockInArrivalPrompt)
+            }
 
             Button {
                 showScanner = true
@@ -145,6 +171,7 @@ struct HomeView: View {
                 dailyHours: weekDailyHours,
                 weekdayLabels: weekDayLabels,
                 highlightedDayIndex: todayWeekdayIndex,
+                isTodayShiftOpen: hasOpenShiftToday,
                 accent: HomeNeon.accent
             )
             .padding(.bottom, 2)
@@ -280,12 +307,21 @@ struct HomeView: View {
                 dailyHours: weekDailyHours,
                 weekdayLabels: weekDayLabels,
                 highlightedDayIndex: todayWeekdayIndex,
+                isTodayShiftOpen: hasOpenShiftToday,
                 accent: HomeNeon.coral
             )
         }
     }
 
     // MARK: - Stats
+
+    /// Display-only: open shift for today (sparkline must not show a frozen 00:00).
+    private var hasOpenShiftToday: Bool {
+        guard let session = viewModel.activeSession else { return false }
+        let today = calendar.startOfDay(for: Date())
+        return calendar.isDate(session.date, inSameDayAs: today)
+            || calendar.isDate(session.clockIn, inSameDayAs: today)
+    }
 
     private var completedSessions: [WorkSession] {
         viewModel.sessions.filter { $0.clockOut != nil }
