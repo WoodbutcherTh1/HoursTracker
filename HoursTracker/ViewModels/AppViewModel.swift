@@ -117,15 +117,18 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Clock In / Out
 
-    func clockIn(isManual: Bool = false) {
+    /// Start an open shift. `at` defaults to now; pass an earlier time for late / forgotten clock-in.
+    /// Arrival is clamped so it cannot be in the future. Uses the same persist + tombstone path
+    /// as a normal clock-in (no parallel save route).
+    func clockIn(at date: Date = Date(), isManual: Bool = false) {
         guard canClockIn else { return }
-        let now = Date()
+        let clockInDate = min(date, Date())
         let session = WorkSession(
-            date: Calendar.current.startOfDay(for: now),
-            clockIn: now,
+            date: Calendar.current.startOfDay(for: clockInDate),
+            clockIn: clockInDate,
             clockOut: nil,
             isManualEntry: isManual,
-            dayType: DayType.automatic(for: now, settings: settings)
+            dayType: DayType.automatic(for: clockInDate, settings: settings)
         )
         sessions.append(session)
         persist()
@@ -134,8 +137,56 @@ final class AppViewModel: ObservableObject {
             L10n.logEventClockIn,
             level: .success,
             category: "clock",
-            details: ISO8601DateFormatter().string(from: now)
+            details: ISO8601DateFormatter().string(from: clockInDate)
         )
+    }
+
+    /// Offer “forgot to clock in?” when:
+    /// - there is no open shift,
+    /// - there is no completed shift yet today,
+    /// - today is not a configured rest day,
+    /// - local time is at least 30 minutes past the app’s typical 08:00 start.
+    var shouldOfferForgotClockIn: Bool {
+        Self.shouldOfferForgotClockIn(
+            now: Date(),
+            sessions: sessions,
+            settings: settings
+        )
+    }
+
+    static func shouldOfferForgotClockIn(
+        now: Date,
+        sessions: [WorkSession],
+        settings: WorkplaceSettings,
+        calendar: Calendar = .current,
+        // TODO(expectedShiftStart): Temporary hardcoded typical start (08:00) + grace.
+        // WorkplaceSettings has no expected shift-start field yet; keep this until we add an
+        // optional `expectedShiftStart` setting and drive the forgot-clock-in threshold from it
+        // (still with a ~30–45 min grace after the configured time). See PR #14 discussion.
+        typicalStartHour: Int = 8,
+        graceMinutes: Int = 30
+    ) -> Bool {
+        if sessions.contains(where: \.isOpen) { return false }
+
+        let today = calendar.startOfDay(for: now)
+        let weekday = calendar.component(.weekday, from: now)
+        if settings.isRestDayWeekday(weekday) { return false }
+
+        let hasCompletedToday = sessions.contains {
+            $0.clockOut != nil && calendar.isDate($0.date, inSameDayAs: today)
+        }
+        if hasCompletedToday { return false }
+
+        guard
+            let typicalStart = calendar.date(
+                bySettingHour: typicalStartHour,
+                minute: 0,
+                second: 0,
+                of: today
+            )
+        else { return false }
+        let threshold = typicalStart.addingTimeInterval(TimeInterval(graceMinutes * 60))
+        return now >= threshold
     }
 
     func clockOut() {

@@ -691,6 +691,9 @@ struct HomeWeekSparkline: View {
     let weekdayLabels: [String]
     /// Index 0...6 of "today" within the current week row; that day glows.
     var highlightedDayIndex: Int? = nil
+    /// When true, today's column shows a live "loading" state instead of a frozen 00:00
+    /// (open shifts are intentionally excluded from `dailyHours` totals).
+    var isTodayShiftOpen: Bool = false
     var accent: Color = HomeNeon.accent
 
     private let loopSeconds: Double = 5.5
@@ -794,23 +797,41 @@ struct HomeWeekSparkline: View {
         pulseTime t: Double
     ) -> some View {
         let isToday = highlightedDayIndex == index
+        let isLiveOpen = isToday && isTodayShiftOpen
         let pulse = (sin(t * (isToday ? 3.4 : 2.2) + Double(index) * 0.7) + 1) / 2
-        let barHeight = CGFloat(heightFraction) * barMaxHeight
+        // Open shift today: breathe the bar instead of showing a misleading empty/00:00 value.
+        let liveFill = 0.28 + 0.42 * pulse
+        let barHeight = isLiveOpen
+            ? CGFloat(liveFill) * barMaxHeight
+            : CGFloat(heightFraction) * barMaxHeight
         let showLabel = hours > 0.01 || isToday
+        let labelText: String = {
+            if isLiveOpen { return L10n.homeWeekLoading }
+            if showLabel { return HistoryPeriodHelper.formatHoursClock(hours) }
+            return " "
+        }()
 
         return VStack(spacing: 4) {
-            Text(showLabel ? HistoryPeriodHelper.formatHoursClock(hours) : " ")
-                .font(.system(size: 8, weight: isToday ? .bold : .semibold, design: .rounded))
-                .monospacedDigit()
+            Group {
+                if isLiveOpen {
+                    Text(labelText)
+                        .font(.system(size: 7, weight: .bold, design: .rounded))
+                } else {
+                    Text(labelText)
+                        .font(.system(size: 8, weight: isToday ? .bold : .semibold, design: .rounded))
+                        .monospacedDigit()
+                }
+            }
                 .foregroundStyle(
                     isToday
                         ? accent.opacity(0.85 + 0.15 * pulse)
                         : Color.white.opacity(hours > 0.01 ? 0.55 : 0.2)
                 )
                 .lineLimit(1)
-                .minimumScaleFactor(0.55)
+                .minimumScaleFactor(0.45)
                 .frame(maxWidth: .infinity)
                 .frame(height: labelRowHeight)
+                .accessibilityLabel(isLiveOpen ? L10n.homeWeekLoading : labelText)
 
             Spacer(minLength: 0)
 
@@ -825,9 +846,15 @@ struct HomeWeekSparkline: View {
                         endPoint: .bottom
                     )
                 )
-                .frame(width: isToday ? 12 : 9, height: max(barHeight, hours > 0.01 ? 3 : 2))
-                .opacity(hours > 0.01 ? 1 : 0.25)
-                .shadow(color: isToday ? accent.opacity(0.55 * pulse) : .clear, radius: isToday ? 6 : 0)
+                .frame(
+                    width: isToday ? 12 : 9,
+                    height: max(barHeight, (hours > 0.01 || isLiveOpen) ? 3 : 2)
+                )
+                .opacity(hours > 0.01 || isLiveOpen ? 1 : 0.25)
+                .shadow(
+                    color: isToday ? accent.opacity(0.55 * pulse) : .clear,
+                    radius: isToday ? 6 : 0
+                )
         }
         .frame(maxHeight: .infinity)
     }
