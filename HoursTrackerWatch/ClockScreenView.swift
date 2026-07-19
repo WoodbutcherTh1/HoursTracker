@@ -9,42 +9,45 @@ struct ClockScreenView: View {
         let locale = viewModel.locale
         TimelineView(.periodic(from: .now, by: isLuminanceReduced ? 60 : 1)) { context in
             let now = context.date
-            VStack(spacing: 10) {
+            VStack(spacing: 6) {
                 if let open = viewModel.activeSession {
                     Text(WatchL10n.elapsed(from: open.clockIn, now: now, locale: locale))
-                        .font(.system(.title2, design: .rounded).monospacedDigit().weight(.semibold))
-                        .foregroundStyle(isLuminanceReduced ? .secondary : .primary)
+                        .font(.system(.title3, design: .rounded).monospacedDigit().weight(.semibold))
+                        .foregroundStyle(
+                            isLuminanceReduced
+                                ? .secondary
+                                : SharedHomeNeon.coral
+                        )
                         .minimumScaleFactor(0.7)
                         .lineLimit(1)
                 } else {
                     Text(WatchL10n.clockTitle(locale: locale))
-                        .font(.headline)
+                        .font(.caption.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
 
-                Button {
+                // Same door component as iPhone Home (scaled for watch HIG).
+                SharedClockDoorButton(
+                    mode: viewModel.isClockedIn ? .clockOut : .clockIn,
+                    title: viewModel.isClockedIn
+                        ? WatchL10n.clockOut(locale: locale)
+                        : WatchL10n.clockIn(locale: locale),
+                    doorWidth: 56,
+                    doorHeight: 66,
+                    showTitle: true
+                ) {
                     viewModel.toggleClock()
-                } label: {
-                    Text(
-                        viewModel.isClockedIn
-                            ? WatchL10n.clockOut(locale: locale)
-                            : WatchL10n.clockIn(locale: locale)
-                    )
-                    .font(.headline.weight(.bold))
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 10)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(viewModel.isClockedIn ? .orange : .green)
                 .accessibilityIdentifier("watch.clock.toggle")
 
                 Text(todayLine(now: now, locale: locale))
-                    .font(.caption2)
+                    .font(.system(.caption2, design: .rounded))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
-                    .minimumScaleFactor(0.8)
+                    .minimumScaleFactor(0.75)
+                    .lineLimit(2)
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, 2)
         }
         .navigationTitle(WatchL10n.clockTitle(locale: locale))
         .navigationBarTitleDisplayMode(.inline)

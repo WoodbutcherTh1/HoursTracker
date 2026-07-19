@@ -1,13 +1,14 @@
 import SwiftUI
+import HoursTrackerKit
 
-/// Shared neon palette for the Home screen design.
+/// Shared neon palette for the Home screen design (aliases Kit tokens).
 enum HomeNeon {
-    static let accent = Color(red: 0.15, green: 0.95, blue: 0.45)
-    static let accentDeep = Color(red: 0.05, green: 0.55, blue: 0.28)
+    static let accent = SharedHomeNeon.accent
+    static let accentDeep = SharedHomeNeon.accentDeep
     static let bg = Color(red: 0.04, green: 0.05, blue: 0.06)
     static let card = Color(red: 0.09, green: 0.10, blue: 0.12)
-    static let coral = Color(red: 0.95, green: 0.28, blue: 0.35)
-    static let coralDeep = Color(red: 0.72, green: 0.12, blue: 0.22)
+    static let coral = SharedHomeNeon.coral
+    static let coralDeep = SharedHomeNeon.coralDeep
 }
 
 /// Width-based spacing/type for Home so SE / 13 mini stay readable.
@@ -187,206 +188,35 @@ struct HomePulseRings: View {
     }
 }
 
-/// Clock-in door: closed + green → press → opens + turns red.
-/// Clock-out door: open + red → press → closes + turns green.
+/// Clock-in / clock-out door — thin wrapper over the shared Kit component
+/// so iPhone Home and watch Clock stay visually identical.
 struct HomeAnimatedDoorButton: View {
     enum Mode {
         case clockIn
         case clockOut
+
+        var shared: SharedClockDoorButton.Mode {
+            switch self {
+            case .clockIn: return .clockIn
+            case .clockOut: return .clockOut
+            }
+        }
     }
 
     let mode: Mode
     let title: String
     let action: () -> Void
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    @State private var isOpen: Bool
-    @State private var isBusy = false
-
-    private let doorWidth: CGFloat = 72
-    private let doorHeight: CGFloat = 86
-
-    init(mode: Mode, title: String, action: @escaping () -> Void) {
-        self.mode = mode
-        self.title = title
-        self.action = action
-        _isOpen = State(initialValue: mode == .clockOut)
-    }
-
-    private var doorColor: Color {
-        isOpen ? HomeNeon.coral : HomeNeon.accent
-    }
-
-    private var glowColor: Color {
-        isOpen ? HomeNeon.coral : HomeNeon.accent
-    }
-
     var body: some View {
-        Button {
-            guard !isBusy else { return }
-            isBusy = true
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
-
-            let duration: TimeInterval = reduceMotion ? 0.2 : 0.55
-            withAnimation(.spring(response: duration, dampingFraction: 0.78)) {
-                switch mode {
-                case .clockIn:
-                    isOpen = true
-                case .clockOut:
-                    isOpen = false
-                }
-            }
-
-            DispatchQueue.main.asyncAfter(deadline: .now() + duration) {
-                action()
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) {
-                    isBusy = false
-                    isOpen = (mode == .clockOut)
-                }
-            }
-        } label: {
-            VStack(spacing: 10) {
-                ZStack {
-                    HomePulseRings(color: glowColor, size: 78)
-
-                    doorScene
-                        .frame(width: doorWidth, height: doorHeight)
-                        .shadow(color: glowColor.opacity(0.4), radius: 12, y: 5)
-                }
-                .frame(width: doorWidth + 56, height: doorHeight + 28)
-
-                Text(title)
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(doorColor)
-                    .shadow(color: doorColor.opacity(0.35), radius: 5)
-            }
-        }
-        .buttonStyle(ScalePressButtonStyle())
-        .disabled(isBusy)
-        .accessibilityLabel(title)
-        .onChange(of: mode) { _, newMode in
-            isOpen = (newMode == .clockOut)
-            isBusy = false
-        }
-    }
-
-    private var doorScene: some View {
-        let shape = RoundedRectangle(cornerRadius: 8, style: .continuous)
-
-        return ZStack {
-            // Outer frame shell
-            shape
-                .fill(Color(red: 0.10, green: 0.11, blue: 0.13))
-
-            // Everything inside the doorway is clipped so the leaf opens *into* the frame.
-            ZStack(alignment: .leading) {
-                // Interior room — glows red when the door is open
-                RoundedRectangle(cornerRadius: 5, style: .continuous)
-                    .fill(
-                        LinearGradient(
-                            colors: isOpen
-                                ? [
-                                    Color(red: 0.35, green: 0.05, blue: 0.08),
-                                    HomeNeon.coral.opacity(0.55),
-                                    Color.black.opacity(0.9)
-                                ]
-                                : [
-                                    Color.black.opacity(0.92),
-                                    Color.black.opacity(0.75)
-                                ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .overlay {
-                        if isOpen {
-                            RadialGradient(
-                                colors: [
-                                    HomeNeon.coral.opacity(0.55),
-                                    HomeNeon.coral.opacity(0.0)
-                                ],
-                                center: .center,
-                                startRadius: 3,
-                                endRadius: 42
-                            )
-                            .blendMode(.plusLighter)
-                        }
-                    }
-                    .padding(5)
-
-                // Door leaf swings inward (hinge on leading edge)
-                doorLeaf
-                    .padding(5)
-                    .rotation3DEffect(
-                        .degrees(isOpen ? -88 : 0),
-                        axis: (x: 0, y: 1, z: 0),
-                        anchor: .leading,
-                        anchorZ: 0,
-                        perspective: 0.85
-                    )
-            }
-            .clipShape(RoundedRectangle(cornerRadius: 7, style: .continuous).inset(by: 3))
-
-            // Frame rim on top
-            shape
-                .stroke(doorColor.opacity(0.7), lineWidth: 2)
-                .allowsHitTesting(false)
-
-            // Inner threshold line
-            RoundedRectangle(cornerRadius: 6, style: .continuous)
-                .stroke(Color.white.opacity(0.12), lineWidth: 1)
-                .padding(4)
-                .allowsHitTesting(false)
-        }
-        .animation(.easeInOut(duration: 0.45), value: isOpen)
-    }
-
-    private var doorLeaf: some View {
-        ZStack(alignment: .trailing) {
-            RoundedRectangle(cornerRadius: 5, style: .continuous)
-                .fill(
-                    LinearGradient(
-                        colors: [
-                            doorColor,
-                            doorColor.opacity(0.75),
-                            (isOpen ? HomeNeon.coralDeep : HomeNeon.accentDeep)
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: 5, style: .continuous)
-                        .stroke(Color.white.opacity(0.28), lineWidth: 1)
-                )
-
-            VStack(spacing: 5) {
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .stroke(Color.black.opacity(0.18), lineWidth: 1.2)
-                    .frame(maxHeight: .infinity)
-                RoundedRectangle(cornerRadius: 3, style: .continuous)
-                    .stroke(Color.black.opacity(0.18), lineWidth: 1.2)
-                    .frame(maxHeight: .infinity)
-            }
-            .padding(.vertical, 8)
-            .padding(.horizontal, 9)
-            .padding(.trailing, 7)
-
-            Circle()
-                .fill(
-                    RadialGradient(
-                        colors: [Color.white.opacity(0.95), Color.white.opacity(0.55)],
-                        center: .center,
-                        startRadius: 0,
-                        endRadius: 4
-                    )
-                )
-                .frame(width: 7, height: 7)
-                .shadow(color: .black.opacity(0.35), radius: 1.5, y: 1)
-                .padding(.trailing, 8)
-        }
-        .animation(.easeInOut(duration: 0.45), value: isOpen)
+        SharedClockDoorButton(
+            mode: mode.shared,
+            title: title,
+            doorWidth: 72,
+            doorHeight: 86,
+            showTitle: true,
+            largeTitle: true,
+            action: action
+        )
     }
 }
 

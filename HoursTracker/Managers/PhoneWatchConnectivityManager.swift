@@ -44,13 +44,7 @@ final class PhoneWatchConnectivityManager: NSObject, ObservableObject {
             } catch {
                 // Identical-context errors are expected on reachability re-push.
             }
-            if session.isReachable {
-                session.sendMessage(dict, replyHandler: nil) { _ in
-                    session.transferUserInfo(dict)
-                }
-            } else {
-                session.transferUserInfo(dict)
-            }
+            deliver(dict, via: session, label: "snapshot")
         } catch {
             // Best-effort; phone remains source of truth locally.
         }
@@ -62,20 +56,27 @@ final class PhoneWatchConnectivityManager: NSObject, ObservableObject {
         guard session.activationState == .activated else { return }
         do {
             let dict = try WatchWireCodec.dictionary(for: .eventAck(eventID))
-            if session.isReachable {
-                session.sendMessage(dict, replyHandler: nil) { _ in
-                    session.transferUserInfo(dict)
-                }
-            } else {
-                session.transferUserInfo(dict)
-            }
+            deliver(dict, via: session, label: "ack:\(eventID.uuidString.prefix(8))")
         } catch {}
+    }
+
+    /// Durable `transferUserInfo` always; interactive `sendMessage` when reachable.
+    private func deliver(_ dict: [String: Any], via session: WCSession, label: String) {
+        session.transferUserInfo(dict)
+        if session.isReachable {
+            session.sendMessage(dict, replyHandler: nil) { error in
+                WatchSyncLog.event("phone sendMessage failed (\(label)): \(error.localizedDescription)")
+            }
+        }
     }
 
     private func handle(dictionary: [String: Any]) {
         guard let message = try? WatchWireCodec.message(from: dictionary) else { return }
         switch message {
         case .clockEvent(let event):
+            WatchSyncLog.event(
+                "phone WCSession received \(event.kind.rawValue) id=\(event.id.uuidString.prefix(8))"
+            )
             onClockEvent?(event)
         case .requestSnapshot:
             if let snapshot = snapshotProvider?() {

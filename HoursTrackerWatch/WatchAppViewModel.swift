@@ -121,18 +121,33 @@ final class WatchAppViewModel: ObservableObject {
 
     func clockIn() {
         guard canClockIn else { return }
+        // Seed App Group so the shared widget/clock path can mutate the same snapshot
+        // the iPhone drains on cold launch (ToggleClockIntent / WidgetClockService path).
+        ensureAppGroupSnapshotSeeded()
         let event = WatchClockEvent.makeClockIn()
+        // Same enqueue + WCSession flush used by widgets (`WidgetPendingEventStore`).
         connectivity.sendClockEvent(event)
         recomputeFromPending()
+        WatchSyncLog.event("watch UI clockIn id=\(event.id.uuidString.prefix(8))")
         WKInterfaceDevice.current().play(.success)
     }
 
     func clockOut() {
         guard let open = activeSession else { return }
+        ensureAppGroupSnapshotSeeded()
         let event = WatchClockEvent.makeClockOut(sessionID: open.id)
         connectivity.sendClockEvent(event)
         recomputeFromPending()
+        WatchSyncLog.event("watch UI clockOut id=\(event.id.uuidString.prefix(8)) session=\(open.id.uuidString.prefix(8))")
         WKInterfaceDevice.current().play(.click)
+    }
+
+    /// Ensure `WatchSharedStore` has a base snapshot before optimistic local mutations.
+    private func ensureAppGroupSnapshotSeeded() {
+        if WatchSharedStore.loadSnapshot() == nil {
+            let base = WatchSnapshot(sessions: sessions, paySettings: paySettings)
+            _ = WatchSharedStore.saveSnapshot(base)
+        }
     }
 
     private func bindConnectivity() {
