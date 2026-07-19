@@ -32,6 +32,110 @@ final class AppViewModelTests: XCTestCase {
         XCTAssertTrue(store.storedSessions[0].isOpen)
     }
 
+    func testClockInAtCustomTimePersistsOpenSession() {
+        let (viewModel, store) = makeViewModel()
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let arrival = calendar.date(bySettingHour: 8, minute: 15, second: 0, of: today)!
+
+        viewModel.clockIn(at: arrival, isManual: true)
+
+        XCTAssertTrue(viewModel.isClockedIn)
+        XCTAssertEqual(store.storedSessions.count, 1)
+        let session = store.storedSessions[0]
+        XCTAssertTrue(session.isOpen)
+        XCTAssertTrue(session.isManualEntry)
+        XCTAssertEqual(session.clockIn.timeIntervalSince1970, arrival.timeIntervalSince1970, accuracy: 1)
+        XCTAssertTrue(calendar.isDate(session.date, inSameDayAs: today))
+    }
+
+    func testClockInAtFutureTimeIsClampedToNow() {
+        let (viewModel, store) = makeViewModel()
+        let future = Date().addingTimeInterval(3600)
+
+        let before = Date()
+        viewModel.clockIn(at: future)
+        let after = Date()
+
+        let clockIn = store.storedSessions[0].clockIn
+        XCTAssertGreaterThanOrEqual(clockIn.timeIntervalSince1970, before.timeIntervalSince1970 - 1)
+        XCTAssertLessThanOrEqual(clockIn.timeIntervalSince1970, after.timeIntervalSince1970 + 1)
+    }
+
+    func testShouldOfferForgotClockInRequiresGracePastTypicalStart() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let day = calendar.date(from: DateComponents(year: 2026, month: 7, day: 14))! // Tuesday
+        let settings = WorkplaceSettings.default // rest day Saturday
+
+        let tooEarly = calendar.date(bySettingHour: 8, minute: 10, second: 0, of: day)!
+        XCTAssertFalse(
+            AppViewModel.shouldOfferForgotClockIn(
+                now: tooEarly,
+                sessions: [],
+                settings: settings,
+                calendar: calendar
+            )
+        )
+
+        let afterGrace = calendar.date(bySettingHour: 8, minute: 30, second: 0, of: day)!
+        XCTAssertTrue(
+            AppViewModel.shouldOfferForgotClockIn(
+                now: afterGrace,
+                sessions: [],
+                settings: settings,
+                calendar: calendar
+            )
+        )
+    }
+
+    func testShouldOfferForgotClockInHiddenWhenOpenOrCompletedOrRestDay() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let day = calendar.date(from: DateComponents(year: 2026, month: 7, day: 14))! // Tuesday
+        let saturday = calendar.date(from: DateComponents(year: 2026, month: 7, day: 18))!
+        let settings = WorkplaceSettings.default
+        let lateMorning = calendar.date(bySettingHour: 10, minute: 0, second: 0, of: day)!
+
+        let open = WorkSession(
+            date: calendar.startOfDay(for: day),
+            clockIn: calendar.date(bySettingHour: 8, minute: 0, second: 0, of: day)!,
+            clockOut: nil
+        )
+        XCTAssertFalse(
+            AppViewModel.shouldOfferForgotClockIn(
+                now: lateMorning,
+                sessions: [open],
+                settings: settings,
+                calendar: calendar
+            )
+        )
+
+        let completed = WorkSession(
+            date: calendar.startOfDay(for: day),
+            clockIn: calendar.date(bySettingHour: 8, minute: 0, second: 0, of: day)!,
+            clockOut: calendar.date(bySettingHour: 12, minute: 0, second: 0, of: day)!
+        )
+        XCTAssertFalse(
+            AppViewModel.shouldOfferForgotClockIn(
+                now: lateMorning,
+                sessions: [completed],
+                settings: settings,
+                calendar: calendar
+            )
+        )
+
+        let saturdayNoon = calendar.date(bySettingHour: 12, minute: 0, second: 0, of: saturday)!
+        XCTAssertFalse(
+            AppViewModel.shouldOfferForgotClockIn(
+                now: saturdayNoon,
+                sessions: [],
+                settings: settings,
+                calendar: calendar
+            )
+        )
+    }
+
     func testSecondClockInSameDayAfterClockOutIsAllowed() {
         let (viewModel, _) = makeViewModel()
 

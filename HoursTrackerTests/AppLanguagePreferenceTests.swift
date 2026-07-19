@@ -101,6 +101,45 @@ final class AppLanguagePreferenceTests: XCTestCase {
         )
     }
 
+    func testHomeLiveGrossBasicLocalizedInAllLanguages() {
+        let english = AppLocale.localizedString("home.liveGrossBasic", language: .english)
+        let hebrew = AppLocale.localizedString("home.liveGrossBasic", language: .hebrew)
+        let arabic = AppLocale.localizedString("home.liveGrossBasic", language: .arabic)
+
+        XCTAssertEqual(english, "Basic Gross")
+        XCTAssertEqual(hebrew, "ברוטו בסיסי")
+        XCTAssertEqual(arabic, "إجمالي أساسي")
+        // Must never fall back to the raw catalog key on any supported language.
+        XCTAssertNotEqual(english, "home.liveGrossBasic")
+        XCTAssertNotEqual(hebrew, "home.liveGrossBasic")
+        XCTAssertNotEqual(arabic, "home.liveGrossBasic")
+        XCTAssertNotEqual(english, hebrew)
+        XCTAssertNotEqual(english, arabic)
+    }
+
+    func testHomeForgotClockInAndWeekLoadingLocalizedInAllLanguages() {
+        XCTAssertEqual(
+            AppLocale.localizedString("home.weekLoading", language: .hebrew),
+            "בטעינה…"
+        )
+        XCTAssertEqual(
+            AppLocale.localizedString("home.forgotClockIn", language: .hebrew),
+            "שכחת להחתים?"
+        )
+        XCTAssertEqual(
+            AppLocale.localizedString("home.forgotClockIn", language: .english),
+            "Forgot to clock in?"
+        )
+        XCTAssertEqual(
+            AppLocale.localizedString("home.forgotClockIn", language: .arabic),
+            "نسيت تسجّل دخول؟"
+        )
+        XCTAssertEqual(
+            AppLocale.localizedString("home.forgotClockIn.arrivalPrompt", language: .arabic),
+            "وينتا وصلت عالشغل؟"
+        )
+    }
+
     func testDateLabelsFollowExplicitAppLocaleNotDevice() {
         var components = DateComponents()
         components.year = 2026
