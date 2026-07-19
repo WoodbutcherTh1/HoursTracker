@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import CoreLocation
+import HoursTrackerKit
 
 struct SettingsView: View {
     @ObservedObject var viewModel: AppViewModel
@@ -33,8 +34,10 @@ struct SettingsView: View {
                 workRulesSection
                 payrollSection
                 taxSection
-                locationSection
-                securitySection
+                if !PhoneScreenshotDemoData.isEnabled {
+                    locationSection
+                    securitySection
+                }
                 if viewModel.isCloudSyncSupported {
                     syncSection
                 }
@@ -108,30 +111,34 @@ struct SettingsView: View {
     private var workerSection: some View {
         Section(L10n.settingsWorkerInfo) {
             TextField(L10n.settingsFullName, text: $draft.workerFullName)
-            if isEditingIDNumber {
-                TextField(L10n.settingsIDNumber, text: $draft.workerIDNumber)
-                    .keyboardType(.numberPad)
-                if IsraeliIDValidator.shouldWarn(for: draft.workerIDNumber) {
-                    Text(L10n.settingsIDChecksumWarning)
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-                Button(L10n.settingsHideIDNumber) {
-                    isEditingIDNumber = false
-                }
-            } else {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(L10n.settingsIDNumber)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Text(AppLockPolicy.maskedNationalID(draft.workerIDNumber))
-                            .font(.body.monospacedDigit())
-                            .accessibilityLabel(L10n.settingsIDNumberMasked)
+                .accessibilityIdentifier("phone.settings.workerName")
+            // App Preview / screenshot mode: never surface national-ID UI.
+            if !PhoneScreenshotDemoData.isEnabled {
+                if isEditingIDNumber {
+                    TextField(L10n.settingsIDNumber, text: $draft.workerIDNumber)
+                        .keyboardType(.numberPad)
+                    if IsraeliIDValidator.shouldWarn(for: draft.workerIDNumber) {
+                        Text(L10n.settingsIDChecksumWarning)
+                            .font(.caption)
+                            .foregroundStyle(.orange)
                     }
-                    Spacer()
-                    Button(L10n.settingsEditIDNumber) {
-                        isEditingIDNumber = true
+                    Button(L10n.settingsHideIDNumber) {
+                        isEditingIDNumber = false
+                    }
+                } else {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L10n.settingsIDNumber)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Text(AppLockPolicy.maskedNationalID(draft.workerIDNumber))
+                                .font(.body.monospacedDigit())
+                                .accessibilityLabel(L10n.settingsIDNumberMasked)
+                        }
+                        Spacer()
+                        Button(L10n.settingsEditIDNumber) {
+                            isEditingIDNumber = true
+                        }
                     }
                 }
             }
@@ -335,6 +342,7 @@ struct SettingsView: View {
         } header: {
             Text(AppLocale.tr("tax.section"))
         }
+        .accessibilityIdentifier("phone.settings.tax")
     }
 
     private var locationSection: some View {

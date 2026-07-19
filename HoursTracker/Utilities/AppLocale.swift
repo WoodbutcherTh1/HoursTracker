@@ -29,6 +29,16 @@ enum AppLocale {
         Locale(identifier: current.localeIdentifier)
     }
 
+    /// Gregorian calendar for payroll / week math. Never follows an Islamic
+    /// calendar (`ar_SA`) and keeps Sunday-first weeks (Israeli work week)
+    /// even when the UI language is Arabic.
+    static var calendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.locale = resolvedLocale
+        calendar.firstWeekday = 1 // Sunday
+        return calendar
+    }
+
     /// Date/time formatter locked to the in-app language (never device locale).
     static func makeDateFormatter(
         dateStyle: DateFormatter.Style = .none,
@@ -37,7 +47,7 @@ enum AppLocale {
     ) -> DateFormatter {
         let formatter = DateFormatter()
         formatter.locale = resolvedLocale
-        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.calendar = calendar
         if let template {
             formatter.setLocalizedDateFormatFromTemplate(template)
         } else {

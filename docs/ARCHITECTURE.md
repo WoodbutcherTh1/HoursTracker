@@ -2,6 +2,9 @@
 
 ## What this app is
 
+**Display / App Store name:** `HoursTracker` (`CFBundleDisplayName`, `L10n.brandName`, InfoPlist).  
+The Home header wordmark is a stylized split of **“Hours”** (white) + **“Tracker”** (neon) that still reads the official brand **HoursTracker** (singular Tracker, Hours first).
+
 HoursTracker is an iOS app for a single worker to track daily work hours and see what each day pays under **Israeli labor rules**: regular days pay 100% up to the standard day (8.6h), then 125% for up to 2 hours, then 150%; rest-day (Shabbat) and holiday work pays 150%/175%/200%; night shifts reach overtime after 7 hours; unpaid breaks are deducted. Net pay is estimated from Israeli income-tax brackets, credit points, National Insurance, and Health Tax. It supports clock in/out with a live timer, multiple shifts per day, manual entries, OCR import of printed timesheets, geofence-based arrival reminders, smart clock-out reminders, custom payroll months, iCloud sync across devices, and exporting pay reports to PDF, TXT, Word (.docx), and Markdown. The UI is fully localized in English, Arabic, and Hebrew, and pay can be displayed in a configurable currency.
 
 ## Tech stack

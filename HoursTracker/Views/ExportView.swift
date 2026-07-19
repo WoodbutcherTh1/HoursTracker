@@ -8,7 +8,7 @@ struct ExportView: View {
     @State private var selectedLanguage: ExportLanguage = .phone
     @State private var rangeMode: RangeMode = .thisMonth
     @State private var selectedMonth = Date()
-    @State private var customFrom = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
+    @State private var customFrom = AppLocale.calendar.date(byAdding: .month, value: -1, to: Date()) ?? Date()
     @State private var customTo = Date()
     @State private var shareItem: ShareableFile?
     @State private var errorMessage: String?
@@ -35,7 +35,8 @@ struct ExportView: View {
     private var currentPayrollPeriod: PayrollPeriod {
         HistoryPeriodHelper.payrollPeriod(
             containing: Date(),
-            startDay: viewModel.settings.payrollStartDay
+            startDay: viewModel.settings.payrollStartDay,
+            calendar: AppLocale.calendar
         )
     }
 
@@ -48,6 +49,7 @@ struct ExportView: View {
                             Text(mode.label).tag(mode)
                         }
                     }
+                    .accessibilityIdentifier("phone.export.range")
 
                     if rangeMode == .thisMonth {
                         Text(HistoryPeriodHelper.shortRangeLabel(for: currentPayrollPeriod))
@@ -78,6 +80,7 @@ struct ExportView: View {
                             Text(format.localizedName).tag(format)
                         }
                     }
+                    .accessibilityIdentifier("phone.export.format")
                 }
 
                 Section(L10n.exportLanguage) {
@@ -94,6 +97,7 @@ struct ExportView: View {
                     } label: {
                         Label(L10n.exportReport, systemImage: "square.and.arrow.up")
                     }
+                    .accessibilityIdentifier("phone.export.submit")
                 }
 
                 if let errorMessage {
@@ -148,10 +152,10 @@ struct ExportView: View {
             let period = currentPayrollPeriod
             return .custom(from: period.start, to: period.end)
         case .month:
-            let components = Calendar.current.dateComponents([.year, .month], from: selectedMonth)
+            let components = AppLocale.calendar.dateComponents([.year, .month], from: selectedMonth)
             return .month(year: components.year ?? 2026, month: components.month ?? 1)
         case .thisYear:
-            let year = Calendar.current.component(.year, from: Date())
+            let year = AppLocale.calendar.component(.year, from: Date())
             return .year(year)
         case .custom:
             return .custom(from: customFrom, to: customTo)
