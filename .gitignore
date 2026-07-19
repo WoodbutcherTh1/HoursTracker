@@ -31,3 +31,7 @@ AppStoreScreenshots/watch/_matrix/
 scripts/render_headline_coretext
 
 AppStoreScreenshots/watch/marketing/_font-compare/
+
+# Python
+scripts/__pycache__/
+__pycache__/
