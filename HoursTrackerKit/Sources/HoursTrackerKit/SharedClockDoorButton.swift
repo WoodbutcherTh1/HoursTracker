@@ -9,10 +9,13 @@ import WatchKit
 
 /// Shared neon palette (iPhone Home + watch Clock).
 public enum SharedHomeNeon {
+    /// Closed / clock-in ready.
     public static let accent = Color(red: 0.15, green: 0.95, blue: 0.45)
     public static let accentDeep = Color(red: 0.05, green: 0.55, blue: 0.28)
-    public static let coral = Color(red: 0.95, green: 0.28, blue: 0.35)
-    public static let coralDeep = Color(red: 0.72, green: 0.12, blue: 0.22)
+    /// Open / clock-out ready — true red (not system orange).
+    /// Was coral (0.95, 0.28, 0.35); bumped toward pure red so watch OLED reads red, not orange.
+    public static let coral = Color(red: 0.92, green: 0.10, blue: 0.16)
+    public static let coralDeep = Color(red: 0.62, green: 0.04, blue: 0.10)
     public static let frame = Color(red: 0.10, green: 0.11, blue: 0.13)
 }
 
