@@ -50,6 +50,26 @@ DEVICES = {
 LANGS = ("en", "he", "ar")
 SLOTS = ("01-home", "02-history", "03-export", "04-settings")
 
+# Font allow-list + resolution shared with scripts/headline_renderer_contract.py
+# (he = Rubik→Assistant, ar = Cairo→Tajawal, en = Montserrat ExtraBold ≈ 800).
+try:
+    from headline_renderer_contract import (  # type: ignore
+        HEADLINE_WEIGHT as _CONTRACT_WEIGHT,
+        resolve_bundled_font,
+    )
+
+    HEADLINE_WEIGHT = _CONTRACT_WEIGHT
+except ImportError:  # pragma: no cover — running as `python3 scripts/compose_….py`
+    import sys as _sys
+
+    _sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from headline_renderer_contract import (  # type: ignore
+        HEADLINE_WEIGHT as _CONTRACT_WEIGHT,
+        resolve_bundled_font,
+    )
+
+    HEADLINE_WEIGHT = _CONTRACT_WEIGHT
+
 LATIN_HEADLINE_FONT = FONT_DIR / "Montserrat[wght].ttf"
 HEBREW_HEADLINE_FONTS = (FONT_DIR / "Rubik[wght].ttf", FONT_DIR / "Assistant[wght].ttf")
 ARABIC_HEADLINE_FONTS = (
@@ -57,7 +77,6 @@ ARABIC_HEADLINE_FONTS = (
     FONT_DIR / "Tajawal-ExtraBold.ttf",
     FONT_DIR / "Tajawal-Bold.ttf",
 )
-HEADLINE_WEIGHT = 800
 
 # Original marketing copy — HoursTracker features only (not competitor copy).
 HEADLINES = {
@@ -123,16 +142,8 @@ def apply_weight(font: ImageFont.FreeTypeFont, weight: int = HEADLINE_WEIGHT) ->
 
 
 def headline_font_path(lang: str) -> Path:
-    if lang == "en":
-        candidates = (LATIN_HEADLINE_FONT,)
-    elif lang == "he":
-        candidates = HEBREW_HEADLINE_FONTS
-    else:
-        candidates = ARABIC_HEADLINE_FONTS
-    path = next((p for p in candidates if p.exists()), None)
-    if path is None:
-        raise SystemExit(f"Missing bundled headline font for lang={lang} under {FONT_DIR}")
-    return path
+    """Resolve bundled OFL font; exit 1 if missing (no system-font fallback)."""
+    return resolve_bundled_font(lang, font_dir=FONT_DIR)
 
 
 def load_headline_font(lang: str, size: int) -> ImageFont.FreeTypeFont:
