@@ -25,8 +25,14 @@ public enum PhoneScreenshotDemoData {
         return false
     }
 
+    /// How many past calendar days of closed shifts History lists in screenshot mode.
+    public static let historyLookbackDays = 21
+
     /// Demo Home/History/Export/Settings data. Guest name only — never real PII.
     /// Pass `includeActiveShift: true` (or env) for a live Clock Out / timer Home.
+    ///
+    /// Seeds ~3 weeks of varied shifts (regular OT, rest-day premium, night) so
+    /// History/Export never look like a single sparse row.
     public static func makeDemo(
         now: Date = Date(),
         includeActiveShift: Bool? = nil
@@ -44,24 +50,43 @@ public enum PhoneScreenshotDemoData {
             cal.date(byAdding: .day, value: days, to: today)!
         }
 
-        // Rich History demo: 6 recent days with varied hours + 3 shifts on the
-        // primary day (−1) so the day list isn't a single sparse row.
-        let templates: [(offset: Int, inH: Int, inM: Int, outH: Int, outM: Int, dayType: DayType, id: String)] = [
-            // Primary day (−1): three completed shifts
-            (-1, 7, 0, 11, 15, .regular, "B1000000-0000-4000-8000-000000000011"),
-            (-1, 12, 0, 16, 30, .regular, "B1000000-0000-4000-8000-000000000012"),
-            (-1, 17, 0, 19, 45, .regular, "B1000000-0000-4000-8000-000000000013"),
-            // Five more days with varied lengths
-            (-2, 8, 0, 18, 15, .regular, "B1000000-0000-4000-8000-000000000002"),
-            (-3, 8, 10, 17, 5, .regular, "B1000000-0000-4000-8000-000000000003"),
-            (-4, 7, 45, 16, 20, .regular, "B1000000-0000-4000-8000-000000000004"),
-            (-5, 9, 0, 14, 30, .restDay, "B1000000-0000-4000-8000-000000000005"),
-            (-6, 8, 5, 17, 50, .regular, "B1000000-0000-4000-8000-000000000006"),
-            // Extra depth for month totals / chart
-            (-7, 8, 0, 16, 0, .regular, "B1000000-0000-4000-8000-000000000007"),
-            (-8, 7, 50, 16, 35, .regular, "B1000000-0000-4000-8000-000000000008"),
-            (-9, 8, 15, 18, 0, .regular, "B1000000-0000-4000-8000-000000000009"),
-            (-10, 8, 0, 16, 45, .regular, "B1000000-0000-4000-8000-00000000000A"),
+        // offset, inH, inM, outH, outM, dayType, night, id
+        let templates: [(
+            offset: Int,
+            inH: Int,
+            inM: Int,
+            outH: Int,
+            outM: Int,
+            dayType: DayType,
+            night: Bool,
+            id: String
+        )] = [
+            // Primary day (−1): three completed shifts (dense list + OT)
+            (-1, 7, 0, 11, 15, .regular, false, "B1000000-0000-4000-8000-000000000011"),
+            (-1, 12, 0, 16, 30, .regular, false, "B1000000-0000-4000-8000-000000000012"),
+            (-1, 17, 0, 20, 30, .regular, false, "B1000000-0000-4000-8000-000000000013"),
+            // Week −1
+            (-2, 8, 0, 18, 15, .regular, false, "B1000000-0000-4000-8000-000000000002"),
+            (-3, 8, 10, 17, 5, .regular, false, "B1000000-0000-4000-8000-000000000003"),
+            (-4, 7, 45, 16, 20, .regular, false, "B1000000-0000-4000-8000-000000000004"),
+            (-5, 9, 0, 14, 30, .restDay, false, "B1000000-0000-4000-8000-000000000005"),
+            (-6, 8, 5, 17, 50, .regular, false, "B1000000-0000-4000-8000-000000000006"),
+            // Week −2 (includes a night shift)
+            (-7, 8, 0, 16, 0, .regular, false, "B1000000-0000-4000-8000-000000000007"),
+            (-8, 7, 50, 16, 35, .regular, false, "B1000000-0000-4000-8000-000000000008"),
+            (-9, 8, 15, 18, 0, .regular, false, "B1000000-0000-4000-8000-000000000009"),
+            (-10, 8, 0, 16, 45, .regular, false, "B1000000-0000-4000-8000-00000000000A"),
+            (-11, 22, 0, 6, 0, .regular, true, "B1000000-0000-4000-8000-00000000000B"),
+            (-12, 8, 0, 17, 30, .regular, false, "B1000000-0000-4000-8000-00000000000C"),
+            (-13, 8, 20, 15, 40, .regular, false, "B1000000-0000-4000-8000-00000000000D"),
+            // Week −3
+            (-14, 7, 30, 16, 0, .regular, false, "B1000000-0000-4000-8000-00000000000E"),
+            (-15, 8, 0, 18, 45, .regular, false, "B1000000-0000-4000-8000-00000000000F"),
+            (-16, 9, 0, 13, 0, .restDay, false, "B1000000-0000-4000-8000-000000000010"),
+            (-17, 8, 0, 17, 10, .regular, false, "B1000000-0000-4000-8000-000000000014"),
+            (-18, 7, 40, 16, 55, .regular, false, "B1000000-0000-4000-8000-000000000015"),
+            (-19, 21, 30, 5, 30, .regular, true, "B1000000-0000-4000-8000-000000000016"),
+            (-20, 8, 5, 16, 20, .regular, false, "B1000000-0000-4000-8000-000000000017"),
         ]
 
         var sessions: [WorkSession] = []
@@ -80,14 +105,26 @@ public enum PhoneScreenshotDemoData {
         }
         for t in templates {
             let day = dayOffset(t.offset)
+            var clockIn = time(day, hour: t.inH, minute: t.inM)
+            var clockOut = time(day, hour: t.outH, minute: t.outM)
+            // Overnight night shifts: out is next calendar morning.
+            if t.night, clockOut <= clockIn {
+                clockOut = cal.date(byAdding: .day, value: 1, to: clockOut) ?? clockOut
+            }
+            let resolved = WorkSession.resolveClockPair(
+                clockIn: clockIn,
+                clockOut: clockOut,
+                calendar: cal
+            )
             sessions.append(
                 WorkSession(
                     id: UUID(uuidString: t.id)!,
                     date: day,
-                    clockIn: time(day, hour: t.inH, minute: t.inM),
-                    clockOut: time(day, hour: t.outH, minute: t.outM),
+                    clockIn: resolved.clockIn,
+                    clockOut: resolved.clockOut,
                     isManualEntry: false,
-                    dayType: t.dayType
+                    dayType: t.dayType,
+                    isNightShift: t.night
                 )
             )
         }

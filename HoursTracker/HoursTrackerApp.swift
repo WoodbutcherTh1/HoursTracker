@@ -43,7 +43,8 @@ struct HoursTrackerApp: App {
             .animation(.easeInOut(duration: 0.45), value: showLaunchSplash)
             .environment(\.locale, appLanguage.locale)
             .environment(\.layoutDirection, appLanguage.layoutDirection)
-            // Marketing / screenshot captures always use dark chrome for consistency.
+            // Marketing captures: force dark for ALL tabs (Home neon + History/Export/
+            // Settings system chrome). Light would make Home vs other tabs inconsistent.
             .preferredColorScheme(isScreenshotMode ? .dark : nil)
             .environmentObject(appLock)
             .environmentObject(appLanguage)

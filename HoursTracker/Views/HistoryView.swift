@@ -599,10 +599,15 @@ struct HistoryView: View {
     // MARK: - Data
 
     private var filteredSessions: [WorkSession] {
-        // Marketing captures: show a dense multi-day list (not one sparse day).
+        // Marketing captures: show a dense multi-week list (not one sparse day).
         if PhoneScreenshotDemoData.isEnabled {
             let closed = viewModel.sortedSessions.filter { $0.clockOut != nil }
-            let cutoff = calendar.date(byAdding: .day, value: -10, to: calendar.startOfDay(for: Date()))!
+            let lookback = PhoneScreenshotDemoData.historyLookbackDays
+            let cutoff = calendar.date(
+                byAdding: .day,
+                value: -lookback,
+                to: calendar.startOfDay(for: Date())
+            )!
             return closed.filter { $0.date >= cutoff }
         }
         return viewModel.sortedSessions.filter {

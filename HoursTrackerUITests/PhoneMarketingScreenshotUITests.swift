@@ -94,7 +94,7 @@ final class PhoneMarketingScreenshotUITests: XCTestCase {
             if slots.contains("history") {
                 tapTab(app, labels: ["היסטוריה", "History", "السجل"])
                 RunLoop.current.run(until: Date().addingTimeInterval(1.0))
-                // Screenshot mode lists ~6 recent days; keep week strip on the
+                // Screenshot mode lists ~3 weeks of shifts; keep week strip on the
                 // primary demo day (−1) so the calendar looks populated.
                 let cal = Calendar.current
                 let focusDay = cal.date(byAdding: .day, value: -1, to: cal.startOfDay(for: Date()))!

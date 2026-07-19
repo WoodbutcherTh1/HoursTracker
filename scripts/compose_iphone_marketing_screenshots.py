@@ -77,9 +77,10 @@ HEADLINES = {
         "ar": "صدّر تقاريرك\nبأي صيغة",
     },
     "04-settings": {
-        "en": "Configure your pay\nrules and tax",
-        "he": "הגדירו כללי שכר ומס",
-        "ar": "اضبط قواعد أجرك\nوالضريبة",
+        # Matches the tax / pay-rules block the UITest scrolls into frame.
+        "en": "Pay rules and\ntax credits",
+        "he": "כללי שכר\nונקודות זיכוי",
+        "ar": "قواعد الأجر\nونقاط الائتمان",
     },
 }
 
@@ -301,7 +302,8 @@ def compose_one(device: str, lang: str, slot: str) -> Path:
     # Phone-like aspect ≈ 19.5:9
     aspect = 19.5 / 9.0
     # Thick enough bezel so chrome (nav buttons, tab corners) never rides the rim.
-    bezel = max(22, int(min(expect_w, expect_h) * 0.028))
+    # Slightly heavier than earlier drafts after App Store review caught UI bleed.
+    bezel = max(26, int(min(expect_w, expect_h) * 0.032))
     outer_w = max_w
     outer_h = int(outer_w * aspect) + bezel * 2
     if outer_h > max_h:
@@ -372,10 +374,22 @@ def compose_one(device: str, lang: str, slot: str) -> Path:
         width=max(3, ring),
     )
 
+    # Final hard mask on the entire phone layer (body + screen + rim + ring).
+    # Prevents any AA fringe or tab-chrome from painting outside the device silhouette.
     outer_mask = rounded_mask((outer_w, outer_h), outer_radius)
     phone.putalpha(ImageChops.multiply(phone.split()[-1], outer_mask))
 
-    canvas.alpha_composite(phone, (ox, oy))
+    # Composite into a masked slot on the canvas so nothing can leak past the frame.
+    phone_slot = Image.new("RGBA", (expect_w, expect_h), (0, 0, 0, 0))
+    phone_slot.alpha_composite(phone, (ox, oy))
+    slot_mask = Image.new("L", (expect_w, expect_h), 0)
+    ImageDraw.Draw(slot_mask).rounded_rectangle(
+        (ox, oy, ox + outer_w - 1, oy + outer_h - 1),
+        radius=outer_radius,
+        fill=255,
+    )
+    phone_slot.putalpha(ImageChops.multiply(phone_slot.split()[-1], slot_mask))
+    canvas.alpha_composite(phone_slot)
 
     font_size = 64 if expect_w >= 1300 else 56
     if lang in ("he", "ar"):
