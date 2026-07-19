@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Animated full-home mockup for HourTrackers vitality review.
+"""Animated full-home mockup for HoursTracker vitality review.
 
 Renders a phone-sized dark UI and exports an MP4 so motion is visible:
 - aurora + floating particles
