@@ -79,6 +79,88 @@ final class AppViewModel: ObservableObject {
         load()
         refreshReminders()
         refreshLocationPermissionStatuses()
+        runAutomaticBackup(force: false)
+    }
+
+    // MARK: - Full backup / restore
+
+    var lastBackupDate: Date? {
+        FullBackupManager.shared.lastBackupDate()
+    }
+
+    func exportFullBackupFile() throws -> URL {
+        try FullBackupManager.shared.writeExportFile(
+            settings: settings,
+            sessions: sessions,
+            activityLog: ActivityLogStore.shared.entries
+        )
+    }
+
+    func syncFullBackupNow() throws {
+        _ = try FullBackupManager.shared.syncNow(
+            settings: settings,
+            sessions: sessions,
+            activityLog: ActivityLogStore.shared.entries
+        )
+        objectWillChange.send()
+    }
+
+    func runAutomaticBackup(force: Bool) {
+        do {
+            _ = try FullBackupManager.shared.performAutomaticBackupIfNeeded(
+                settings: settings,
+                sessions: sessions,
+                activityLog: ActivityLogStore.shared.entries,
+                force: force
+            )
+            objectWillChange.send()
+        } catch {
+            // Best-effort — never block clock-out / launch.
+        }
+    }
+
+    func loadBackupDocument(from url: URL) throws -> FullBackupDocument {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer {
+            if scoped { url.stopAccessingSecurityScopedResource() }
+        }
+        let data = try Data(contentsOf: url)
+        return try FullBackupManager.shared.decode(from: data)
+    }
+
+    /// Apply a validated backup. Always writes a pre-restore snapshot first when replacing.
+    func restoreBackup(_ document: FullBackupDocument, mode: FullBackupRestoreMode) throws {
+        if mode == .replace {
+            _ = try FullBackupManager.shared.writePreRestoreSnapshot(
+                settings: settings,
+                sessions: sessions,
+                activityLog: ActivityLogStore.shared.entries
+            )
+            sessions = document.sessions
+            settings = document.settings
+            try store.saveSessions(sessions)
+            try store.saveSettings(settings)
+            ActivityLogStore.shared.replaceEntries(document.activityLog)
+        } else {
+            var byID = Dictionary(uniqueKeysWithValues: sessions.map { ($0.id, $0) })
+            for session in document.sessions {
+                byID[session.id] = session
+            }
+            sessions = Array(byID.values).sorted { $0.clockIn < $1.clockIn }
+            settings = document.settings
+            try store.saveSessions(sessions)
+            try store.saveSettings(settings)
+            ActivityLogStore.shared.mergeEntries(document.activityLog)
+        }
+        refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventBackupRestored,
+            level: .success,
+            category: "backup",
+            details: mode.rawValue
+        )
+        runAutomaticBackup(force: true)
+        objectWillChange.send()
     }
 
     // MARK: - Active Session
@@ -213,6 +295,7 @@ final class AppViewModel: ObservableObject {
             category: "clock",
             details: String(format: "%.2fh", sessions[index].totalHours)
         )
+        runAutomaticBackup(force: true)
     }
 
     func dismissDaySummary() {
