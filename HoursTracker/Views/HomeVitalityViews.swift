@@ -813,17 +813,18 @@ struct HomeWeekSparkline: View {
                 if isLiveOpen {
                     Text(labelText)
                         .font(.system(size: 7, weight: .bold, design: .rounded))
+                        .foregroundStyle(accent.opacity(0.55 + 0.1 * pulse))
                 } else {
                     Text(labelText)
                         .font(.system(size: 8, weight: isToday ? .bold : .semibold, design: .rounded))
                         .monospacedDigit()
+                        .foregroundStyle(
+                            isToday
+                                ? accent.opacity(0.85 + 0.15 * pulse)
+                                : Color.white.opacity(hours > 0.01 ? 0.55 : 0.2)
+                        )
                 }
             }
-                .foregroundStyle(
-                    isToday
-                        ? accent.opacity(0.85 + 0.15 * pulse)
-                        : Color.white.opacity(hours > 0.01 ? 0.55 : 0.2)
-                )
                 .lineLimit(1)
                 .minimumScaleFactor(0.45)
                 .frame(maxWidth: .infinity)
@@ -835,10 +836,15 @@ struct HomeWeekSparkline: View {
             RoundedRectangle(cornerRadius: 4, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [
-                            accent.opacity(isToday ? 0.95 : 0.55),
-                            accent.opacity(isToday ? 0.45 : 0.18)
-                        ],
+                        colors: isLiveOpen
+                            ? [
+                                accent.opacity(0.45),
+                                accent.opacity(0.18)
+                            ]
+                            : [
+                                accent.opacity(isToday ? 0.95 : 0.55),
+                                accent.opacity(isToday ? 0.45 : 0.18)
+                            ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -847,13 +853,17 @@ struct HomeWeekSparkline: View {
                     width: isToday ? 12 : 9,
                     height: max(barHeight, (hours > 0.01 || isLiveOpen) ? 3 : 2)
                 )
-                .opacity(hours > 0.01 || isLiveOpen ? 1 : 0.25)
+                // Open today: translucent (~0.45) so it never matches finished days.
+                .opacity(isLiveOpen ? 0.45 : (hours > 0.01 ? 1 : 0.25))
                 .shadow(
-                    color: isToday ? accent.opacity(0.55 * pulse) : .clear,
-                    radius: isToday ? 6 : 0
+                    color: isLiveOpen
+                        ? accent.opacity(0.2 * pulse)
+                        : (isToday ? accent.opacity(0.55 * pulse) : .clear),
+                    radius: isToday ? (isLiveOpen ? 3 : 6) : 0
                 )
         }
         .frame(maxHeight: .infinity)
+        .opacity(isLiveOpen ? 0.85 : 1)
     }
 
     private var weekdayRow: some View {
