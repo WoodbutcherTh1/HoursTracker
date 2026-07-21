@@ -109,7 +109,12 @@ enum L10n {
     static var scannerCloudPrivacyNotice: String { t("scanner.cloudPrivacyNotice") }
     static var scannerGeminiAPIKey: String { t("scanner.geminiAPIKey") }
     static var scannerGeminiAPIKeyHint: String { t("scanner.geminiAPIKeyHint") }
+    static var scannerSecondaryAPIKey: String { t("scanner.secondaryAPIKey") }
+    static var scannerSecondaryAPIKeyHint: String { t("scanner.secondaryAPIKeyHint") }
     static var scannerSection: String { t("scanner.section") }
+    static var scannerReadyForReview: String { t("scanner.readyForReview") }
+    static var scannerContinueInBackground: String { t("scanner.continueInBackground") }
+    static var scannerBackgroundHint: String { t("scanner.backgroundHint") }
 
     static var scannerConflictTitle: String { t("scanner.conflictTitle") }
     static var scannerConflictReplace: String { t("scanner.conflictReplace") }

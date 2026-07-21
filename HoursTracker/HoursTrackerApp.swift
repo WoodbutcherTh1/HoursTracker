@@ -120,5 +120,40 @@ struct MainTabView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.successToast)
+        .sheet(isPresented: $viewModel.showPendingScannerReview, onDismiss: {
+            if case .ready = viewModel.scannerImportPhase {
+                // Keep result until import commits or user explicitly clears.
+            }
+        }) {
+            if let result = viewModel.pendingScannerResult {
+                TimesheetScannerView(appViewModel: viewModel, initialResult: result)
+            }
+        }
+        .overlay(alignment: .top) {
+            if case .processing = viewModel.scannerImportPhase {
+                HStack(spacing: 8) {
+                    ProgressView()
+                    Text(L10n.scannerAnalyzing)
+                        .font(.footnote.weight(.medium))
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(.ultraThinMaterial, in: Capsule())
+                .padding(.top, 8)
+                .accessibilityElement(children: .combine)
+                .accessibilityLabel(L10n.scannerAnalyzing)
+            } else if case .ready = viewModel.scannerImportPhase, !viewModel.showPendingScannerReview {
+                Button {
+                    viewModel.openPendingScannerReview()
+                } label: {
+                    Label(L10n.scannerReadyForReview, systemImage: "doc.text.magnifyingglass")
+                        .font(.footnote.weight(.semibold))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 10)
+                }
+                .buttonStyle(.borderedProminent)
+                .padding(.top, 8)
+            }
+        }
     }
 }

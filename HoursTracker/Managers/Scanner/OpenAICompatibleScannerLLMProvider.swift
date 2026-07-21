@@ -1,21 +1,23 @@
 import Foundation
 
-/// Calls Google Gemini `generateContent` over URLSession. API key is read from Keychain
-/// (or injected for tests) — never hardcode secrets.
-struct GeminiScannerLLMProvider: ScannerLLMProviding {
-    let name = "Gemini"
+/// Priority-2 cloud fallback: OpenAI-compatible Chat Completions (OpenAI, Groq, OpenRouter, etc.).
+/// Uses `KeychainStore.Key.secondaryAPIKey`. Endpoint defaults to Groq’s free-tier-friendly base URL.
+struct OpenAICompatibleScannerLLMProvider: ScannerLLMProviding {
+    let name = "OpenAI-compatible"
     private let apiKey: String?
     private let model: String
+    private let baseURL: URL
     private let session: URLSession
 
     init(
-        apiKey: String? = KeychainStore.string(for: .geminiAPIKey),
-        // gemini-2.0-flash shut down June 2026 — use current Flash free-tier model.
-        model: String = "gemini-2.5-flash",
+        apiKey: String? = KeychainStore.string(for: .secondaryAPIKey),
+        model: String = "llama-3.3-70b-versatile",
+        baseURL: URL = URL(string: "https://api.groq.com/openai/v1")!,
         session: URLSession = .shared
     ) {
         self.apiKey = apiKey
         self.model = model
+        self.baseURL = baseURL
         self.session = session
     }
 
@@ -29,43 +31,27 @@ struct GeminiScannerLLMProvider: ScannerLLMProviding {
             throw ScannerLLMError.emptyResult
         }
 
-        var components = URLComponents(
-            string: "https://generativelanguage.googleapis.com/v1beta/models/\(model):generateContent"
-        )
-        components?.queryItems = [URLQueryItem(name: "key", value: apiKey)]
-        guard let url = components?.url else {
-            throw ScannerLLMError.invalidResponse("bad URL")
-        }
-
+        let url = baseURL.appendingPathComponent("chat/completions")
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.timeoutInterval = 45
 
-        let prompt = """
-        Extract timesheet rows from the OCR text below.
-        Return ONLY valid JSON matching this schema (no markdown):
+        let system = """
+        Extract timesheet rows from OCR text. Reply with ONLY JSON:
         {"rows":[{"date":"DD/MM/YYYY","clock_in":"HH:MM","clock_out":"HH:MM","total_hours":0,"confidence":0.0}]}
-        Rules:
-        - date is day/month/year when ambiguous
-        - clock_in and clock_out are 24h HH:MM
-        - do not invent overnight shifts when two identical times appear (likely a hours total)
-        - skip header rows
-        - confidence 0..1
-
-        OCR:
-        \(trimmed.prefix(12_000))
+        Rules: skip headers; do not invent overnight shifts when two identical times appear \
+        (likely a daily total); clock times are 24h HH:MM; confidence 0..1.
         """
 
         let body: [String: Any] = [
-            "contents": [
-                [
-                    "parts": [["text": prompt]]
-                ]
-            ],
-            "generationConfig": [
-                "temperature": 0.1,
-                "responseMimeType": "application/json"
+            "model": model,
+            "temperature": 0.1,
+            "response_format": ["type": "json_object"],
+            "messages": [
+                ["role": "system", "content": system],
+                ["role": "user", "content": String(trimmed.prefix(12_000))]
             ]
         ]
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
@@ -84,12 +70,12 @@ struct GeminiScannerLLMProvider: ScannerLLMProviding {
                 break
             case 429:
                 throw ScannerLLMError.rateLimited
-            case 403, 404:
-                // Quota / billing / model access issues → fall through.
+            case 401, 403:
                 throw ScannerLLMError.quotaExceeded
             default:
                 let snippet = String(data: data, encoding: .utf8) ?? ""
-                if snippet.localizedCaseInsensitiveContains("quota") {
+                if snippet.localizedCaseInsensitiveContains("quota")
+                    || snippet.localizedCaseInsensitiveContains("rate_limit") {
                     throw ScannerLLMError.quotaExceeded
                 }
                 throw ScannerLLMError.network("HTTP \(http.statusCode)")
@@ -97,16 +83,15 @@ struct GeminiScannerLLMProvider: ScannerLLMProviding {
         }
 
         guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let candidates = root["candidates"] as? [[String: Any]],
-              let first = candidates.first,
-              let content = first["content"] as? [String: Any],
-              let parts = content["parts"] as? [[String: Any]],
-              let text = parts.first?["text"] as? String
+              let choices = root["choices"] as? [[String: Any]],
+              let first = choices.first,
+              let message = first["message"] as? [String: Any],
+              let text = message["content"] as? String
         else {
-            throw ScannerLLMError.invalidResponse("missing candidates")
+            throw ScannerLLMError.invalidResponse("missing choices")
         }
 
-        let jsonText = Self.extractJSONObject(from: text)
+        let jsonText = GeminiScannerLLMProvider.extractJSONObject(from: text)
         guard let jsonData = jsonText.data(using: .utf8) else {
             throw ScannerLLMError.invalidResponse("empty JSON")
         }
@@ -121,16 +106,5 @@ struct GeminiScannerLLMProvider: ScannerLLMProviding {
         } catch {
             throw ScannerLLMError.invalidResponse(error.localizedDescription)
         }
-    }
-
-    /// Strips optional markdown fences Gemini sometimes still emits.
-    static func extractJSONObject(from text: String) -> String {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.hasPrefix("{") { return trimmed }
-        if let start = trimmed.firstIndex(of: "{"),
-           let end = trimmed.lastIndex(of: "}") {
-            return String(trimmed[start...end])
-        }
-        return trimmed
     }
 }

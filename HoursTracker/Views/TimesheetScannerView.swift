@@ -21,8 +21,11 @@ final class TimesheetScannerViewModel: ObservableObject {
     @Published var usedManualFallback = false
     @Published var processingDetails: ScannerProcessingDetails?
     @Published var showProcessingDetails = false
+    /// True after the scan job was handed to `AppViewModel` for background work.
+    @Published var handoffToBackground = false
 
-    private let scanner = TimesheetScannerManager.shared
+    /// Weak reference so background handoff can start without retaining the host.
+    weak var appViewModel: AppViewModel?
 
     var selectedCount: Int {
         drafts.filter(\.isSelected).count
@@ -34,7 +37,6 @@ final class TimesheetScannerViewModel: ObservableObject {
         do {
             guard let data = try await item.loadTransferable(type: Data.self),
                   let image = UIImage(data: data) else {
-                // Still offer a blank editable draft instead of a dead-end.
                 applyScanResult(
                     TimesheetScanResult(
                         drafts: [ScannedSessionDraft.blankDraft()],
@@ -44,8 +46,9 @@ final class TimesheetScannerViewModel: ObservableObject {
                 )
                 return
             }
-            let result = try await scanner.scan(image: image)
-            applyScanResult(result)
+            // Hand off to AppViewModel so the user can dismiss and keep using the app.
+            appViewModel?.startScannerImport(image: image)
+            handoffToBackground = true
         } catch {
             phase = .failed(error.localizedDescription)
         }
@@ -53,12 +56,8 @@ final class TimesheetScannerViewModel: ObservableObject {
 
     func processCameraImage(_ image: UIImage) async {
         phase = .processing
-        do {
-            let result = try await scanner.scan(image: image)
-            applyScanResult(result)
-        } catch {
-            phase = .failed(error.localizedDescription)
-        }
+        appViewModel?.startScannerImport(image: image)
+        handoffToBackground = true
     }
 
     func processFile(url: URL) async {
@@ -68,17 +67,26 @@ final class TimesheetScannerViewModel: ObservableObject {
             if accessed { url.stopAccessingSecurityScopedResource() }
         }
         do {
-            let result = try await scanner.scan(fileURL: url)
-            applyScanResult(result)
+            // Copy while scoped access is held — background work must not rely on the picker URL.
+            let ext = url.pathExtension.isEmpty ? "bin" : url.pathExtension
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("scanner-import-\(UUID().uuidString).\(ext)")
+            if FileManager.default.fileExists(atPath: tempURL.path) {
+                try FileManager.default.removeItem(at: tempURL)
+            }
+            try FileManager.default.copyItem(at: url, to: tempURL)
+            appViewModel?.startScannerImport(fileURL: tempURL)
+            handoffToBackground = true
         } catch {
             phase = .failed(error.localizedDescription)
         }
     }
 
-    private func applyScanResult(_ result: TimesheetScanResult) {
+    func applyScanResult(_ result: TimesheetScanResult) {
         drafts = result.drafts
         usedManualFallback = result.usedManualFallback
         processingDetails = result.processingDetails
+        handoffToBackground = false
         phase = .review
     }
 
@@ -105,6 +113,7 @@ final class TimesheetScannerViewModel: ObservableObject {
         usedManualFallback = false
         processingDetails = nil
         showProcessingDetails = false
+        handoffToBackground = false
     }
 }
 
@@ -112,6 +121,9 @@ struct TimesheetScannerView: View {
     @ObservedObject var appViewModel: AppViewModel
     @StateObject private var scannerVM = TimesheetScannerViewModel()
     @Environment(\.dismiss) private var dismiss
+
+    /// When opened from a finished background job, jump straight to review.
+    var initialResult: TimesheetScanResult? = nil
 
     @State private var conflictQueue: [Date] = []
     @State private var allConflictDates: [Date] = []
@@ -138,8 +150,25 @@ struct TimesheetScannerView: View {
                 .navigationTitle(L10n.scannerTitle)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { cancelToolbar }
+                .onAppear {
+                    scannerVM.appViewModel = appViewModel
+                    if let initialResult, scannerVM.phase == .pick {
+                        scannerVM.applyScanResult(initialResult)
+                    }
+                }
                 .onChange(of: scannerVM.photoItem) { _, item in
                     Task { await scannerVM.processPhotoItem(item) }
+                }
+                .onChange(of: scannerVM.handoffToBackground) { _, handedOff in
+                    if handedOff {
+                        // Close picker immediately — processing continues on AppViewModel.
+                        dismiss()
+                    }
+                }
+                .onChange(of: appViewModel.scannerImportPhase) { _, phase in
+                    if case .failed(let message) = phase, scannerVM.phase == .processing {
+                        scannerVM.phase = .failed(message)
+                    }
                 }
                 .fileImporter(
                     isPresented: $scannerVM.showFileImporter,
@@ -282,6 +311,7 @@ struct TimesheetScannerView: View {
         if count > 0 {
             appViewModel.showSuccessToast(L10n.feedbackImported(count))
         }
+        appViewModel.clearScannerImport()
         dismiss()
     }
 
@@ -353,6 +383,15 @@ struct TimesheetScannerView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
+            Text(L10n.scannerBackgroundHint)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button(L10n.scannerContinueInBackground) {
+                dismiss()
+            }
+            .buttonStyle(.bordered)
             Spacer()
         }
         .padding(.top, 48)

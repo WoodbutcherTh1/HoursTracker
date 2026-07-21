@@ -1,6 +1,7 @@
 import Foundation
 import CoreLocation
 import UserNotifications
+import UIKit
 
 @MainActor
 final class AppViewModel: ObservableObject {
@@ -16,11 +17,24 @@ final class AppViewModel: ObservableObject {
     @Published private(set) var locationAuthorizationStatus: CLAuthorizationStatus = .notDetermined
     @Published private(set) var areLocationNotificationsDenied = false
 
+    /// Background Smart Scanner job — user can dismiss the picker and keep using the app.
+    enum ScannerImportPhase: Equatable {
+        case idle
+        case processing
+        case ready
+        case failed(String)
+    }
+
+    @Published private(set) var scannerImportPhase: ScannerImportPhase = .idle
+    @Published private(set) var pendingScannerResult: TimesheetScanResult?
+    @Published var showPendingScannerReview = false
+
     private let store: SyncingStore
     private let locationManager: LocationReminderManaging
     private let exportManager = ExportManager()
     private let locationCapture = LocationCaptureHelper()
     private var successToastTask: Task<Void, Never>?
+    private var scannerImportTask: Task<Void, Never>?
 
     /// Hide the Settings sync section when this build has no CloudKit backend.
     var isCloudSyncSupported: Bool { store.isCloudSyncSupported }
@@ -67,6 +81,55 @@ final class AppViewModel: ObservableObject {
                 successToast = nil
             }
         }
+    }
+
+    // MARK: - Smart Scanner background import
+
+    /// Runs OCR + LLM structuring off the pick UI so the user can keep using the app.
+    func startScannerImport(image: UIImage) {
+        startScannerImport {
+            try await TimesheetScannerManager.shared.scan(image: image)
+        }
+    }
+
+    func startScannerImport(fileURL: URL) {
+        startScannerImport {
+            try await TimesheetScannerManager.shared.scan(fileURL: fileURL)
+        }
+    }
+
+    private func startScannerImport(_ work: @escaping @Sendable () async throws -> TimesheetScanResult) {
+        scannerImportTask?.cancel()
+        pendingScannerResult = nil
+        showPendingScannerReview = false
+        scannerImportPhase = .processing
+        scannerImportTask = Task { @MainActor in
+            do {
+                let result = try await work()
+                guard !Task.isCancelled else { return }
+                pendingScannerResult = result
+                scannerImportPhase = .ready
+                showPendingScannerReview = true
+                showSuccessToast(L10n.scannerReadyForReview)
+            } catch {
+                guard !Task.isCancelled else { return }
+                scannerImportPhase = .failed(error.localizedDescription)
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func openPendingScannerReview() {
+        guard case .ready = scannerImportPhase, pendingScannerResult != nil else { return }
+        showPendingScannerReview = true
+    }
+
+    func clearScannerImport() {
+        scannerImportTask?.cancel()
+        scannerImportTask = nil
+        pendingScannerResult = nil
+        scannerImportPhase = .idle
+        showPendingScannerReview = false
     }
 
     init(

@@ -8,14 +8,17 @@ struct ScannerLLMRouter: Sendable {
         self.providers = providers
     }
 
-    /// Default order: Gemini (if keyed) → local heuristic.
+    /// Default order: Gemini → OpenAI-compatible secondary → local heuristic.
+    /// Cloud providers are skipped (or fail-fast to next) when their Keychain key is empty.
     static func `default`(
         includeCloud: Bool,
-        geminiKey: String? = KeychainStore.string(for: .geminiAPIKey)
+        geminiKey: String? = KeychainStore.string(for: .geminiAPIKey),
+        secondaryKey: String? = KeychainStore.string(for: .secondaryAPIKey)
     ) -> ScannerLLMRouter {
         var providers: [any ScannerLLMProviding] = []
         if includeCloud {
             providers.append(GeminiScannerLLMProvider(apiKey: geminiKey))
+            providers.append(OpenAICompatibleScannerLLMProvider(apiKey: secondaryKey))
         }
         providers.append(LocalHeuristicScannerLLMProvider())
         return ScannerLLMRouter(providers: providers)

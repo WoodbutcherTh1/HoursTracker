@@ -8573,19 +8573,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "معطّل افتراضيًا. عند التفعيل، قد يُرسل نص OCR من جدول الدوام إلى Google Gemini لهيكلة الصفوف. لا تُرفع الصور. عند الإيقاف يبقى المعالجة على الجهاز."
+            "value": "معطّل افتراضيًا. عند التفعيل، قد يُرسل نص OCR من جدول الدوام إلى مزوّد سحابي (Gemini ثم بديل متوافق مع OpenAI) لهيكلة الصفوف. لا تُرفع الصور. عند الإيقاف تبقى المعالجة على الجهاز فقط."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Off by default. When enabled, OCR text from your timesheet may be sent to Google Gemini to structure rows. No images are uploaded. Processing stays on-device when this is off."
+            "value": "Off by default. When enabled, OCR text from your timesheet may be sent to a cloud provider (Gemini, then an OpenAI-compatible fallback) to structure rows. No images are uploaded. Processing stays on-device when this is off."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "כבוי כברירת מחדל. כשמופעל, טקסט ה-OCR מגיליון הנוכחות עשוי להישלח ל-Google Gemini לפירוק לשורות. תמונות לא מועלות. כשכבוי — העיבוד נשאר במכשיר."
+            "value": "כבוי כברירת מחדל. כשמופעל, טקסט ה-OCR מגיליון הנוכחות עשוי להישלח לספק בענן (Gemini ואז fallback תואם OpenAI) לפירוק לשורות. תמונות לא מועלות. כשכבוי — העיבוד נשאר במכשיר בלבד."
           }
         }
       }
@@ -8724,6 +8724,121 @@
           "stringUnit": {
             "state": "translated",
             "value": "שורות שנדחו"
+          }
+        }
+      }
+    },
+    "scanner.secondaryAPIKey": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مفتاح API ثانوي (OpenAI/Groq)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secondary API key (OpenAI/Groq)"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מפתח API משני (OpenAI/Groq)"
+          }
+        }
+      }
+    },
+    "scanner.secondaryAPIKeyHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "احتياطي عند نفاد حصة Gemini. يُحفظ في Keychain. متوافق مع واجهة OpenAI (افتراضيًا Groq)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fallback when Gemini hits quota. Stored in Keychain. OpenAI-compatible (defaults to Groq)."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "גיבוי כש-Gemini מגיע למכסה. נשמר ב-Keychain. תואם OpenAI (ברירת מחדל: Groq)."
+          }
+        }
+      }
+    },
+    "scanner.readyForReview": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المسح جاهز للمراجعة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan ready for review"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הסריקה מוכנה לסקירה"
+          }
+        }
+      }
+    },
+    "scanner.continueInBackground": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "متابعة استخدام التطبيق"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue using the app"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "המשך להשתמש באפליקציה"
+          }
+        }
+      }
+    },
+    "scanner.backgroundHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المعالجة تعمل في الخلفية. يمكنك إغلاق هذه الشاشة والمتابعة — ستظهر مراجعة قبل أي حفظ."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Processing runs in the background. You can close this screen and keep using the app — a review appears before anything is saved."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "העיבוד רץ ברקע. אפשר לסגור את המסך ולהמשיך — תופיע סקירה לפני כל שמירה."
           }
         }
       }
