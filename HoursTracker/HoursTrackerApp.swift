@@ -13,6 +13,9 @@ struct HoursTrackerApp: App {
 
     private var isScreenshotMode: Bool { PhoneScreenshotDemoData.isEnabled }
 
+    /// Keep Kit `AppShortcutsProvider` linked so Siri discovers Clock In/Out on iPhone.
+    private let appShortcutsAnchor = HoursTrackerAppShortcuts.appShortcuts
+
     var body: some Scene {
         WindowGroup {
             ZStack {
@@ -22,6 +25,9 @@ struct HoursTrackerApp: App {
                     // strings refresh. Keep this off the splash/`@State` so changing
                     // language does not replay the launch animation.
                     .id(appLanguage.preference)
+                    .onAppear {
+                        _ = appShortcutsAnchor
+                    }
 
                 if !isScreenshotMode && appLock.isEnabled && appLock.isLocked {
                     AppLockView(controller: appLock)
