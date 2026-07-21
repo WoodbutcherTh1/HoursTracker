@@ -51,7 +51,6 @@ enum L10n {
     }
     static var homeForgotClockInConfirm: String { t("home.forgotClockIn.confirm") }
     static var homeClockOut: String { t("home.clockOut") }
-    static var homeLiveGrossBasic: String { t("home.liveGrossBasic") }
     static var homeShiftComplete: String { t("home.shiftComplete") }
     static func homeWeekTotal(_ hours: String) -> String {
         String(format: t("home.weekTotal %@"), hours)

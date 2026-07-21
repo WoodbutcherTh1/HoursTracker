@@ -1,5 +1,6 @@
 import SwiftUI
 import HoursTrackerKit
+import UserNotifications
 
 @main
 struct HoursTrackerApp: App {
@@ -13,6 +14,9 @@ struct HoursTrackerApp: App {
 
     private var isScreenshotMode: Bool { PhoneScreenshotDemoData.isEnabled }
 
+    /// Keep Kit `AppShortcutsProvider` linked so Siri discovers Clock In/Out on iPhone.
+    private let appShortcutsAnchor = HoursTrackerAppShortcuts.appShortcuts
+
     var body: some Scene {
         WindowGroup {
             ZStack {
@@ -22,6 +26,9 @@ struct HoursTrackerApp: App {
                     // strings refresh. Keep this off the splash/`@State` so changing
                     // language does not replay the launch animation.
                     .id(appLanguage.preference)
+                    .onAppear {
+                        _ = appShortcutsAnchor
+                    }
 
                 if !isScreenshotMode && appLock.isEnabled && appLock.isLocked {
                     AppLockView(controller: appLock)
@@ -163,6 +170,70 @@ final class HoursTrackerAppDelegate: NSObject, UIApplicationDelegate {
     ) -> Bool {
         AppNotificationCenter.shared.install()
         return true
+    }
+}
+
+/// Handles Quick Export notification actions (Share) and registers the category at launch.
+/// Kept in this file so the app target always sees it (avoids stale XcodeGen membership gaps).
+final class AppNotificationCenter: NSObject, UNUserNotificationCenterDelegate {
+    static let shared = AppNotificationCenter()
+
+    /// Set by the app so Share can present through `AppViewModel`.
+    @MainActor var onShareExport: (() -> Void)?
+
+    private override init() {
+        super.init()
+    }
+
+    func install() {
+        let center = UNUserNotificationCenter.current()
+        center.delegate = self
+        registerCategories()
+    }
+
+    func registerCategories() {
+        let share = UNNotificationAction(
+            identifier: WidgetQuickExportStore.shareActionID,
+            title: "Share",
+            options: [.foreground]
+        )
+        let category = UNNotificationCategory(
+            identifier: WidgetQuickExportStore.notificationCategoryID,
+            actions: [share],
+            intentIdentifiers: [],
+            options: []
+        )
+        UNUserNotificationCenter.current().setNotificationCategories([category])
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        if notification.request.content.categoryIdentifier == WidgetQuickExportStore.notificationCategoryID {
+            completionHandler([.banner, .sound])
+        } else {
+            completionHandler([])
+        }
+    }
+
+    func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let category = response.notification.request.content.categoryIdentifier
+        let action = response.actionIdentifier
+        let isShare = category == WidgetQuickExportStore.notificationCategoryID
+            && (action == WidgetQuickExportStore.shareActionID
+                || action == UNNotificationDefaultActionIdentifier)
+        if isShare {
+            Task { @MainActor in
+                self.onShareExport?()
+            }
+        }
+        completionHandler()
     }
 }
 

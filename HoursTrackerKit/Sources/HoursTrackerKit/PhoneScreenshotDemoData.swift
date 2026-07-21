@@ -105,7 +105,7 @@ public enum PhoneScreenshotDemoData {
         }
         for t in templates {
             let day = dayOffset(t.offset)
-            var clockIn = time(day, hour: t.inH, minute: t.inM)
+            let clockIn = time(day, hour: t.inH, minute: t.inM)
             var clockOut = time(day, hour: t.outH, minute: t.outM)
             // Overnight night shifts: out is next calendar morning.
             if t.night, clockOut <= clockIn {
