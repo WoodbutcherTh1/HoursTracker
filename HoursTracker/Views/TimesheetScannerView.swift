@@ -19,6 +19,8 @@ final class TimesheetScannerViewModel: ObservableObject {
     @Published var showFileImporter = false
     @Published var showCamera = false
     @Published var usedManualFallback = false
+    @Published var processingDetails: ScannerProcessingDetails?
+    @Published var showProcessingDetails = false
 
     private let scanner = TimesheetScannerManager.shared
 
@@ -76,6 +78,7 @@ final class TimesheetScannerViewModel: ObservableObject {
     private func applyScanResult(_ result: TimesheetScanResult) {
         drafts = result.drafts
         usedManualFallback = result.usedManualFallback
+        processingDetails = result.processingDetails
         phase = .review
     }
 
@@ -100,6 +103,8 @@ final class TimesheetScannerViewModel: ObservableObject {
         photoItem = nil
         editingDraft = nil
         usedManualFallback = false
+        processingDetails = nil
+        showProcessingDetails = false
     }
 }
 
@@ -130,7 +135,7 @@ struct TimesheetScannerView: View {
     var body: some View {
         NavigationStack {
             phaseContent
-                .navigationTitle(AppLocale.tr("scanner.title"))
+                .navigationTitle(L10n.scannerTitle)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { cancelToolbar }
                 .onChange(of: scannerVM.photoItem) { _, item in
@@ -162,6 +167,11 @@ struct TimesheetScannerView: View {
                         scannerVM.updateDraft(updated)
                     }
                 }
+                .sheet(isPresented: $scannerVM.showProcessingDetails) {
+                    if let details = scannerVM.processingDetails {
+                        ScannerProcessingDetailsSheet(details: details)
+                    }
+                }
                 .overlay { conflictOverlay }
         }
     }
@@ -183,8 +193,18 @@ struct TimesheetScannerView: View {
     @ToolbarContentBuilder
     private var cancelToolbar: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            Button(AppLocale.tr("edit.cancel")) {
+            Button(L10n.editCancel) {
                 dismiss()
+            }
+        }
+        if scannerVM.phase == .review, scannerVM.processingDetails != nil {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    scannerVM.showProcessingDetails = true
+                } label: {
+                    Image(systemName: "info.circle")
+                }
+                .accessibilityLabel(L10n.scannerProcessingDetails)
             }
         }
     }
@@ -272,7 +292,7 @@ struct TimesheetScannerView: View {
                 .foregroundStyle(.tint)
                 .symbolRenderingMode(.hierarchical)
 
-            Text(AppLocale.tr("scanner.subtitle"))
+            Text(L10n.scannerSubtitle)
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -284,7 +304,7 @@ struct TimesheetScannerView: View {
                     matching: .images
                 ) {
                     Label(
-                        AppLocale.tr("scanner.photoLibrary"),
+                        L10n.scannerPhotoLibrary,
                         systemImage: "photo.on.rectangle"
                     )
                     .frame(maxWidth: .infinity)
@@ -296,7 +316,7 @@ struct TimesheetScannerView: View {
                     scannerVM.showCamera = true
                 } label: {
                     Label(
-                        AppLocale.tr("scanner.camera"),
+                        L10n.scannerCamera,
                         systemImage: "camera.fill"
                     )
                     .frame(maxWidth: .infinity)
@@ -308,7 +328,7 @@ struct TimesheetScannerView: View {
                     scannerVM.showFileImporter = true
                 } label: {
                     Label(
-                        AppLocale.tr("scanner.file"),
+                        L10n.scannerFile,
                         systemImage: "folder"
                     )
                     .frame(maxWidth: .infinity)
@@ -326,9 +346,9 @@ struct TimesheetScannerView: View {
     private var processingView: some View {
         VStack(spacing: 24) {
             ScannerSkeletonView()
-            Text(AppLocale.tr("scanner.analyzing"))
+            Text(L10n.scannerAnalyzing)
                 .font(.headline)
-            Text(AppLocale.tr("scanner.analyzingHint"))
+            Text(L10n.scannerAnalyzingHint)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -341,7 +361,7 @@ struct TimesheetScannerView: View {
     private var reviewView: some View {
         VStack(spacing: 0) {
             if scannerVM.usedManualFallback {
-                Text(AppLocale.tr("scanner.fallbackBanner"))
+                Text(L10n.scannerFallbackBanner)
                     .font(.footnote)
                     .foregroundStyle(.orange)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -368,14 +388,14 @@ struct TimesheetScannerView: View {
                         scannerVM.addBlankRow()
                     } label: {
                         Label(
-                            AppLocale.tr("scanner.addRow"),
+                            L10n.scannerAddRow,
                             systemImage: "plus.circle"
                         )
                     }
                 } header: {
-                    Text(AppLocale.tr("scanner.reviewHeader"))
+                    Text(L10n.scannerReviewHeader)
                 } footer: {
-                    Text(AppLocale.tr("scanner.reviewFooter"))
+                    Text(L10n.scannerReviewFooter)
                 }
             }
             .listStyle(.insetGrouped)
@@ -383,7 +403,7 @@ struct TimesheetScannerView: View {
             Button {
                 beginApproveFlow()
             } label: {
-                Text("\(AppLocale.tr("scanner.approve")) (\(scannerVM.selectedCount))")
+                Text("\(L10n.scannerApprove) (\(scannerVM.selectedCount))")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
@@ -397,17 +417,60 @@ struct TimesheetScannerView: View {
     private func failedView(_ message: String) -> some View {
         ContentUnavailableView {
             Label(
-                AppLocale.tr("scanner.failed"),
+                L10n.scannerFailed,
                 systemImage: "exclamationmark.triangle"
             )
         } description: {
             Text(message)
         } actions: {
-            Button(AppLocale.tr("scanner.tryAgain")) {
+            Button(L10n.scannerTryAgain) {
                 scannerVM.reset()
             }
             .buttonStyle(.borderedProminent)
         }
+    }
+}
+
+struct ScannerProcessingDetailsSheet: View {
+    let details: ScannerProcessingDetails
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section(L10n.scannerProcessingProvider) {
+                    Text(details.providerName)
+                }
+                Section {
+                    LabeledContent(L10n.scannerProcessingAccepted) {
+                        Text("\(details.acceptedCount)")
+                    }
+                    LabeledContent(L10n.scannerNeedsEdit) {
+                        Text("\(details.reviewCount)")
+                    }
+                    LabeledContent(L10n.scannerProcessingRejected) {
+                        Text("\(details.rejectedCount)")
+                    }
+                }
+                if !details.notes.isEmpty {
+                    Section {
+                        ForEach(Array(details.notes.enumerated()), id: \.offset) { _, note in
+                            Text(note)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle(L10n.scannerProcessingDetails)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.errorOK) { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
 
@@ -434,7 +497,7 @@ struct ScannedDraftRow: View {
                             .font(.headline)
                             .foregroundStyle(.primary)
                         if draft.needsManualReview {
-                            Text(AppLocale.tr("scanner.needsEdit"))
+                            Text(L10n.scannerNeedsEdit)
                                 .font(.caption2.weight(.semibold))
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
@@ -475,37 +538,37 @@ struct ScannedDraftEditor: View {
         NavigationStack {
             Form {
                 DatePicker(
-                    AppLocale.tr("manual.workDay"),
+                    L10n.manualWorkDay,
                     selection: $draft.date,
                     displayedComponents: .date
                 )
                 DatePicker(
-                    AppLocale.tr("edit.clockIn"),
+                    L10n.editClockIn,
                     selection: $draft.clockIn,
                     displayedComponents: [.date, .hourAndMinute]
                 )
                 DatePicker(
-                    AppLocale.tr("edit.clockOut"),
+                    L10n.editClockOut,
                     selection: $draft.clockOut,
                     displayedComponents: [.date, .hourAndMinute]
                 )
                 TextField(
-                    AppLocale.tr("edit.notesPlaceholder"),
+                    L10n.editNotesPlaceholder,
                     text: Binding(
                         get: { draft.notes ?? "" },
                         set: { draft.notes = $0.isEmpty ? nil : $0 }
                     )
                 )
             }
-            .navigationTitle(AppLocale.tr("scanner.editRow"))
+            .navigationTitle(L10n.scannerEditRow)
             .navigationBarTitleDisplayMode(.inline)
             .keyboardDismissible()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(AppLocale.tr("edit.cancel")) { dismiss() }
+                    Button(L10n.editCancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(AppLocale.tr("edit.save")) {
+                    Button(L10n.editSave) {
                         var updated = draft
                         let resolved = WorkSession.resolveClockPair(
                             clockIn: draft.clockIn,
@@ -513,6 +576,7 @@ struct ScannedDraftEditor: View {
                         )
                         updated.clockIn = resolved.clockIn
                         updated.clockOut = resolved.clockOut
+                        updated.needsManualReview = false
                         onSave(updated)
                         dismiss()
                     }
