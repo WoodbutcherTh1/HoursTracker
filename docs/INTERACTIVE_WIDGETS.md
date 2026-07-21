@@ -18,8 +18,8 @@ Phone `pushWatchSnapshot()` mirrors into the App Group and reloads WidgetKit tim
 | Intent | Role |
 |--------|------|
 | `ClockInIntent` / `ClockOutIntent` / `ToggleClockIntent` | Optimistic App Group mutate via `WidgetClockService` → `SharedClockApplicator` + enqueue `WidgetPendingEventStore`. Phone drains with `applyWatchClockEvent` (same path as WatchConnectivity). |
-| `QuickExportIntent` | Path **A**: CSV in App Group + local notification with **Share**. Path **B**: if notification auth is **denied** (or request declined), opens app via `OpenExportReadyIntent` → Export tab ready. |
-| `OpenExportReadyIntent` | `openAppWhenRun` + `hourstracker://export` hand-off flag. |
+| `QuickExportIntent` | Path **A**: CSV in App Group + local notification with **Share**. Path **B**: if notification auth is **denied** (or request declined), opens app via `OpenExportReadyIntent` → Export tab ready. Always returns the same `.result(opensIntent:dialog:)` shape so the opaque `some` type unifies. |
+| `OpenExportReadyIntent` | Follow-up intent; `openAppWhenRun` is true only when the App Group open-export flag is set (path B). |
 
 ## Surfaces
 

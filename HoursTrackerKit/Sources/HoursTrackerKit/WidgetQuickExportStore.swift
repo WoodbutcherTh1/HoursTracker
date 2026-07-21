@@ -82,6 +82,12 @@ public enum WidgetQuickExportStore {
         try? Data().write(to: url, options: [.atomic])
     }
 
+    /// Non-consuming check — used by `OpenExportReadyIntent.openAppWhenRun`.
+    public static func peekOpenExportReady() -> Bool {
+        guard let url = openExportFlagURL else { return false }
+        return FileManager.default.fileExists(atPath: url.path)
+    }
+
     public static func consumeOpenExportReady() -> Bool {
         guard let url = openExportFlagURL,
               FileManager.default.fileExists(atPath: url.path)

@@ -5,28 +5,22 @@ import Foundation
 import UserNotifications
 import WidgetKit
 
-/// Opens the iPhone app on Export with a ready-to-share hand-off (fallback B).
+/// Follow-up after `QuickExportIntent`.
+/// Opens the iPhone Export tab only when `WidgetQuickExportStore` has the ready flag
+/// (path B). Path A leaves the flag clear so Siri/widget stay in-place for the notification.
 public struct OpenExportReadyIntent: AppIntent {
     public static var title: LocalizedStringResource = "Open Export"
     public static var description = IntentDescription("Open HoursTracker on the Export screen.")
-    public static var openAppWhenRun: Bool = true
 
-    public init() {}
-
-    public func perform() async throws -> some IntentResult {
-        WidgetQuickExportStore.markOpenExportReady()
-        return .result()
+    /// Evaluated when the follow-up runs — true only if Quick Export marked the flag.
+    public static var openAppWhenRun: Bool {
+        WidgetQuickExportStore.peekOpenExportReady()
     }
-}
-
-/// No-op follow-up so `QuickExportIntent` can return `OpensIntent` without launching the app (path A).
-public struct AcknowledgeExportReadyIntent: AppIntent {
-    public static var title: LocalizedStringResource = "Export Ready"
-    public static var openAppWhenRun: Bool = false
 
     public init() {}
 
     public func perform() async throws -> some IntentResult {
+        // Flag is already set (or not) by `QuickExportIntent` before this follow-up.
         .result()
     }
 }
@@ -40,53 +34,49 @@ public struct QuickExportIntent: AppIntent {
     public init() {}
 
     public func perform() async throws -> some IntentResult & OpensIntent & ProvidesDialog {
+        let dialog = await resolveDialogAndSideEffects()
+        // Single `.result` shape — always the same OpensIntent concrete type.
+        return .result(
+            opensIntent: OpenExportReadyIntent(),
+            dialog: dialog
+        )
+    }
+
+    /// Mutates store / schedules notification; returns the spoken/text dialog only.
+    private func resolveDialogAndSideEffects() async -> IntentDialog {
         let settings = await UNUserNotificationCenter.current().notificationSettings()
         let status = settings.authorizationStatus
 
         // Fallback B — denied: do not schedule a notification that will never appear.
         if status == .denied {
             WidgetQuickExportStore.markOpenExportReady()
-            return .result(
-                opensIntent: OpenExportReadyIntent(),
-                dialog: "Opening Export…"
-            )
+            return "Opening Export…"
         }
 
         // Ask once when undetermined; if the user declines, fall through to B.
         if status == .notDetermined {
-            let granted = try await UNUserNotificationCenter.current()
+            let granted = try? await UNUserNotificationCenter.current()
                 .requestAuthorization(options: [.alert, .sound, .badge])
-            if !granted {
+            if granted != true {
                 WidgetQuickExportStore.markOpenExportReady()
-                return .result(
-                    opensIntent: OpenExportReadyIntent(),
-                    dialog: "Opening Export…"
-                )
+                return "Opening Export…"
             }
         }
 
         guard let snapshot = WatchSharedStore.loadSnapshot() else {
             WidgetQuickExportStore.markOpenExportReady()
-            return .result(
-                opensIntent: OpenExportReadyIntent(),
-                dialog: "Open HoursTracker once to sync"
-            )
+            return "Open HoursTracker once to sync"
         }
 
         guard WidgetQuickExportStore.writeQuickCSV(from: snapshot) != nil else {
             WidgetQuickExportStore.markOpenExportReady()
-            return .result(
-                opensIntent: OpenExportReadyIntent(),
-                dialog: "Export failed — opening app"
-            )
+            return "Export failed — opening app"
         }
 
+        // Path A — notification share; do not set open-export flag (app stays closed).
         registerShareCategory()
         await scheduleShareNotification()
-        return .result(
-            opensIntent: AcknowledgeExportReadyIntent(),
-            dialog: "Export ready — tap Share in the notification"
-        )
+        return "Export ready — tap Share in the notification"
     }
 
     private func registerShareCategory() {
