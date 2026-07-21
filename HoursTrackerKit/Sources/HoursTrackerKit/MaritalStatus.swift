@@ -1,6 +1,6 @@
 import Foundation
 
-public enum MaritalStatus: String, Codable, CaseIterable, Identifiable {
+public enum MaritalStatus: String, Codable, CaseIterable, Identifiable, Sendable {
     case single
     case married
 

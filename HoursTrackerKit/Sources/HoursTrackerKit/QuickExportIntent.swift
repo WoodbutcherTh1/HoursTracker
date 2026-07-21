@@ -47,8 +47,8 @@ public struct QuickExportIntent: AppIntent {
         if status == .denied {
             WidgetQuickExportStore.markOpenExportReady()
             return .result(
-                dialog: "Opening Export…",
-                opensIntent: OpenExportReadyIntent()
+                opensIntent: OpenExportReadyIntent(),
+                dialog: "Opening Export…"
             )
         }
 
@@ -59,8 +59,8 @@ public struct QuickExportIntent: AppIntent {
             if !granted {
                 WidgetQuickExportStore.markOpenExportReady()
                 return .result(
-                    dialog: "Opening Export…",
-                    opensIntent: OpenExportReadyIntent()
+                    opensIntent: OpenExportReadyIntent(),
+                    dialog: "Opening Export…"
                 )
             }
         }
@@ -68,24 +68,24 @@ public struct QuickExportIntent: AppIntent {
         guard let snapshot = WatchSharedStore.loadSnapshot() else {
             WidgetQuickExportStore.markOpenExportReady()
             return .result(
-                dialog: "Open HoursTracker once to sync",
-                opensIntent: OpenExportReadyIntent()
+                opensIntent: OpenExportReadyIntent(),
+                dialog: "Open HoursTracker once to sync"
             )
         }
 
         guard WidgetQuickExportStore.writeQuickCSV(from: snapshot) != nil else {
             WidgetQuickExportStore.markOpenExportReady()
             return .result(
-                dialog: "Export failed — opening app",
-                opensIntent: OpenExportReadyIntent()
+                opensIntent: OpenExportReadyIntent(),
+                dialog: "Export failed — opening app"
             )
         }
 
         registerShareCategory()
         await scheduleShareNotification()
         return .result(
-            dialog: "Export ready — tap Share in the notification",
-            opensIntent: AcknowledgeExportReadyIntent()
+            opensIntent: AcknowledgeExportReadyIntent(),
+            dialog: "Export ready — tap Share in the notification"
         )
     }
 

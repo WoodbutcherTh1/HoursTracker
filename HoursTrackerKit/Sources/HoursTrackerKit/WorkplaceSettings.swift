@@ -1,6 +1,6 @@
 import Foundation
 
-public struct WorkplaceSettings: Codable, Equatable {
+public struct WorkplaceSettings: Codable, Equatable, Sendable {
     public var workplaceName: String
     public var contractorName: String?
     public var workerFullName: String
