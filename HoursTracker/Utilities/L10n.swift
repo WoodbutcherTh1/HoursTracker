@@ -406,6 +406,41 @@ enum L10n {
     static var fullExportFormatCSVDetail: String { t("fullExport.format.csv.detail") }
     static var fullExportFormatJSONDetail: String { t("fullExport.format.json.detail") }
 
+    // Full backup / restore (Settings)
+    static var backupSection: String { t("backup.section") }
+    static var backupExport: String { t("backup.export") }
+    static var backupExportHint: String { t("backup.exportHint") }
+    static var backupImport: String { t("backup.import") }
+    static var backupSyncNow: String { t("backup.syncNow") }
+    static var backupLastNone: String { t("backup.lastNone") }
+    static func backupLast(_ when: String) -> String {
+        String(format: t("backup.last %@"), when)
+    }
+    static var backupPreparing: String { t("backup.preparing") }
+    static var backupExportSuccess: String { t("backup.exportSuccess") }
+    static var backupSyncSuccess: String { t("backup.syncSuccess") }
+    static var backupRestoreSuccess: String { t("backup.restoreSuccess") }
+    static var backupConfirmTitle: String { t("backup.confirmTitle") }
+    static var backupReplace: String { t("backup.replace") }
+    static var backupMerge: String { t("backup.merge") }
+    static var backupErrorInvalidFormat: String { t("backup.error.invalidFormat") }
+    static func backupErrorUnsupportedVersion(_ v: Int) -> String {
+        String(format: t("backup.error.unsupportedVersion %d"), v)
+    }
+    static var backupErrorWriteFailed: String { t("backup.error.writeFailed") }
+    static var backupErrorEmpty: String { t("backup.error.empty") }
+    static func backupSummarySessions(_ count: Int) -> String {
+        String(format: t("backup.summary.sessions %d"), count)
+    }
+    static func backupSummaryMonths(_ count: Int) -> String {
+        String(format: t("backup.summary.months %d"), count)
+    }
+    static func backupSummaryLastShift(_ when: String) -> String {
+        String(format: t("backup.summary.lastShift %@"), when)
+    }
+    static var logEventBackupRestored: String { t("log.event.backupRestored") }
+    static var logEventBackupExported: String { t("log.event.backupExported") }
+
     // Common
     static func hoursShort(_ hours: Double) -> String {
         String(format: t("common.hoursShort %@"), String(format: "%.1f", hours))

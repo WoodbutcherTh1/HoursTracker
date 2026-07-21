@@ -38,6 +38,7 @@ struct SettingsView: View {
                 if viewModel.isCloudSyncSupported {
                     syncSection
                 }
+                BackupSettingsSection(viewModel: viewModel)
                 toolsSection
                 languageSection
                 aboutSection

@@ -8520,6 +8520,535 @@
           }
         }
       }
+    },
+    "backup.section": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نسخ احتياطي"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "גיבוי"
+          }
+        }
+      }
+    },
+    "backup.export": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Export full backup"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تصدير نسخة احتياطية كاملة"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ייצוא גיבוי מלא"
+          }
+        }
+      }
+    },
+    "backup.exportHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lossless JSON of all shifts and settings. Save to Files or share. Automatic daily copies are kept on-device."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نسخة JSON كاملة لكل الورديات والإعدادات. احفظ في Files أو شارك. تُحفظ نسخ يومية تلقائياً على الجهاز."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "JSON מלא של כל המשמרות וההגדרות. שמור ב‑Files או שתף. נשמרות גם העתקים יומיים במכשיר."
+          }
+        }
+      }
+    },
+    "backup.import": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore from backup"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استيراد نسخة احتياطية"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "שחזור מגיבוי"
+          }
+        }
+      }
+    },
+    "backup.syncNow": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync now"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مزامنة الآن"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "סנכרן עכשיו"
+          }
+        }
+      }
+    },
+    "backup.lastNone": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No backup yet — export one now"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا توجد نسخة بعد — صدّر واحدة الآن"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "אין גיבוי עדיין — ייצא עכשיו"
+          }
+        }
+      }
+    },
+    "backup.last %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last backup: %@"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "آخر نسخة احتياطية: %@"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "גיבוי אחרון: %@"
+          }
+        }
+      }
+    },
+    "backup.preparing": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preparing backup…"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جاري تجهيز النسخة…"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מכין גיבוי…"
+          }
+        }
+      }
+    },
+    "backup.exportSuccess": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup ready to share"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "النسخة جاهزة للمشاركة"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הגיבוי מוכן לשיתוף"
+          }
+        }
+      }
+    },
+    "backup.syncSuccess": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup saved on device"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم حفظ النسخة على الجهاز"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הגיבוי נשמר במכשיר"
+          }
+        }
+      }
+    },
+    "backup.restoreSuccess": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup restored"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تمت استعادة النسخة"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הגיבוי שוחזר"
+          }
+        }
+      }
+    },
+    "backup.confirmTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How should this backup be applied?"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كيف تريد تطبيق هذه النسخة؟"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "איך להחיל את הגיבוי?"
+          }
+        }
+      }
+    },
+    "backup.replace": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replace all current data"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استبدال كل البيانات الحالية"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "החלף את כל הנתונים"
+          }
+        }
+      }
+    },
+    "backup.merge": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merge with current data"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "دمج مع البيانات الحالية"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מזג עם הנתונים הקיימים"
+          }
+        }
+      }
+    },
+    "backup.error.invalidFormat": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file is not a HoursTracker backup."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هذا الملف ليس نسخة احتياطية من HoursTracker."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הקובץ אינו גיבוי של HoursTracker."
+          }
+        }
+      }
+    },
+    "backup.error.unsupportedVersion %d": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unsupported backup version (%d)."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إصدار النسخة غير مدعوم (%d)."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "גרסת גיבוי לא נתמכת (%d)."
+          }
+        }
+      }
+    },
+    "backup.error.writeFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Could not write backup file."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذّر حفظ ملف النسخة."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "לא ניתן לכתוב את קובץ הגיבוי."
+          }
+        }
+      }
+    },
+    "backup.error.empty": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup is empty."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "النسخة فارغة."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הגיבוי ריק."
+          }
+        }
+      }
+    },
+    "backup.summary.sessions %d": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d shifts"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d وردية"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d משמרות"
+          }
+        }
+      }
+    },
+    "backup.summary.months %d": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d months"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d شهر"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d חודשים"
+          }
+        }
+      }
+    },
+    "backup.summary.lastShift %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Last shift: %@"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "آخر وردية: %@"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "משמרת אחרונה: %@"
+          }
+        }
+      }
+    },
+    "log.event.backupRestored": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup restored"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تمت استعادة نسخة احتياطية"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "גיבוי שוחזר"
+          }
+        }
+      }
+    },
+    "log.event.backupExported": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup exported"
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم تصدير نسخة احتياطية"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "גיבוי יוצא"
+          }
+        }
+      }
     }
   },
   "version": "1.1"
