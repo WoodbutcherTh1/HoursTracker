@@ -39,7 +39,9 @@ targets:
       properties:
         CFBundleDisplayName: HoursTracker
         CFBundleShortVersionString: "1.0"
-        CFBundleVersion: "14"
+        # Build 15+: do NOT add UIBackgroundModes: location (Guideline 2.5.4).
+        # Arrival reminders use CLCircularRegion monitoring only.
+        CFBundleVersion: "15"
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations:
@@ -52,7 +54,7 @@ targets:
           - UIInterfaceOrientationPortraitUpsideDown
           - UIInterfaceOrientationLandscapeLeft
           - UIInterfaceOrientationLandscapeRight
-        NSLocationAlwaysAndWhenInUseUsageDescription: "Always location is used only for workplace arrival reminders via a single geofence around the workplace you saved. We do not continuously track you."
+        NSLocationAlwaysAndWhenInUseUsageDescription: "Always access is used only for optional workplace arrival reminders via region monitoring (one geofence you set). HoursTracker does not continuously track your location in the background."
         NSLocationWhenInUseUsageDescription: "HoursTracker uses your location while using the app only to save your workplace when you tap Set Location."
         NSCameraUsageDescription: "HoursTracker uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times."
         NSPhotoLibraryUsageDescription: "HoursTracker needs photo access only to import a timesheet screenshot or image you choose."

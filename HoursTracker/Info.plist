@@ -25,7 +25,7 @@
 	<key>CFBundleShortVersionString</key>
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
-	<string>14</string>
+	<string>15</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCameraUsageDescription</key>
@@ -33,7 +33,7 @@
 	<key>NSFaceIDUsageDescription</key>
 	<string>HoursTracker uses Face ID only to unlock the app when App Lock is enabled.</string>
 	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Always location is used only for workplace arrival reminders via a single geofence around the workplace you saved. We do not continuously track you.</string>
+	<string>Always access is used only for optional workplace arrival reminders via region monitoring (one geofence you set). HoursTracker does not continuously track your location in the background.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>HoursTracker uses your location while using the app only to save your workplace when you tap Set Location.</string>
 	<key>NSPhotoLibraryUsageDescription</key>

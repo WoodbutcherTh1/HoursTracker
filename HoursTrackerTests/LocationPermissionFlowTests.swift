@@ -13,7 +13,10 @@ final class LocationPermissionFlowTests: XCTestCase {
 
     func testInfoPlistOmitsBackgroundLocationModeAndDeprecatedAlwaysKey() {
         let info = Bundle.main.infoDictionary ?? [:]
+        // Guideline 2.5.4: do not declare UIBackgroundModes location.
+        // Arrival reminders use region monitoring only (no continuous updates).
         let backgroundModes = info["UIBackgroundModes"] as? [String] ?? []
+        XCTAssertTrue(backgroundModes.isEmpty, "UIBackgroundModes must be absent/empty")
         XCTAssertFalse(backgroundModes.contains("location"))
         XCTAssertNil(info["NSLocationAlwaysUsageDescription"])
         XCTAssertNotNil(info["NSLocationAlwaysAndWhenInUseUsageDescription"])
