@@ -96,6 +96,29 @@ struct ExportView: View {
                     }
                 }
 
+                Section {
+                    NavigationLink {
+                        PayslipLibraryView(appViewModel: viewModel)
+                    } label: {
+                        HStack(spacing: 14) {
+                            Image(systemName: "doc.text.viewfinder")
+                                .font(.title3)
+                                .frame(width: 36, height: 36)
+                                .background(Color.accentColor.opacity(0.15), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(L10n.payslipLibraryTitle)
+                                    .font(.body.weight(.semibold))
+                                Text(L10n.payslipLibraryEntrySubtitle)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        }
+                        .padding(.vertical, 4)
+                    }
+                } header: {
+                    Text(L10n.payslipSectionTitle)
+                }
+
                 if let errorMessage {
                     Section {
                         Text(errorMessage)

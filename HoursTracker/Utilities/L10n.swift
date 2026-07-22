@@ -71,6 +71,7 @@ enum L10n {
     static var historyEmptyDescription: String { t("history.emptyDescription") }
     static var historyEmptyPeriod: String { t("history.emptyPeriod") }
     static var historyEmptyPeriodHint: String { t("history.emptyPeriodHint") }
+    static var historyShowAllDays: String { t("history.showAllDays") }
     static var historyColDate: String { t("history.col.date") }
     static var historyColIn: String { t("history.col.in") }
     static var historyColOut: String { t("history.col.out") }
@@ -81,6 +82,40 @@ enum L10n {
     static var historyPayNet: String { t("history.payNet") }
     static var historyPayGross: String { t("history.payGross") }
     static var historyDayHasShifts: String { t("history.dayHasShifts") }
+
+    // Timesheet scanner
+    static var scannerTitle: String { t("scanner.title") }
+    static var scannerSubtitle: String { t("scanner.subtitle") }
+    static var scannerPhotoLibrary: String { t("scanner.photoLibrary") }
+    static var scannerCamera: String { t("scanner.camera") }
+    static var scannerFile: String { t("scanner.file") }
+    static var scannerAnalyzing: String { t("scanner.analyzing") }
+    static var scannerAnalyzingHint: String { t("scanner.analyzingHint") }
+    static var scannerFallbackBanner: String { t("scanner.fallbackBanner") }
+    static var scannerAddRow: String { t("scanner.addRow") }
+    static var scannerReviewHeader: String { t("scanner.reviewHeader") }
+    static var scannerReviewFooter: String { t("scanner.reviewFooter") }
+    static var scannerApprove: String { t("scanner.approve") }
+    static var scannerFailed: String { t("scanner.failed") }
+    static var scannerTryAgain: String { t("scanner.tryAgain") }
+    static var scannerNeedsEdit: String { t("scanner.needsEdit") }
+    static var scannerEditRow: String { t("scanner.editRow") }
+    static var scannerImportedNote: String { t("scanner.importedNote") }
+    static var scannerManualDraftNote: String { t("scanner.manualDraftNote") }
+    static var scannerProcessingDetails: String { t("scanner.processingDetails") }
+    static var scannerProcessingProvider: String { t("scanner.processingProvider") }
+    static var scannerProcessingAccepted: String { t("scanner.processingAccepted") }
+    static var scannerProcessingRejected: String { t("scanner.processingRejected") }
+    static var scannerCloudEnabled: String { t("scanner.cloudEnabled") }
+    static var scannerCloudPrivacyNotice: String { t("scanner.cloudPrivacyNotice") }
+    static var scannerGeminiAPIKey: String { t("scanner.geminiAPIKey") }
+    static var scannerGeminiAPIKeyHint: String { t("scanner.geminiAPIKeyHint") }
+    static var scannerSecondaryAPIKey: String { t("scanner.secondaryAPIKey") }
+    static var scannerSecondaryAPIKeyHint: String { t("scanner.secondaryAPIKeyHint") }
+    static var scannerSection: String { t("scanner.section") }
+    static var scannerReadyForReview: String { t("scanner.readyForReview") }
+    static var scannerContinueInBackground: String { t("scanner.continueInBackground") }
+    static var scannerBackgroundHint: String { t("scanner.backgroundHint") }
 
     static var scannerConflictTitle: String { t("scanner.conflictTitle") }
     static var scannerConflictReplace: String { t("scanner.conflictReplace") }
@@ -405,6 +440,72 @@ enum L10n {
     static var fullExportFormatPDFDetail: String { t("fullExport.format.pdf.detail") }
     static var fullExportFormatCSVDetail: String { t("fullExport.format.csv.detail") }
     static var fullExportFormatJSONDetail: String { t("fullExport.format.json.detail") }
+
+    static var fullImportTitle: String { t("fullImport.title") }
+    static var fullImportConfirmTitle: String { t("fullImport.confirmTitle") }
+    static var fullImportConfirmFallback: String { t("fullImport.confirmFallback") }
+    static func fullImportConfirmMessage(_ sessions: Int, _ version: String) -> String {
+        String(format: t("fullImport.confirmMessage %lld %@"), sessions, version)
+    }
+    static var fullImportReplace: String { t("fullImport.replace") }
+    static var fullImportMerge: String { t("fullImport.merge") }
+    static var fullImportSuccess: String { t("fullImport.success") }
+    static var fullImportErrorInvalidFormat: String { t("fullImport.error.invalidFormat") }
+    static var fullImportErrorUnsupportedType: String { t("fullImport.error.unsupportedType") }
+    static var fullImportErrorEmpty: String { t("fullImport.error.empty") }
+    static var logEventFullDataImport: String { t("log.event.fullDataImport") }
+
+    // Payslips (Chunk 4 upload + review)
+    static var payslipSectionTitle: String { t("payslip.sectionTitle") }
+    static var payslipUploadAction: String { t("payslip.upload.action") }
+    static var payslipUploadEntryFooter: String { t("payslip.upload.entryFooter") }
+    static var payslipUploadTitle: String { t("payslip.upload.title") }
+    static var payslipUploadSubtitle: String { t("payslip.upload.subtitle") }
+    static var payslipFillModePrompt: String { t("payslip.fillMode.prompt") }
+    static var payslipFillModeAuto: String { t("payslip.fillMode.auto") }
+    static var payslipFillModeManual: String { t("payslip.fillMode.manual") }
+    static var payslipFillModeSettingsHint: String { t("payslip.fillMode.settingsHint") }
+    static var payslipUploadSourceTitle: String { t("payslip.upload.sourceTitle") }
+    static var payslipUploadFailed: String { t("payslip.upload.failed") }
+    static var payslipAnalyzing: String { t("payslip.analyzing") }
+    static var payslipAnalyzingHint: String { t("payslip.analyzingHint") }
+    static var payslipSave: String { t("payslip.save") }
+    static var payslipSaveDisabledHint: String { t("payslip.saveDisabledHint") }
+    static var payslipSavedToast: String { t("payslip.savedToast") }
+    static var payslipSectionPeriod: String { t("payslip.section.period") }
+    static var payslipSectionPay: String { t("payslip.section.pay") }
+    static var payslipSectionPeople: String { t("payslip.section.people") }
+    static var payslipSectionHours: String { t("payslip.section.hours") }
+    static var payslipSectionNotes: String { t("payslip.section.notes") }
+    static var payslipPaymentMonth: String { t("payslip.paymentMonth") }
+    static var payslipPaymentMonthEnabled: String { t("payslip.paymentMonthEnabled") }
+    static var payslipPeriodStart: String { t("payslip.periodStart") }
+    static var payslipPeriodStartEnabled: String { t("payslip.periodStartEnabled") }
+    static var payslipPeriodEnd: String { t("payslip.periodEnd") }
+    static var payslipPeriodEndEnabled: String { t("payslip.periodEndEnabled") }
+    static var payslipGross: String { t("payslip.gross") }
+    static var payslipNet: String { t("payslip.net") }
+    static var payslipCurrency: String { t("payslip.currency") }
+    static var payslipDeductions: String { t("payslip.deductions") }
+    static var payslipEmployer: String { t("payslip.employer") }
+    static var payslipEmployee: String { t("payslip.employee") }
+    static var payslipHoursRegular: String { t("payslip.hoursRegular") }
+    static var payslipHoursOT: String { t("payslip.hoursOT") }
+    static var payslipNotes: String { t("payslip.notes") }
+    static var payslipConfidence: String { t("payslip.confidence") }
+    static var payslipNeedsReview: String { t("payslip.needsReview") }
+    static var payslipPreview: String { t("payslip.preview") }
+    static var payslipPreviewUnavailable: String { t("payslip.previewUnavailable") }
+    static var payslipLibraryTitle: String { t("payslip.library.title") }
+    static var payslipLibraryEntrySubtitle: String { t("payslip.library.entrySubtitle") }
+    static var payslipLibraryEmptyTitle: String { t("payslip.library.emptyTitle") }
+    static var payslipLibraryEmptySubtitle: String { t("payslip.library.emptySubtitle") }
+    static var payslipNetUnavailable: String { t("payslip.netUnavailable") }
+    static var payslipDelete: String { t("payslip.delete") }
+    static var payslipDeleteConfirmTitle: String { t("payslip.deleteConfirmTitle") }
+    static var payslipDeleteConfirmMessage: String { t("payslip.deleteConfirmMessage") }
+    static var payslipDeleteFailed: String { t("payslip.deleteFailed") }
+    static var payslipDeletedToast: String { t("payslip.deletedToast") }
 
     // Common
     static func hoursShort(_ hours: Double) -> String {

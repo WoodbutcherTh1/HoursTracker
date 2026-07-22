@@ -52,21 +52,36 @@ enum AppLocale {
         localizedString(key, language: current)
     }
 
-    /// Resolve a key from the matching `*.lproj` (not `String(localized:locale:)`,
-    /// which often keeps the launch language and only flips layout direction).
+    /// Resolve a String Catalog / lproj key for the requested in-app language.
+    /// Tries `String(localized:locale:)` first (reliable for en/he/ar catalogs),
+    /// then matching `*.lproj` bundles, then English, then the main bundle.
     static func localizedString(_ key: String, language: Language) -> String {
         let code = language.localeIdentifier
+        let locale = Locale(identifier: code)
+
+        // String Catalog path — prefer explicit locale so in-app overrides work.
+        let catalogValue = String(localized: String.LocalizationValue(key), locale: locale)
+        if catalogValue != key {
+            return catalogValue
+        }
+
         if let path = Bundle.main.path(forResource: code, ofType: "lproj"),
            let bundle = Bundle(path: path) {
             let value = bundle.localizedString(forKey: key, value: nil, table: nil)
             if value != key { return value }
         }
-        // Fall back through English, then the development bundle.
-        if language != .english,
-           let path = Bundle.main.path(forResource: "en", ofType: "lproj"),
-           let bundle = Bundle(path: path) {
-            let value = bundle.localizedString(forKey: key, value: nil, table: nil)
-            if value != key { return value }
+
+        // Fall back through English catalog + lproj, then the development bundle.
+        if language != .english {
+            let enLocale = Locale(identifier: "en")
+            let enCatalog = String(localized: String.LocalizationValue(key), locale: enLocale)
+            if enCatalog != key { return enCatalog }
+
+            if let path = Bundle.main.path(forResource: "en", ofType: "lproj"),
+               let bundle = Bundle(path: path) {
+                let value = bundle.localizedString(forKey: key, value: nil, table: nil)
+                if value != key { return value }
+            }
         }
         return Bundle.main.localizedString(forKey: key, value: key, table: nil)
     }

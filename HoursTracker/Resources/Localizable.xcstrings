@@ -1607,24 +1607,24 @@
       }
     },
     "fullExport.format.json.detail": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "نسخة كاملة قابلة للقراءة آلياً. المفاتيح بالإنجليزية."
+            "value": "ملف JSON كامل للإعدادات والورديات — يمكن استيراده لاحقًا من الإعدادات."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Complete machine-readable snapshot. Keys in English."
+            "value": "Complete JSON of settings and shifts — can be imported later from Settings."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "עותק מלא לקריאה ממוחשבת. מפתחות באנגלית."
+            "value": "קובץ JSON מלא של הגדרות ומשמרות — ניתן לייבא אותו אחר כך מההגדרות."
           }
         }
       }
@@ -8517,6 +8517,1754 @@
           "stringUnit": {
             "state": "translated",
             "value": "בחרו יום אחר או הוסיפו משמרת."
+          }
+        }
+      }
+    },
+    "scanner.section": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الماسح الذكي"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Smart Scanner"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "סריקה חכמה"
+          }
+        }
+      }
+    },
+    "scanner.cloudEnabled": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استخدام ذكاء اصطناعي سحابي لهيكلة النص"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use cloud AI for structuring"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "שימוש ב-AI בענן לפירוק הטקסט"
+          }
+        }
+      }
+    },
+    "scanner.cloudPrivacyNotice": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "معطّل افتراضيًا. عند التفعيل، قد يُرسل نص OCR من جدول الدوام إلى مزوّد سحابي (Gemini ثم بديل متوافق مع OpenAI) لهيكلة الصفوف. لا تُرفع الصور. عند الإيقاف تبقى المعالجة على الجهاز فقط."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Off by default. When enabled, OCR text from your timesheet may be sent to a cloud provider (Gemini, then an OpenAI-compatible fallback) to structure rows. No images are uploaded. Processing stays on-device when this is off."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "כבוי כברירת מחדל. כשמופעל, טקסט ה-OCR מגיליון הנוכחות עשוי להישלח לספק בענן (Gemini ואז fallback תואם OpenAI) לפירוק לשורות. תמונות לא מועלות. כשכבוי — העיבוד נשאר במכשיר בלבד."
+          }
+        }
+      }
+    },
+    "scanner.geminiAPIKey": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مفتاح Gemini API"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gemini API key"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מפתח Gemini API"
+          }
+        }
+      }
+    },
+    "scanner.geminiAPIKeyHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يُحفظ في Keychain على هذا الجهاز فقط. لا تضع مفاتيح API في الشيفرة."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Stored in Keychain on this device only. Never commit API keys."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "נשמר ב-Keychain במכשיר בלבד. אל תשמרו מפתחות בקוד."
+          }
+        }
+      }
+    },
+    "scanner.processingDetails": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تفاصيل المعالجة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Processing details"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "פרטי עיבוד"
+          }
+        }
+      }
+    },
+    "scanner.processingProvider": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المزوّد"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ספק"
+          }
+        }
+      }
+    },
+    "scanner.processingAccepted": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صفوف مقبولة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Accepted rows"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "שורות שהתקבלו"
+          }
+        }
+      }
+    },
+    "scanner.processingRejected": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صفوف مرفوضة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rejected rows"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "שורות שנדחו"
+          }
+        }
+      }
+    },
+    "scanner.secondaryAPIKey": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مفتاح API ثانوي (OpenAI/Groq)"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Secondary API key (OpenAI/Groq)"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מפתח API משני (OpenAI/Groq)"
+          }
+        }
+      }
+    },
+    "scanner.secondaryAPIKeyHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "احتياطي عند نفاد حصة Gemini. يُحفظ في Keychain. متوافق مع واجهة OpenAI (افتراضيًا Groq)."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fallback when Gemini hits quota. Stored in Keychain. OpenAI-compatible (defaults to Groq)."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "גיבוי כש-Gemini מגיע למכסה. נשמר ב-Keychain. תואם OpenAI (ברירת מחדל: Groq)."
+          }
+        }
+      }
+    },
+    "scanner.readyForReview": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المسح جاهز للمراجعة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Scan ready for review"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הסריקה מוכנה לסקירה"
+          }
+        }
+      }
+    },
+    "scanner.continueInBackground": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "متابعة استخدام التطبيق"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Continue using the app"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "המשך להשתמש באפליקציה"
+          }
+        }
+      }
+    },
+    "scanner.backgroundHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المعالجة تعمل في الخلفية. يمكنك إغلاق هذه الشاشة والمتابعة — ستظهر مراجعة قبل أي حفظ."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Processing runs in the background. You can close this screen and keep using the app — a review appears before anything is saved."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "העיבוד רץ ברקע. אפשר לסגור את המסך ולהמשיך — תופיע סקירה לפני כל שמירה."
+          }
+        }
+      }
+    },
+    "payslip.sectionTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كشوف الرواتب"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Payslips"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "תלושי שכר"
+          }
+        }
+      }
+    },
+    "payslip.upload.action": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رفع كشف راتب"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upload payslip"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "העלאת תלוש"
+          }
+        }
+      }
+    },
+    "payslip.upload.entryFooter": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "مدخل مؤقت لاختبار الرفع والمراجعة. المكتبة تأتي لاحقاً."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Temporary entry for testing upload and review. Library arrives in a later update."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "כניסה זמנית לבדיקת העלאה וסקירה. הספרייה תגיע בעדכון מאוחר יותר."
+          }
+        }
+      }
+    },
+    "payslip.upload.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "رفع كشف راتب"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upload Payslip"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "העלאת תלוש שכר"
+          }
+        }
+      }
+    },
+    "payslip.upload.subtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختر تعبئة تلقائية بالذكاء أو يدوياً. اسمك ومكان العمل يُؤخذان من الإعدادات."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose auto-detect or fill manually. Your name and workplace come from Settings."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "בחרו זיהוי אוטומטי או מילוי ידני. השם ומקום העבודה נלקחים מההגדרות."
+          }
+        }
+      }
+    },
+    "payslip.upload.sourceTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إضافة كشف راتب من"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add payslip from"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הוספת תלוש מתוך"
+          }
+        }
+      }
+    },
+    "payslip.upload.failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذّر معالجة كشف الراتب"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t process payslip"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "לא ניתן לעבד את התלוש"
+          }
+        }
+      }
+    },
+    "payslip.analyzing": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "جارٍ قراءة كشف الراتب…"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reading payslip…"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "קורא את התלוש…"
+          }
+        }
+      }
+    },
+    "payslip.analyzingHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يستخرج المبالغ والتواريخ، ويملأ الاسم ومكان العمل من إعداداتك."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Extracting amounts and dates, and filling your name/workplace from Settings."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מחלץ סכומים ותאריכים, ומשלים שם/מקום עבודה מההגדרות."
+          }
+        }
+      }
+    },
+    "payslip.save": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حفظ كشف الراتب"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Save payslip"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "שמור תלוש"
+          }
+        }
+      }
+    },
+    "payslip.saveDisabledHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "أدخل فترة/شهر الدفع وصافي أو إجمالي على الأقل للحفظ."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Enter a pay period/month and at least net or gross pay to save."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "יש למלא תקופה/חודש ולפחות נטו או ברוטו כדי לשמור."
+          }
+        }
+      }
+    },
+    "payslip.savedToast": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم حفظ كشف الراتب"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Payslip saved"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "התלוש נשמר"
+          }
+        }
+      }
+    },
+    "payslip.section.period": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "فترة الدفع"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pay period"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "תקופת שכר"
+          }
+        }
+      }
+    },
+    "payslip.section.pay": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المبالغ"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pay amounts"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "סכומים"
+          }
+        }
+      }
+    },
+    "payslip.section.people": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الأسماء"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Names"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "שמות"
+          }
+        }
+      }
+    },
+    "payslip.section.hours": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الساعات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hours"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "שעות"
+          }
+        }
+      }
+    },
+    "payslip.section.notes": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ملاحظات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notes"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הערות"
+          }
+        }
+      }
+    },
+    "payslip.paymentMonth": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "شهر الدفع"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Payment month"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "חודש תשלום"
+          }
+        }
+      }
+    },
+    "payslip.paymentMonthEnabled": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تضمين شهر الدفع"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include payment month"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "כלול חודש תשלום"
+          }
+        }
+      }
+    },
+    "payslip.periodStart": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "بداية الفترة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Period start"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "תחילת תקופה"
+          }
+        }
+      }
+    },
+    "payslip.periodStartEnabled": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تضمين بداية الفترة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include period start"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "כלול תחילת תקופה"
+          }
+        }
+      }
+    },
+    "payslip.periodEnd": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "نهاية الفترة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Period end"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "סוף תקופה"
+          }
+        }
+      }
+    },
+    "payslip.periodEndEnabled": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تضمين نهاية الفترة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include period end"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "כלול סוף תקופה"
+          }
+        }
+      }
+    },
+    "payslip.gross": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الإجمالي"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gross pay"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ברוטו"
+          }
+        }
+      }
+    },
+    "payslip.net": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الصافي"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Net pay"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "נטו"
+          }
+        }
+      }
+    },
+    "payslip.currency": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "العملة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Currency"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מטבע"
+          }
+        }
+      }
+    },
+    "payslip.deductions": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "إجمالي الخصومات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Deductions total"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "סה״כ ניכויים"
+          }
+        }
+      }
+    },
+    "payslip.employer": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "صاحب العمل"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Employer"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מעסיק"
+          }
+        }
+      }
+    },
+    "payslip.employee": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الموظف"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Employee"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "עובד"
+          }
+        }
+      }
+    },
+    "payslip.hoursRegular": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ساعات عادية"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Regular hours"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "שעות רגילות"
+          }
+        }
+      }
+    },
+    "payslip.hoursOT": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ساعات إضافية"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Overtime hours"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "שעות נוספות"
+          }
+        }
+      }
+    },
+    "payslip.notes": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ملاحظات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Notes"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הערות"
+          }
+        }
+      }
+    },
+    "payslip.confidence": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ثقة الاستخراج"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI confidence"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ביטחון החילוץ"
+          }
+        }
+      }
+    },
+    "payslip.needsReview": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يحتاج مراجعة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs review"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "דורש אישור"
+          }
+        }
+      }
+    },
+    "payslip.preview": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "معاينة كشف الراتب"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Uploaded payslip preview"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "תצוגה מקדימה של התלוש"
+          }
+        }
+      }
+    },
+    "payslip.previewUnavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "المعاينة غير متاحة"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Preview unavailable"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "אין תצוגה מקדימה"
+          }
+        }
+      }
+    },
+    "payslip.library.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كشوف راتبي"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "My Payslips"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "התלושים שלי"
+          }
+        }
+      }
+    },
+    "payslip.library.entrySubtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عرض ورفع وإدارة ملفات كشوف الرواتب"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "View, upload, and manage payslip files"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "צפייה, העלאה וניהול קבצי תלוש"
+          }
+        }
+      }
+    },
+    "payslip.library.emptyTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "لا توجد كشوف رواتب بعد"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No payslips yet"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "אין תלושים עדיין"
+          }
+        }
+      }
+    },
+    "payslip.library.emptySubtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ارفع صورة أو PDF لكشف راتب لبدء المكتبة."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Upload a photo or PDF of a payslip to start your library."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "העלו תמונה או PDF של תלוש כדי להתחיל."
+          }
+        }
+      }
+    },
+    "payslip.netUnavailable": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الصافي —"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Net —"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "נטו —"
+          }
+        }
+      }
+    },
+    "payslip.delete": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حذف كشف الراتب"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete payslip"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מחק תלוש"
+          }
+        }
+      }
+    },
+    "payslip.deleteConfirmTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "حذف كشف الراتب؟"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Delete this payslip?"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "למחוק את התלוש?"
+          }
+        }
+      }
+    },
+    "payslip.deleteConfirmMessage": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "سيُحذف الملف وتفاصيله من هذا الجهاز."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The file and its details will be removed from this device."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הקובץ והפרטים יוסרו מהמכשיר."
+          }
+        }
+      }
+    },
+    "payslip.deleteFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعذّر حذف كشف الراتب"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Couldn’t delete payslip"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "לא ניתן למחוק את התלוש"
+          }
+        }
+      }
+    },
+    "payslip.deletedToast": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم حذف كشف الراتب"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Payslip deleted"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "התלוש נמחק"
+          }
+        }
+      }
+    },
+    "payslip.fillMode.prompt": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كيف نملأ التفاصيل؟"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How should we fill the details?"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "איך למלא את הפרטים?"
+          }
+        }
+      }
+    },
+    "payslip.fillMode.auto": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعبئة تلقائية بالذكاء"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-detect with AI"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "זיהוי אוטומטי"
+          }
+        }
+      }
+    },
+    "payslip.fillMode.manual": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعبئة يدوية"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fill manually"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מילוי ידני"
+          }
+        }
+      }
+    },
+    "payslip.fillMode.settingsHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يُملأ اسم الموظف ومكان العمل من الإعدادات إذا لم يظهران في الكشف."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Employee and workplace are filled from your Settings when the slip doesn’t include them."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "שם העובד ומקום העבודה ממולאים מההגדרות כשחסרים בתלוש."
+          }
+        }
+      }
+    },
+    "history.showAllDays": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عرض كل الأيام"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show all days"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הצג את כל הימים"
+          }
+        }
+      }
+    },
+    "fullImport.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استيراد بياناتي"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import my data"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ייבא את הנתונים שלי"
+          }
+        }
+      }
+    },
+    "fullImport.confirmTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استيراد هذه النسخة؟"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import this backup?"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "לייבא את הגיבוי?"
+          }
+        }
+      }
+    },
+    "fullImport.confirmFallback": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختر كيف تُطبَّق البيانات المستوردة."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose how to apply the imported data."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "בחרו איך להחיל את הנתונים המיובאים."
+          }
+        }
+      }
+    },
+    "fullImport.confirmMessage %lld %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عُثر على %lld ورديات (الإصدار %@). الاستبدال يكتب فوق كل شيء على هذا الجهاز. الدمج يبقي الموجود ويضيف الجديد."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Found %lld shifts (app %@). Replace overwrites everything on this phone. Merge keeps existing shifts and adds new ones."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "נמצאו %lld משמרות (גרסה %@). החלפה דורסת את כל הנתונים במכשיר. מיזוג שומר קיימים ומוסיף חדשים."
+          }
+        }
+      }
+    },
+    "fullImport.replace": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استبدال كل البيانات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replace all data"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "החלף את כל הנתונים"
+          }
+        }
+      }
+    },
+    "fullImport.merge": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "دمج مع الموجود"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merge with existing"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מזג עם הקיים"
+          }
+        }
+      }
+    },
+    "fullImport.success": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم استيراد البيانات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data imported"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הנתונים יובאו"
+          }
+        }
+      }
+    },
+    "fullImport.error.invalidFormat": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هذا الملف ليس تصدير JSON صالحًا من HoursTracker."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file isn’t a valid HoursTracker JSON export."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הקובץ אינו ייצוא JSON תקין של HoursTracker."
+          }
+        }
+      }
+    },
+    "fullImport.error.unsupportedType": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يمكن استيراد ملفات JSON للتصدير الكامل فقط."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only JSON full-export files can be imported."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ניתן לייבא רק קבצי JSON של ייצוא מלא."
+          }
+        }
+      }
+    },
+    "fullImport.error.empty": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الملف المحدد فارغ."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The selected file is empty."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הקובץ שנבחר ריק."
+          }
+        }
+      }
+    },
+    "log.event.fullDataImport": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم استيراد كل البيانات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imported full data"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "יובאו כל הנתונים"
           }
         }
       }

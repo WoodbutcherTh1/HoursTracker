@@ -1,6 +1,7 @@
 import Foundation
 import CoreLocation
 import UserNotifications
+import UIKit
 
 @MainActor
 final class AppViewModel: ObservableObject {
@@ -16,11 +17,34 @@ final class AppViewModel: ObservableObject {
     @Published private(set) var locationAuthorizationStatus: CLAuthorizationStatus = .notDetermined
     @Published private(set) var areLocationNotificationsDenied = false
 
+    /// Background Smart Scanner job — user can dismiss the picker and keep using the app.
+    enum ScannerImportPhase: Equatable {
+        case idle
+        case processing
+        case ready
+        case failed(String)
+    }
+
+    @Published private(set) var scannerImportPhase: ScannerImportPhase = .idle
+    @Published private(set) var pendingScannerResult: TimesheetScanResult?
+    @Published var showPendingScannerReview = false
+
     private let store: SyncingStore
     private let locationManager: LocationReminderManaging
     private let exportManager = ExportManager()
     private let locationCapture = LocationCaptureHelper()
     private var successToastTask: Task<Void, Never>?
+    private var scannerImportTask: Task<Void, Never>?
+
+    /// Set to `true` when `load()` observed that `sessions.json` exists on disk
+    /// but could not be read (e.g. Data Protection race just after unlock).
+    /// While `true`, `persist()` refuses to write, because saving the current
+    /// (empty) in-memory `sessions` would silently wipe the intact file.
+    /// Cleared by any subsequent load or `syncNow` that returns real data.
+    private var sessionsLoadUnavailable = false
+    /// Same rationale as `sessionsLoadUnavailable`, applied to
+    /// `workplace_settings.json` and `persistSettings()`.
+    private var settingsLoadUnavailable = false
 
     /// Hide the Settings sync section when this build has no CloudKit backend.
     var isCloudSyncSupported: Bool { store.isCloudSyncSupported }
@@ -67,6 +91,55 @@ final class AppViewModel: ObservableObject {
                 successToast = nil
             }
         }
+    }
+
+    // MARK: - Smart Scanner background import
+
+    /// Runs OCR + LLM structuring off the pick UI so the user can keep using the app.
+    func startScannerImport(image: UIImage) {
+        startScannerImport {
+            try await TimesheetScannerManager.shared.scan(image: image)
+        }
+    }
+
+    func startScannerImport(fileURL: URL) {
+        startScannerImport {
+            try await TimesheetScannerManager.shared.scan(fileURL: fileURL)
+        }
+    }
+
+    private func startScannerImport(_ work: @escaping @Sendable () async throws -> TimesheetScanResult) {
+        scannerImportTask?.cancel()
+        pendingScannerResult = nil
+        showPendingScannerReview = false
+        scannerImportPhase = .processing
+        scannerImportTask = Task { @MainActor in
+            do {
+                let result = try await work()
+                guard !Task.isCancelled else { return }
+                pendingScannerResult = result
+                scannerImportPhase = .ready
+                showPendingScannerReview = true
+                showSuccessToast(L10n.scannerReadyForReview)
+            } catch {
+                guard !Task.isCancelled else { return }
+                scannerImportPhase = .failed(error.localizedDescription)
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    func openPendingScannerReview() {
+        guard case .ready = scannerImportPhase, pendingScannerResult != nil else { return }
+        showPendingScannerReview = true
+    }
+
+    func clearScannerImport() {
+        scannerImportTask?.cancel()
+        scannerImportTask = nil
+        pendingScannerResult = nil
+        scannerImportPhase = .idle
+        showPendingScannerReview = false
     }
 
     init(
@@ -436,6 +509,7 @@ final class AppViewModel: ObservableObject {
         locationManager.stopArrivalReminders()
         refreshReminders()
         ExportTempFileStore.wipeAll()
+        PayslipStore.wipeAll()
         PersistenceManager.shared.wipeQuarantinedSidecars()
         SessionTombstoneStore.shared.removeAll()
         SessionTombstoneStore.shared.wipeQuarantinedSidecars()
@@ -456,6 +530,44 @@ final class AppViewModel: ObservableObject {
                 errorMessage = L10n.privacyDeleteCloudPartialFailure
             }
         }
+    }
+
+    /// Import a JSON full-data export previously created via Settings → Export all my data.
+    func importFullDataExport(_ document: FullDataExportDocument, mode: FullDataImportMode) throws {
+        sessionsLoadUnavailable = false
+        settingsLoadUnavailable = false
+
+        switch mode {
+        case .replace:
+            sessions = document.sessions.sorted { $0.clockIn < $1.clockIn }
+            settings = document.settings
+            ActivityLogStore.shared.replaceEntries(document.activityLog)
+        case .merge:
+            var byID = Dictionary(uniqueKeysWithValues: sessions.map { ($0.id, $0) })
+            for session in document.sessions {
+                byID[session.id] = session
+            }
+            sessions = Array(byID.values).sorted { $0.clockIn < $1.clockIn }
+            settings = document.settings
+            ActivityLogStore.shared.mergeEntries(document.activityLog)
+        }
+
+        do {
+            try store.saveSessions(sessions)
+            try store.saveSettings(settings)
+        } catch {
+            errorMessage = L10n.errorSaveFailed
+            throw error
+        }
+
+        refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventFullDataImport,
+            level: .success,
+            category: "import",
+            details: mode.rawValue
+        )
+        objectWillChange.send()
     }
 
     func captureCurrentLocation() {
@@ -496,6 +608,10 @@ final class AppViewModel: ObservableObject {
                 if let result = try await store.syncNow() {
                     sessions = result.sessions
                     settings = result.settings
+                    // Server-authoritative refresh cleared the "temporarily
+                    // unavailable" state — future persists are safe again.
+                    sessionsLoadUnavailable = false
+                    settingsLoadUnavailable = false
                     refreshReminders()
                 }
                 syncState = store.syncState
@@ -558,11 +674,42 @@ final class AppViewModel: ObservableObject {
     // MARK: - Private
 
     private func load() {
-        sessions = store.loadSessions()
-        settings = store.loadSettings()
+        switch store.loadSessionsResult() {
+        case .loaded(let loaded):
+            sessions = loaded
+            sessionsLoadUnavailable = false
+        case .missing, .corruptQuarantined:
+            sessions = []
+            sessionsLoadUnavailable = false
+        case .temporarilyUnavailable:
+            // Keep the (default empty) in-memory `sessions` value, but flag it
+            // so `persist()` will NOT overwrite the intact-but-unreadable file.
+            sessionsLoadUnavailable = true
+            errorMessage = L10n.errorSaveFailed
+        }
+
+        switch store.loadSettingsResult() {
+        case .loaded(let loaded):
+            settings = loaded
+            settingsLoadUnavailable = false
+        case .missing, .corruptQuarantined:
+            settings = .default
+            settingsLoadUnavailable = false
+        case .temporarilyUnavailable:
+            settingsLoadUnavailable = true
+            errorMessage = L10n.errorSaveFailed
+        }
     }
 
     private func persist() {
+        // Refuse to save when the on-disk file is intact but was unreadable at
+        // load time. Otherwise we would overwrite it with the current (empty
+        // or partial) in-memory `sessions` and silently wipe the user's data.
+        if sessionsLoadUnavailable {
+            errorMessage = L10n.errorSaveFailed
+            refreshReminders()
+            return
+        }
         do {
             try store.saveSessions(sessions)
         } catch {
@@ -572,6 +719,10 @@ final class AppViewModel: ObservableObject {
     }
 
     private func persistSettings() {
+        if settingsLoadUnavailable {
+            errorMessage = L10n.errorSaveFailed
+            return
+        }
         do {
             try store.saveSettings(settings)
         } catch {

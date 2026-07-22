@@ -1,6 +1,7 @@
 import SwiftUI
 import UIKit
 import CoreLocation
+import UniformTypeIdentifiers
 
 struct SettingsView: View {
     @ObservedObject var viewModel: AppViewModel
@@ -11,9 +12,16 @@ struct SettingsView: View {
     @State private var locationStatus: String = ""
     @State private var showDeleteAllConfirm = false
     @State private var showFullDataExport = false
+    @State private var showFullDataImporter = false
+    @State private var pendingImportDocument: FullDataExportDocument?
+    @State private var showImportConfirm = false
+    @State private var importErrorMessage: String?
     @State private var showArrivalExplainer = false
     @State private var showDisableSyncConfirm = false
     @State private var isEditingIDNumber = false
+    @State private var smartScannerCloudEnabled = UserDefaultsSmartScannerCloudPreference.shared.isEnabled
+    @State private var geminiAPIKeyDraft = KeychainStore.string(for: .geminiAPIKey) ?? ""
+    @State private var secondaryAPIKeyDraft = KeychainStore.string(for: .secondaryAPIKey) ?? ""
 
     private var syncDateFormatter: DateFormatter {
         AppLocale.makeDateFormatter(dateStyle: .short, timeStyle: .short)
@@ -35,6 +43,7 @@ struct SettingsView: View {
                 taxSection
                 locationSection
                 securitySection
+                smartScannerSection
                 if viewModel.isCloudSyncSupported {
                     syncSection
                 }
@@ -55,6 +64,9 @@ struct SettingsView: View {
             .onAppear {
                 draft = viewModel.settings
                 viewModel.refreshLocationPermissionStatuses()
+                smartScannerCloudEnabled = UserDefaultsSmartScannerCloudPreference.shared.isEnabled
+                geminiAPIKeyDraft = KeychainStore.string(for: .geminiAPIKey) ?? ""
+                secondaryAPIKeyDraft = KeychainStore.string(for: .secondaryAPIKey) ?? ""
             }
             .confirmationDialog(
                 L10n.privacyDeleteAllConfirm,
@@ -96,13 +108,113 @@ struct SettingsView: View {
             .sheet(isPresented: $showFullDataExport) {
                 FullDataExportSheet(viewModel: viewModel)
             }
+            .fileImporter(
+                isPresented: $showFullDataImporter,
+                allowedContentTypes: [.json],
+                allowsMultipleSelection: false
+            ) { result in
+                handleFullDataImport(result)
+            }
+            .confirmationDialog(
+                L10n.fullImportConfirmTitle,
+                isPresented: $showImportConfirm,
+                titleVisibility: .visible
+            ) {
+                Button(L10n.fullImportReplace, role: .destructive) {
+                    applyFullDataImport(mode: .replace)
+                }
+                Button(L10n.fullImportMerge) {
+                    applyFullDataImport(mode: .merge)
+                }
+                Button(L10n.editCancel, role: .cancel) {
+                    pendingImportDocument = nil
+                }
+            } message: {
+                if let doc = pendingImportDocument {
+                    Text(L10n.fullImportConfirmMessage(doc.sessions.count, doc.appVersion))
+                } else {
+                    Text(L10n.fullImportConfirmFallback)
+                }
+            }
+            .alert(
+                L10n.errorTitle,
+                isPresented: Binding(
+                    get: { importErrorMessage != nil },
+                    set: { if !$0 { importErrorMessage = nil } }
+                )
+            ) {
+                Button(L10n.errorOK, role: .cancel) { importErrorMessage = nil }
+            } message: {
+                Text(importErrorMessage ?? "")
+            }
+        }
+    }
+
+    private func handleFullDataImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .failure(let error):
+            importErrorMessage = error.localizedDescription
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            do {
+                let document = try FullDataExportManager().loadJSONDocument(from: url)
+                pendingImportDocument = document
+                showImportConfirm = true
+            } catch {
+                importErrorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func applyFullDataImport(mode: FullDataImportMode) {
+        guard let document = pendingImportDocument else { return }
+        pendingImportDocument = nil
+        do {
+            try viewModel.importFullDataExport(document, mode: mode)
+            draft = viewModel.settings
+            viewModel.showSuccessToast(L10n.fullImportSuccess)
+        } catch {
+            importErrorMessage = error.localizedDescription
         }
     }
 
     private func saveSettings() {
         viewModel.saveSettings(draft)
         draft = viewModel.settings
+        UserDefaultsSmartScannerCloudPreference.shared.isEnabled = smartScannerCloudEnabled
+        let trimmedKey = geminiAPIKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        try? KeychainStore.setString(trimmedKey, for: .geminiAPIKey)
+        let trimmedSecondary = secondaryAPIKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        try? KeychainStore.setString(trimmedSecondary, for: .secondaryAPIKey)
         viewModel.showSuccessToast(L10n.settingsSaved)
+    }
+
+    private var smartScannerSection: some View {
+        Section {
+            Toggle(L10n.scannerCloudEnabled, isOn: $smartScannerCloudEnabled)
+
+            Text(L10n.scannerCloudPrivacyNotice)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if smartScannerCloudEnabled {
+                SecureField(L10n.scannerGeminiAPIKey, text: $geminiAPIKeyDraft)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                Text(L10n.scannerGeminiAPIKeyHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                SecureField(L10n.scannerSecondaryAPIKey, text: $secondaryAPIKeyDraft)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                Text(L10n.scannerSecondaryAPIKeyHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        } header: {
+            Text(L10n.scannerSection)
+        }
     }
 
     private var workerSection: some View {
@@ -531,6 +643,12 @@ struct SettingsView: View {
                 showFullDataExport = true
             } label: {
                 Label(L10n.fullExportTitle, systemImage: "externaldrive.badge.timemachine")
+            }
+
+            Button {
+                showFullDataImporter = true
+            } label: {
+                Label(L10n.fullImportTitle, systemImage: "square.and.arrow.down.on.square")
             }
 
             Button(role: .destructive) {

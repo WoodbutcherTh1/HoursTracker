@@ -14,8 +14,24 @@ final class InMemoryStore: SyncingStore {
     private(set) var lastPurgedSessionIDs: Set<UUID> = []
     var purgeCloudError: Error?
 
+    /// Optional override for `loadSessionsResult()`. When set, `loadSessions()`
+    /// will still hand back `storedSessions` for legacy compat callers, but
+    /// callers using the Result-based API (like `AppViewModel.load`) will see
+    /// the injected outcome — used to simulate transient/corrupt load paths.
+    var sessionsLoadResultOverride: PersistenceLoadResult<[WorkSession]>?
+    /// Optional override for `loadSettingsResult()`; same rationale as
+    /// `sessionsLoadResultOverride`.
+    var settingsLoadResultOverride: PersistenceLoadResult<WorkplaceSettings>?
+
     func loadSessions() -> [WorkSession] {
         storedSessions
+    }
+
+    func loadSessionsResult() -> PersistenceLoadResult<[WorkSession]> {
+        if let override = sessionsLoadResultOverride {
+            return override
+        }
+        return .loaded(storedSessions)
     }
 
     func saveSessions(_ sessions: [WorkSession]) throws {
@@ -25,6 +41,13 @@ final class InMemoryStore: SyncingStore {
 
     func loadSettings() -> WorkplaceSettings {
         storedSettings
+    }
+
+    func loadSettingsResult() -> PersistenceLoadResult<WorkplaceSettings> {
+        if let override = settingsLoadResultOverride {
+            return override
+        }
+        return .loaded(storedSettings)
     }
 
     func saveSettings(_ settings: WorkplaceSettings) throws {
@@ -162,6 +185,28 @@ final class RecordingCloud: CloudSyncing {
     }
 }
 
+/// Scripted `DataReading` seam: fails a caller-supplied sequence of times before
+/// falling through to the on-disk contents. Used to exercise the transient
+/// retry path in `PersistenceManager.load` without depending on real
+/// Data-Protection races.
+final class ScriptedDataReader: DataReading {
+    private var pendingFailures: [Error]
+    private(set) var attempts = 0
+
+    init(failures: [Error]) {
+        self.pendingFailures = failures
+    }
+
+    func read(from url: URL) throws -> Data {
+        attempts += 1
+        if !pendingFailures.isEmpty {
+            let error = pendingFailures.removeFirst()
+            throw error
+        }
+        return try Data(contentsOf: url)
+    }
+}
+
 final class RecordingFileWriter: FileWriting {
     private(set) var urls: [URL] = []
     private(set) var payloads: [Data] = []
@@ -225,6 +270,58 @@ enum TestData {
             locationLongitude: nil,
             locationRadiusMeters: 150,
             modifiedAt: Date()
+        )
+    }
+
+    static func payslipExtraction(
+        confidence: Double = 0.9,
+        needsManualReview: Bool = false,
+        netPay: Decimal? = Decimal(1010.50),
+        grossPay: Decimal? = Decimal(1250)
+    ) -> PayslipExtraction {
+        PayslipExtraction(
+            providerName: "UnitTestOCR",
+            extractedAt: date(2026, 6, 1, 10),
+            confidence: confidence,
+            needsManualReview: needsManualReview,
+            rawJSON: #"{"net":1010.50}"#,
+            grossPay: grossPay,
+            netPay: netPay,
+            currencyCode: "ILS",
+            employerName: "Example Employer",
+            employeeName: "Example Worker",
+            employeeID: "123456789",
+            payPeriodStart: date(2026, 5, 1),
+            payPeriodEnd: date(2026, 5, 31),
+            paymentDate: date(2026, 6, 1),
+            hoursRegular: 160,
+            hoursOT: 8,
+            deductionsTotal: Decimal(120),
+            extras: [:]
+        )
+    }
+
+    static func payslipRecord(
+        id: UUID = UUID(),
+        periodMonth: Date,
+        uploadedAt: Date = date(2026, 7, 1),
+        reviewState: PayslipRecord.ReviewState = .confirmed
+    ) -> PayslipRecord {
+        PayslipRecord(
+            id: id,
+            periodMonth: periodMonth,
+            periodStartDay: nil,
+            periodLabel: nil,
+            uploadedAt: uploadedAt,
+            sourceKind: .image,
+            originalFileName: "slip.png",
+            relativeFilePath: "payslips/files/\(id.uuidString).png",
+            fileByteSize: 12,
+            contentTypeUTI: "public.png",
+            extraction: payslipExtraction(),
+            userOverrides: nil,
+            reviewState: reviewState,
+            notes: nil
         )
     }
 }
