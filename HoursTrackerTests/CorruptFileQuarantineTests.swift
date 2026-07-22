@@ -221,6 +221,129 @@ final class CorruptFileQuarantineTests: XCTestCase {
         ))
     }
 
+    // MARK: - Result-based load API
+
+    /// Follow-up guard for the silent-wipe path: even though the legacy
+    /// `loadSessions()` returns `[]` for compatibility, the Result variant
+    /// must signal `.temporarilyUnavailable` so `AppViewModel` will refuse to
+    /// persist an empty array over the intact file.
+    func testLoadSessionsResultReturnsTemporarilyUnavailableWhenRetriesExhaust() throws {
+        let sessionsURL = directory.appendingPathComponent("work_sessions.json")
+        try Data("[]".utf8).write(to: sessionsURL, options: .atomic)
+
+        let transientError = NSError(
+            domain: NSPOSIXErrorDomain,
+            code: Int(EBUSY)
+        )
+        let reader = ScriptedDataReader(
+            failures: Array(repeating: transientError, count: 10)
+        )
+        let store = PersistenceManager(
+            fileWriter: RecordingFileWriter(),
+            dataReader: reader,
+            documentsDirectory: directory,
+            loadRetryAttempts: 3,
+            loadRetryBaseDelay: 0,
+            sleeper: { _ in }
+        )
+
+        let outcome = store.loadSessionsResult()
+
+        guard case .temporarilyUnavailable = outcome else {
+            return XCTFail("expected .temporarilyUnavailable, got \(outcome)")
+        }
+        XCTAssertEqual(reader.attempts, 3, "should stop after the configured retry budget")
+        XCTAssertTrue(
+            FileManager.default.fileExists(atPath: sessionsURL.path),
+            "exhausted transient retries must leave the file intact"
+        )
+        XCTAssertFalse(
+            FileManager.default.fileExists(
+                atPath: sessionsURL.appendingPathExtension("corrupt").path
+            ),
+            "exhausted transient retries must never quarantine"
+        )
+    }
+
+    /// Non-transient read errors on an existing file are ALSO unrecoverable at
+    /// load time and must NOT be laundered into `.loaded([])` — otherwise a
+    /// caller who wrote through the compat API would still wipe the file on
+    /// the next save.
+    func testLoadSessionsResultReturnsTemporarilyUnavailableOnNonTransientReadFailure() throws {
+        let sessionsURL = directory.appendingPathComponent("work_sessions.json")
+        try Data("[]".utf8).write(to: sessionsURL, options: .atomic)
+
+        let opaqueError = NSError(domain: "com.example.opaque", code: -1)
+        let reader = ScriptedDataReader(failures: [opaqueError])
+        let store = PersistenceManager(
+            fileWriter: RecordingFileWriter(),
+            dataReader: reader,
+            documentsDirectory: directory,
+            loadRetryAttempts: 3,
+            loadRetryBaseDelay: 0,
+            sleeper: { _ in }
+        )
+
+        let outcome = store.loadSessionsResult()
+
+        guard case .temporarilyUnavailable = outcome else {
+            return XCTFail("expected .temporarilyUnavailable, got \(outcome)")
+        }
+        XCTAssertEqual(reader.attempts, 1, "non-transient errors should not be retried")
+    }
+
+    func testLoadSessionsResultReturnsMissingWhenFileAbsent() {
+        let store = PersistenceManager(
+            fileWriter: RecordingFileWriter(),
+            documentsDirectory: directory
+        )
+        guard case .missing = store.loadSessionsResult() else {
+            return XCTFail("expected .missing when sessions file has never been written")
+        }
+    }
+
+    func testLoadSessionsResultQuarantinesAndReturnsCorruptOnDecodeFailure() throws {
+        let sessionsURL = directory.appendingPathComponent("work_sessions.json")
+        try Data("{not-valid-json".utf8).write(to: sessionsURL, options: .atomic)
+
+        let store = PersistenceManager(
+            fileWriter: RecordingFileWriter(),
+            documentsDirectory: directory,
+            loadRetryAttempts: 3,
+            loadRetryBaseDelay: 0,
+            sleeper: { _ in }
+        )
+
+        guard case .corruptQuarantined = store.loadSessionsResult() else {
+            return XCTFail("decode failure must surface as .corruptQuarantined")
+        }
+        XCTAssertFalse(FileManager.default.fileExists(atPath: sessionsURL.path))
+        XCTAssertTrue(
+            FileManager.default.fileExists(
+                atPath: sessionsURL.appendingPathExtension("corrupt").path
+            )
+        )
+    }
+
+    func testLoadSessionsResultLoadsValidPayload() throws {
+        let sessionsURL = directory.appendingPathComponent("work_sessions.json")
+        let real: [WorkSession] = [
+            TestData.session(day: 7, inHour: 9, outHour: 17)
+        ]
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        try encoder.encode(real).write(to: sessionsURL, options: .atomic)
+
+        let store = PersistenceManager(
+            fileWriter: RecordingFileWriter(),
+            documentsDirectory: directory
+        )
+        guard case .loaded(let loaded) = store.loadSessionsResult() else {
+            return XCTFail("expected .loaded for an intact, valid sessions file")
+        }
+        XCTAssertEqual(loaded.map(\.id), real.map(\.id))
+    }
+
     func testRemoveSidecarsDeletesQuarantineFiles() throws {
         let url = directory.appendingPathComponent("workplace_settings.json")
         let corrupt = url.appendingPathExtension("corrupt")

@@ -14,8 +14,24 @@ final class InMemoryStore: SyncingStore {
     private(set) var lastPurgedSessionIDs: Set<UUID> = []
     var purgeCloudError: Error?
 
+    /// Optional override for `loadSessionsResult()`. When set, `loadSessions()`
+    /// will still hand back `storedSessions` for legacy compat callers, but
+    /// callers using the Result-based API (like `AppViewModel.load`) will see
+    /// the injected outcome — used to simulate transient/corrupt load paths.
+    var sessionsLoadResultOverride: PersistenceLoadResult<[WorkSession]>?
+    /// Optional override for `loadSettingsResult()`; same rationale as
+    /// `sessionsLoadResultOverride`.
+    var settingsLoadResultOverride: PersistenceLoadResult<WorkplaceSettings>?
+
     func loadSessions() -> [WorkSession] {
         storedSessions
+    }
+
+    func loadSessionsResult() -> PersistenceLoadResult<[WorkSession]> {
+        if let override = sessionsLoadResultOverride {
+            return override
+        }
+        return .loaded(storedSessions)
     }
 
     func saveSessions(_ sessions: [WorkSession]) throws {
@@ -25,6 +41,13 @@ final class InMemoryStore: SyncingStore {
 
     func loadSettings() -> WorkplaceSettings {
         storedSettings
+    }
+
+    func loadSettingsResult() -> PersistenceLoadResult<WorkplaceSettings> {
+        if let override = settingsLoadResultOverride {
+            return override
+        }
+        return .loaded(storedSettings)
     }
 
     func saveSettings(_ settings: WorkplaceSettings) throws {

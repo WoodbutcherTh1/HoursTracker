@@ -22,6 +22,16 @@ final class AppViewModel: ObservableObject {
     private let locationCapture = LocationCaptureHelper()
     private var successToastTask: Task<Void, Never>?
 
+    /// Set to `true` when `load()` observed that `sessions.json` exists on disk
+    /// but could not be read (e.g. Data Protection race just after unlock).
+    /// While `true`, `persist()` refuses to write, because saving the current
+    /// (empty) in-memory `sessions` would silently wipe the intact file.
+    /// Cleared by any subsequent load or `syncNow` that returns real data.
+    private var sessionsLoadUnavailable = false
+    /// Same rationale as `sessionsLoadUnavailable`, applied to
+    /// `workplace_settings.json` and `persistSettings()`.
+    private var settingsLoadUnavailable = false
+
     /// Hide the Settings sync section when this build has no CloudKit backend.
     var isCloudSyncSupported: Bool { store.isCloudSyncSupported }
 
@@ -496,6 +506,10 @@ final class AppViewModel: ObservableObject {
                 if let result = try await store.syncNow() {
                     sessions = result.sessions
                     settings = result.settings
+                    // Server-authoritative refresh cleared the "temporarily
+                    // unavailable" state — future persists are safe again.
+                    sessionsLoadUnavailable = false
+                    settingsLoadUnavailable = false
                     refreshReminders()
                 }
                 syncState = store.syncState
@@ -558,11 +572,42 @@ final class AppViewModel: ObservableObject {
     // MARK: - Private
 
     private func load() {
-        sessions = store.loadSessions()
-        settings = store.loadSettings()
+        switch store.loadSessionsResult() {
+        case .loaded(let loaded):
+            sessions = loaded
+            sessionsLoadUnavailable = false
+        case .missing, .corruptQuarantined:
+            sessions = []
+            sessionsLoadUnavailable = false
+        case .temporarilyUnavailable:
+            // Keep the (default empty) in-memory `sessions` value, but flag it
+            // so `persist()` will NOT overwrite the intact-but-unreadable file.
+            sessionsLoadUnavailable = true
+            errorMessage = L10n.errorSaveFailed
+        }
+
+        switch store.loadSettingsResult() {
+        case .loaded(let loaded):
+            settings = loaded
+            settingsLoadUnavailable = false
+        case .missing, .corruptQuarantined:
+            settings = .default
+            settingsLoadUnavailable = false
+        case .temporarilyUnavailable:
+            settingsLoadUnavailable = true
+            errorMessage = L10n.errorSaveFailed
+        }
     }
 
     private func persist() {
+        // Refuse to save when the on-disk file is intact but was unreadable at
+        // load time. Otherwise we would overwrite it with the current (empty
+        // or partial) in-memory `sessions` and silently wipe the user's data.
+        if sessionsLoadUnavailable {
+            errorMessage = L10n.errorSaveFailed
+            refreshReminders()
+            return
+        }
         do {
             try store.saveSessions(sessions)
         } catch {
@@ -572,6 +617,10 @@ final class AppViewModel: ObservableObject {
     }
 
     private func persistSettings() {
+        if settingsLoadUnavailable {
+            errorMessage = L10n.errorSaveFailed
+            return
+        }
         do {
             try store.saveSettings(settings)
         } catch {
