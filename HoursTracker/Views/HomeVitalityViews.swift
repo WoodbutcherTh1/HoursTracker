@@ -709,6 +709,11 @@ struct HomeWeekSparkline: View {
         hours.reduce(0, +)
     }
 
+    static func liveOpenHeightFraction(pulseTime t: Double, index: Int, isToday: Bool) -> Double {
+        let pulse = liveOpenPulse(pulseTime: t, index: index, isToday: isToday)
+        return 0.28 + 0.42 * pulse
+    }
+
     var body: some View {
         VStack(spacing: 10) {
             chart
@@ -736,8 +741,9 @@ struct HomeWeekSparkline: View {
 
             TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
                 let t = timeline.date.timeIntervalSinceReferenceDate
+                let ridgeHeights = ridgeHeightFractions(baseHeights: barHeights, pulseTime: t)
                 let tops = barTopPoints(
-                    heights: barHeights,
+                    heights: ridgeHeights,
                     columnWidth: columnWidth,
                     barMaxHeight: barMaxHeight,
                     chartHeight: geo.size.height
@@ -760,7 +766,7 @@ struct HomeWeekSparkline: View {
                         }
                     }
 
-                    if tops.count > 1, barHeights.contains(where: { $0 > 0 }) {
+                    if tops.count > 1, ridgeHeights.contains(where: { $0 > 0 }) {
                         ridge
                             .stroke(accent.opacity(0.22), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
 
@@ -795,9 +801,9 @@ struct HomeWeekSparkline: View {
     ) -> some View {
         let isToday = highlightedDayIndex == index
         let isLiveOpen = isToday && isTodayShiftOpen
-        let pulse = (sin(t * (isToday ? 3.4 : 2.2) + Double(index) * 0.7) + 1) / 2
+        let pulse = Self.liveOpenPulse(pulseTime: t, index: index, isToday: isToday)
         // Open shift today: breathe the bar instead of showing a misleading empty/00:00 value.
-        let liveFill = 0.28 + 0.42 * pulse
+        let liveFill = Self.liveOpenHeightFraction(pulseTime: t, index: index, isToday: isToday)
         let barHeight = isLiveOpen
             ? CGFloat(liveFill) * barMaxHeight
             : CGFloat(heightFraction) * barMaxHeight
@@ -927,6 +933,17 @@ struct HomeWeekSparkline: View {
     }
 
     /// Tops of bars in chart coordinates (label row sits above the bars).
+    private func ridgeHeightFractions(baseHeights: [Double], pulseTime t: Double) -> [Double] {
+        guard isTodayShiftOpen, let highlightedDayIndex, baseHeights.indices.contains(highlightedDayIndex) else {
+            return baseHeights
+        }
+
+        return baseHeights.enumerated().map { index, fraction in
+            guard index == highlightedDayIndex else { return fraction }
+            return Self.liveOpenHeightFraction(pulseTime: t, index: index, isToday: true)
+        }
+    }
+
     private func barTopPoints(
         heights: [Double],
         columnWidth: CGFloat,
@@ -955,6 +972,10 @@ struct HomeWeekSparkline: View {
             }
         }
         return path
+    }
+
+    private static func liveOpenPulse(pulseTime t: Double, index: Int, isToday: Bool) -> Double {
+        (sin(t * (isToday ? 3.4 : 2.2) + Double(index) * 0.7) + 1) / 2
     }
 
     private func pointAlongPolyline(_ points: [CGPoint], progress: CGFloat) -> CGPoint? {
