@@ -275,23 +275,121 @@ final class AppViewModelTests: XCTestCase {
         XCTAssertTrue(store.storedSessions.isEmpty)
     }
 
-    func testSaveFailureSurfacesErrorMessage() {
+    func testClockInSaveFailureRollsBackOpenSession() {
         let store = InMemoryStore()
         let (viewModel, _) = makeViewModel(store: store)
         store.saveError = NSError(domain: "test", code: 1)
 
-        viewModel.clockIn()
+        let didSave = viewModel.clockIn()
 
+        XCTAssertFalse(didSave)
+        XCTAssertFalse(viewModel.isClockedIn)
+        XCTAssertTrue(viewModel.sessions.isEmpty)
+        XCTAssertTrue(store.storedSessions.isEmpty)
         XCTAssertNotNil(viewModel.errorMessage)
     }
 
-    func testSaveSettingsFailureSurfacesErrorMessage() {
+    func testClockOutSaveFailureRollsBackClosedSessionAndSummary() {
+        let session = TestData.session(day: 1, outHour: nil)
         let store = InMemoryStore()
+        let (viewModel, _) = makeViewModel(sessions: [session], store: store)
+        store.saveError = NSError(domain: "test", code: 1)
+
+        let didSave = viewModel.clockOut()
+
+        XCTAssertFalse(didSave)
+        XCTAssertTrue(viewModel.isClockedIn)
+        XCTAssertEqual(viewModel.sessions, [session])
+        XCTAssertEqual(store.storedSessions, [session])
+        XCTAssertNil(viewModel.lastCompletedBreakdown)
+        XCTAssertNil(viewModel.lastCompletedSessionID)
+        XCTAssertFalse(viewModel.showDaySummary)
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    func testImportSaveFailureRollsBackImportedSessions() {
+        let existing = TestData.session(day: 1)
+        let store = InMemoryStore()
+        let (viewModel, _) = makeViewModel(sessions: [existing], store: store)
+        let draft = ScannedSessionDraft(
+            date: TestData.date(2026, 1, 2),
+            clockIn: TestData.date(2026, 1, 2, 8),
+            clockOut: TestData.date(2026, 1, 2, 17)
+        )
+        store.saveError = NSError(domain: "test", code: 1)
+
+        let count = viewModel.importScannedSessions([draft])
+
+        XCTAssertNil(count)
+        XCTAssertEqual(viewModel.sessions, [existing])
+        XCTAssertEqual(store.storedSessions, [existing])
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    func testDeleteSessionSaveFailureRollsBackDeletedSession() {
+        let session = TestData.session(day: 1)
+        let store = InMemoryStore()
+        let (viewModel, _) = makeViewModel(sessions: [session], store: store)
+        store.saveError = NSError(domain: "test", code: 1)
+
+        let didSave = viewModel.deleteSession(session)
+
+        XCTAssertFalse(didSave)
+        XCTAssertEqual(viewModel.sessions, [session])
+        XCTAssertEqual(store.storedSessions, [session])
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    func testUpdateSessionSaveFailureRollsBackEditedSession() {
+        let session = TestData.session(day: 1, inHour: 8, outHour: 16)
+        let store = InMemoryStore()
+        let (viewModel, _) = makeViewModel(sessions: [session], store: store)
+        store.saveError = NSError(domain: "test", code: 1)
+
+        let didSave = viewModel.updateSession(
+            session,
+            clockIn: TestData.date(2026, 1, 1, 9),
+            clockOut: TestData.date(2026, 1, 1, 18),
+            notes: "edited"
+        )
+
+        XCTAssertFalse(didSave)
+        XCTAssertEqual(viewModel.sessions, [session])
+        XCTAssertEqual(store.storedSessions, [session])
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    func testSaveSettingsFailureRollsBackSettings() {
+        let originalSettings = TestData.settings(hourlyRate: 100)
+        let store = InMemoryStore()
+        store.storedSettings = originalSettings
         let (viewModel, _) = makeViewModel(store: store)
         store.saveError = NSError(domain: "test", code: 1)
 
-        viewModel.saveSettings(TestData.settings())
+        let didSave = viewModel.saveSettings(TestData.settings(hourlyRate: 200))
 
+        XCTAssertFalse(didSave)
+        XCTAssertEqual(viewModel.settings, originalSettings)
+        XCTAssertEqual(store.storedSettings, originalSettings)
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    func testDeleteAllUserDataSaveFailureReloadsPersistedState() {
+        let session = TestData.session(day: 1)
+        let originalSettings = TestData.settings(hourlyRate: 100)
+        let store = InMemoryStore()
+        store.storedSessions = [session]
+        store.storedSettings = originalSettings
+        let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+        store.saveError = NSError(domain: "test", code: 1)
+
+        let didSave = viewModel.deleteAllUserData()
+
+        XCTAssertFalse(didSave)
+        XCTAssertEqual(viewModel.sessions, [session])
+        XCTAssertEqual(viewModel.settings, originalSettings)
+        XCTAssertEqual(store.storedSessions, [session])
+        XCTAssertEqual(store.storedSettings, originalSettings)
         XCTAssertNotNil(viewModel.errorMessage)
     }
 

@@ -492,10 +492,13 @@ struct DaySummarySheet: View {
     private func deleteJustCompletedShift() {
         if let id = viewModel.lastCompletedSessionID,
            let session = viewModel.sessions.first(where: { $0.id == id }) {
-            viewModel.deleteSession(session)
-            viewModel.showSuccessToast(L10n.feedbackSessionDeleted)
+            if viewModel.deleteSession(session) {
+                viewModel.showSuccessToast(L10n.feedbackSessionDeleted)
+                viewModel.dismissDaySummary()
+            }
+        } else {
+            viewModel.dismissDaySummary()
         }
-        viewModel.dismissDaySummary()
     }
 
     private func summaryRow(_ label: String, value: String, bold: Bool = false) -> some View {

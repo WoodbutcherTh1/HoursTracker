@@ -677,12 +677,14 @@ struct BlankTimesheetEntryView: View {
     }
 
     private func commitImport() {
-        appViewModel.importScannedSessions(
+        guard let count = appViewModel.importScannedSessions(
             pendingImportDrafts,
             overwriteDays: overwriteDays,
             markAsAIImported: false
-        )
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        ) else { return }
+        if count > 0 {
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+        }
         dismiss()
     }
 }
