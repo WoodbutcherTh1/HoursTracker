@@ -19,8 +19,13 @@ final class TimesheetScannerViewModel: ObservableObject {
     @Published var showFileImporter = false
     @Published var showCamera = false
     @Published var usedManualFallback = false
+    @Published var processingDetails: ScannerProcessingDetails?
+    @Published var showProcessingDetails = false
+    /// True after the scan job was handed to `AppViewModel` for background work.
+    @Published var handoffToBackground = false
 
-    private let scanner = TimesheetScannerManager.shared
+    /// Weak reference so background handoff can start without retaining the host.
+    weak var appViewModel: AppViewModel?
 
     var selectedCount: Int {
         drafts.filter(\.isSelected).count
@@ -32,7 +37,6 @@ final class TimesheetScannerViewModel: ObservableObject {
         do {
             guard let data = try await item.loadTransferable(type: Data.self),
                   let image = UIImage(data: data) else {
-                // Still offer a blank editable draft instead of a dead-end.
                 applyScanResult(
                     TimesheetScanResult(
                         drafts: [ScannedSessionDraft.blankDraft()],
@@ -42,8 +46,9 @@ final class TimesheetScannerViewModel: ObservableObject {
                 )
                 return
             }
-            let result = try await scanner.scan(image: image)
-            applyScanResult(result)
+            // Hand off to AppViewModel so the user can dismiss and keep using the app.
+            appViewModel?.startScannerImport(image: image)
+            handoffToBackground = true
         } catch {
             phase = .failed(error.localizedDescription)
         }
@@ -51,12 +56,8 @@ final class TimesheetScannerViewModel: ObservableObject {
 
     func processCameraImage(_ image: UIImage) async {
         phase = .processing
-        do {
-            let result = try await scanner.scan(image: image)
-            applyScanResult(result)
-        } catch {
-            phase = .failed(error.localizedDescription)
-        }
+        appViewModel?.startScannerImport(image: image)
+        handoffToBackground = true
     }
 
     func processFile(url: URL) async {
@@ -66,16 +67,26 @@ final class TimesheetScannerViewModel: ObservableObject {
             if accessed { url.stopAccessingSecurityScopedResource() }
         }
         do {
-            let result = try await scanner.scan(fileURL: url)
-            applyScanResult(result)
+            // Copy while scoped access is held — background work must not rely on the picker URL.
+            let ext = url.pathExtension.isEmpty ? "bin" : url.pathExtension
+            let tempURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("scanner-import-\(UUID().uuidString).\(ext)")
+            if FileManager.default.fileExists(atPath: tempURL.path) {
+                try FileManager.default.removeItem(at: tempURL)
+            }
+            try FileManager.default.copyItem(at: url, to: tempURL)
+            appViewModel?.startScannerImport(fileURL: tempURL)
+            handoffToBackground = true
         } catch {
             phase = .failed(error.localizedDescription)
         }
     }
 
-    private func applyScanResult(_ result: TimesheetScanResult) {
+    func applyScanResult(_ result: TimesheetScanResult) {
         drafts = result.drafts
         usedManualFallback = result.usedManualFallback
+        processingDetails = result.processingDetails
+        handoffToBackground = false
         phase = .review
     }
 
@@ -100,6 +111,9 @@ final class TimesheetScannerViewModel: ObservableObject {
         photoItem = nil
         editingDraft = nil
         usedManualFallback = false
+        processingDetails = nil
+        showProcessingDetails = false
+        handoffToBackground = false
     }
 }
 
@@ -107,6 +121,9 @@ struct TimesheetScannerView: View {
     @ObservedObject var appViewModel: AppViewModel
     @StateObject private var scannerVM = TimesheetScannerViewModel()
     @Environment(\.dismiss) private var dismiss
+
+    /// When opened from a finished background job, jump straight to review.
+    var initialResult: TimesheetScanResult? = nil
 
     @State private var conflictQueue: [Date] = []
     @State private var allConflictDates: [Date] = []
@@ -130,11 +147,28 @@ struct TimesheetScannerView: View {
     var body: some View {
         NavigationStack {
             phaseContent
-                .navigationTitle(AppLocale.tr("scanner.title"))
+                .navigationTitle(L10n.scannerTitle)
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar { cancelToolbar }
+                .onAppear {
+                    scannerVM.appViewModel = appViewModel
+                    if let initialResult, scannerVM.phase == .pick {
+                        scannerVM.applyScanResult(initialResult)
+                    }
+                }
                 .onChange(of: scannerVM.photoItem) { _, item in
                     Task { await scannerVM.processPhotoItem(item) }
+                }
+                .onChange(of: scannerVM.handoffToBackground) { _, handedOff in
+                    if handedOff {
+                        // Close picker immediately — processing continues on AppViewModel.
+                        dismiss()
+                    }
+                }
+                .onChange(of: appViewModel.scannerImportPhase) { _, phase in
+                    if case .failed(let message) = phase, scannerVM.phase == .processing {
+                        scannerVM.phase = .failed(message)
+                    }
                 }
                 .fileImporter(
                     isPresented: $scannerVM.showFileImporter,
@@ -162,6 +196,11 @@ struct TimesheetScannerView: View {
                         scannerVM.updateDraft(updated)
                     }
                 }
+                .sheet(isPresented: $scannerVM.showProcessingDetails) {
+                    if let details = scannerVM.processingDetails {
+                        ScannerProcessingDetailsSheet(details: details)
+                    }
+                }
                 .overlay { conflictOverlay }
         }
     }
@@ -183,8 +222,18 @@ struct TimesheetScannerView: View {
     @ToolbarContentBuilder
     private var cancelToolbar: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            Button(AppLocale.tr("edit.cancel")) {
+            Button(L10n.editCancel) {
                 dismiss()
+            }
+        }
+        if scannerVM.phase == .review, scannerVM.processingDetails != nil {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    scannerVM.showProcessingDetails = true
+                } label: {
+                    Image(systemName: "info.circle")
+                }
+                .accessibilityLabel(L10n.scannerProcessingDetails)
             }
         }
     }
@@ -262,6 +311,7 @@ struct TimesheetScannerView: View {
         if count > 0 {
             appViewModel.showSuccessToast(L10n.feedbackImported(count))
         }
+        appViewModel.clearScannerImport()
         dismiss()
     }
 
@@ -272,7 +322,7 @@ struct TimesheetScannerView: View {
                 .foregroundStyle(.tint)
                 .symbolRenderingMode(.hierarchical)
 
-            Text(AppLocale.tr("scanner.subtitle"))
+            Text(L10n.scannerSubtitle)
                 .font(.body)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
@@ -284,7 +334,7 @@ struct TimesheetScannerView: View {
                     matching: .images
                 ) {
                     Label(
-                        AppLocale.tr("scanner.photoLibrary"),
+                        L10n.scannerPhotoLibrary,
                         systemImage: "photo.on.rectangle"
                     )
                     .frame(maxWidth: .infinity)
@@ -296,7 +346,7 @@ struct TimesheetScannerView: View {
                     scannerVM.showCamera = true
                 } label: {
                     Label(
-                        AppLocale.tr("scanner.camera"),
+                        L10n.scannerCamera,
                         systemImage: "camera.fill"
                     )
                     .frame(maxWidth: .infinity)
@@ -308,7 +358,7 @@ struct TimesheetScannerView: View {
                     scannerVM.showFileImporter = true
                 } label: {
                     Label(
-                        AppLocale.tr("scanner.file"),
+                        L10n.scannerFile,
                         systemImage: "folder"
                     )
                     .frame(maxWidth: .infinity)
@@ -326,13 +376,22 @@ struct TimesheetScannerView: View {
     private var processingView: some View {
         VStack(spacing: 24) {
             ScannerSkeletonView()
-            Text(AppLocale.tr("scanner.analyzing"))
+            Text(L10n.scannerAnalyzing)
                 .font(.headline)
-            Text(AppLocale.tr("scanner.analyzingHint"))
+            Text(L10n.scannerAnalyzingHint)
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
+            Text(L10n.scannerBackgroundHint)
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 32)
+            Button(L10n.scannerContinueInBackground) {
+                dismiss()
+            }
+            .buttonStyle(.bordered)
             Spacer()
         }
         .padding(.top, 48)
@@ -341,7 +400,7 @@ struct TimesheetScannerView: View {
     private var reviewView: some View {
         VStack(spacing: 0) {
             if scannerVM.usedManualFallback {
-                Text(AppLocale.tr("scanner.fallbackBanner"))
+                Text(L10n.scannerFallbackBanner)
                     .font(.footnote)
                     .foregroundStyle(.orange)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -368,14 +427,14 @@ struct TimesheetScannerView: View {
                         scannerVM.addBlankRow()
                     } label: {
                         Label(
-                            AppLocale.tr("scanner.addRow"),
+                            L10n.scannerAddRow,
                             systemImage: "plus.circle"
                         )
                     }
                 } header: {
-                    Text(AppLocale.tr("scanner.reviewHeader"))
+                    Text(L10n.scannerReviewHeader)
                 } footer: {
-                    Text(AppLocale.tr("scanner.reviewFooter"))
+                    Text(L10n.scannerReviewFooter)
                 }
             }
             .listStyle(.insetGrouped)
@@ -383,7 +442,7 @@ struct TimesheetScannerView: View {
             Button {
                 beginApproveFlow()
             } label: {
-                Text("\(AppLocale.tr("scanner.approve")) (\(scannerVM.selectedCount))")
+                Text("\(L10n.scannerApprove) (\(scannerVM.selectedCount))")
                     .font(.headline)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
@@ -397,17 +456,60 @@ struct TimesheetScannerView: View {
     private func failedView(_ message: String) -> some View {
         ContentUnavailableView {
             Label(
-                AppLocale.tr("scanner.failed"),
+                L10n.scannerFailed,
                 systemImage: "exclamationmark.triangle"
             )
         } description: {
             Text(message)
         } actions: {
-            Button(AppLocale.tr("scanner.tryAgain")) {
+            Button(L10n.scannerTryAgain) {
                 scannerVM.reset()
             }
             .buttonStyle(.borderedProminent)
         }
+    }
+}
+
+struct ScannerProcessingDetailsSheet: View {
+    let details: ScannerProcessingDetails
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section(L10n.scannerProcessingProvider) {
+                    Text(details.providerName)
+                }
+                Section {
+                    LabeledContent(L10n.scannerProcessingAccepted) {
+                        Text("\(details.acceptedCount)")
+                    }
+                    LabeledContent(L10n.scannerNeedsEdit) {
+                        Text("\(details.reviewCount)")
+                    }
+                    LabeledContent(L10n.scannerProcessingRejected) {
+                        Text("\(details.rejectedCount)")
+                    }
+                }
+                if !details.notes.isEmpty {
+                    Section {
+                        ForEach(Array(details.notes.enumerated()), id: \.offset) { _, note in
+                            Text(note)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+            .navigationTitle(L10n.scannerProcessingDetails)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) {
+                    Button(L10n.errorOK) { dismiss() }
+                }
+            }
+        }
+        .presentationDetents([.medium, .large])
     }
 }
 
@@ -434,7 +536,7 @@ struct ScannedDraftRow: View {
                             .font(.headline)
                             .foregroundStyle(.primary)
                         if draft.needsManualReview {
-                            Text(AppLocale.tr("scanner.needsEdit"))
+                            Text(L10n.scannerNeedsEdit)
                                 .font(.caption2.weight(.semibold))
                                 .padding(.horizontal, 6)
                                 .padding(.vertical, 2)
@@ -475,37 +577,37 @@ struct ScannedDraftEditor: View {
         NavigationStack {
             Form {
                 DatePicker(
-                    AppLocale.tr("manual.workDay"),
+                    L10n.manualWorkDay,
                     selection: $draft.date,
                     displayedComponents: .date
                 )
                 DatePicker(
-                    AppLocale.tr("edit.clockIn"),
+                    L10n.editClockIn,
                     selection: $draft.clockIn,
                     displayedComponents: [.date, .hourAndMinute]
                 )
                 DatePicker(
-                    AppLocale.tr("edit.clockOut"),
+                    L10n.editClockOut,
                     selection: $draft.clockOut,
                     displayedComponents: [.date, .hourAndMinute]
                 )
                 TextField(
-                    AppLocale.tr("edit.notesPlaceholder"),
+                    L10n.editNotesPlaceholder,
                     text: Binding(
                         get: { draft.notes ?? "" },
                         set: { draft.notes = $0.isEmpty ? nil : $0 }
                     )
                 )
             }
-            .navigationTitle(AppLocale.tr("scanner.editRow"))
+            .navigationTitle(L10n.scannerEditRow)
             .navigationBarTitleDisplayMode(.inline)
             .keyboardDismissible()
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(AppLocale.tr("edit.cancel")) { dismiss() }
+                    Button(L10n.editCancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(AppLocale.tr("edit.save")) {
+                    Button(L10n.editSave) {
                         var updated = draft
                         let resolved = WorkSession.resolveClockPair(
                             clockIn: draft.clockIn,
@@ -513,6 +615,7 @@ struct ScannedDraftEditor: View {
                         )
                         updated.clockIn = resolved.clockIn
                         updated.clockOut = resolved.clockOut
+                        updated.needsManualReview = false
                         onSave(updated)
                         dismiss()
                     }

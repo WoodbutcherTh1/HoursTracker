@@ -82,6 +82,40 @@ enum L10n {
     static var historyPayGross: String { t("history.payGross") }
     static var historyDayHasShifts: String { t("history.dayHasShifts") }
 
+    // Timesheet scanner
+    static var scannerTitle: String { t("scanner.title") }
+    static var scannerSubtitle: String { t("scanner.subtitle") }
+    static var scannerPhotoLibrary: String { t("scanner.photoLibrary") }
+    static var scannerCamera: String { t("scanner.camera") }
+    static var scannerFile: String { t("scanner.file") }
+    static var scannerAnalyzing: String { t("scanner.analyzing") }
+    static var scannerAnalyzingHint: String { t("scanner.analyzingHint") }
+    static var scannerFallbackBanner: String { t("scanner.fallbackBanner") }
+    static var scannerAddRow: String { t("scanner.addRow") }
+    static var scannerReviewHeader: String { t("scanner.reviewHeader") }
+    static var scannerReviewFooter: String { t("scanner.reviewFooter") }
+    static var scannerApprove: String { t("scanner.approve") }
+    static var scannerFailed: String { t("scanner.failed") }
+    static var scannerTryAgain: String { t("scanner.tryAgain") }
+    static var scannerNeedsEdit: String { t("scanner.needsEdit") }
+    static var scannerEditRow: String { t("scanner.editRow") }
+    static var scannerImportedNote: String { t("scanner.importedNote") }
+    static var scannerManualDraftNote: String { t("scanner.manualDraftNote") }
+    static var scannerProcessingDetails: String { t("scanner.processingDetails") }
+    static var scannerProcessingProvider: String { t("scanner.processingProvider") }
+    static var scannerProcessingAccepted: String { t("scanner.processingAccepted") }
+    static var scannerProcessingRejected: String { t("scanner.processingRejected") }
+    static var scannerCloudEnabled: String { t("scanner.cloudEnabled") }
+    static var scannerCloudPrivacyNotice: String { t("scanner.cloudPrivacyNotice") }
+    static var scannerGeminiAPIKey: String { t("scanner.geminiAPIKey") }
+    static var scannerGeminiAPIKeyHint: String { t("scanner.geminiAPIKeyHint") }
+    static var scannerSecondaryAPIKey: String { t("scanner.secondaryAPIKey") }
+    static var scannerSecondaryAPIKeyHint: String { t("scanner.secondaryAPIKeyHint") }
+    static var scannerSection: String { t("scanner.section") }
+    static var scannerReadyForReview: String { t("scanner.readyForReview") }
+    static var scannerContinueInBackground: String { t("scanner.continueInBackground") }
+    static var scannerBackgroundHint: String { t("scanner.backgroundHint") }
+
     static var scannerConflictTitle: String { t("scanner.conflictTitle") }
     static var scannerConflictReplace: String { t("scanner.conflictReplace") }
     static var scannerConflictKeep: String { t("scanner.conflictKeep") }
