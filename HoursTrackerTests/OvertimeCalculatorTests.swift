@@ -160,6 +160,19 @@ final class PayrollPeriodTests: XCTestCase {
 }
 
 final class TimesheetScannerParserTests: XCTestCase {
+    private func assertDate(_ date: Date, year: Int, month: Int, day: Int, file: StaticString = #filePath, line: UInt = #line) {
+        let components = Calendar.current.dateComponents([.year, .month, .day], from: date)
+        XCTAssertEqual(components.year, year, file: file, line: line)
+        XCTAssertEqual(components.month, month, file: file, line: line)
+        XCTAssertEqual(components.day, day, file: file, line: line)
+    }
+
+    private func assertClock(_ date: Date, hour: Int, minute: Int, file: StaticString = #filePath, line: UInt = #line) {
+        let components = Calendar.current.dateComponents([.hour, .minute], from: date)
+        XCTAssertEqual(components.hour, hour, file: file, line: line)
+        XCTAssertEqual(components.minute, minute, file: file, line: line)
+    }
+
     func testParseLineOrientedTimesheet() async throws {
         let text = """
         Date In Out
@@ -190,6 +203,37 @@ final class TimesheetScannerParserTests: XCTestCase {
         """
         let drafts = await TimesheetScannerManager.shared.parseSessions(from: text)
         XCTAssertGreaterThanOrEqual(drafts.count, 2)
+    }
+
+    func testDottedShortYearDatePrefixDoesNotShiftClockPairs() async throws {
+        let text = """
+        08.07.26 07:19 17:09
+        12.07.26 07:24 18:05
+        """
+
+        let drafts = await TimesheetScannerManager.shared.parseSessions(from: text)
+
+        XCTAssertEqual(drafts.count, 2)
+        assertDate(drafts[0].date, year: 2026, month: 7, day: 8)
+        assertClock(drafts[0].clockIn, hour: 7, minute: 19)
+        assertClock(drafts[0].clockOut, hour: 17, minute: 9)
+        assertDate(drafts[1].date, year: 2026, month: 7, day: 12)
+        assertClock(drafts[1].clockIn, hour: 7, minute: 24)
+        assertClock(drafts[1].clockOut, hour: 18, minute: 5)
+    }
+
+    func testTimeOnlyLineStillPairsWithSplitDate() async throws {
+        let text = """
+        08.07.26
+        07:19 17:09
+        """
+
+        let drafts = await TimesheetScannerManager.shared.parseSessions(from: text)
+
+        XCTAssertEqual(drafts.count, 1)
+        assertDate(drafts[0].date, year: 2026, month: 7, day: 8)
+        assertClock(drafts[0].clockIn, hour: 7, minute: 19)
+        assertClock(drafts[0].clockOut, hour: 17, minute: 9)
     }
 
     func testFallbackWhenNoSessions() async throws {
