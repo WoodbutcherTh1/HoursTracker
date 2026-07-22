@@ -31,7 +31,7 @@ final class TimesheetScannerViewModel: ObservableObject {
         drafts.filter(\.isSelected).count
     }
 
-    func processPhotoItem(_ item: PhotosPickerItem?) async {
+    func processPhotoItem(_ item: PhotosPickerItem?, handOffToBackground: Bool = true) async {
         guard let item else { return }
         phase = .processing
         do {
@@ -46,37 +46,56 @@ final class TimesheetScannerViewModel: ObservableObject {
                 )
                 return
             }
-            // Hand off to AppViewModel so the user can dismiss and keep using the app.
-            appViewModel?.startScannerImport(image: image)
-            handoffToBackground = true
+            if handOffToBackground {
+                // Hand off to AppViewModel so the user can dismiss and keep using the app.
+                appViewModel?.startScannerImport(image: image)
+                handoffToBackground = true
+            } else {
+                let result = try await TimesheetScannerManager.shared.scan(image: image)
+                applyScanResult(result)
+            }
         } catch {
             phase = .failed(error.localizedDescription)
         }
     }
 
-    func processCameraImage(_ image: UIImage) async {
+    func processCameraImage(_ image: UIImage, handOffToBackground: Bool = true) async {
         phase = .processing
-        appViewModel?.startScannerImport(image: image)
-        handoffToBackground = true
+        if handOffToBackground {
+            appViewModel?.startScannerImport(image: image)
+            handoffToBackground = true
+        } else {
+            do {
+                let result = try await TimesheetScannerManager.shared.scan(image: image)
+                applyScanResult(result)
+            } catch {
+                phase = .failed(error.localizedDescription)
+            }
+        }
     }
 
-    func processFile(url: URL) async {
+    func processFile(url: URL, handOffToBackground: Bool = true) async {
         phase = .processing
         let accessed = url.startAccessingSecurityScopedResource()
         defer {
             if accessed { url.stopAccessingSecurityScopedResource() }
         }
         do {
-            // Copy while scoped access is held — background work must not rely on the picker URL.
-            let ext = url.pathExtension.isEmpty ? "bin" : url.pathExtension
-            let tempURL = FileManager.default.temporaryDirectory
-                .appendingPathComponent("scanner-import-\(UUID().uuidString).\(ext)")
-            if FileManager.default.fileExists(atPath: tempURL.path) {
-                try FileManager.default.removeItem(at: tempURL)
+            if handOffToBackground {
+                // Copy while scoped access is held — background work must not rely on the picker URL.
+                let ext = url.pathExtension.isEmpty ? "bin" : url.pathExtension
+                let tempURL = FileManager.default.temporaryDirectory
+                    .appendingPathComponent("scanner-import-\(UUID().uuidString).\(ext)")
+                if FileManager.default.fileExists(atPath: tempURL.path) {
+                    try FileManager.default.removeItem(at: tempURL)
+                }
+                try FileManager.default.copyItem(at: url, to: tempURL)
+                appViewModel?.startScannerImport(fileURL: tempURL)
+                handoffToBackground = true
+            } else {
+                let result = try await TimesheetScannerManager.shared.scan(fileURL: url)
+                applyScanResult(result)
             }
-            try FileManager.default.copyItem(at: url, to: tempURL)
-            appViewModel?.startScannerImport(fileURL: tempURL)
-            handoffToBackground = true
         } catch {
             phase = .failed(error.localizedDescription)
         }
@@ -124,6 +143,8 @@ struct TimesheetScannerView: View {
 
     /// When opened from a finished background job, jump straight to review.
     var initialResult: TimesheetScanResult? = nil
+    /// When supplied, scanner approval returns drafts to the host instead of writing sessions.
+    var onConfirmedDrafts: (([ScannedSessionDraft]) -> Void)? = nil
 
     @State private var conflictQueue: [Date] = []
     @State private var allConflictDates: [Date] = []
@@ -144,6 +165,10 @@ struct TimesheetScannerView: View {
         AppLocale.makeDateFormatter(timeStyle: .short)
     }
 
+    private var returnsConfirmedDraftsToCaller: Bool {
+        onConfirmedDrafts != nil
+    }
+
     var body: some View {
         NavigationStack {
             phaseContent
@@ -157,7 +182,12 @@ struct TimesheetScannerView: View {
                     }
                 }
                 .onChange(of: scannerVM.photoItem) { _, item in
-                    Task { await scannerVM.processPhotoItem(item) }
+                    Task {
+                        await scannerVM.processPhotoItem(
+                            item,
+                            handOffToBackground: !returnsConfirmedDraftsToCaller
+                        )
+                    }
                 }
                 .onChange(of: scannerVM.handoffToBackground) { _, handedOff in
                     if handedOff {
@@ -166,7 +196,9 @@ struct TimesheetScannerView: View {
                     }
                 }
                 .onChange(of: appViewModel.scannerImportPhase) { _, phase in
-                    if case .failed(let message) = phase, scannerVM.phase == .processing {
+                    if !returnsConfirmedDraftsToCaller,
+                       case .failed(let message) = phase,
+                       scannerVM.phase == .processing {
                         scannerVM.phase = .failed(message)
                     }
                 }
@@ -183,12 +215,22 @@ struct TimesheetScannerView: View {
                     allowsMultipleSelection: false
                 ) { result in
                     if case .success(let urls) = result, let url = urls.first {
-                        Task { await scannerVM.processFile(url: url) }
+                        Task {
+                            await scannerVM.processFile(
+                                url: url,
+                                handOffToBackground: !returnsConfirmedDraftsToCaller
+                            )
+                        }
                     }
                 }
                 .fullScreenCover(isPresented: $scannerVM.showCamera) {
                     CameraPickerView { image in
-                        Task { await scannerVM.processCameraImage(image) }
+                        Task {
+                            await scannerVM.processCameraImage(
+                                image,
+                                handOffToBackground: !returnsConfirmedDraftsToCaller
+                            )
+                        }
                     }
                 }
                 .sheet(item: $scannerVM.editingDraft) { draft in
@@ -270,6 +312,10 @@ struct TimesheetScannerView: View {
         guard !selected.isEmpty else { return }
         pendingImportDrafts = selected
         overwriteDays = []
+        guard onConfirmedDrafts == nil else {
+            commitImport()
+            return
+        }
         conflictQueue = appViewModel.conflictingDays(for: selected)
         allConflictDates = conflictQueue
         if conflictQueue.isEmpty {
@@ -306,6 +352,12 @@ struct TimesheetScannerView: View {
     }
 
     private func commitImport() {
+        if let onConfirmedDrafts {
+            onConfirmedDrafts(pendingImportDrafts)
+            UINotificationFeedbackGenerator().notificationOccurred(.success)
+            dismiss()
+            return
+        }
         let count = appViewModel.importScannedSessions(pendingImportDrafts, overwriteDays: overwriteDays)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         if count > 0 {
@@ -383,15 +435,17 @@ struct TimesheetScannerView: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 32)
-            Text(L10n.scannerBackgroundHint)
-                .font(.footnote)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 32)
-            Button(L10n.scannerContinueInBackground) {
-                dismiss()
+            if !returnsConfirmedDraftsToCaller {
+                Text(L10n.scannerBackgroundHint)
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 32)
+                Button(L10n.scannerContinueInBackground) {
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.bordered)
             Spacer()
         }
         .padding(.top, 48)
