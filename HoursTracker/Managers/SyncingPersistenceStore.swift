@@ -51,6 +51,10 @@ final class SyncingPersistenceStore: SyncingStore {
         local.loadSessions()
     }
 
+    func loadSessionsResult() -> PersistenceLoadResult<[WorkSession]> {
+        local.loadSessionsResult()
+    }
+
     func saveSessions(_ sessions: [WorkSession]) throws {
         let previous = local.loadSessions()
         let previousByID = Dictionary(uniqueKeysWithValues: previous.map { ($0.id, $0) })
@@ -75,6 +79,10 @@ final class SyncingPersistenceStore: SyncingStore {
 
     func loadSettings() -> WorkplaceSettings {
         local.loadSettings()
+    }
+
+    func loadSettingsResult() -> PersistenceLoadResult<WorkplaceSettings> {
+        local.loadSettingsResult()
     }
 
     func saveSettings(_ settings: WorkplaceSettings) throws {
@@ -109,8 +117,33 @@ final class SyncingPersistenceStore: SyncingStore {
 
         syncState = .syncing
         tombstones.prune()
-        let localSessions = local.loadSessions()
-        let localSettings = local.loadSettings()
+
+        // Refuse to sync when either local store is intact-but-unreadable. If we
+        // proceeded here, we would merge remote against an empty local and then
+        // `saveSessions([])` would overwrite the real file with an empty array
+        // once Data Protection released the class key. That is exactly the
+        // silent-wipe path the load-result contract exists to prevent.
+        let sessionsOutcome = local.loadSessionsResult()
+        let settingsOutcome = local.loadSettingsResult()
+        if case .temporarilyUnavailable = sessionsOutcome {
+            let error = PersistenceLoadError.temporarilyUnavailable
+            syncState = .failed(error.localizedDescription)
+            throw error
+        }
+        if case .temporarilyUnavailable = settingsOutcome {
+            let error = PersistenceLoadError.temporarilyUnavailable
+            syncState = .failed(error.localizedDescription)
+            throw error
+        }
+
+        let localSessions: [WorkSession] = {
+            if case .loaded(let s) = sessionsOutcome { return s }
+            return []
+        }()
+        let localSettings: WorkplaceSettings = {
+            if case .loaded(let s) = settingsOutcome { return s }
+            return .default
+        }()
         let deleted = tombstones.tombstoneIDs
 
         do {
@@ -126,6 +159,21 @@ final class SyncingPersistenceStore: SyncingStore {
         } catch {
             syncState = .failed(error.localizedDescription)
             throw error
+        }
+    }
+}
+
+/// Errors surfaced by the persistence layer to callers that need to distinguish
+/// "no data yet" from "data exists on disk but temporarily unreadable".
+enum PersistenceLoadError: LocalizedError {
+    /// Every read attempt for an existing on-disk store failed. Callers must
+    /// NOT overwrite the file with defaults; the intact bytes are still there.
+    case temporarilyUnavailable
+
+    var errorDescription: String? {
+        switch self {
+        case .temporarilyUnavailable:
+            return "The local store is temporarily unavailable (device may still be unlocking)."
         }
     }
 }

@@ -5,6 +5,21 @@ protocol FileWriting {
     func write(_ data: Data, to url: URL) throws
 }
 
+/// Seam for reading store bytes so tests can inject transient I/O failures.
+///
+/// Kept intentionally minimal: production code just forwards to `Data(contentsOf:)`.
+protocol DataReading {
+    func read(from url: URL) throws -> Data
+}
+
+struct DefaultDataReader: DataReading {
+    static let shared = DefaultDataReader()
+
+    func read(from url: URL) throws -> Data {
+        try Data(contentsOf: url)
+    }
+}
+
 /// Atomic writes with complete file protection while the file is closed.
 /// Files remain readable by this process while open (`.completeFileProtectionUnlessOpen`).
 struct ProtectedFileWriter: FileWriting {

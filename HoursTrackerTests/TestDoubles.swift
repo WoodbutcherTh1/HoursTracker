@@ -14,8 +14,24 @@ final class InMemoryStore: SyncingStore {
     private(set) var lastPurgedSessionIDs: Set<UUID> = []
     var purgeCloudError: Error?
 
+    /// Optional override for `loadSessionsResult()`. When set, `loadSessions()`
+    /// will still hand back `storedSessions` for legacy compat callers, but
+    /// callers using the Result-based API (like `AppViewModel.load`) will see
+    /// the injected outcome — used to simulate transient/corrupt load paths.
+    var sessionsLoadResultOverride: PersistenceLoadResult<[WorkSession]>?
+    /// Optional override for `loadSettingsResult()`; same rationale as
+    /// `sessionsLoadResultOverride`.
+    var settingsLoadResultOverride: PersistenceLoadResult<WorkplaceSettings>?
+
     func loadSessions() -> [WorkSession] {
         storedSessions
+    }
+
+    func loadSessionsResult() -> PersistenceLoadResult<[WorkSession]> {
+        if let override = sessionsLoadResultOverride {
+            return override
+        }
+        return .loaded(storedSessions)
     }
 
     func saveSessions(_ sessions: [WorkSession]) throws {
@@ -25,6 +41,13 @@ final class InMemoryStore: SyncingStore {
 
     func loadSettings() -> WorkplaceSettings {
         storedSettings
+    }
+
+    func loadSettingsResult() -> PersistenceLoadResult<WorkplaceSettings> {
+        if let override = settingsLoadResultOverride {
+            return override
+        }
+        return .loaded(storedSettings)
     }
 
     func saveSettings(_ settings: WorkplaceSettings) throws {
@@ -159,6 +182,28 @@ final class RecordingCloud: CloudSyncing {
         if let purgeError { throw purgeError }
         deletedIDBatches.append(sessionIDs)
         onDelete?()
+    }
+}
+
+/// Scripted `DataReading` seam: fails a caller-supplied sequence of times before
+/// falling through to the on-disk contents. Used to exercise the transient
+/// retry path in `PersistenceManager.load` without depending on real
+/// Data-Protection races.
+final class ScriptedDataReader: DataReading {
+    private var pendingFailures: [Error]
+    private(set) var attempts = 0
+
+    init(failures: [Error]) {
+        self.pendingFailures = failures
+    }
+
+    func read(from url: URL) throws -> Data {
+        attempts += 1
+        if !pendingFailures.isEmpty {
+            let error = pendingFailures.removeFirst()
+            throw error
+        }
+        return try Data(contentsOf: url)
     }
 }
 
