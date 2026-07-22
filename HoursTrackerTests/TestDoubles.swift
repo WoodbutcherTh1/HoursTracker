@@ -9,8 +9,11 @@ final class InMemoryStore: SyncingStore {
     var syncState: SyncState = .idle
     var isCloudSyncSupported = false
     var isICloudSyncEnabled = false
+    var syncResult: SyncResult?
+    var beforeSyncReturns: (() async -> Void)?
     private(set) var saveSettingsLocallyCallCount = 0
     private(set) var purgeCloudCallCount = 0
+    private(set) var syncCallCount = 0
     private(set) var lastPurgedSessionIDs: Set<UUID> = []
     var purgeCloudError: Error?
 
@@ -44,7 +47,13 @@ final class InMemoryStore: SyncingStore {
     }
 
     func syncNow() async throws -> SyncResult? {
-        nil
+        syncCallCount += 1
+        syncState = .syncing
+        if let beforeSyncReturns {
+            await beforeSyncReturns()
+        }
+        syncState = .synced(Date())
+        return syncResult
     }
 }
 
@@ -118,9 +127,12 @@ final class RecordingCloud: CloudSyncing {
     private(set) var deletedIDBatches: [Set<UUID>] = []
     private(set) var purgeCallCount = 0
     private(set) var lastPurgedSessionIDs: Set<UUID> = []
+    private(set) var syncCallCount = 0
     var purgeError: Error?
     var onUpload: (() -> Void)?
     var onDelete: (() -> Void)?
+    var beforeSyncReturns: (() async -> Void)?
+    var syncResultProvider: (([WorkSession], WorkplaceSettings, Set<UUID>) -> SyncResult)?
 
     func checkAvailability() async -> Bool {
         true
@@ -131,6 +143,13 @@ final class RecordingCloud: CloudSyncing {
         localSettings: WorkplaceSettings,
         tombstoneIDs: Set<UUID>
     ) async throws -> SyncResult {
+        syncCallCount += 1
+        if let beforeSyncReturns {
+            await beforeSyncReturns()
+        }
+        if let syncResultProvider {
+            return syncResultProvider(localSessions, localSettings, tombstoneIDs)
+        }
         let sessions = CloudKitSyncManager.mergeSessions(
             local: localSessions,
             remote: [],
