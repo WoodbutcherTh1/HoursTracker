@@ -21,6 +21,7 @@ final class AppViewModel: ObservableObject {
     private let exportManager = ExportManager()
     private let locationCapture = LocationCaptureHelper()
     private var successToastTask: Task<Void, Never>?
+    private var stateRevision = 0
 
     /// Hide the Settings sync section when this build has no CloudKit backend.
     var isCloudSyncSupported: Bool { store.isCloudSyncSupported }
@@ -426,6 +427,7 @@ final class AppViewModel: ObservableObject {
         let cloudSessionIDs = Set(sessions.map(\.id))
         sessions = []
         settings = .default
+        stateRevision += 1
         do {
             try store.saveSessions(sessions)
             // Avoid re-uploading default settings; cloud purge removes the record instead.
@@ -490,15 +492,25 @@ final class AppViewModel: ObservableObject {
     func syncNow() {
         guard isICloudSyncEnabled else { return }
         guard !isSyncing else { return }
+        let revisionAtSyncStart = stateRevision
         syncState = .syncing
         Task {
             do {
+                var needsFollowUpSync = false
                 if let result = try await store.syncNow() {
-                    sessions = result.sessions
-                    settings = result.settings
-                    refreshReminders()
+                    if stateRevision == revisionAtSyncStart {
+                        sessions = result.sessions
+                        settings = result.settings
+                        stateRevision += 1
+                        refreshReminders()
+                    } else {
+                        needsFollowUpSync = true
+                    }
                 }
                 syncState = store.syncState
+                if needsFollowUpSync {
+                    syncNow()
+                }
             } catch {
                 syncState = store.syncState
             }
@@ -563,6 +575,7 @@ final class AppViewModel: ObservableObject {
     }
 
     private func persist() {
+        stateRevision += 1
         do {
             try store.saveSessions(sessions)
         } catch {
@@ -572,6 +585,7 @@ final class AppViewModel: ObservableObject {
     }
 
     private func persistSettings() {
+        stateRevision += 1
         do {
             try store.saveSettings(settings)
         } catch {

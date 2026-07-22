@@ -125,4 +125,65 @@ final class SyncingPersistenceStoreTests: XCTestCase {
         XCTAssertEqual(tombstones.tombstoneIDs, [removed.id])
         XCTAssertTrue(cloud.deletedIDBatches.isEmpty)
     }
+
+    func testSyncRetriesWithLatestLocalDataWhenSaveFinishesDuringSync() async throws {
+        let originalModifiedAt = TestData.date(2026, 1, 1, 8)
+        let original = TestData.session(day: 1, outHour: nil, modifiedAt: originalModifiedAt)
+        var initialSettings = TestData.settings(hourlyRate: 100)
+        initialSettings.modifiedAt = originalModifiedAt
+        local.storedSessions = [original]
+        local.storedSettings = initialSettings
+        cloud.syncResultProvider = { localSessions, localSettings, _ in
+            SyncResult(sessions: localSessions, settings: localSettings)
+        }
+
+        let firstSyncPaused = expectation(description: "first sync paused before returning")
+        let lock = NSLock()
+        var shouldPauseFirstSync = true
+        var resumeFirstSync: CheckedContinuation<Void, Never>?
+        cloud.beforeSyncReturns = {
+            lock.lock()
+            guard shouldPauseFirstSync else {
+                lock.unlock()
+                return
+            }
+            shouldPauseFirstSync = false
+            lock.unlock()
+
+            await withCheckedContinuation { continuation in
+                lock.lock()
+                resumeFirstSync = continuation
+                lock.unlock()
+                firstSyncPaused.fulfill()
+            }
+        }
+
+        let syncTask = Task {
+            try await store.syncNow()
+        }
+        await fulfillment(of: [firstSyncPaused], timeout: 2)
+
+        var closed = original
+        closed.clockOut = TestData.date(2026, 1, 1, 17)
+        closed.modifiedAt = originalModifiedAt.addingTimeInterval(60)
+        var editedSettings = initialSettings
+        editedSettings.hourlyRate = 200
+        editedSettings.modifiedAt = originalModifiedAt.addingTimeInterval(60)
+        try store.saveSessions([closed])
+        try store.saveSettings(editedSettings)
+
+        lock.lock()
+        let continuation = resumeFirstSync
+        lock.unlock()
+        try XCTUnwrap(continuation).resume()
+
+        let result = try await syncTask.value
+
+        XCTAssertEqual(cloud.syncCallCount, 2)
+        XCTAssertEqual(local.storedSessions.first?.clockOut, closed.clockOut)
+        XCTAssertEqual(local.storedSessions.first?.modifiedAt, Optional(closed.modifiedAt))
+        XCTAssertEqual(local.storedSettings.hourlyRate, editedSettings.hourlyRate)
+        XCTAssertEqual(result.sessions.first?.clockOut, closed.clockOut)
+        XCTAssertEqual(result.settings.hourlyRate, editedSettings.hourlyRate)
+    }
 }
