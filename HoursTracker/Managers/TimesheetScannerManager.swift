@@ -122,13 +122,48 @@ actor TimesheetScannerManager {
     }
 
     func scan(image: UIImage) async throws -> TimesheetScanResult {
-        let text = (try? await recognizeText(in: image)) ?? ""
+        let text = try await extractOCRText(from: image)
         return await buildScanResult(from: text)
     }
 
-    func scan(pdfURL: URL) async throws -> TimesheetScanResult {
-        try Self.validateFileSize(at: pdfURL, maxBytes: Self.maxBinaryFileBytes)
-        guard let document = PDFDocument(url: pdfURL) else {
+    /// OCR / PDF text only — does not run the timesheet LLM pipeline.
+    /// Used by payslip upload so extraction can go through `PayslipLLMRouter` instead.
+    func extractOCRText(from image: UIImage) async throws -> String {
+        (try? await recognizeText(in: image)) ?? ""
+    }
+
+    /// OCR / embedded PDF text for a file URL (image or PDF). No timesheet structuring.
+    func extractOCRText(fromFileURL url: URL) async throws -> String {
+        let contentType = try url.resourceValues(forKeys: [.contentTypeKey]).contentType
+        if let contentType, contentType.conforms(to: .pdf) {
+            return try await extractOCRText(fromPDFURL: url)
+        }
+        if let contentType, contentType.conforms(to: .image) {
+            try Self.validateFileSize(at: url, maxBytes: Self.maxBinaryFileBytes)
+            let data = try Data(contentsOf: url)
+            guard let image = UIImage(data: data) else {
+                throw TimesheetScannerError.unsupportedFile
+            }
+            return try await extractOCRText(from: image)
+        }
+        let ext = url.pathExtension.lowercased()
+        if ext == "pdf" {
+            return try await extractOCRText(fromPDFURL: url)
+        }
+        if ["png", "jpg", "jpeg", "heic", "tif", "tiff"].contains(ext) {
+            try Self.validateFileSize(at: url, maxBytes: Self.maxBinaryFileBytes)
+            let data = try Data(contentsOf: url)
+            guard let image = UIImage(data: data) else {
+                throw TimesheetScannerError.unsupportedFile
+            }
+            return try await extractOCRText(from: image)
+        }
+        throw TimesheetScannerError.unsupportedFile
+    }
+
+    private func extractOCRText(fromPDFURL url: URL) async throws -> String {
+        try Self.validateFileSize(at: url, maxBytes: Self.maxBinaryFileBytes)
+        guard let document = PDFDocument(url: url) else {
             throw TimesheetScannerError.pdfRenderFailed
         }
 
@@ -142,6 +177,11 @@ actor TimesheetScannerManager {
                 allText += ((try? await recognizeText(in: image)) ?? "") + "\n"
             }
         }
+        return allText
+    }
+
+    func scan(pdfURL: URL) async throws -> TimesheetScanResult {
+        let allText = try await extractOCRText(fromPDFURL: pdfURL)
         return await buildScanResult(from: allText)
     }
 
