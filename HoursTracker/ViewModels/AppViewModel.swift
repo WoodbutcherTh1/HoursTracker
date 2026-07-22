@@ -18,6 +18,8 @@ final class AppViewModel: ObservableObject {
 
     private let store: SyncingStore
     private let locationManager: LocationReminderManaging
+    private let payslipStore: PayslipStore
+    private let fullBackupManager: FullBackupManager
     private let exportManager = ExportManager()
     private let locationCapture = LocationCaptureHelper()
     private var successToastTask: Task<Void, Never>?
@@ -81,10 +83,14 @@ final class AppViewModel: ObservableObject {
 
     init(
         store: SyncingStore = SyncingPersistenceStore.shared,
-        locationManager: LocationReminderManaging = LocationReminderManager.shared
+        locationManager: LocationReminderManaging = LocationReminderManager.shared,
+        payslipStore: PayslipStore = .shared,
+        fullBackupManager: FullBackupManager = .shared
     ) {
         self.store = store
         self.locationManager = locationManager
+        self.payslipStore = payslipStore
+        self.fullBackupManager = fullBackupManager
         syncState = store.syncState
         load()
         refreshReminders()
@@ -95,33 +101,36 @@ final class AppViewModel: ObservableObject {
     // MARK: - Full backup / restore
 
     var lastBackupDate: Date? {
-        FullBackupManager.shared.lastBackupDate()
+        fullBackupManager.lastBackupDate()
     }
 
     func exportFullBackupFile() throws -> URL {
-        try FullBackupManager.shared.writeExportFile(
+        try fullBackupManager.writeExportFile(
             settings: settings,
             sessions: sessions,
-            activityLog: ActivityLogStore.shared.entries
+            activityLog: ActivityLogStore.shared.entries,
+            payslipStore: payslipStore
         )
     }
 
     func syncFullBackupNow() throws {
-        _ = try FullBackupManager.shared.syncNow(
+        _ = try fullBackupManager.syncNow(
             settings: settings,
             sessions: sessions,
-            activityLog: ActivityLogStore.shared.entries
+            activityLog: ActivityLogStore.shared.entries,
+            payslipStore: payslipStore
         )
         objectWillChange.send()
     }
 
     func runAutomaticBackup(force: Bool) {
         do {
-            _ = try FullBackupManager.shared.performAutomaticBackupIfNeeded(
+            _ = try fullBackupManager.performAutomaticBackupIfNeeded(
                 settings: settings,
                 sessions: sessions,
                 activityLog: ActivityLogStore.shared.entries,
-                force: force
+                force: force,
+                payslipStore: payslipStore
             )
             objectWillChange.send()
         } catch {
@@ -130,21 +139,39 @@ final class AppViewModel: ObservableObject {
     }
 
     func loadBackupDocument(from url: URL) throws -> FullBackupDocument {
+        try loadBackupPackage(from: url).document
+    }
+
+    func loadBackupPackage(from url: URL) throws -> FullBackupPackage {
         let scoped = url.startAccessingSecurityScopedResource()
         defer {
             if scoped { url.stopAccessingSecurityScopedResource() }
         }
-        let data = try Data(contentsOf: url)
-        return try FullBackupManager.shared.decode(from: data)
+        return try fullBackupManager.loadBackupPackage(from: url)
     }
 
     /// Apply a validated backup. Always writes a pre-restore snapshot first when replacing.
     func restoreBackup(_ document: FullBackupDocument, mode: FullBackupRestoreMode) throws {
+        try restoreBackup(FullBackupPackage(document: document, payslipFiles: [:]), mode: mode)
+    }
+
+    /// Apply a validated backup package. Always writes a pre-restore snapshot first when replacing.
+    func restoreBackup(_ package: FullBackupPackage, mode: FullBackupRestoreMode) throws {
+        let document = package.document
+        try fullBackupManager.validatePayslipPayloads(
+            document: document,
+            payslipFiles: package.payslipFiles
+        )
         if mode == .replace {
-            _ = try FullBackupManager.shared.writePreRestoreSnapshot(
+            _ = try fullBackupManager.writePreRestoreSnapshot(
                 settings: settings,
                 sessions: sessions,
-                activityLog: ActivityLogStore.shared.entries
+                activityLog: ActivityLogStore.shared.entries,
+                payslipStore: payslipStore
+            )
+            try payslipStore.replaceAll(
+                records: document.payslipRecords,
+                fileDataByID: package.payslipFiles
             )
             sessions = document.sessions
             settings = document.settings
@@ -152,6 +179,10 @@ final class AppViewModel: ObservableObject {
             try store.saveSettings(settings)
             ActivityLogStore.shared.replaceEntries(document.activityLog)
         } else {
+            try payslipStore.merge(
+                records: document.payslipRecords,
+                fileDataByID: package.payslipFiles
+            )
             var byID = Dictionary(uniqueKeysWithValues: sessions.map { ($0.id, $0) })
             for session in document.sessions {
                 byID[session.id] = session

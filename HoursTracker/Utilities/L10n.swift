@@ -429,6 +429,15 @@ enum L10n {
     }
     static var backupErrorWriteFailed: String { t("backup.error.writeFailed") }
     static var backupErrorEmpty: String { t("backup.error.empty") }
+    static func backupErrorPayslipMissing(_ id: String) -> String {
+        String(format: t("backup.error.payslipMissing %@"), id)
+    }
+    static func backupErrorTooLarge(_ size: String) -> String {
+        String(format: t("backup.error.tooLarge %@"), size)
+    }
+    static func backupErrorPayslipEntryTooLarge(_ detail: String) -> String {
+        String(format: t("backup.error.payslipEntryTooLarge %@"), detail)
+    }
     static func backupSummarySessions(_ count: Int) -> String {
         String(format: t("backup.summary.sessions %d"), count)
     }

@@ -1,5 +1,6 @@
 import Foundation
 import CoreLocation
+import UniformTypeIdentifiers
 @testable import HoursTracker
 
 final class InMemoryStore: SyncingStore {
@@ -270,6 +271,52 @@ enum TestData {
             locationLongitude: nil,
             locationRadiusMeters: 150,
             modifiedAt: Date()
+        )
+    }
+
+    static func payslipExtraction() -> PayslipExtraction {
+        PayslipExtraction(
+            providerName: "UnitTestOCR",
+            extractedAt: date(2026, 6, 1, 10),
+            confidence: 0.92,
+            needsManualReview: false,
+            rawJSON: #"{"net":1010.50}"#,
+            grossPay: Decimal(1250),
+            netPay: Decimal(1010.50),
+            currencyCode: "ILS",
+            employerName: "Example Employer",
+            employeeName: "Example Worker",
+            employeeID: "123456789",
+            payPeriodStart: date(2026, 5, 1),
+            payPeriodEnd: date(2026, 5, 31),
+            paymentDate: date(2026, 6, 1),
+            hoursRegular: 160,
+            hoursOT: 8,
+            deductionsTotal: Decimal(120),
+            extras: ["department": "QA"]
+        )
+    }
+
+    static func payslipRecord(
+        id: UUID = UUID(),
+        fileExtension: String = "png",
+        fileByteSize: Int = 11
+    ) -> PayslipRecord {
+        PayslipRecord(
+            id: id,
+            periodMonth: date(2026, 5, 1),
+            periodStartDay: 1,
+            periodLabel: "May 2026",
+            uploadedAt: date(2026, 6, 2, 9),
+            sourceKind: fileExtension == "pdf" ? .pdf : .image,
+            originalFileName: "may-slip.\(fileExtension)",
+            relativeFilePath: "payslips/files/\(id.uuidString).\(fileExtension)",
+            fileByteSize: fileByteSize,
+            contentTypeUTI: fileExtension == "pdf" ? UTType.pdf.identifier : UTType.png.identifier,
+            extraction: payslipExtraction(),
+            userOverrides: nil,
+            reviewState: .pendingReview,
+            notes: "Needs review"
         )
     }
 }

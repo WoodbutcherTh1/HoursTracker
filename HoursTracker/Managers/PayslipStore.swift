@@ -10,6 +10,7 @@ enum PayslipStoreError: Error, Equatable {
     case unreadablePDF
     case recordNotFound(UUID)
     case temporarilyUnavailable
+    case invalidStoredPath(UUID)
 }
 
 extension PayslipStoreError: LocalizedError {
@@ -27,6 +28,8 @@ extension PayslipStoreError: LocalizedError {
             return "Payslip record not found: \(id.uuidString)."
         case .temporarilyUnavailable:
             return "Payslip storage is temporarily unavailable. Please try again when the device is unlocked."
+        case let .invalidStoredPath(id):
+            return "Payslip record has an invalid storage path: \(id.uuidString)."
         }
     }
 }
@@ -234,19 +237,43 @@ final class PayslipStore {
         if fileManager.fileExists(atPath: storedFileURL.path) {
             try fileManager.removeItem(at: storedFileURL)
         }
+        FullBackupManager.shared.markContentDirty()
     }
 
     func url(for record: PayslipRecord) -> URL {
         rootDirectory.appendingPathComponent(record.relativeFilePath)
     }
 
-    func removeAllStoredData() {
+    func removeAllStoredData(markContentDirty: Bool = true) {
         guard fileManager.fileExists(atPath: payslipsDirectory.path) else { return }
         do {
             try fileManager.removeItem(at: payslipsDirectory)
+            if markContentDirty {
+                FullBackupManager.shared.markContentDirty()
+            }
         } catch {
             logger.error("Failed to wipe payslips directory: \(error.localizedDescription, privacy: .private)")
         }
+    }
+
+    func replaceAll(records: [PayslipRecord], fileDataByID: [UUID: Data]) throws {
+        try validateRestorePayloads(records: records, fileDataByID: fileDataByID)
+        removeAllStoredData(markContentDirty: false)
+        try writeRestoredFiles(records: records, fileDataByID: fileDataByID)
+        try saveIndex(records.sorted { $0.uploadedAt < $1.uploadedAt })
+        FullBackupManager.shared.markContentDirty()
+    }
+
+    func merge(records incomingRecords: [PayslipRecord], fileDataByID: [UUID: Data]) throws {
+        guard !incomingRecords.isEmpty else { return }
+        try validateRestorePayloads(records: incomingRecords, fileDataByID: fileDataByID)
+        var byID = Dictionary(uniqueKeysWithValues: try mutableRecordsForWrite().map { ($0.id, $0) })
+        for record in incomingRecords {
+            byID[record.id] = record
+        }
+        try writeRestoredFiles(records: incomingRecords, fileDataByID: fileDataByID)
+        try saveIndex(byID.values.sorted { $0.uploadedAt < $1.uploadedAt })
+        FullBackupManager.shared.markContentDirty()
     }
 
     static func isTransientReadError(_ error: Error) -> Bool {
@@ -343,7 +370,44 @@ final class PayslipStore {
             try? fileManager.removeItem(at: fileURL)
             throw error
         }
+        FullBackupManager.shared.markContentDirty()
         return record
+    }
+
+    private func validateRestorePayloads(records: [PayslipRecord], fileDataByID: [UUID: Data]) throws {
+        for record in records {
+            guard let data = fileDataByID[record.id] else {
+                throw FullBackupError.payslipFileMissing(record.id)
+            }
+            try validateFileSize(Int64(data.count))
+            _ = try validatedRestoredFileURL(for: record)
+        }
+    }
+
+    private func writeRestoredFiles(records: [PayslipRecord], fileDataByID: [UUID: Data]) throws {
+        for record in records {
+            guard let data = fileDataByID[record.id] else {
+                throw FullBackupError.payslipFileMissing(record.id)
+            }
+            try fileWriter.write(data, to: validatedRestoredFileURL(for: record))
+        }
+    }
+
+    private func validatedRestoredFileURL(for record: PayslipRecord) throws -> URL {
+        let components = record.relativeFilePath.split(separator: "/", omittingEmptySubsequences: false)
+        guard components.count == 3,
+              components[0] == "payslips",
+              components[1] == "files" else {
+            throw PayslipStoreError.invalidStoredPath(record.id)
+        }
+        let fileName = String(components[2])
+        guard !fileName.isEmpty,
+              !fileName.contains("/"),
+              !fileName.contains(".."),
+              (fileName as NSString).deletingPathExtension == record.id.uuidString else {
+            throw PayslipStoreError.invalidStoredPath(record.id)
+        }
+        return filesDirectory.appendingPathComponent(fileName)
     }
 
     private func saveIndex(_ records: [PayslipRecord]) throws {
