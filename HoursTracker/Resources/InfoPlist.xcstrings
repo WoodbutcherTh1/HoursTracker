@@ -88,19 +88,19 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "يُستخدم موقع «دائماً» فقط لتذكيرات الوصول عبر منطقة عمل واحدة حفظتها. لا نتتبعك باستمرار."
+            "value" : "يُستخدم إذن «دائماً» فقط لتذكيرات الوصول الاختيارية عبر مراقبة منطقة (geofence) واحدة تحددها. HoursTracker لا يتتبع موقعك باستمرار في الخلفية."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Always location is used only for workplace arrival reminders via a single geofence around the workplace you saved. We do not continuously track you."
+            "value" : "Always access is used only for optional workplace arrival reminders via region monitoring (one geofence you set). HoursTracker does not continuously track your location in the background."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "מיקום תמיד משמש רק לתזכורות הגעה דרך גדר וירטואלית אחת סביב מקום העבודה ששמרת. אין מעקב רציף."
+            "value" : "גישת «תמיד» משמשת רק לתזכורות הגעה אופציונליות דרך ניטור אזור (גדר וירטואלית אחת שתגדיר). HoursTracker לא עוקב אחרי המיקום ברציפות ברקע."
           }
         }
       }
