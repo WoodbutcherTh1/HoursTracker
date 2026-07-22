@@ -21,6 +21,7 @@ final class AppViewModel: ObservableObject {
     private let exportManager = ExportManager()
     private let locationCapture = LocationCaptureHelper()
     private var successToastTask: Task<Void, Never>?
+    private var stateRevision = 0
 
     /// Hide the Settings sync section when this build has no CloudKit backend.
     var isCloudSyncSupported: Bool { store.isCloudSyncSupported }
@@ -112,8 +113,10 @@ final class AppViewModel: ObservableObject {
     /// Start an open shift. `at` defaults to now; pass an earlier time for late / forgotten clock-in.
     /// Arrival is clamped so it cannot be in the future. Uses the same persist + tombstone path
     /// as a normal clock-in (no parallel save route).
-    func clockIn(at date: Date = Date(), isManual: Bool = false) {
-        guard canClockIn else { return }
+    @discardableResult
+    func clockIn(at date: Date = Date(), isManual: Bool = false) -> Bool {
+        let previousSessions = sessions
+        guard canClockIn else { return false }
         let clockInDate = min(date, Date())
         let session = WorkSession(
             date: Calendar.current.startOfDay(for: clockInDate),
@@ -123,14 +126,17 @@ final class AppViewModel: ObservableObject {
             dayType: DayType.automatic(for: clockInDate, settings: settings)
         )
         sessions.append(session)
-        persist()
-        refreshReminders()
+        guard persist() else {
+            restoreSessions(previousSessions)
+            return false
+        }
         ActivityLogStore.shared.log(
             L10n.logEventClockIn,
             level: .success,
             category: "clock",
             details: ISO8601DateFormatter().string(from: clockInDate)
         )
+        return true
     }
 
     /// Offer “forgot to clock in?” when:
@@ -181,8 +187,10 @@ final class AppViewModel: ObservableObject {
         return now >= threshold
     }
 
-    func clockOut() {
-        guard let index = sessions.firstIndex(where: { $0.id == activeSession?.id }) else { return }
+    @discardableResult
+    func clockOut() -> Bool {
+        guard let index = sessions.firstIndex(where: { $0.id == activeSession?.id }) else { return false }
+        let previousSessions = sessions
         let clockOutDate = Date()
         sessions[index].clockOut = clockOutDate
         sessions[index].isNightShift = WorkSession.qualifiesAsNightShift(
@@ -198,21 +206,26 @@ final class AppViewModel: ObservableObject {
         sessions[index].touch()
         // Summarize only the shift just closed (day-aware so same-day OT/gas
         // sharing stays correct, but totals are for this session alone).
-        lastCompletedSessionID = sessions[index].id
-        lastCompletedBreakdown = OvertimeCalculator.breakdown(
+        let completedSessionID = sessions[index].id
+        let completedBreakdown = OvertimeCalculator.breakdown(
             for: sessions[index],
             in: sessions,
             settings: settings
         )
+        guard persist() else {
+            restoreSessions(previousSessions)
+            return false
+        }
+        lastCompletedSessionID = completedSessionID
+        lastCompletedBreakdown = completedBreakdown
         showDaySummary = true
-        persist()
-        refreshReminders()
         ActivityLogStore.shared.log(
             L10n.logEventClockOut,
             level: .success,
             category: "clock",
             details: String(format: "%.2fh", sessions[index].totalHours)
         )
+        return true
     }
 
     func dismissDaySummary() {
@@ -223,6 +236,7 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Manual Entry
 
+    @discardableResult
     func addManualSession(
         date: Date,
         clockIn: Date,
@@ -231,7 +245,8 @@ final class AppViewModel: ObservableObject {
         breakMinutes: Int = 0,
         dayType: DayType? = nil,
         isNightShift: Bool? = nil
-    ) {
+    ) -> Bool {
+        let previousSessions = sessions
         // Multiple completed shifts on the same day are allowed (same as clock-in).
         let day = Calendar.current.startOfDay(for: date)
 
@@ -248,14 +263,17 @@ final class AppViewModel: ObservableObject {
             notes: notes
         )
         sessions.append(session)
-        persist()
-        refreshReminders()
+        guard persist() else {
+            restoreSessions(previousSessions)
+            return false
+        }
         ActivityLogStore.shared.log(
             L10n.logEventManualEntry,
             level: .success,
             category: "session",
             details: day.formatted(date: .abbreviated, time: .omitted)
         )
+        return true
     }
 
     @discardableResult
@@ -263,11 +281,12 @@ final class AppViewModel: ObservableObject {
         _ drafts: [ScannedSessionDraft],
         overwriteDays: Set<Date> = [],
         markAsAIImported: Bool = true
-    ) -> Int {
+    ) -> Int? {
         guard !drafts.isEmpty else { return 0 }
         let calendar = Calendar.current
         let overwriteKeys = Set(overwriteDays.map { calendar.startOfDay(for: $0).timeIntervalSince1970 })
         var importedCount = 0
+        let previousSessions = sessions
 
         for draft in drafts where draft.isSelected {
             let resolved = WorkSession.resolveClockPair(clockIn: draft.clockIn, clockOut: draft.clockOut)
@@ -296,8 +315,10 @@ final class AppViewModel: ObservableObject {
 
         guard importedCount > 0 else { return 0 }
 
-        persist()
-        refreshReminders()
+        guard persist() else {
+            restoreSessions(previousSessions)
+            return nil
+        }
         ActivityLogStore.shared.log(
             L10n.logEventImport(importedCount),
             level: .success,
@@ -329,6 +350,7 @@ final class AppViewModel: ObservableObject {
         return days.sorted()
     }
 
+    @discardableResult
     func updateSession(
         _ session: WorkSession,
         clockIn: Date,
@@ -337,8 +359,9 @@ final class AppViewModel: ObservableObject {
         breakMinutes: Int? = nil,
         dayType: DayType? = nil,
         isNightShift: Bool? = nil
-    ) {
-        guard let index = sessions.firstIndex(where: { $0.id == session.id }) else { return }
+    ) -> Bool {
+        guard let index = sessions.firstIndex(where: { $0.id == session.id }) else { return false }
+        let previousSessions = sessions
         if let clockOut {
             // The shift editor uses explicit date+time pickers, so the values
             // are authoritative — no swapped-times heuristic here. That
@@ -366,35 +389,48 @@ final class AppViewModel: ObservableObject {
             sessions[index].dayType = dayType
         }
         sessions[index].touch()
-        persist()
-        refreshReminders()
+        guard persist() else {
+            restoreSessions(previousSessions)
+            return false
+        }
         ActivityLogStore.shared.log(
             L10n.logEventSessionUpdated,
             level: .info,
             category: "session"
         )
+        return true
     }
 
-    func deleteSession(_ session: WorkSession) {
+    @discardableResult
+    func deleteSession(_ session: WorkSession) -> Bool {
+        let previousSessions = sessions
         sessions.removeAll { $0.id == session.id }
-        persist()
-        refreshReminders()
+        guard persist() else {
+            restoreSessions(previousSessions)
+            return false
+        }
         ActivityLogStore.shared.log(
             L10n.logEventSessionDeleted,
             level: .warning,
             category: "session"
         )
+        return true
     }
 
     // MARK: - Settings
 
-    func saveSettings(_ newSettings: WorkplaceSettings) {
+    @discardableResult
+    func saveSettings(_ newSettings: WorkplaceSettings) -> Bool {
+        let previousSettings = settings
         var updated = newSettings
         updated.modifiedAt = Date()
         let remindersJustEnabled = updated.arrivalRemindersEnabled && !settings.arrivalRemindersEnabled
         let remindersJustDisabled = !updated.arrivalRemindersEnabled && settings.arrivalRemindersEnabled
         settings = updated
-        persistSettings()
+        guard persistSettings() else {
+            restoreSettings(previousSettings)
+            return false
+        }
         if remindersJustEnabled {
             locationManager.requestArrivalReminderPermissions()
             refreshLocationPermissionStatuses()
@@ -418,21 +454,27 @@ final class AppViewModel: ObservableObject {
             level: .info,
             category: "settings"
         )
+        return true
     }
 
     /// Erases all local data and, when CloudKit is supported, remote copies too
     /// (Guideline 5.1.1 data control). National ID Keychain item is cleared via settings reset.
-    func deleteAllUserData() {
+    @discardableResult
+    func deleteAllUserData() -> Bool {
         let cloudSessionIDs = Set(sessions.map(\.id))
-        sessions = []
-        settings = .default
         do {
-            try store.saveSessions(sessions)
+            try store.saveSessions([])
             // Avoid re-uploading default settings; cloud purge removes the record instead.
-            try store.saveSettingsLocally(settings)
+            try store.saveSettingsLocally(.default)
         } catch {
             errorMessage = L10n.errorSaveFailed
+            load()
+            refreshReminders()
+            return false
         }
+        sessions = []
+        settings = .default
+        stateRevision += 1
         locationManager.stopArrivalReminders()
         refreshReminders()
         ExportTempFileStore.wipeAll()
@@ -448,7 +490,7 @@ final class AppViewModel: ObservableObject {
             category: "privacy"
         )
 
-        guard store.isCloudSyncSupported else { return }
+        guard store.isCloudSyncSupported else { return true }
         Task {
             do {
                 try await store.purgeCloudData(sessionIDs: cloudSessionIDs)
@@ -456,6 +498,7 @@ final class AppViewModel: ObservableObject {
                 errorMessage = L10n.privacyDeleteCloudPartialFailure
             }
         }
+        return true
     }
 
     func captureCurrentLocation() {
@@ -467,11 +510,16 @@ final class AppViewModel: ObservableObject {
         applyLocation(location)
     }
 
-    private func applyLocation(_ location: CLLocation) {
+    @discardableResult
+    private func applyLocation(_ location: CLLocation) -> Bool {
+        let previousSettings = settings
         settings.locationLatitude = location.coordinate.latitude
         settings.locationLongitude = location.coordinate.longitude
         settings.modifiedAt = Date()
-        persistSettings()
+        guard persistSettings() else {
+            restoreSettings(previousSettings)
+            return false
+        }
         locationManager.updateWorkplaceLocation(
             latitude: location.coordinate.latitude,
             longitude: location.coordinate.longitude,
@@ -483,6 +531,7 @@ final class AppViewModel: ObservableObject {
             level: .success,
             category: "location"
         )
+        return true
     }
 
     // MARK: - Sync
@@ -490,15 +539,25 @@ final class AppViewModel: ObservableObject {
     func syncNow() {
         guard isICloudSyncEnabled else { return }
         guard !isSyncing else { return }
+        let revisionAtSyncStart = stateRevision
         syncState = .syncing
         Task {
             do {
+                var needsFollowUpSync = false
                 if let result = try await store.syncNow() {
-                    sessions = result.sessions
-                    settings = result.settings
-                    refreshReminders()
+                    if stateRevision == revisionAtSyncStart {
+                        sessions = result.sessions
+                        settings = result.settings
+                        stateRevision += 1
+                        refreshReminders()
+                    } else {
+                        needsFollowUpSync = true
+                    }
                 }
                 syncState = store.syncState
+                if needsFollowUpSync {
+                    syncNow()
+                }
             } catch {
                 syncState = store.syncState
             }
@@ -562,21 +621,39 @@ final class AppViewModel: ObservableObject {
         settings = store.loadSettings()
     }
 
-    private func persist() {
+    @discardableResult
+    private func persist() -> Bool {
         do {
             try store.saveSessions(sessions)
+            stateRevision += 1
+            refreshReminders()
+            return true
         } catch {
             errorMessage = L10n.errorSaveFailed
+            return false
         }
+    }
+
+    @discardableResult
+    private func persistSettings() -> Bool {
+        do {
+            try store.saveSettings(settings)
+            stateRevision += 1
+            return true
+        } catch {
+            errorMessage = L10n.errorSaveFailed
+            return false
+        }
+    }
+
+    private func restoreSessions(_ snapshot: [WorkSession]) {
+        sessions = snapshot
         refreshReminders()
     }
 
-    private func persistSettings() {
-        do {
-            try store.saveSettings(settings)
-        } catch {
-            errorMessage = L10n.errorSaveFailed
-        }
+    private func restoreSettings(_ snapshot: WorkplaceSettings) {
+        settings = snapshot
+        refreshReminders()
     }
 
     private func refreshReminders() {

@@ -133,7 +133,7 @@ struct ManualEntryView: View {
             finalClockOut = resolved.clockOut
         }
 
-        viewModel.addManualSession(
+        if viewModel.addManualSession(
             date: day,
             clockIn: finalClockIn,
             clockOut: finalClockOut,
@@ -141,8 +141,9 @@ struct ManualEntryView: View {
             breakMinutes: breakMinutes,
             dayType: dayType,
             isNightShift: isNightShift
-        )
-        viewModel.showSuccessToast(L10n.feedbackSessionSaved)
-        dismiss()
+        ) {
+            viewModel.showSuccessToast(L10n.feedbackSessionSaved)
+            dismiss()
+        }
     }
 }

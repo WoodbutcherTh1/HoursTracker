@@ -110,8 +110,9 @@ struct HistoryView: View {
             ) {
                 Button(L10n.editDelete, role: .destructive) {
                     if let session = sessionPendingDelete {
-                        viewModel.deleteSession(session)
-                        viewModel.showSuccessToast(L10n.feedbackSessionDeleted)
+                        if viewModel.deleteSession(session) {
+                            viewModel.showSuccessToast(L10n.feedbackSessionDeleted)
+                        }
                     }
                     sessionPendingDelete = nil
                 }

@@ -270,7 +270,7 @@ struct EditSessionView: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.editSave) {
-                        viewModel.updateSession(
+                        if viewModel.updateSession(
                             session,
                             clockIn: clockIn,
                             clockOut: clockOut,
@@ -278,9 +278,10 @@ struct EditSessionView: View {
                             breakMinutes: breakMinutes,
                             dayType: dayType,
                             isNightShift: isNightShift
-                        )
-                        viewModel.showSuccessToast(L10n.feedbackSessionUpdated)
-                        dismiss()
+                        ) {
+                            viewModel.showSuccessToast(L10n.feedbackSessionUpdated)
+                            dismiss()
+                        }
                     }
                     .disabled(sameClockTimes)
                 }
@@ -290,12 +291,13 @@ struct EditSessionView: View {
                 isPresented: $showDeleteConfirm
             ) {
                 Button(L10n.editDelete, role: .destructive) {
-                    viewModel.deleteSession(session)
-                    viewModel.showSuccessToast(L10n.feedbackSessionDeleted)
-                    if let onDeleted {
-                        onDeleted()
-                    } else {
-                        dismiss()
+                    if viewModel.deleteSession(session) {
+                        viewModel.showSuccessToast(L10n.feedbackSessionDeleted)
+                        if let onDeleted {
+                            onDeleted()
+                        } else {
+                            dismiss()
+                        }
                     }
                 }
                 Button(L10n.editCancel, role: .cancel) {}

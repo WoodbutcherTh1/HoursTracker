@@ -62,9 +62,10 @@ struct SettingsView: View {
                 titleVisibility: .visible
             ) {
                 Button(L10n.privacyDeleteAll, role: .destructive) {
-                    viewModel.deleteAllUserData()
-                    draft = viewModel.settings
-                    viewModel.showSuccessToast(L10n.feedbackDataDeleted)
+                    if viewModel.deleteAllUserData() {
+                        draft = viewModel.settings
+                        viewModel.showSuccessToast(L10n.feedbackDataDeleted)
+                    }
                 }
                 Button(L10n.editCancel, role: .cancel) {}
             }
@@ -100,9 +101,10 @@ struct SettingsView: View {
     }
 
     private func saveSettings() {
-        viewModel.saveSettings(draft)
-        draft = viewModel.settings
-        viewModel.showSuccessToast(L10n.settingsSaved)
+        if viewModel.saveSettings(draft) {
+            draft = viewModel.settings
+            viewModel.showSuccessToast(L10n.settingsSaved)
+        }
     }
 
     private var workerSection: some View {

@@ -106,8 +106,9 @@ struct ForgotClockInSheet: View {
 
             VStack(spacing: 12) {
                 Button {
-                    viewModel.clockIn(at: arrival, isManual: true)
-                    dismiss()
+                    if viewModel.clockIn(at: arrival, isManual: true) {
+                        dismiss()
+                    }
                 } label: {
                     Text(L10n.homeForgotClockInConfirm)
                         .font(.headline)

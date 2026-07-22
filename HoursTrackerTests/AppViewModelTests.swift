@@ -275,23 +275,121 @@ final class AppViewModelTests: XCTestCase {
         XCTAssertTrue(store.storedSessions.isEmpty)
     }
 
-    func testSaveFailureSurfacesErrorMessage() {
+    func testClockInSaveFailureRollsBackOpenSession() {
         let store = InMemoryStore()
         let (viewModel, _) = makeViewModel(store: store)
         store.saveError = NSError(domain: "test", code: 1)
 
-        viewModel.clockIn()
+        let didSave = viewModel.clockIn()
 
+        XCTAssertFalse(didSave)
+        XCTAssertFalse(viewModel.isClockedIn)
+        XCTAssertTrue(viewModel.sessions.isEmpty)
+        XCTAssertTrue(store.storedSessions.isEmpty)
         XCTAssertNotNil(viewModel.errorMessage)
     }
 
-    func testSaveSettingsFailureSurfacesErrorMessage() {
+    func testClockOutSaveFailureRollsBackClosedSessionAndSummary() {
+        let session = TestData.session(day: 1, outHour: nil)
         let store = InMemoryStore()
+        let (viewModel, _) = makeViewModel(sessions: [session], store: store)
+        store.saveError = NSError(domain: "test", code: 1)
+
+        let didSave = viewModel.clockOut()
+
+        XCTAssertFalse(didSave)
+        XCTAssertTrue(viewModel.isClockedIn)
+        XCTAssertEqual(viewModel.sessions, [session])
+        XCTAssertEqual(store.storedSessions, [session])
+        XCTAssertNil(viewModel.lastCompletedBreakdown)
+        XCTAssertNil(viewModel.lastCompletedSessionID)
+        XCTAssertFalse(viewModel.showDaySummary)
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    func testImportSaveFailureRollsBackImportedSessions() {
+        let existing = TestData.session(day: 1)
+        let store = InMemoryStore()
+        let (viewModel, _) = makeViewModel(sessions: [existing], store: store)
+        let draft = ScannedSessionDraft(
+            date: TestData.date(2026, 1, 2),
+            clockIn: TestData.date(2026, 1, 2, 8),
+            clockOut: TestData.date(2026, 1, 2, 17)
+        )
+        store.saveError = NSError(domain: "test", code: 1)
+
+        let count = viewModel.importScannedSessions([draft])
+
+        XCTAssertNil(count)
+        XCTAssertEqual(viewModel.sessions, [existing])
+        XCTAssertEqual(store.storedSessions, [existing])
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    func testDeleteSessionSaveFailureRollsBackDeletedSession() {
+        let session = TestData.session(day: 1)
+        let store = InMemoryStore()
+        let (viewModel, _) = makeViewModel(sessions: [session], store: store)
+        store.saveError = NSError(domain: "test", code: 1)
+
+        let didSave = viewModel.deleteSession(session)
+
+        XCTAssertFalse(didSave)
+        XCTAssertEqual(viewModel.sessions, [session])
+        XCTAssertEqual(store.storedSessions, [session])
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    func testUpdateSessionSaveFailureRollsBackEditedSession() {
+        let session = TestData.session(day: 1, inHour: 8, outHour: 16)
+        let store = InMemoryStore()
+        let (viewModel, _) = makeViewModel(sessions: [session], store: store)
+        store.saveError = NSError(domain: "test", code: 1)
+
+        let didSave = viewModel.updateSession(
+            session,
+            clockIn: TestData.date(2026, 1, 1, 9),
+            clockOut: TestData.date(2026, 1, 1, 18),
+            notes: "edited"
+        )
+
+        XCTAssertFalse(didSave)
+        XCTAssertEqual(viewModel.sessions, [session])
+        XCTAssertEqual(store.storedSessions, [session])
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    func testSaveSettingsFailureRollsBackSettings() {
+        let originalSettings = TestData.settings(hourlyRate: 100)
+        let store = InMemoryStore()
+        store.storedSettings = originalSettings
         let (viewModel, _) = makeViewModel(store: store)
         store.saveError = NSError(domain: "test", code: 1)
 
-        viewModel.saveSettings(TestData.settings())
+        let didSave = viewModel.saveSettings(TestData.settings(hourlyRate: 200))
 
+        XCTAssertFalse(didSave)
+        XCTAssertEqual(viewModel.settings, originalSettings)
+        XCTAssertEqual(store.storedSettings, originalSettings)
+        XCTAssertNotNil(viewModel.errorMessage)
+    }
+
+    func testDeleteAllUserDataSaveFailureReloadsPersistedState() {
+        let session = TestData.session(day: 1)
+        let originalSettings = TestData.settings(hourlyRate: 100)
+        let store = InMemoryStore()
+        store.storedSessions = [session]
+        store.storedSettings = originalSettings
+        let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+        store.saveError = NSError(domain: "test", code: 1)
+
+        let didSave = viewModel.deleteAllUserData()
+
+        XCTAssertFalse(didSave)
+        XCTAssertEqual(viewModel.sessions, [session])
+        XCTAssertEqual(viewModel.settings, originalSettings)
+        XCTAssertEqual(store.storedSessions, [session])
+        XCTAssertEqual(store.storedSettings, originalSettings)
         XCTAssertNotNil(viewModel.errorMessage)
     }
 
@@ -343,5 +441,66 @@ final class AppViewModelTests: XCTestCase {
             await Task.yield()
         }
         XCTAssertEqual(viewModel.errorMessage, L10n.privacyDeleteCloudPartialFailure)
+    }
+
+    func testSyncNowDoesNotAssignStaleResultAfterConcurrentLocalMutation() async throws {
+        let original = TestData.session(
+            day: 1,
+            outHour: nil,
+            modifiedAt: TestData.date(2026, 1, 1, 8)
+        )
+        let store = InMemoryStore()
+        store.isICloudSyncEnabled = true
+        store.storedSessions = [original]
+        store.syncResult = SyncResult(sessions: [original], settings: .default)
+        let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+
+        let firstSyncPaused = expectation(description: "first sync paused")
+        let followUpSyncPaused = expectation(description: "follow-up sync paused")
+        let lock = NSLock()
+        var pauseCount = 0
+        var continuations: [CheckedContinuation<Void, Never>] = []
+        store.beforeSyncReturns = {
+            await withCheckedContinuation { continuation in
+                lock.lock()
+                pauseCount += 1
+                let currentPauseCount = pauseCount
+                continuations.append(continuation)
+                lock.unlock()
+
+                if currentPauseCount == 1 {
+                    firstSyncPaused.fulfill()
+                } else if currentPauseCount == 2 {
+                    followUpSyncPaused.fulfill()
+                }
+            }
+        }
+
+        viewModel.syncNow()
+        await fulfillment(of: [firstSyncPaused], timeout: 2)
+
+        viewModel.clockOut()
+
+        lock.lock()
+        let firstContinuation = continuations.first
+        lock.unlock()
+        try XCTUnwrap(firstContinuation).resume()
+        await fulfillment(of: [followUpSyncPaused], timeout: 2)
+
+        XCTAssertEqual(store.syncCallCount, 2)
+        XCTAssertFalse(viewModel.sessions[0].isOpen)
+
+        store.syncResult = SyncResult(sessions: store.storedSessions, settings: store.storedSettings)
+        lock.lock()
+        let followUpContinuation = continuations.dropFirst().first
+        lock.unlock()
+        try XCTUnwrap(followUpContinuation).resume()
+
+        let deadline = Date().addingTimeInterval(2)
+        while viewModel.isSyncing, Date() < deadline {
+            await Task.yield()
+        }
+        XCTAssertFalse(viewModel.isSyncing)
+        XCTAssertFalse(viewModel.sessions[0].isOpen)
     }
 }
