@@ -156,8 +156,10 @@ final class BlankTimesheetViewModel: ObservableObject {
         analyzeNotice = L10n.gridAnalyzeSuccess(result.drafts.count)
     }
 
-    private func apply(drafts: [ScannedSessionDraft], startDay: Int) {
-        let sorted = drafts.sorted { $0.date < $1.date }
+    func apply(drafts: [ScannedSessionDraft], startDay: Int) {
+        let sorted = drafts
+            .filter(\.isSelected)
+            .sorted { $0.date < $1.date }
         if let first = sorted.first {
             let period = HistoryPeriodHelper.payrollPeriod(
                 containing: first.date,
@@ -165,7 +167,17 @@ final class BlankTimesheetViewModel: ObservableObject {
                 calendar: calendar
             )
             periodAnchor = period.labelMonth
-            var nextRows = period.days.map { TimesheetGridRow(date: $0) }
+            var nextRows = period.days.map { day in
+                if let existing = rows.first(where: { calendar.isDate($0.date, inSameDayAs: day) }) {
+                    return TimesheetGridRow(
+                        id: existing.id,
+                        date: day,
+                        clockIn: existing.clockIn,
+                        clockOut: existing.clockOut
+                    )
+                }
+                return TimesheetGridRow(date: day)
+            }
             for draft in sorted {
                 if let index = nextRows.firstIndex(where: { calendar.isDate($0.date, inSameDayAs: draft.date) }) {
                     nextRows[index].clockIn = draft.clockIn
@@ -250,7 +262,14 @@ struct BlankTimesheetEntryView: View {
                 }
             }
             .sheet(isPresented: $showScanner) {
-                TimesheetScannerView(appViewModel: appViewModel)
+                TimesheetScannerView(
+                    appViewModel: appViewModel,
+                    onConfirmedDrafts: { drafts in
+                        gridVM.apply(drafts: drafts, startDay: appViewModel.settings.payrollStartDay)
+                        gridVM.mode = .form
+                        gridVM.analyzeNotice = L10n.gridAnalyzeSuccess(drafts.count)
+                    }
+                )
             }
             .overlay {
                 conflictOverlay
