@@ -8941,19 +8941,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "صوّر أو اختر ملف PDF/صورة لكشف الراتب. ستراجع الحقول دائماً قبل الحفظ."
+            "value": "اختر تعبئة تلقائية بالذكاء أو يدوياً. اسمك ومكان العمل يُؤخذان من الإعدادات."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Photograph or choose a payslip PDF/image. You will always review the extracted fields before saving."
+            "value": "Choose auto-detect or fill manually. Your name and workplace come from Settings."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "צלמו או בחרו קובץ PDF/תמונה של תלוש. תמיד תעברו על השדות לפני השמירה."
+            "value": "בחרו זיהוי אוטומטי או מילוי ידני. השם ומקום העבודה נלקחים מההגדרות."
           }
         }
       }
@@ -9033,19 +9033,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "يستخرج النص والحقول. المراجعة مطلوبة دائماً قبل الحفظ."
+            "value": "يستخرج المبالغ والتواريخ، ويملأ الاسم ومكان العمل من إعداداتك."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Extracting text and fields. Review is always required before save."
+            "value": "Extracting amounts and dates, and filling your name/workplace from Settings."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "מחלץ טקסט ושדות. תמיד נדרשת סקירה לפני שמירה."
+            "value": "מחלץ סכומים ותאריכים, ומשלים שם/מקום עבודה מההגדרות."
           }
         }
       }
@@ -9897,6 +9897,98 @@
           "stringUnit": {
             "state": "translated",
             "value": "התלוש נמחק"
+          }
+        }
+      }
+    },
+    "payslip.fillMode.prompt": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كيف نملأ التفاصيل؟"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How should we fill the details?"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "איך למלא את הפרטים?"
+          }
+        }
+      }
+    },
+    "payslip.fillMode.auto": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعبئة تلقائية بالذكاء"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auto-detect with AI"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "זיהוי אוטומטי"
+          }
+        }
+      }
+    },
+    "payslip.fillMode.manual": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تعبئة يدوية"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fill manually"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מילוי ידני"
+          }
+        }
+      }
+    },
+    "payslip.fillMode.settingsHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يُملأ اسم الموظف ومكان العمل من الإعدادات إذا لم يظهران في الكشف."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Employee and workplace are filled from your Settings when the slip doesn’t include them."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "שם העובד ומקום העבודה ממולאים מההגדרות כשחסרים בתלוש."
           }
         }
       }

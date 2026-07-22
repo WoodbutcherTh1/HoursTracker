@@ -33,7 +33,11 @@ struct PayslipReviewDraft: Equatable {
         hasPeriod && hasAmount
     }
 
-    static func from(result: PayslipLLMStructureResult, extractedAt: Date = Date()) -> PayslipReviewDraft {
+    static func from(
+        result: PayslipLLMStructureResult,
+        extractedAt: Date = Date(),
+        settings: WorkplaceSettings? = nil
+    ) -> PayslipReviewDraft {
         let fields = result.fields
         let confidence = fields.confidence ?? 0
         let payPeriodStart = Self.parseFlexibleDate(fields.payPeriodStart)
@@ -41,6 +45,19 @@ struct PayslipReviewDraft: Equatable {
         let paymentMonth = Self.parseMonth(fields.paymentMonth)
             ?? payPeriodStart.map { Calendar.current.ht_payslipStartOfMonth(for: $0) }
             ?? payPeriodEnd.map { Calendar.current.ht_payslipStartOfMonth(for: $0) }
+
+        let settingsEmployee = settings?.workerFullName.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let settingsEmployer: String = {
+            guard let settings else { return "" }
+            let workplace = settings.workplaceName.trimmingCharacters(in: .whitespacesAndNewlines)
+            if !workplace.isEmpty { return workplace }
+            return settings.contractorName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        }()
+
+        let extractedEmployer = fields.employerName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let extractedEmployee = fields.employeeName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let employer = extractedEmployer.isEmpty ? settingsEmployer : extractedEmployer
+        let employee = extractedEmployee.isEmpty ? settingsEmployee : extractedEmployee
 
         let extraction = PayslipExtraction(
             providerName: result.providerName,
@@ -50,9 +67,9 @@ struct PayslipReviewDraft: Equatable {
             rawJSON: result.rawJSON,
             grossPay: fields.grossPay.map { Decimal($0) },
             netPay: fields.netPay.map { Decimal($0) },
-            currencyCode: fields.currency,
-            employerName: fields.employerName,
-            employeeName: fields.employeeName,
+            currencyCode: fields.currency ?? "ILS",
+            employerName: employer.isEmpty ? nil : employer,
+            employeeName: employee.isEmpty ? nil : employee,
             employeeID: nil,
             payPeriodStart: payPeriodStart,
             payPeriodEnd: payPeriodEnd,
@@ -70,13 +87,25 @@ struct PayslipReviewDraft: Equatable {
             grossPay: extraction.grossPay,
             netPay: extraction.netPay,
             currencyCode: extraction.currencyCode ?? "ILS",
-            employerName: extraction.employerName ?? "",
-            employeeName: extraction.employeeName ?? "",
+            employerName: employer,
+            employeeName: employee,
             hoursRegular: extraction.hoursRegular,
             hoursOT: extraction.hoursOT,
             deductionsTotal: extraction.deductionsTotal,
             notes: fields.notes ?? "",
             extraction: extraction
+        )
+    }
+
+    /// Blank review draft for manual entry — still seeds name/workplace from Settings.
+    static func manualBlank(settings: WorkplaceSettings?) -> PayslipReviewDraft {
+        from(
+            result: PayslipLLMStructureResult(
+                fields: PayslipLLMFields(currency: "ILS", confidence: 0),
+                providerName: "manual",
+                needsManualReview: true
+            ),
+            settings: settings
         )
     }
 
@@ -194,7 +223,16 @@ final class PayslipUploadViewModel: ObservableObject {
         case failed(String)
     }
 
+    /// How to populate the review form after a file is chosen.
+    enum FillMode: Equatable {
+        /// OCR + payslip LLM/heuristic, then Settings fallbacks for name/workplace.
+        case automatic
+        /// Skip AI — user fills amounts; name/workplace still come from Settings.
+        case manual
+    }
+
     @Published var phase: Phase = .pick
+    @Published var fillMode: FillMode = .automatic
     @Published var draft: PayslipReviewDraft?
     @Published var staged: StagedPayslipFile?
     @Published var previewImage: UIImage?
@@ -208,18 +246,25 @@ final class PayslipUploadViewModel: ObservableObject {
     private let scanner: TimesheetScannerManager
     private let cloudPreference: SmartScannerCloudPreferencing
     private let routerFactory: (_ includeCloud: Bool) -> PayslipLLMRouter
+    private var settings: WorkplaceSettings
     private var processingTask: Task<Void, Never>?
 
     init(
         store: PayslipStore = .shared,
         scanner: TimesheetScannerManager = .shared,
         cloudPreference: SmartScannerCloudPreferencing = UserDefaultsSmartScannerCloudPreference.shared,
+        settings: WorkplaceSettings = .default,
         routerFactory: @escaping (_ includeCloud: Bool) -> PayslipLLMRouter = { PayslipLLMRouter.default(includeCloud: $0) }
     ) {
         self.store = store
         self.scanner = scanner
         self.cloudPreference = cloudPreference
+        self.settings = settings
         self.routerFactory = routerFactory
+    }
+
+    func updateSettings(_ settings: WorkplaceSettings) {
+        self.settings = settings
     }
 
     var canSave: Bool {
@@ -236,6 +281,16 @@ final class PayslipUploadViewModel: ObservableObject {
 
     func previewURL(for staged: StagedPayslipFile) -> URL {
         store.url(forStaged: staged)
+    }
+
+    func chooseAutomaticFill() {
+        fillMode = .automatic
+        showSourceDialog = true
+    }
+
+    func chooseManualFill() {
+        fillMode = .manual
+        showSourceDialog = true
     }
 
     func cancelAndDiscard() {
@@ -257,6 +312,7 @@ final class PayslipUploadViewModel: ObservableObject {
         showFileImporter = false
         showCamera = false
         showPhotosPicker = false
+        // Keep last fillMode preference for the session.
     }
 
     func beginImport(fileData: Data, originalFileName: String, contentType: UTType) {
@@ -336,6 +392,12 @@ final class PayslipUploadViewModel: ObservableObject {
             staged = stagedFile
             updatePreview(fileData: fileData, contentType: contentType)
 
+            if fillMode == .manual {
+                draft = PayslipReviewDraft.manualBlank(settings: settings)
+                phase = .review
+                return
+            }
+
             let ocrText: String
             if contentType.conforms(to: .pdf) {
                 let temp = FileManager.default.temporaryDirectory
@@ -366,7 +428,8 @@ final class PayslipUploadViewModel: ObservableObject {
                 return
             }
 
-            draft = PayslipReviewDraft.from(result: result)
+            // Auto-fill from OCR/AI, then backfill worker/employer from Settings when missing.
+            draft = PayslipReviewDraft.from(result: result, settings: settings)
             phase = .review
         } catch {
             if let staged {

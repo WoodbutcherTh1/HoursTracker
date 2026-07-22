@@ -20,28 +20,39 @@ struct LocalHeuristicPayslipLLMProvider: PayslipLLMProviding {
         }
 
         var fields = PayslipLLMFields()
+        let lines = trimmed
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
 
-        for rawLine in trimmed.components(separatedBy: .newlines) {
-            let line = rawLine.trimmingCharacters(in: .whitespaces)
-            guard !line.isEmpty else { continue }
+        for (index, line) in lines.enumerated() {
             let lower = line.lowercased()
+            let nextLine = index + 1 < lines.count ? lines[index + 1] : nil
 
-            let isNetLine = line.contains("נטו")
-                || line.contains("صافي")
-                || lower.contains("net pay")
-                || lower.contains("take home")
-                || (lower.contains("net") && !lower.contains("network"))
-
-            let isGrossLine = line.contains("ברוטו")
-                || lower.contains("gross")
-                || lower.contains("إجمالي")
-
-            if isNetLine, fields.netPay == nil, let value = Self.firstMoneyValue(in: line) {
-                fields.netPay = value
+            if fields.netPay == nil, Self.isNetLine(line, lower: lower) {
+                fields.netPay = Self.moneyOnLineOrNext(line, next: nextLine)
             }
-            if isGrossLine, fields.grossPay == nil, let value = Self.firstMoneyValue(in: line) {
-                fields.grossPay = value
+            if fields.grossPay == nil, Self.isGrossLine(line, lower: lower) {
+                fields.grossPay = Self.moneyOnLineOrNext(line, next: nextLine)
             }
+            if fields.deductionsTotal == nil, Self.isDeductionsLine(line, lower: lower) {
+                fields.deductionsTotal = Self.moneyOnLineOrNext(line, next: nextLine)
+            }
+            if fields.employerName == nil, let employer = Self.labeledName(in: line, labels: Self.employerLabels) {
+                fields.employerName = employer
+            }
+            if fields.employeeName == nil, let employee = Self.labeledName(in: line, labels: Self.employeeLabels) {
+                fields.employeeName = employee
+            }
+        }
+
+        // Fallback: if labels never matched, take the largest currency-looking amounts
+        // near common Hebrew payslip keywords anywhere in the text.
+        if fields.netPay == nil {
+            fields.netPay = Self.scanKeywordMoney(in: trimmed, keywords: Self.netKeywords)
+        }
+        if fields.grossPay == nil {
+            fields.grossPay = Self.scanKeywordMoney(in: trimmed, keywords: Self.grossKeywords)
         }
 
         if let (start, end) = Self.detectPeriod(in: trimmed) {
@@ -56,22 +67,24 @@ struct LocalHeuristicPayslipLLMProvider: PayslipLLMProviding {
 
         if fields.currency == nil {
             if trimmed.contains("₪") || trimmed.localizedCaseInsensitiveContains("ILS")
-                || trimmed.contains("ש\"ח") {
+                || trimmed.contains("ש\"ח") || trimmed.contains("שח") {
                 fields.currency = "ILS"
             } else if trimmed.contains("$") || trimmed.localizedCaseInsensitiveContains("USD") {
                 fields.currency = "USD"
             } else if trimmed.contains("€") || trimmed.localizedCaseInsensitiveContains("EUR") {
                 fields.currency = "EUR"
+            } else {
+                fields.currency = "ILS"
             }
         }
 
-        // Cap confidence low — local extraction is only a hint.
         let signals = [fields.netPay, fields.grossPay].compactMap { $0 }.count
             + (fields.paymentMonth != nil ? 1 : 0)
         switch signals {
-        case 0: fields.confidence = 0.1
-        case 1: fields.confidence = 0.3
-        default: fields.confidence = 0.5
+        case 0: fields.confidence = 0.15
+        case 1: fields.confidence = 0.35
+        case 2: fields.confidence = 0.55
+        default: fields.confidence = 0.65
         }
 
         return PayslipLLMStructureResult(
@@ -80,6 +93,78 @@ struct LocalHeuristicPayslipLLMProvider: PayslipLLMProviding {
             rawJSON: nil,
             needsManualReview: true
         )
+    }
+
+    // MARK: - Line classifiers
+
+    private static let netKeywords = [
+        "נטו לתשלום", "סך נטו", "סה\"כ נטו", "סהכ נטו", "לתשלום", "נטו",
+        "صافي", "net pay", "take home", "net salary"
+    ]
+    private static let grossKeywords = [
+        "שכר ברוטו", "סה\"כ ברוטו", "סהכ ברוטו", "ברוטו", "משכורת",
+        "إجمالي", "gross pay", "gross salary", "gross"
+    ]
+    private static let employerLabels = ["מעסיק", "שם המעסיק", "מקום עבודה", "employer", "شركة"]
+    private static let employeeLabels = ["עובד", "שם העובד", "שם פרטי", "employee", "عامل"]
+
+    private static func isNetLine(_ line: String, lower: String) -> Bool {
+        if line.contains("נטו") { return true }
+        if line.contains("صافي") { return true }
+        if lower.contains("net pay") || lower.contains("take home") { return true }
+        if lower.contains("net") && !lower.contains("network") { return true }
+        if line.contains("לתשלום") && !line.contains("ברוטו") { return true }
+        return false
+    }
+
+    private static func isGrossLine(_ line: String, lower: String) -> Bool {
+        line.contains("ברוטו")
+            || line.contains("משכורת")
+            || lower.contains("gross")
+            || line.contains("إجمالي")
+    }
+
+    private static func isDeductionsLine(_ line: String, lower: String) -> Bool {
+        line.contains("ניכוי")
+            || line.contains("ניכויים")
+            || lower.contains("deduction")
+            || line.contains("خصم")
+    }
+
+    private static func moneyOnLineOrNext(_ line: String, next: String?) -> Double? {
+        if let value = firstMoneyValue(in: line) { return value }
+        if let next, let value = firstMoneyValue(in: next) { return value }
+        return nil
+    }
+
+    private static func labeledName(in line: String, labels: [String]) -> String? {
+        for label in labels {
+            guard let range = line.range(of: label, options: [.caseInsensitive]) else { continue }
+            var rest = String(line[range.upperBound...])
+                .trimmingCharacters(in: CharacterSet(charactersIn: ":：-–— ").union(.whitespaces))
+            // Strip trailing money amounts that sometimes share the line.
+            if let moneyRange = rest.range(of: #"\d"# , options: .regularExpression) {
+                rest = String(rest[..<moneyRange.lowerBound])
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+            }
+            if rest.count >= 2 { return rest }
+        }
+        return nil
+    }
+
+    private static func scanKeywordMoney(in text: String, keywords: [String]) -> Double? {
+        let lower = text.lowercased()
+        for keyword in keywords {
+            let needle = keyword.lowercased()
+            guard let range = lower.range(of: needle) else { continue }
+            let from = text.index(range.lowerBound, offsetBy: 0)
+            let windowEnd = text.index(from, offsetBy: min(80, text.distance(from: from, to: text.endIndex)))
+            let window = String(text[from..<windowEnd])
+            if let value = firstMoneyValue(in: window) {
+                return value
+            }
+        }
+        return nil
     }
 
     // MARK: - Number parsing
@@ -156,17 +241,38 @@ struct LocalHeuristicPayslipLLMProvider: PayslipLLMProviding {
 
     static func paymentMonth(fromDate dateString: String) -> String? {
         let parts = dateString.split(whereSeparator: { "/.-".contains($0) })
-        guard parts.count == 3,
-              let month = Int(parts[1]),
-              let yearRaw = Int(parts[2]) else {
-            return nil
-        }
+        guard parts.count == 3 else { return nil }
+        // Prefer day/month/year (IL) when first part is a plausible day.
+        let a = Int(parts[0]) ?? 0
+        let b = Int(parts[1]) ?? 0
+        let yearRaw = Int(parts[2]) ?? 0
         let year = yearRaw < 100 ? 2000 + yearRaw : yearRaw
-        return String(format: "%04d-%02d", year, month)
+        if a > 12 && b >= 1 && b <= 12 {
+            return String(format: "%04d-%02d", year, b)
+        }
+        if b > 12 && a >= 1 && a <= 12 {
+            return String(format: "%04d-%02d", year, a)
+        }
+        if a >= 1 && a <= 12 {
+            return String(format: "%04d-%02d", year, a)
+        }
+        return nil
     }
 
-    /// Looks for standalone "MM/YYYY" or "YYYY-MM" markers when no explicit range appears.
+    /// Looks for "לחודש 5/2026", "MM/YYYY", or "YYYY-MM".
     static func detectPaymentMonth(in text: String) -> String? {
+        let hebrewMonth = #"לחודש\s*(0?[1-9]|1[0-2])[./-](20\d{2})"#
+        if let regex = try? NSRegularExpression(pattern: hebrewMonth) {
+            let range = NSRange(text.startIndex..., in: text)
+            if let match = regex.firstMatch(in: text, range: range),
+               let mRange = Range(match.range(at: 1), in: text),
+               let yRange = Range(match.range(at: 2), in: text),
+               let month = Int(text[mRange]),
+               let year = Int(text[yRange]) {
+                return String(format: "%04d-%02d", year, month)
+            }
+        }
+
         let mmYYYY = #"\b(0?[1-9]|1[0-2])[./-](20\d{2})\b"#
         if let regex = try? NSRegularExpression(pattern: mmYYYY) {
             let range = NSRange(text.startIndex..., in: text)

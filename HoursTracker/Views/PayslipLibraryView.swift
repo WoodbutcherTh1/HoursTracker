@@ -62,7 +62,7 @@ struct PayslipLibraryView: View {
         .sheet(isPresented: $viewModel.showUpload, onDismiss: {
             viewModel.reload()
         }) {
-            PayslipUploadReviewView { _ in
+            PayslipUploadReviewView(settings: appViewModel.settings) { _ in
                 appViewModel.showSuccessToast(L10n.payslipSavedToast)
             }
         }

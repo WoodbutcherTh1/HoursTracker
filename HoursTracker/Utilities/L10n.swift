@@ -446,6 +446,10 @@ enum L10n {
     static var payslipUploadEntryFooter: String { t("payslip.upload.entryFooter") }
     static var payslipUploadTitle: String { t("payslip.upload.title") }
     static var payslipUploadSubtitle: String { t("payslip.upload.subtitle") }
+    static var payslipFillModePrompt: String { t("payslip.fillMode.prompt") }
+    static var payslipFillModeAuto: String { t("payslip.fillMode.auto") }
+    static var payslipFillModeManual: String { t("payslip.fillMode.manual") }
+    static var payslipFillModeSettingsHint: String { t("payslip.fillMode.settingsHint") }
     static var payslipUploadSourceTitle: String { t("payslip.upload.sourceTitle") }
     static var payslipUploadFailed: String { t("payslip.upload.failed") }
     static var payslipAnalyzing: String { t("payslip.analyzing") }

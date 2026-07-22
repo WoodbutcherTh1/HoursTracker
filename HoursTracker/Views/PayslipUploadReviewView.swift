@@ -14,9 +14,9 @@ struct PayslipUploadReviewView: View {
 
     var onSaved: ((PayslipRecord) -> Void)?
 
-    init(onSaved: ((PayslipRecord) -> Void)? = nil) {
+    init(onSaved: ((PayslipRecord) -> Void)? = nil, settings: WorkplaceSettings = .default) {
         // Construct on the main actor inside init — default-arg evaluation is nonisolated.
-        _viewModel = StateObject(wrappedValue: PayslipUploadViewModel())
+        _viewModel = StateObject(wrappedValue: PayslipUploadViewModel(settings: settings))
         self.onSaved = onSaved
     }
 
@@ -124,15 +124,37 @@ struct PayslipUploadReviewView: View {
                 .multilineTextAlignment(.center)
                 .padding(.horizontal)
 
-            Button {
-                viewModel.showSourceDialog = true
-            } label: {
-                Label(L10n.payslipUploadAction, systemImage: "plus.circle.fill")
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
+            Text(L10n.payslipFillModePrompt)
+                .font(.subheadline.weight(.semibold))
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+
+            VStack(spacing: 12) {
+                Button {
+                    viewModel.chooseAutomaticFill()
+                } label: {
+                    Label(L10n.payslipFillModeAuto, systemImage: "wand.and.stars")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.borderedProminent)
+
+                Button {
+                    viewModel.chooseManualFill()
+                } label: {
+                    Label(L10n.payslipFillModeManual, systemImage: "square.and.pencil")
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                }
+                .buttonStyle(.bordered)
             }
-            .buttonStyle(.borderedProminent)
             .padding(.horizontal, 24)
+
+            Text(L10n.payslipFillModeSettingsHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 28)
 
             Spacer()
         }

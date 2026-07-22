@@ -200,17 +200,58 @@ final class PayslipUploadViewModelTests: XCTestCase {
         }
     }
 
-    func testDefaultRouterExcludesCloudProvidersWhenIncludeCloudFalse() {
-        let router = PayslipLLMRouter.default(includeCloud: false, geminiKey: "fake", secondaryKey: "fake")
-        // Extract with empty text — local heuristic always runs; cloud providers are not in the chain.
-        let expectation = expectation(description: "extract")
-        Task {
-            let result = await router.extractPayslip(ocrText: "Net pay 100\nMay 2026")
-            XCTAssertTrue(result.needsManualReview)
-            XCTAssertEqual(result.providerName, "Local")
-            expectation.fulfill()
-        }
-        wait(for: [expectation], timeout: 5)
+    func testSettingsPrefillEmployeeAndEmployerWhenOCROmitsThem() {
+        var settings = TestData.settings()
+        settings.workerFullName = "דנה כהן"
+        settings.workplaceName = "אתר בנייה א׳"
+
+        let draft = PayslipReviewDraft.from(
+            result: PayslipLLMStructureResult(
+                fields: PayslipLLMFields(
+                    paymentMonth: "2026-05",
+                    netPay: 5394.99,
+                    currency: "ILS",
+                    confidence: 0.5
+                ),
+                providerName: "Local",
+                needsManualReview: true
+            ),
+            settings: settings
+        )
+
+        XCTAssertEqual(draft.employeeName, "דנה כהן")
+        XCTAssertEqual(draft.employerName, "אתר בנייה א׳")
+        XCTAssertEqual(draft.netPay, Decimal(string: "5394.99"))
+        XCTAssertEqual(draft.paymentMonth.map { Calendar.current.component(.month, from: $0) }, 5)
+    }
+
+    func testManualBlankUsesSettingsOnly() {
+        var settings = TestData.settings()
+        settings.workerFullName = "Worker One"
+        settings.workplaceName = "Site A"
+        let draft = PayslipReviewDraft.manualBlank(settings: settings)
+        XCTAssertEqual(draft.employeeName, "Worker One")
+        XCTAssertEqual(draft.employerName, "Site A")
+        XCTAssertNil(draft.netPay)
+        XCTAssertFalse(draft.canSave)
+    }
+
+    func testHebrewPayslipMonthAndNetHeuristic() async throws {
+        let provider = LocalHeuristicPayslipLLMProvider()
+        let text = """
+        תלוש משכורת לחודש 5/2026
+        מעסיק: חברת בנייה בע״מ
+        עובד: ישראל ישראלי
+        ברוטו 7,820.00
+        נטו לתשלום 5,394.99
+        """
+        let result = try await provider.extractPayslip(ocrText: text)
+        XCTAssertEqual(result.fields.paymentMonth, "2026-05")
+        XCTAssertEqual(result.fields.grossPay, 7820)
+        XCTAssertEqual(result.fields.netPay, 5394.99)
+        XCTAssertEqual(result.fields.employerName, "חברת בנייה בע״מ")
+        XCTAssertEqual(result.fields.employeeName, "ישראל ישראלי")
+        XCTAssertTrue(result.needsManualReview)
     }
 }
 
