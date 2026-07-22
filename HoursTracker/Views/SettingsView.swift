@@ -20,6 +20,8 @@ struct SettingsView: View {
     @State private var showDisableSyncConfirm = false
     @State private var isEditingIDNumber = false
     @State private var smartScannerCloudEnabled = UserDefaultsSmartScannerCloudPreference.shared.isEnabled
+    @State private var geminiAPIKeyDraft = KeychainStore.string(for: .geminiAPIKey) ?? ""
+    @State private var secondaryAPIKeyDraft = KeychainStore.string(for: .secondaryAPIKey) ?? ""
 
     private var syncDateFormatter: DateFormatter {
         AppLocale.makeDateFormatter(dateStyle: .short, timeStyle: .short)
@@ -63,6 +65,8 @@ struct SettingsView: View {
                 draft = viewModel.settings
                 viewModel.refreshLocationPermissionStatuses()
                 smartScannerCloudEnabled = UserDefaultsSmartScannerCloudPreference.shared.isEnabled
+                geminiAPIKeyDraft = KeychainStore.string(for: .geminiAPIKey) ?? ""
+                secondaryAPIKeyDraft = KeychainStore.string(for: .secondaryAPIKey) ?? ""
             }
             .confirmationDialog(
                 L10n.privacyDeleteAllConfirm,
@@ -178,6 +182,10 @@ struct SettingsView: View {
         viewModel.saveSettings(draft)
         draft = viewModel.settings
         UserDefaultsSmartScannerCloudPreference.shared.isEnabled = smartScannerCloudEnabled
+        let trimmedKey = geminiAPIKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        try? KeychainStore.setString(trimmedKey, for: .geminiAPIKey)
+        let trimmedSecondary = secondaryAPIKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        try? KeychainStore.setString(trimmedSecondary, for: .secondaryAPIKey)
         viewModel.showSuccessToast(L10n.settingsSaved)
     }
 
@@ -188,6 +196,22 @@ struct SettingsView: View {
             Text(L10n.scannerCloudPrivacyNotice)
                 .font(.caption)
                 .foregroundStyle(.secondary)
+
+            if smartScannerCloudEnabled {
+                SecureField(L10n.scannerGeminiAPIKey, text: $geminiAPIKeyDraft)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                Text(L10n.scannerGeminiAPIKeyHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+
+                SecureField(L10n.scannerSecondaryAPIKey, text: $secondaryAPIKeyDraft)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                Text(L10n.scannerSecondaryAPIKeyHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
         } header: {
             Text(L10n.scannerSection)
         }
