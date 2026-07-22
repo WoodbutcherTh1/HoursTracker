@@ -245,6 +245,7 @@ final class PayslipStore {
         if fileManager.fileExists(atPath: storedFileURL.path) {
             try fileManager.removeItem(at: storedFileURL)
         }
+        PayslipThumbnailCache.shared.remove(id: id)
         BackupContentDirtyFlag.mark()
     }
 
@@ -350,13 +351,17 @@ final class PayslipStore {
     }
 
     func removeAllStoredData() {
-        guard fileManager.fileExists(atPath: payslipsDirectory.path) else { return }
+        guard fileManager.fileExists(atPath: payslipsDirectory.path) else {
+            PayslipThumbnailCache.shared.removeAll()
+            return
+        }
         do {
             try fileManager.removeItem(at: payslipsDirectory)
             BackupContentDirtyFlag.mark()
         } catch {
             logger.error("Failed to wipe payslips directory: \(error.localizedDescription, privacy: .private)")
         }
+        PayslipThumbnailCache.shared.removeAll()
     }
 
     static func isTransientReadError(_ error: Error) -> Bool {

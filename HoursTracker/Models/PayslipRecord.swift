@@ -1,12 +1,12 @@
 import Foundation
 
-struct PayslipRecord: Identifiable, Codable, Equatable {
-    enum SourceKind: String, Codable, Equatable {
+struct PayslipRecord: Identifiable, Codable, Equatable, Hashable {
+    enum SourceKind: String, Codable, Equatable, Hashable {
         case image
         case pdf
     }
 
-    enum ReviewState: String, Codable, Equatable {
+    enum ReviewState: String, Codable, Equatable, Hashable {
         case pendingReview
         case confirmed
         case rejected
@@ -44,7 +44,7 @@ struct PayslipRecord: Identifiable, Codable, Equatable {
     }
 }
 
-struct PayslipExtraction: Codable, Equatable {
+struct PayslipExtraction: Codable, Equatable, Hashable {
     var providerName: String
     var extractedAt: Date
     var confidence: Double
@@ -65,7 +65,7 @@ struct PayslipExtraction: Codable, Equatable {
     var extras: [String: String]
 }
 
-struct PayslipOverrides: Codable, Equatable {
+struct PayslipOverrides: Codable, Equatable, Hashable {
     var editedAt: Date
     var grossPay: Decimal?
     var netPay: Decimal?

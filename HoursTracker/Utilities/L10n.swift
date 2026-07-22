@@ -477,6 +477,16 @@ enum L10n {
     static var payslipNeedsReview: String { t("payslip.needsReview") }
     static var payslipPreview: String { t("payslip.preview") }
     static var payslipPreviewUnavailable: String { t("payslip.previewUnavailable") }
+    static var payslipLibraryTitle: String { t("payslip.library.title") }
+    static var payslipLibraryEntrySubtitle: String { t("payslip.library.entrySubtitle") }
+    static var payslipLibraryEmptyTitle: String { t("payslip.library.emptyTitle") }
+    static var payslipLibraryEmptySubtitle: String { t("payslip.library.emptySubtitle") }
+    static var payslipNetUnavailable: String { t("payslip.netUnavailable") }
+    static var payslipDelete: String { t("payslip.delete") }
+    static var payslipDeleteConfirmTitle: String { t("payslip.deleteConfirmTitle") }
+    static var payslipDeleteConfirmMessage: String { t("payslip.deleteConfirmMessage") }
+    static var payslipDeleteFailed: String { t("payslip.deleteFailed") }
+    static var payslipDeletedToast: String { t("payslip.deletedToast") }
 
     // Common
     static func hoursShort(_ hours: Double) -> String {

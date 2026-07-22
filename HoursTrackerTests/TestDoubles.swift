@@ -272,4 +272,56 @@ enum TestData {
             modifiedAt: Date()
         )
     }
+
+    static func payslipExtraction(
+        confidence: Double = 0.9,
+        needsManualReview: Bool = false,
+        netPay: Decimal? = Decimal(1010.50),
+        grossPay: Decimal? = Decimal(1250)
+    ) -> PayslipExtraction {
+        PayslipExtraction(
+            providerName: "UnitTestOCR",
+            extractedAt: date(2026, 6, 1, 10),
+            confidence: confidence,
+            needsManualReview: needsManualReview,
+            rawJSON: #"{"net":1010.50}"#,
+            grossPay: grossPay,
+            netPay: netPay,
+            currencyCode: "ILS",
+            employerName: "Example Employer",
+            employeeName: "Example Worker",
+            employeeID: "123456789",
+            payPeriodStart: date(2026, 5, 1),
+            payPeriodEnd: date(2026, 5, 31),
+            paymentDate: date(2026, 6, 1),
+            hoursRegular: 160,
+            hoursOT: 8,
+            deductionsTotal: Decimal(120),
+            extras: [:]
+        )
+    }
+
+    static func payslipRecord(
+        id: UUID = UUID(),
+        periodMonth: Date,
+        uploadedAt: Date = date(2026, 7, 1),
+        reviewState: PayslipRecord.ReviewState = .confirmed
+    ) -> PayslipRecord {
+        PayslipRecord(
+            id: id,
+            periodMonth: periodMonth,
+            periodStartDay: nil,
+            periodLabel: nil,
+            uploadedAt: uploadedAt,
+            sourceKind: .image,
+            originalFileName: "slip.png",
+            relativeFilePath: "payslips/files/\(id.uuidString).png",
+            fileByteSize: 12,
+            contentTypeUTI: "public.png",
+            extraction: payslipExtraction(),
+            userOverrides: nil,
+            reviewState: reviewState,
+            notes: nil
+        )
+    }
 }
