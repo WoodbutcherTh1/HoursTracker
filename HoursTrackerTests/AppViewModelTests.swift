@@ -329,6 +329,98 @@ final class AppViewModelTests: XCTestCase {
         XCTAssertEqual(store.lastPurgedSessionIDs, [session.id])
     }
 
+    // MARK: - Silent-wipe regression (transient load failure)
+
+    /// After a transient load failure of an existing sessions file, the
+    /// view-model must NOT persist its (empty) in-memory `sessions` back to
+    /// the store — that would silently wipe the intact-but-unreadable file
+    /// once Data Protection released the class key.
+    func testTransientSessionsLoadFailureDoesNotWipeStoreOnNextMutation() {
+        let real = TestData.session(day: 10, inHour: 8, outHour: 16)
+        let store = InMemoryStore()
+        store.storedSessions = [real]
+        // Store *reports* the sessions file as intact-but-unreadable, but the
+        // authoritative `storedSessions` above stays populated so we can prove
+        // the wipe path is closed: the view-model must NOT overwrite it.
+        store.sessionsLoadResultOverride = .temporarilyUnavailable
+
+        let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+
+        // In-memory did NOT invent a populated store; it stayed empty because
+        // the load was unavailable, not because the file is empty.
+        XCTAssertTrue(viewModel.sessions.isEmpty)
+        XCTAssertNotNil(viewModel.errorMessage, "unavailable load should surface an error to the user")
+
+        // The critical invariant: any mutation that would normally call
+        // `persist()` must NOT hand `[]` (or any partial state) to
+        // `store.saveSessions`, because the real bytes are still on disk.
+        viewModel.clockIn()
+
+        XCTAssertEqual(
+            store.storedSessions.map(\.id),
+            [real.id],
+            "transient load failure must not lead to overwriting the intact sessions file"
+        )
+    }
+
+    /// Same guarantee for a plain mutation flow: deleting an (in-memory-empty)
+    /// session list after a transient load must not overwrite the on-disk file.
+    func testTransientSessionsLoadFailureBlocksDeletePersist() {
+        let real = TestData.session(day: 11, inHour: 9, outHour: 17)
+        let store = InMemoryStore()
+        store.storedSessions = [real]
+        store.sessionsLoadResultOverride = .temporarilyUnavailable
+        let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+
+        viewModel.deleteSession(real)
+
+        XCTAssertEqual(
+            store.storedSessions.map(\.id),
+            [real.id],
+            "deletion of an unloaded session must not clobber the real file"
+        )
+    }
+
+    /// Settings save must be blocked on the same principle.
+    func testTransientSettingsLoadFailureDoesNotWipeSettings() {
+        let real = TestData.settings(hourlyRate: 250)
+        let store = InMemoryStore()
+        store.storedSettings = real
+        store.settingsLoadResultOverride = .temporarilyUnavailable
+        let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+
+        XCTAssertNotNil(viewModel.errorMessage)
+
+        viewModel.saveSettings(WorkplaceSettings.default)
+
+        XCTAssertEqual(
+            store.storedSettings.hourlyRate,
+            250,
+            "transient settings load failure must not wipe the intact settings file"
+        )
+    }
+
+    /// `.corruptQuarantined` is different from `.temporarilyUnavailable`:
+    /// bytes were readable but did not decode, so the file has already been
+    /// moved aside. Saving fresh state over the (now-empty) primary path is
+    /// safe and desirable.
+    func testCorruptSessionsLoadStillAllowsPersist() {
+        let store = InMemoryStore()
+        store.storedSessions = []
+        store.sessionsLoadResultOverride = .corruptQuarantined
+        let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+
+        XCTAssertTrue(viewModel.sessions.isEmpty)
+
+        viewModel.clockIn()
+
+        XCTAssertEqual(
+            store.storedSessions.count,
+            1,
+            "corrupt-quarantined load has no intact bytes to protect — save must proceed"
+        )
+    }
+
     func testDeleteAllUserDataSurfacesCloudPurgeFailure() async {
         let store = InMemoryStore()
         store.isCloudSyncSupported = true

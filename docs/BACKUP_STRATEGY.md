@@ -8,9 +8,15 @@ JSON with no rolling backup.
 
 ## Format
 
-- ID: `hourstracker.backup` · version `1` · extension `.htbackup.json`
-- Contents: all sessions, full `WorkplaceSettings` (name, ID, contractor, tax credit inputs,
-  rates, OT, language prefs), activity log
+- ID: `hourstracker.backup` · version `2` · extension `.htbackup.zip`
+- Zip contents:
+  - `manifest.json`: sessions, full `WorkplaceSettings` (name, ID, contractor,
+    tax credit inputs, rates, OT, language prefs), activity log, and payslip metadata
+  - `payslips/<uuid>.<ext>`: payslip PDF/image binaries referenced by the manifest
+- Restore remains backward-compatible with v1 `.htbackup.json` and legacy full-data
+  export JSON. Those formats decode with an empty payslip set. On **replace**, payslip
+  storage is only overwritten when `formatVersion >= 2` so restoring an old v1 backup
+  cannot wipe a newer local payslip library. On **merge**, empty payslip payloads are a no-op.
 
 ## Layers
 
@@ -19,7 +25,7 @@ JSON with no rolling backup.
 | Manual export | Settings → Backup | Share / Files | User-owned |
 | Sync Now | Settings | App Group `backups/` (Documents fallback) | Rolling 14 |
 | Automatic | Launch if >20h; after clock-out | Same | Last **14** |
-| Pre-restore | Before Replace import | `pre-restore-*.htbackup.json` | Counts toward 14 |
+| Pre-restore | Before Replace import | `pre-restore-*.htbackup.zip` | Counts toward 14 |
 
 ## Before changing entitlements / signing
 

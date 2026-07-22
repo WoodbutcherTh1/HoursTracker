@@ -7,7 +7,11 @@ enum ZipWriter {
         let data: Data
     }
 
-    static func createArchive(entries: [Entry], outputURL: URL) throws {
+    static func createArchive(
+        entries: [Entry],
+        outputURL: URL,
+        fileWriter: FileWriting = ProtectedFileWriter.shared
+    ) throws {
         var archive = Data()
         var centralDirectory = Data()
         var offset: UInt32 = 0
@@ -74,7 +78,7 @@ enum ZipWriter {
         endRecord.appendUInt16(0)
 
         archive.append(endRecord)
-        try ProtectedFileWriter.shared.write(archive, to: outputURL)
+        try fileWriter.write(archive, to: outputURL)
     }
 
     /// Reads one entry written by `createArchive`. Used by tests (iOS has no `Process`/`unzip`).
@@ -129,6 +133,45 @@ enum ZipWriter {
             offset = dataEnd
         }
         throw ExportError.zipFailed
+    }
+
+    static func entryPaths(inArchiveAt url: URL) throws -> [String] {
+        try entryPaths(in: Data(contentsOf: url))
+    }
+
+    static func entryPaths(in archive: Data) throws -> [String] {
+        var paths: [String] = []
+        var offset = 0
+        while offset + 30 <= archive.count {
+            let signature = try archive.uint32LE(at: offset)
+            if signature == 0x02014b50 || signature == 0x06054b50 {
+                break
+            }
+            guard signature == 0x04034b50 else { throw ExportError.zipFailed }
+
+            let compressedSize = Int(try archive.uint32LE(at: offset + 18))
+            let fileNameLength = Int(try archive.uint16LE(at: offset + 26))
+            let extraLength = Int(try archive.uint16LE(at: offset + 28))
+
+            let nameStart = offset + 30
+            let nameEnd = nameStart + fileNameLength
+            guard nameEnd >= nameStart, nameEnd <= archive.count else {
+                throw ExportError.zipFailed
+            }
+            let dataStart = nameEnd + extraLength
+            guard dataStart >= nameEnd else { throw ExportError.zipFailed }
+            let dataEnd = dataStart + compressedSize
+            guard dataEnd >= dataStart, dataEnd <= archive.count else {
+                throw ExportError.zipFailed
+            }
+
+            guard let path = String(data: archive.subdata(in: nameStart..<nameEnd), encoding: .utf8) else {
+                throw ExportError.zipFailed
+            }
+            paths.append(path)
+            offset = dataEnd
+        }
+        return paths
     }
 
     private static func deflate(_ data: Data) throws -> Data {

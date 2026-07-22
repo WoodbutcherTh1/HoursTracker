@@ -8573,19 +8573,19 @@
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Lossless JSON of all shifts and settings. Save to Files or share. Automatic daily copies are kept on-device."
+            "value": "Lossless backup of all shifts, settings, activity log, and payslips. Save to Files or share. Automatic daily copies are kept on-device."
           }
         },
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "نسخة JSON كاملة لكل الورديات والإعدادات. احفظ في Files أو شارك. تُحفظ نسخ يومية تلقائياً على الجهاز."
+            "value": "نسخة احتياطية كاملة لكل الورديات والإعدادات وسجل النشاط وكشوف الراتب. احفظ في Files أو شارك. تُحفظ نسخ يومية تلقائياً على الجهاز."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "JSON מלא של כל המשמרות וההגדרות. שמור ב‑Files או שתף. נשמרות גם העתקים יומיים במכשיר."
+            "value": "גיבוי מלא של כל המשמרות, ההגדרות, יומן הפעילות ותלושי השכר. שמור ב‑Files או שתף. נשמרות גם העתקים יומיים במכשיר."
           }
         }
       }
@@ -8931,6 +8931,75 @@
           "stringUnit": {
             "state": "translated",
             "value": "הגיבוי ריק."
+          }
+        }
+      }
+    },
+    "backup.error.payslipMissing %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A payslip file is missing from the backup: %@."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ملف كشف راتب مفقود من النسخة الاحتياطية: %@."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "קובץ תלוש שכר חסר בגיבוי: %@."
+          }
+        }
+      }
+    },
+    "backup.error.tooLarge %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Backup is too large (%@)."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "النسخة الاحتياطية كبيرة جداً (%@)."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הגיבוי גדול מדי (%@)."
+          }
+        }
+      }
+    },
+    "backup.error.payslipEntryTooLarge %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A payslip in the backup is too large: %@."
+          }
+        },
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "كشف راتب في النسخة الاحتياطية كبير جداً: %@."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "תלוש שכר בגיבוי גדול מדי: %@."
           }
         }
       }

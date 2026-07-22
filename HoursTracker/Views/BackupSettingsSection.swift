@@ -9,7 +9,7 @@ struct BackupSettingsSection: View {
     @State private var shareItem: ShareableFile?
     @State private var errorMessage: String?
     @State private var showImporter = false
-    @State private var pendingDocument: FullBackupDocument?
+    @State private var pendingPackage: FullBackupPackage?
     @State private var showRestoreConfirm = false
 
     private var stampFormatter: DateFormatter {
@@ -75,7 +75,7 @@ struct BackupSettingsSection: View {
                 applyRestore(mode: .merge)
             }
             Button(L10n.editCancel, role: .cancel) {
-                pendingDocument = nil
+                pendingPackage = nil
             }
         } message: {
             Text(restoreSummaryText)
@@ -113,7 +113,7 @@ struct BackupSettingsSection: View {
     }
 
     private var restoreSummaryText: String {
-        guard let doc = pendingDocument else { return "" }
+        guard let doc = pendingPackage?.document else { return "" }
         let summary = FullBackupManager.shared.summary(of: doc)
         var lines = [
             L10n.backupSummarySessions(summary.sessionCount),
@@ -175,8 +175,8 @@ struct BackupSettingsSection: View {
         case .success(let urls):
             guard let url = urls.first else { return }
             do {
-                let document = try viewModel.loadBackupDocument(from: url)
-                pendingDocument = document
+                let package = try viewModel.loadBackupPackage(from: url)
+                pendingPackage = package
                 showRestoreConfirm = true
             } catch {
                 errorMessage = error.localizedDescription
@@ -185,10 +185,10 @@ struct BackupSettingsSection: View {
     }
 
     private func applyRestore(mode: FullBackupRestoreMode) {
-        guard let document = pendingDocument else { return }
-        pendingDocument = nil
+        guard let package = pendingPackage else { return }
+        pendingPackage = nil
         do {
-            try viewModel.restoreBackup(document, mode: mode)
+            try viewModel.restoreBackup(package, mode: mode)
             viewModel.showSuccessToast(L10n.backupRestoreSuccess)
         } catch {
             errorMessage = error.localizedDescription
@@ -196,10 +196,14 @@ struct BackupSettingsSection: View {
     }
 
     private static var importTypes: [UTType] {
-        var types: [UTType] = [.json]
-        if let custom = UTType(filenameExtension: "htbackup.json") {
-            types.insert(custom, at: 0)
+        var types: [UTType] = []
+        if let custom = UTType(filenameExtension: FullBackupManager.fileExtension) {
+            types.append(custom)
         }
+        if let legacy = UTType(filenameExtension: FullBackupManager.legacyJSONExtension) {
+            types.append(legacy)
+        }
+        types.append(.json)
         // Also allow generic .json and double-extension via public data.
         types.append(.data)
         return types
