@@ -446,6 +446,7 @@ final class AppViewModel: ObservableObject {
         locationManager.stopArrivalReminders()
         refreshReminders()
         ExportTempFileStore.wipeAll()
+        PayslipStore.wipeAll()
         PersistenceManager.shared.wipeQuarantinedSidecars()
         SessionTombstoneStore.shared.removeAll()
         SessionTombstoneStore.shared.wipeQuarantinedSidecars()
