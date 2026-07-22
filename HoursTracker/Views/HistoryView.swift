@@ -55,6 +55,7 @@ struct HistoryView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 historyChrome
+                monthlyOverviewRing
                 sessionsContent
                 stickySummaryBar
             }
@@ -351,6 +352,102 @@ struct HistoryView: View {
         }
     }
 
+    // MARK: - Monthly Overview Ring
+
+    /// Whole-period aggregate ring. Progress = worked vs expected for the
+    /// active payroll window. Does NOT rebind to `selectedDay` — the day
+    /// selection only drives the sessions list below.
+    private var monthlyOverviewRing: some View {
+        let totals = periodTotals
+        let expected = max(0.01, expectedPeriodHours)
+        let progress = min(1.0, max(0, totals.totalHours / expected))
+        let payValue = payMode == .net ? totals.formattedNetPay : totals.formattedGrossPay
+        let payLabel = payMode == .net ? L10n.historyPayNet : L10n.historyPayGross
+
+        return HStack(alignment: .center, spacing: 16) {
+            ZStack {
+                Circle()
+                    .stroke(Color.accentColor.opacity(0.15), lineWidth: 10)
+
+                Circle()
+                    .trim(from: 0, to: progress)
+                    .stroke(
+                        Color.accentColor,
+                        style: StrokeStyle(lineWidth: 10, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .animation(.easeInOut(duration: 0.35), value: progress)
+
+                VStack(spacing: 2) {
+                    Text(HistoryPeriodHelper.formatHoursClock(totals.totalHours))
+                        .font(.title2.weight(.bold).monospacedDigit())
+                        .foregroundStyle(Color.accentColor)
+                        .minimumScaleFactor(0.7)
+                        .lineLimit(1)
+                    Text(L10n.historyTotalHours)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                }
+                .padding(.horizontal, 8)
+            }
+            .frame(width: 118, height: 118)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(ringAccessibilityLabel(
+                hours: totals.totalHours,
+                expected: expected,
+                progress: progress
+            ))
+
+            VStack(alignment: .leading, spacing: 6) {
+                Text(HistoryPeriodHelper.shortRangeLabel(for: activePeriod))
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(payLabel)
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .textCase(.uppercase)
+                    Text(payValue)
+                        .font(.title3.weight(.bold).monospacedDigit())
+                        .foregroundStyle(payMode == .net ? .green : .primary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                }
+
+                Text(L10n.historyPeriodProgress(
+                    HistoryPeriodHelper.formatHoursClock(totals.totalHours),
+                    HistoryPeriodHelper.formatHoursClock(expected)
+                ))
+                .font(.caption.monospacedDigit())
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemGroupedBackground))
+        )
+        .padding(.horizontal, 12)
+        .padding(.bottom, 10)
+    }
+
+    private func ringAccessibilityLabel(hours: Double, expected: Double, progress: Double) -> String {
+        let percent = Int((progress * 100).rounded())
+        return "\(L10n.historyTotalHours): " +
+            HistoryPeriodHelper.formatHoursClock(hours) +
+            " / " +
+            HistoryPeriodHelper.formatHoursClock(expected) +
+            " (\(percent)%)"
+    }
+
     // MARK: - Table
 
     private var tableHeader: some View {
@@ -517,12 +614,15 @@ struct HistoryView: View {
     }
 
     private var emptyState: some View {
-        VStack(spacing: 12) {
-            Spacer(minLength: 28)
+        VStack(spacing: 10) {
+            Spacer(minLength: 16)
             Image(systemName: "hand.draw")
-                .font(.system(size: 40))
+                .font(.system(size: 36))
                 .foregroundStyle(.secondary)
                 .symbolRenderingMode(.hierarchical)
+            Text(emptyStateDayTitle)
+                .font(.footnote.weight(.semibold))
+                .foregroundStyle(.secondary)
             Text(L10n.historyEmptyPeriod)
                 .font(.subheadline.weight(.semibold))
                 .multilineTextAlignment(.center)
@@ -534,6 +634,11 @@ struct HistoryView: View {
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private var emptyStateDayTitle: String {
+        let formatter = AppLocale.makeDateFormatter(dateStyle: .full)
+        return formatter.string(from: selectedDay)
     }
 
     // MARK: - Sticky Summary
@@ -598,6 +703,18 @@ struct HistoryView: View {
         let period = activePeriod
         let sessions = viewModel.sortedSessions.filter { period.contains($0.date, calendar: calendar) }
         return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.settings)
+    }
+
+    /// Working-day target hours for the whole payroll window.
+    /// Counts every day in the period that isn't a configured weekly rest day.
+    private var expectedPeriodHours: Double {
+        let workDays = activePeriod.days.reduce(into: 0) { count, day in
+            let weekday = calendar.component(.weekday, from: day)
+            if !viewModel.settings.isRestDayWeekday(weekday) {
+                count += 1
+            }
+        }
+        return Double(workDays) * viewModel.settings.standardDayHours
     }
 
     private func sessionsForDay(_ day: Date) -> [WorkSession] {
