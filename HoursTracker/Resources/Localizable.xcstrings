@@ -8573,19 +8573,19 @@
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "معطّل افتراضيًا. عند التفعيل، قد يُرسل نص OCR من جدول الدوام إلى مزوّد سحابي (Gemini ثم بديل متوافق مع OpenAI) لهيكلة الصفوف. لا تُرفع الصور. عند الإيقاف تبقى المعالجة على الجهاز فقط."
+            "value": "معطّل افتراضيًا. عند التفعيل قد يُرسل نص OCR فقط إلى خدمة سحابية لتحسين التحليل. لا تُرفع الصور. عند الإيقاف تبقى المعالجة على الجهاز فقط."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Off by default. When enabled, OCR text from your timesheet may be sent to a cloud provider (Gemini, then an OpenAI-compatible fallback) to structure rows. No images are uploaded. Processing stays on-device when this is off."
+            "value": "Off by default. When enabled, OCR text only may be sent to a cloud service to improve parsing. Images never leave the device. When off, processing stays on-device."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "כבוי כברירת מחדל. כשמופעל, טקסט ה-OCR מגיליון הנוכחות עשוי להישלח לספק בענן (Gemini ואז fallback תואם OpenAI) לפירוק לשורות. תמונות לא מועלות. כשכבוי — העיבוד נשאר במכשיר בלבד."
+            "value": "כבוי כברירת מחדל. כשמופעל, רק טקסט ה-OCR עשוי להישלח לשירות בענן לשיפור הפירוק. תמונות לא עוזבות את המכשיר. כשכבוי — העיבוד נשאר במכשיר בלבד."
           }
         }
       }
