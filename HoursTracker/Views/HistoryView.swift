@@ -7,7 +7,9 @@ struct HistoryView: View {
 
     /// Anchor month for the payroll cycle label / chevron navigation.
     @State private var periodAnchor: Date = Date()
-    @State private var selectedDay: Date = Calendar.current.startOfDay(for: Date())
+    /// `nil` = show all sessions in the active payroll period (default on open).
+    /// Non-nil = filter to that calendar day only.
+    @State private var selectedDay: Date? = nil
     /// Page index into `periodWeeks` for the Health-style week strip.
     @State private var selectedWeekIndex: Int = 0
     @State private var payMode: PayDisplayMode = .net
@@ -180,10 +182,16 @@ struct HistoryView: View {
                 alignToCurrentPayrollPeriod()
             }
             .onChange(of: selectedDay) { _, newDay in
-                syncWeekPage(to: newDay, animated: true)
+                if let newDay {
+                    syncWeekPage(to: newDay, animated: true)
+                }
             }
             .onChange(of: periodAnchor) { _, _ in
-                syncWeekPage(to: selectedDay, animated: false)
+                if let day = selectedDay {
+                    syncWeekPage(to: day, animated: false)
+                } else {
+                    syncWeekPage(to: Date(), animated: false)
+                }
             }
         }
     }
@@ -246,6 +254,20 @@ struct HistoryView: View {
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
             .frame(height: 68)
+
+            if selectedDay != nil {
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedDay = nil
+                    }
+                } label: {
+                    Label(L10n.historyShowAllDays, systemImage: "xmark.circle.fill")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.bordered)
+                .tint(.secondary)
+                .accessibilityIdentifier("phone.history.showAllDays")
+            }
         }
         .padding(.horizontal, 12)
         .padding(.top, 8)
@@ -266,7 +288,8 @@ struct HistoryView: View {
     }
 
     private func dayCell(_ day: PayrollWeekDay, weekdayLetter: String) -> some View {
-        let isSelected = day.isInPeriod && calendar.isDate(day.date, inSameDayAs: selectedDay)
+        let isSelected = day.isInPeriod
+            && selectedDay.map { calendar.isDate(day.date, inSameDayAs: $0) } == true
         let hasSession = day.isInPeriod && !sessionsForDay(day.date).isEmpty
         let isToday = calendar.isDateInToday(day.date)
         let number = dayNumberFormatter.string(from: day.date)
@@ -274,7 +297,13 @@ struct HistoryView: View {
         return Button {
             guard day.isInPeriod else { return }
             withAnimation(.easeInOut(duration: 0.2)) {
-                selectedDay = calendar.startOfDay(for: day.date)
+                let tapped = calendar.startOfDay(for: day.date)
+                // Tap again to clear day filter → full period list.
+                if let current = selectedDay, calendar.isDate(current, inSameDayAs: tapped) {
+                    selectedDay = nil
+                } else {
+                    selectedDay = tapped
+                }
             }
         } label: {
             VStack(spacing: 4) {
@@ -523,14 +552,32 @@ struct HistoryView: View {
                 .font(.system(size: 40))
                 .foregroundStyle(.secondary)
                 .symbolRenderingMode(.hierarchical)
-            Text(L10n.historyEmptyPeriod)
+            if selectedDay != nil {
+                Text(L10n.historyEmptyPeriod)
+                    .font(.subheadline.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                Text(L10n.historyEmptyPeriodHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 28)
+                Button(L10n.historyShowAllDays) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        selectedDay = nil
+                    }
+                }
                 .font(.subheadline.weight(.semibold))
-                .multilineTextAlignment(.center)
-            Text(L10n.historyEmptyPeriodHint)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal, 28)
+                .padding(.top, 4)
+            } else {
+                Text(L10n.historyEmpty)
+                    .font(.subheadline.weight(.semibold))
+                    .multilineTextAlignment(.center)
+                Text(L10n.historyEmptyDescription)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 28)
+            }
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -588,8 +635,14 @@ struct HistoryView: View {
     // MARK: - Data
 
     private var filteredSessions: [WorkSession] {
-        viewModel.sortedSessions.filter {
-            calendar.isDate($0.date, inSameDayAs: selectedDay)
+        let period = activePeriod
+        if let selectedDay {
+            return viewModel.sortedSessions.filter {
+                calendar.isDate($0.date, inSameDayAs: selectedDay)
+            }
+        }
+        return viewModel.sortedSessions.filter {
+            period.contains($0.date, calendar: calendar)
         }
     }
 
@@ -615,23 +668,17 @@ struct HistoryView: View {
             calendar: calendar
         )
         periodAnchor = period.labelMonth
-        selectedDay = calendar.startOfDay(for: Date())
-        if !period.contains(selectedDay, calendar: calendar) {
-            selectedDay = period.start
-        }
-        syncWeekPage(to: selectedDay, animated: false)
+        // Default: no day selected → full period list (not “empty today”).
+        selectedDay = nil
+        syncWeekPage(to: Date(), animated: false)
     }
 
     private func snapSelectedDayIntoPeriod() {
         let period = activePeriod
-        if !period.contains(selectedDay, calendar: calendar) {
-            if period.contains(Date(), calendar: calendar) {
-                selectedDay = calendar.startOfDay(for: Date())
-            } else {
-                selectedDay = period.start
-            }
+        if let day = selectedDay, !period.contains(day, calendar: calendar) {
+            selectedDay = nil
         }
-        syncWeekPage(to: selectedDay, animated: false)
+        syncWeekPage(to: selectedDay ?? Date(), animated: false)
     }
 
     // MARK: - Row actions

@@ -9992,6 +9992,29 @@
           }
         }
       }
+    },
+    "history.showAllDays": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عرض كل الأيام"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show all days"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הצג את כל הימים"
+          }
+        }
+      }
     }
   },
   "version": "1.1"
