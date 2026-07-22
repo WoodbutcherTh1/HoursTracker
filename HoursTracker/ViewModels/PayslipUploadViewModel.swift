@@ -128,6 +128,26 @@ struct PayslipReviewDraft: Equatable {
         return Calendar.current.ht_payslipStartOfMonth(for: Date())
     }
 
+    /// Snapshot the user confirmed — baked into `PayslipExtraction` so cleared fields
+    /// do not fall back to raw AI values via `effective*` accessors.
+    func confirmedExtraction(at date: Date = Date()) -> PayslipExtraction {
+        var confirmed = extraction
+        confirmed.extractedAt = date
+        confirmed.needsManualReview = false
+        confirmed.grossPay = grossPay
+        confirmed.netPay = netPay
+        confirmed.currencyCode = currencyCode.isEmpty ? nil : currencyCode
+        confirmed.employerName = employerName.isEmpty ? nil : employerName
+        confirmed.employeeName = employeeName.isEmpty ? nil : employeeName
+        confirmed.payPeriodStart = payPeriodStart
+        confirmed.payPeriodEnd = payPeriodEnd
+        confirmed.paymentDate = paymentMonth
+        confirmed.hoursRegular = hoursRegular
+        confirmed.hoursOT = hoursOT
+        confirmed.deductionsTotal = deductionsTotal
+        return confirmed
+    }
+
     private static func parseFlexibleDate(_ raw: String?) -> Date? {
         guard let raw = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
             return nil
@@ -284,7 +304,7 @@ final class PayslipUploadViewModel: ObservableObject {
             periodMonth: draft.resolvedPeriodMonth,
             periodStartDay: nil,
             periodLabel: nil,
-            extraction: draft.extraction,
+            extraction: draft.confirmedExtraction(),
             userOverrides: draft.userOverrides(),
             reviewState: .confirmed,
             notes: notes.isEmpty ? nil : notes

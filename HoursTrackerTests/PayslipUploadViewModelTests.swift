@@ -126,20 +126,25 @@ final class PayslipUploadViewModelTests: XCTestCase {
             )
         )
         draft.netPay = Decimal(950)
+        draft.grossPay = nil // user cleared gross — must not fall back to AI 1200
 
         BackupContentDirtyFlag.clear()
         let record = try store.commitStaged(
             staged,
             periodMonth: draft.resolvedPeriodMonth,
-            extraction: draft.extraction,
+            extraction: draft.confirmedExtraction(),
             userOverrides: draft.userOverrides(),
             reviewState: .confirmed
         )
 
         XCTAssertEqual(record.reviewState, .confirmed)
         XCTAssertEqual(record.userOverrides?.netPay, Decimal(950))
-        XCTAssertEqual(record.extraction.netPay, Decimal(900))
+        XCTAssertNil(record.userOverrides?.grossPay == nil && draft.grossPay == nil ? nil : record.extraction.grossPay)
+        XCTAssertNil(record.extraction.grossPay)
+        XCTAssertEqual(record.extraction.netPay, Decimal(950))
         XCTAssertEqual(record.effectiveNetPay, Decimal(950))
+        XCTAssertNil(record.effectiveGrossPay)
+        XCTAssertFalse(record.extraction.needsManualReview)
         XCTAssertTrue(BackupContentDirtyFlag.isDirty())
         XCTAssertTrue(FileManager.default.fileExists(atPath: store.url(for: record).path))
     }
