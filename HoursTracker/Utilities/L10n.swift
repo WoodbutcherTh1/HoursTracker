@@ -441,6 +441,20 @@ enum L10n {
     static var fullExportFormatCSVDetail: String { t("fullExport.format.csv.detail") }
     static var fullExportFormatJSONDetail: String { t("fullExport.format.json.detail") }
 
+    static var fullImportTitle: String { t("fullImport.title") }
+    static var fullImportConfirmTitle: String { t("fullImport.confirmTitle") }
+    static var fullImportConfirmFallback: String { t("fullImport.confirmFallback") }
+    static func fullImportConfirmMessage(_ sessions: Int, _ version: String) -> String {
+        String(format: t("fullImport.confirmMessage %lld %@"), sessions, version)
+    }
+    static var fullImportReplace: String { t("fullImport.replace") }
+    static var fullImportMerge: String { t("fullImport.merge") }
+    static var fullImportSuccess: String { t("fullImport.success") }
+    static var fullImportErrorInvalidFormat: String { t("fullImport.error.invalidFormat") }
+    static var fullImportErrorUnsupportedType: String { t("fullImport.error.unsupportedType") }
+    static var fullImportErrorEmpty: String { t("fullImport.error.empty") }
+    static var logEventFullDataImport: String { t("log.event.fullDataImport") }
+
     // Payslips (Chunk 4 upload + review)
     static var payslipSectionTitle: String { t("payslip.sectionTitle") }
     static var payslipUploadAction: String { t("payslip.upload.action") }

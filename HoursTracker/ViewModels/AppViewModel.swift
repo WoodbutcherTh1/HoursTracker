@@ -532,6 +532,44 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+    /// Import a JSON full-data export previously created via Settings → Export all my data.
+    func importFullDataExport(_ document: FullDataExportDocument, mode: FullDataImportMode) throws {
+        sessionsLoadUnavailable = false
+        settingsLoadUnavailable = false
+
+        switch mode {
+        case .replace:
+            sessions = document.sessions.sorted { $0.clockIn < $1.clockIn }
+            settings = document.settings
+            ActivityLogStore.shared.replaceEntries(document.activityLog)
+        case .merge:
+            var byID = Dictionary(uniqueKeysWithValues: sessions.map { ($0.id, $0) })
+            for session in document.sessions {
+                byID[session.id] = session
+            }
+            sessions = Array(byID.values).sorted { $0.clockIn < $1.clockIn }
+            settings = document.settings
+            ActivityLogStore.shared.mergeEntries(document.activityLog)
+        }
+
+        do {
+            try store.saveSessions(sessions)
+            try store.saveSettings(settings)
+        } catch {
+            errorMessage = L10n.errorSaveFailed
+            throw error
+        }
+
+        refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventFullDataImport,
+            level: .success,
+            category: "import",
+            details: mode.rawValue
+        )
+        objectWillChange.send()
+    }
+
     func captureCurrentLocation() {
         locationCapture.capture()
     }

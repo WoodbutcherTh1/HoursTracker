@@ -162,6 +162,24 @@ final class ActivityLogStore: ObservableObject {
         entries = newEntries
     }
 
+    /// Replace the log with an imported set (used by full-data restore).
+    func replaceEntries(_ newEntries: [ActivityLogEntry]) {
+        entries = Array(newEntries.prefix(maxEntries))
+        persist()
+    }
+
+    /// Merge imported entries by id, newest-first, capped at `maxEntries`.
+    func mergeEntries(_ incoming: [ActivityLogEntry]) {
+        var byID = Dictionary(uniqueKeysWithValues: entries.map { ($0.id, $0) })
+        for entry in incoming {
+            byID[entry.id] = entry
+        }
+        entries = Array(
+            byID.values.sorted { $0.timestamp > $1.timestamp }.prefix(maxEntries)
+        )
+        persist()
+    }
+
     /// Removes coordinate-like details from historical "location" entries.
     func scrubCoordinateDetailsIfNeeded() {
         var changed = false

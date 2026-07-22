@@ -1607,24 +1607,24 @@
       }
     },
     "fullExport.format.json.detail": {
-      "extractionState": "stale",
+      "extractionState": "manual",
       "localizations": {
         "ar": {
           "stringUnit": {
             "state": "translated",
-            "value": "نسخة كاملة قابلة للقراءة آلياً. المفاتيح بالإنجليزية."
+            "value": "ملف JSON كامل للإعدادات والورديات — يمكن استيراده لاحقًا من الإعدادات."
           }
         },
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Complete machine-readable snapshot. Keys in English."
+            "value": "Complete JSON of settings and shifts — can be imported later from Settings."
           }
         },
         "he": {
           "stringUnit": {
             "state": "translated",
-            "value": "עותק מלא לקריאה ממוחשבת. מפתחות באנגלית."
+            "value": "קובץ JSON מלא של הגדרות ומשמרות — ניתן לייבא אותו אחר כך מההגדרות."
           }
         }
       }
@@ -10012,6 +10012,259 @@
           "stringUnit": {
             "state": "translated",
             "value": "הצג את כל הימים"
+          }
+        }
+      }
+    },
+    "fullImport.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استيراد بياناتي"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import my data"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ייבא את הנתונים שלי"
+          }
+        }
+      }
+    },
+    "fullImport.confirmTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استيراد هذه النسخة؟"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import this backup?"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "לייבא את הגיבוי?"
+          }
+        }
+      }
+    },
+    "fullImport.confirmFallback": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "اختر كيف تُطبَّق البيانات المستوردة."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose how to apply the imported data."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "בחרו איך להחיל את הנתונים המיובאים."
+          }
+        }
+      }
+    },
+    "fullImport.confirmMessage %lld %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "عُثر على %lld ورديات (الإصدار %@). الاستبدال يكتب فوق كل شيء على هذا الجهاز. الدمج يبقي الموجود ويضيف الجديد."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Found %lld shifts (app %@). Replace overwrites everything on this phone. Merge keeps existing shifts and adds new ones."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "נמצאו %lld משמרות (גרסה %@). החלפה דורסת את כל הנתונים במכשיר. מיזוג שומר קיימים ומוסיף חדשים."
+          }
+        }
+      }
+    },
+    "fullImport.replace": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "استبدال كل البيانات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replace all data"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "החלף את כל הנתונים"
+          }
+        }
+      }
+    },
+    "fullImport.merge": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "دمج مع الموجود"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Merge with existing"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "מזג עם הקיים"
+          }
+        }
+      }
+    },
+    "fullImport.success": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم استيراد البيانات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Data imported"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הנתונים יובאו"
+          }
+        }
+      }
+    },
+    "fullImport.error.invalidFormat": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "هذا الملف ليس تصدير JSON صالحًا من HoursTracker."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This file isn’t a valid HoursTracker JSON export."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הקובץ אינו ייצוא JSON תקין של HoursTracker."
+          }
+        }
+      }
+    },
+    "fullImport.error.unsupportedType": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "يمكن استيراد ملفات JSON للتصدير الكامل فقط."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only JSON full-export files can be imported."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ניתן לייבא רק קבצי JSON של ייצוא מלא."
+          }
+        }
+      }
+    },
+    "fullImport.error.empty": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "الملف المحدد فارغ."
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The selected file is empty."
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "הקובץ שנבחר ריק."
+          }
+        }
+      }
+    },
+    "log.event.fullDataImport": {
+      "extractionState": "manual",
+      "localizations": {
+        "ar": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "تم استيراد كل البيانات"
+          }
+        },
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Imported full data"
+          }
+        },
+        "he": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "יובאו כל הנתונים"
           }
         }
       }
