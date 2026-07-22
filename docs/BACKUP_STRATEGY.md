@@ -14,7 +14,9 @@ JSON with no rolling backup.
     tax credit inputs, rates, OT, language prefs), activity log, and payslip metadata
   - `payslips/<uuid>.<ext>`: payslip PDF/image binaries referenced by the manifest
 - Restore remains backward-compatible with v1 `.htbackup.json` and legacy full-data
-  export JSON; those formats restore with no payslip records.
+  export JSON. Those formats decode with an empty payslip set. On **replace**, payslip
+  storage is only overwritten when `formatVersion >= 2` so restoring an old v1 backup
+  cannot wipe a newer local payslip library. On **merge**, empty payslip payloads are a no-op.
 
 ## Layers
 

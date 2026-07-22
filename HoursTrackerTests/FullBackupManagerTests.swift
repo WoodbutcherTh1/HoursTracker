@@ -250,6 +250,64 @@ final class FullBackupManagerTests: XCTestCase {
         XCTAssertEqual(FullBackupManager.softMaxBackupBytes, 200 * 1024 * 1024)
     }
 
+    @MainActor
+    func testV1ReplaceRestorePreservesExistingPayslips() throws {
+        let store = makePayslipStore()
+        let existingID = UUID()
+        let bytes = Data("keep-me".utf8)
+        let existing = try store.addPayslip(
+            fileData: bytes,
+            originalFileName: "existing.png",
+            contentType: .png,
+            periodMonth: TestData.date(2026, 4, 1),
+            extraction: TestData.payslipExtraction(),
+            id: existingID
+        )
+
+        struct V1Document: Codable {
+            var formatID: String
+            var formatVersion: Int
+            var exportedAt: Date
+            var appVersion: String
+            var settings: WorkplaceSettings
+            var sessions: [WorkSession]
+            var activityLog: [ActivityLogEntry]
+        }
+
+        let encoder = JSONEncoder()
+        encoder.dateEncodingStrategy = .iso8601
+        let v1Data = try encoder.encode(
+            V1Document(
+                formatID: FullBackupDocument.formatID,
+                formatVersion: 1,
+                exportedAt: TestData.date(2026, 7, 1),
+                appVersion: "1.0",
+                settings: TestData.settings(),
+                sessions: [TestData.session(day: 9)],
+                activityLog: []
+            )
+        )
+        let document = try manager.decode(from: v1Data)
+        XCTAssertEqual(document.formatVersion, 1)
+        XCTAssertEqual(document.payslipRecords, [])
+
+        let viewModel = AppViewModel(
+            store: InMemoryStore(),
+            locationManager: MockLocationReminderManager(),
+            payslipStore: store,
+            fullBackupManager: manager
+        )
+        try viewModel.restoreBackup(
+            FullBackupPackage(document: document, payslipFiles: [:]),
+            mode: .replace
+        )
+
+        let remaining = try store.listPayslips()
+        XCTAssertEqual(remaining, [existing])
+        XCTAssertEqual(try Data(contentsOf: store.url(for: existing)), bytes)
+        XCTAssertEqual(viewModel.sessions.map(\.id), document.sessions.map(\.id))
+    }
+
     private func makePayslipStore() -> PayslipStore {
         PayslipStore(rootDirectory: directory.appendingPathComponent("payslip-store", isDirectory: true))
     }

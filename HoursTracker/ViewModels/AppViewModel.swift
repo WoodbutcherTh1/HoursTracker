@@ -169,10 +169,15 @@ final class AppViewModel: ObservableObject {
                 activityLog: ActivityLogStore.shared.entries,
                 payslipStore: payslipStore
             )
-            try payslipStore.replaceAll(
-                records: document.payslipRecords,
-                fileDataByID: package.payslipFiles
-            )
+            // Format v1 backups predate payslips. Treating a missing payslips key as
+            // "replace with empty" would wipe a newer local library; only replace
+            // payslips when the backup explicitly includes format v2+ payslip data.
+            if document.formatVersion >= 2 {
+                try payslipStore.replaceAll(
+                    records: document.payslipRecords,
+                    fileDataByID: package.payslipFiles
+                )
+            }
             sessions = document.sessions
             settings = document.settings
             try store.saveSessions(sessions)
