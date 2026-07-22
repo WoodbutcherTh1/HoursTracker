@@ -162,6 +162,28 @@ final class RecordingCloud: CloudSyncing {
     }
 }
 
+/// Scripted `DataReading` seam: fails a caller-supplied sequence of times before
+/// falling through to the on-disk contents. Used to exercise the transient
+/// retry path in `PersistenceManager.load` without depending on real
+/// Data-Protection races.
+final class ScriptedDataReader: DataReading {
+    private var pendingFailures: [Error]
+    private(set) var attempts = 0
+
+    init(failures: [Error]) {
+        self.pendingFailures = failures
+    }
+
+    func read(from url: URL) throws -> Data {
+        attempts += 1
+        if !pendingFailures.isEmpty {
+            let error = pendingFailures.removeFirst()
+            throw error
+        }
+        return try Data(contentsOf: url)
+    }
+}
+
 final class RecordingFileWriter: FileWriting {
     private(set) var urls: [URL] = []
     private(set) var payloads: [Data] = []
