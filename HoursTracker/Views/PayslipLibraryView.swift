@@ -13,10 +13,14 @@ struct PayslipLibraryView: View {
         GridItem(.flexible(), spacing: 12)
     ]
 
-    init(
-        appViewModel: AppViewModel,
-        viewModel: PayslipLibraryViewModel = PayslipLibraryViewModel()
-    ) {
+    init(appViewModel: AppViewModel) {
+        self.appViewModel = appViewModel
+        // Construct on the main actor inside init — default-arg evaluation is nonisolated.
+        _viewModel = StateObject(wrappedValue: PayslipLibraryViewModel())
+    }
+
+    /// Test/injection seam — call only from `@MainActor` contexts.
+    init(appViewModel: AppViewModel, viewModel: PayslipLibraryViewModel) {
         self.appViewModel = appViewModel
         _viewModel = StateObject(wrappedValue: viewModel)
     }

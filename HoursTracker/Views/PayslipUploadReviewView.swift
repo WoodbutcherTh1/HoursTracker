@@ -14,10 +14,14 @@ struct PayslipUploadReviewView: View {
 
     var onSaved: ((PayslipRecord) -> Void)?
 
-    init(
-        viewModel: PayslipUploadViewModel = PayslipUploadViewModel(),
-        onSaved: ((PayslipRecord) -> Void)? = nil
-    ) {
+    init(onSaved: ((PayslipRecord) -> Void)? = nil) {
+        // Construct on the main actor inside init — default-arg evaluation is nonisolated.
+        _viewModel = StateObject(wrappedValue: PayslipUploadViewModel())
+        self.onSaved = onSaved
+    }
+
+    /// Test/injection seam — call only from `@MainActor` contexts.
+    init(viewModel: PayslipUploadViewModel, onSaved: ((PayslipRecord) -> Void)? = nil) {
         _viewModel = StateObject(wrappedValue: viewModel)
         self.onSaved = onSaved
     }
