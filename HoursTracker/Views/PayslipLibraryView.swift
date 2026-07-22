@@ -2,10 +2,10 @@ import SwiftUI
 import UIKit
 
 /// Grid library of saved payslips — entry point from Export (ייצוא).
+/// Relies on the parent `NavigationStack` (ExportView) for push navigation.
 struct PayslipLibraryView: View {
     @StateObject private var viewModel: PayslipLibraryViewModel
     @ObservedObject var appViewModel: AppViewModel
-    @State private var path = NavigationPath()
     @State private var deleteError: String?
 
     private let columns = [
@@ -22,57 +22,54 @@ struct PayslipLibraryView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $path) {
-            Group {
-                if viewModel.payslips.isEmpty {
-                    emptyState
-                } else {
-                    gridContent
-                }
+        Group {
+            if viewModel.payslips.isEmpty {
+                emptyState
+            } else {
+                gridContent
             }
-            .navigationTitle(L10n.payslipLibraryTitle)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .primaryAction) {
-                    Button {
-                        viewModel.showUpload = true
-                    } label: {
-                        Image(systemName: "plus")
+        }
+        .navigationTitle(L10n.payslipLibraryTitle)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .primaryAction) {
+                Button {
+                    viewModel.showUpload = true
+                } label: {
+                    Image(systemName: "plus")
+                }
+                .accessibilityLabel(L10n.payslipUploadAction)
+            }
+        }
+        .navigationDestination(for: PayslipRecord.self) { record in
+            PayslipDetailView(
+                record: record,
+                sourceURL: viewModel.sourceURL(for: record),
+                onDelete: {
+                    do {
+                        try viewModel.delete(record)
+                        appViewModel.showSuccessToast(L10n.payslipDeletedToast)
+                    } catch {
+                        deleteError = error.localizedDescription
                     }
-                    .accessibilityLabel(L10n.payslipUploadAction)
                 }
+            )
+        }
+        .sheet(isPresented: $viewModel.showUpload, onDismiss: {
+            viewModel.reload()
+        }) {
+            PayslipUploadReviewView { _ in
+                appViewModel.showSuccessToast(L10n.payslipSavedToast)
             }
-            .navigationDestination(for: PayslipRecord.self) { record in
-                PayslipDetailView(
-                    record: record,
-                    sourceURL: viewModel.sourceURL(for: record),
-                    onDelete: {
-                        do {
-                            try viewModel.delete(record)
-                            path.removeLast()
-                            appViewModel.showSuccessToast(L10n.payslipDeletedToast)
-                        } catch {
-                            deleteError = error.localizedDescription
-                        }
-                    }
-                )
-            }
-            .sheet(isPresented: $viewModel.showUpload, onDismiss: {
-                viewModel.reload()
-            }) {
-                PayslipUploadReviewView { _ in
-                    appViewModel.showSuccessToast(L10n.payslipSavedToast)
-                }
-            }
-            .onAppear { viewModel.reload() }
-            .alert(L10n.payslipDeleteFailed, isPresented: Binding(
-                get: { deleteError != nil },
-                set: { if !$0 { deleteError = nil } }
-            )) {
-                Button(L10n.editCancel, role: .cancel) { deleteError = nil }
-            } message: {
-                Text(deleteError ?? "")
-            }
+        }
+        .onAppear { viewModel.reload() }
+        .alert(L10n.payslipDeleteFailed, isPresented: Binding(
+            get: { deleteError != nil },
+            set: { if !$0 { deleteError = nil } }
+        )) {
+            Button(L10n.editCancel, role: .cancel) { deleteError = nil }
+        } message: {
+            Text(deleteError ?? "")
         }
     }
 
@@ -80,9 +77,7 @@ struct PayslipLibraryView: View {
         ScrollView {
             LazyVGrid(columns: columns, spacing: 12) {
                 ForEach(viewModel.payslips) { record in
-                    Button {
-                        path.append(record)
-                    } label: {
+                    NavigationLink(value: record) {
                         PayslipGridCard(
                             record: record,
                             loadThumbnail: { completion in
