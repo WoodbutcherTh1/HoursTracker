@@ -67,6 +67,17 @@ struct PDFKitPayslipPDFInspector: PayslipPDFInspecting {
     }
 }
 
+/// Binary written under `payslips/files/` before the user confirms the review screen.
+/// Not indexed until `commitStaged` — cancel must call `discardStaged`.
+struct StagedPayslipFile: Equatable, Identifiable {
+    let id: UUID
+    let relativeFilePath: String
+    let originalFileName: String
+    let contentTypeUTI: String
+    let sourceKind: PayslipRecord.SourceKind
+    let fileByteSize: Int
+}
+
 final class PayslipStore {
     static let shared = PayslipStore()
 
@@ -234,16 +245,115 @@ final class PayslipStore {
         if fileManager.fileExists(atPath: storedFileURL.path) {
             try fileManager.removeItem(at: storedFileURL)
         }
+        BackupContentDirtyFlag.mark()
+    }
+
+    /// Writes the binary into App Group storage without creating an index entry.
+    /// Call `discardStaged` on cancel, or `commitStaged` on confirm.
+    @discardableResult
+    func stageFile(
+        fileData: Data,
+        originalFileName: String,
+        contentType: UTType,
+        id: UUID = UUID()
+    ) throws -> StagedPayslipFile {
+        let byteSize = Int64(fileData.count)
+        try validateFileSize(byteSize)
+        let sourceKind = try sourceKind(
+            for: contentType,
+            fileExtension: (originalFileName as NSString).pathExtension
+        )
+        if sourceKind == .pdf {
+            try validatePDFIsImportable(data: fileData)
+        }
+
+        let storedExtension = storageExtension(
+            for: contentType,
+            sourceKind: sourceKind,
+            originalExtension: (originalFileName as NSString).pathExtension
+        )
+        let relativeFilePath = "payslips/files/\(id.uuidString).\(storedExtension)"
+        let fileURL = rootDirectory.appendingPathComponent(relativeFilePath)
+        try ensureDirectoriesExist()
+        try fileWriter.write(fileData, to: fileURL)
+
+        return StagedPayslipFile(
+            id: id,
+            relativeFilePath: relativeFilePath,
+            originalFileName: originalFileName,
+            contentTypeUTI: contentType.identifier,
+            sourceKind: sourceKind,
+            fileByteSize: Int(byteSize)
+        )
+    }
+
+    func discardStaged(_ staged: StagedPayslipFile) {
+        let fileURL = rootDirectory.appendingPathComponent(staged.relativeFilePath)
+        // Never delete a file that is already referenced by the index.
+        if let records = try? listPayslips(), records.contains(where: { $0.id == staged.id }) {
+            return
+        }
+        if fileManager.fileExists(atPath: fileURL.path) {
+            try? fileManager.removeItem(at: fileURL)
+        }
+    }
+
+    /// Promotes a staged binary into a confirmed indexed record (no second file write).
+    @discardableResult
+    func commitStaged(
+        _ staged: StagedPayslipFile,
+        periodMonth: Date,
+        periodStartDay: Int? = nil,
+        periodLabel: String? = nil,
+        extraction: PayslipExtraction,
+        userOverrides: PayslipOverrides? = nil,
+        reviewState: PayslipRecord.ReviewState = .confirmed,
+        notes: String? = nil,
+        uploadedAt: Date = Date()
+    ) throws -> PayslipRecord {
+        let fileURL = rootDirectory.appendingPathComponent(staged.relativeFilePath)
+        guard fileManager.fileExists(atPath: fileURL.path) else {
+            throw PayslipStoreError.recordNotFound(staged.id)
+        }
+
+        let record = PayslipRecord(
+            id: staged.id,
+            periodMonth: Calendar.current.ht_payslipStartOfMonth(for: periodMonth),
+            periodStartDay: periodStartDay,
+            periodLabel: periodLabel,
+            uploadedAt: uploadedAt,
+            sourceKind: staged.sourceKind,
+            originalFileName: staged.originalFileName,
+            relativeFilePath: staged.relativeFilePath,
+            fileByteSize: staged.fileByteSize,
+            contentTypeUTI: staged.contentTypeUTI,
+            extraction: extraction,
+            userOverrides: userOverrides,
+            reviewState: reviewState,
+            notes: notes
+        )
+
+        var records = try mutableRecordsForWrite()
+        records.removeAll { $0.id == staged.id }
+        records.append(record)
+        try saveIndex(records)
+        BackupContentDirtyFlag.mark()
+        return record
     }
 
     func url(for record: PayslipRecord) -> URL {
         rootDirectory.appendingPathComponent(record.relativeFilePath)
     }
 
+    func url(forStaged staged: StagedPayslipFile) -> URL {
+        rootDirectory.appendingPathComponent(staged.relativeFilePath)
+    }
+
     func removeAllStoredData() {
         guard fileManager.fileExists(atPath: payslipsDirectory.path) else { return }
         do {
             try fileManager.removeItem(at: payslipsDirectory)
+            BackupContentDirtyFlag.mark()
         } catch {
             logger.error("Failed to wipe payslips directory: \(error.localizedDescription, privacy: .private)")
         }
@@ -336,6 +446,7 @@ final class PayslipStore {
 
         var records = existingRecords.filter { $0.id != id }
         records.append(record)
+        try ensureDirectoriesExist()
         try fileWriter.write(data, to: fileURL)
         do {
             try saveIndex(records)
@@ -343,7 +454,12 @@ final class PayslipStore {
             try? fileManager.removeItem(at: fileURL)
             throw error
         }
+        BackupContentDirtyFlag.mark()
         return record
+    }
+
+    private func ensureDirectoriesExist() throws {
+        try fileManager.createDirectory(at: filesDirectory, withIntermediateDirectories: true)
     }
 
     private func saveIndex(_ records: [PayslipRecord]) throws {
@@ -458,7 +574,7 @@ final class PayslipStore {
     }
 }
 
-private extension Calendar {
+extension Calendar {
     func ht_payslipStartOfMonth(for date: Date) -> Date {
         let components = dateComponents([.year, .month], from: date)
         return self.date(from: components).map(startOfDay(for:)) ?? startOfDay(for: date)

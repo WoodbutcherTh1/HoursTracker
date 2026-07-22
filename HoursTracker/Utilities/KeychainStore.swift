@@ -2,10 +2,13 @@ import Foundation
 import Security
 import os
 
-/// Minimal Keychain wrapper (Security framework only). Used for the national ID number.
+/// Minimal Keychain wrapper (Security framework only). Used for the national ID number
+/// and optional Smart Scanner API keys (never commit secrets).
 enum KeychainStore {
     enum Key: String {
         case workerIDNumber = "workerIDNumber"
+        case geminiAPIKey = "geminiAPIKey"
+        case secondaryAPIKey = "secondaryAPIKey"
     }
 
     private static let service = "com.hourstracker.app"

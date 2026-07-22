@@ -58,7 +58,7 @@ struct ScannedSessionDraft: Identifiable, Equatable {
             date: start,
             clockIn: clockIn,
             clockOut: clockOut,
-            notes: AppLocale.tr("scanner.manualDraftNote"),
+            notes: L10n.scannerManualDraftNote,
             isSelected: true,
             confidence: 0,
             needsManualReview: true
@@ -70,6 +70,19 @@ struct TimesheetScanResult {
     let drafts: [ScannedSessionDraft]
     let ocrText: String
     let usedManualFallback: Bool
+    var processingDetails: ScannerProcessingDetails?
+
+    init(
+        drafts: [ScannedSessionDraft],
+        ocrText: String,
+        usedManualFallback: Bool,
+        processingDetails: ScannerProcessingDetails? = nil
+    ) {
+        self.drafts = drafts
+        self.ocrText = ocrText
+        self.usedManualFallback = usedManualFallback
+        self.processingDetails = processingDetails
+    }
 }
 
 enum TimesheetScannerError: LocalizedError, Equatable {
@@ -99,14 +112,58 @@ actor TimesheetScannerManager {
     /// Bound OCR / PDF work.
     static let maxPDFPages = 50
 
-    func scan(image: UIImage) async throws -> TimesheetScanResult {
-        let text = (try? await recognizeText(in: image)) ?? ""
-        return parseResult(from: text)
+    /// Shifts longer than this (or ≈24h overnight from equal tokens) need review.
+    static let maxAutoAcceptHours: Double = 16
+
+    private let cloudPreference: SmartScannerCloudPreferencing
+
+    init(cloudPreference: SmartScannerCloudPreferencing = UserDefaultsSmartScannerCloudPreference.shared) {
+        self.cloudPreference = cloudPreference
     }
 
-    func scan(pdfURL: URL) async throws -> TimesheetScanResult {
-        try Self.validateFileSize(at: pdfURL, maxBytes: Self.maxBinaryFileBytes)
-        guard let document = PDFDocument(url: pdfURL) else {
+    func scan(image: UIImage) async throws -> TimesheetScanResult {
+        let text = try await extractOCRText(from: image)
+        return await buildScanResult(from: text)
+    }
+
+    /// OCR / PDF text only — does not run the timesheet LLM pipeline.
+    /// Used by payslip upload so extraction can go through `PayslipLLMRouter` instead.
+    func extractOCRText(from image: UIImage) async throws -> String {
+        (try? await recognizeText(in: image)) ?? ""
+    }
+
+    /// OCR / embedded PDF text for a file URL (image or PDF). No timesheet structuring.
+    func extractOCRText(fromFileURL url: URL) async throws -> String {
+        let contentType = try url.resourceValues(forKeys: [.contentTypeKey]).contentType
+        if let contentType, contentType.conforms(to: .pdf) {
+            return try await extractOCRText(fromPDFURL: url)
+        }
+        if let contentType, contentType.conforms(to: .image) {
+            try Self.validateFileSize(at: url, maxBytes: Self.maxBinaryFileBytes)
+            let data = try Data(contentsOf: url)
+            guard let image = UIImage(data: data) else {
+                throw TimesheetScannerError.unsupportedFile
+            }
+            return try await extractOCRText(from: image)
+        }
+        let ext = url.pathExtension.lowercased()
+        if ext == "pdf" {
+            return try await extractOCRText(fromPDFURL: url)
+        }
+        if ["png", "jpg", "jpeg", "heic", "tif", "tiff"].contains(ext) {
+            try Self.validateFileSize(at: url, maxBytes: Self.maxBinaryFileBytes)
+            let data = try Data(contentsOf: url)
+            guard let image = UIImage(data: data) else {
+                throw TimesheetScannerError.unsupportedFile
+            }
+            return try await extractOCRText(from: image)
+        }
+        throw TimesheetScannerError.unsupportedFile
+    }
+
+    private func extractOCRText(fromPDFURL url: URL) async throws -> String {
+        try Self.validateFileSize(at: url, maxBytes: Self.maxBinaryFileBytes)
+        guard let document = PDFDocument(url: url) else {
             throw TimesheetScannerError.pdfRenderFailed
         }
 
@@ -120,7 +177,12 @@ actor TimesheetScannerManager {
                 allText += ((try? await recognizeText(in: image)) ?? "") + "\n"
             }
         }
-        return parseResult(from: allText)
+        return allText
+    }
+
+    func scan(pdfURL: URL) async throws -> TimesheetScanResult {
+        let allText = try await extractOCRText(fromPDFURL: pdfURL)
+        return await buildScanResult(from: allText)
     }
 
     func scan(fileURL: URL) async throws -> TimesheetScanResult {
@@ -140,7 +202,7 @@ actor TimesheetScannerManager {
         if let contentType, Self.isTextImportType(contentType) {
             try Self.validateFileSize(at: fileURL, maxBytes: Self.maxTextFileBytes)
             let text = try String(contentsOf: fileURL, encoding: .utf8)
-            return parseResult(from: text)
+            return await buildScanResult(from: text)
         }
 
         // Fallback for providers that omit contentType: extension as a last resort.
@@ -157,7 +219,7 @@ actor TimesheetScannerManager {
         if ["csv", "tsv", "txt", "md"].contains(ext) {
             try Self.validateFileSize(at: fileURL, maxBytes: Self.maxTextFileBytes)
             let text = try String(contentsOf: fileURL, encoding: .utf8)
-            return parseResult(from: text)
+            return await buildScanResult(from: text)
         }
         throw TimesheetScannerError.unsupportedFile
     }
@@ -241,22 +303,70 @@ actor TimesheetScannerManager {
         }
     }
 
+    // MARK: - Pipeline
+
+    /// Vision OCR text → optional cloud LLM structure → validate → drafts.
+    /// When cloud is off (default), uses local heuristic only.
+    func buildScanResult(from text: String) async -> TimesheetScanResult {
+        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        let cloudEnabled = cloudPreference.isEnabled
+
+        if cloudEnabled {
+            let router = ScannerLLMRouter.default(includeCloud: true)
+            let structured = await router.structure(ocrText: trimmed)
+            var (drafts, details) = ScannerRowValidator.validateAll(structured.rows)
+            details.providerName = structured.providerName
+            if drafts.isEmpty {
+                return TimesheetScanResult(
+                    drafts: [ScannedSessionDraft.blankDraft()],
+                    ocrText: trimmed,
+                    usedManualFallback: true,
+                    processingDetails: details
+                )
+            }
+            return TimesheetScanResult(
+                drafts: drafts,
+                ocrText: trimmed,
+                usedManualFallback: false,
+                processingDetails: details
+            )
+        }
+
+        return parseResult(from: trimmed)
+    }
+
     // MARK: - Parsing
 
-    func parseResult(from text: String) -> TimesheetScanResult {
+    /// Pure parsing — `nonisolated` so local LLM fallback can call without actor re-entry.
+    nonisolated func parseResult(from text: String) -> TimesheetScanResult {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         let drafts = parseSessions(from: trimmed)
+        let details = ScannerProcessingDetails(
+            providerName: "Local",
+            acceptedCount: drafts.filter { !$0.needsManualReview }.count,
+            rejectedCount: 0,
+            reviewCount: drafts.filter(\.needsManualReview).count,
+            notes: drafts.map { draft in
+                draft.needsManualReview ? "needs review" : "accepted"
+            }
+        )
         if drafts.isEmpty {
             return TimesheetScanResult(
                 drafts: [ScannedSessionDraft.blankDraft()],
                 ocrText: trimmed,
-                usedManualFallback: true
+                usedManualFallback: true,
+                processingDetails: details
             )
         }
-        return TimesheetScanResult(drafts: drafts, ocrText: trimmed, usedManualFallback: false)
+        return TimesheetScanResult(
+            drafts: drafts,
+            ocrText: trimmed,
+            usedManualFallback: false,
+            processingDetails: details
+        )
     }
 
-    func parseSessions(from text: String) -> [ScannedSessionDraft] {
+    nonisolated func parseSessions(from text: String) -> [ScannedSessionDraft] {
         let normalized = normalize(text)
         let calendar = Calendar.current
 
@@ -284,7 +394,7 @@ actor TimesheetScannerManager {
         return unique
     }
 
-    private func normalize(_ text: String) -> String {
+    nonisolated private func normalize(_ text: String) -> String {
         text
             .replacingOccurrences(of: "\u{200f}", with: "")
             .replacingOccurrences(of: "\u{200e}", with: "")
@@ -295,7 +405,7 @@ actor TimesheetScannerManager {
             .replacingOccurrences(of: "٫", with: ":")
     }
 
-    private func parseLineRows(_ text: String, calendar: Calendar) -> [ScannedSessionDraft] {
+    nonisolated private func parseLineRows(_ text: String, calendar: Calendar) -> [ScannedSessionDraft] {
         text.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
@@ -309,7 +419,7 @@ actor TimesheetScannerManager {
     }
 
     /// Globally collect dates and times, then pair each date with the next two unused times.
-    private func parseGlobalDateTimePairs(_ text: String, calendar: Calendar) -> [ScannedSessionDraft] {
+    nonisolated private func parseGlobalDateTimePairs(_ text: String, calendar: Calendar) -> [ScannedSessionDraft] {
         struct MarkedDate {
             let date: Date
             let location: Int
@@ -376,7 +486,7 @@ actor TimesheetScannerManager {
         return drafts
     }
 
-    private func parseAdjacentLineWindows(_ text: String, calendar: Calendar) -> [ScannedSessionDraft] {
+    nonisolated private func parseAdjacentLineWindows(_ text: String, calendar: Calendar) -> [ScannedSessionDraft] {
         let lines = text.components(separatedBy: .newlines)
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
@@ -400,7 +510,7 @@ actor TimesheetScannerManager {
         return drafts
     }
 
-    private func makeDraft(
+    nonisolated private func makeDraft(
         date: Date,
         inTime: (Int, Int),
         outTime: (Int, Int),
@@ -409,24 +519,46 @@ actor TimesheetScannerManager {
     ) -> ScannedSessionDraft {
         let rawIn = combine(date: date, time: inTime, calendar: calendar)
         let rawOut = combine(date: date, time: outTime, calendar: calendar)
+
+        // Identical HH:MM tokens often come from a hours-total column, not in/out.
+        // Prefer needsManualReview over inventing a ~24h overnight shift.
+        if inTime.0 == outTime.0, inTime.1 == outTime.1 {
+            return ScannedSessionDraft(
+                date: date,
+                clockIn: rawIn,
+                clockOut: rawOut,
+                notes: L10n.scannerImportedNote,
+                isSelected: false,
+                confidence: min(confidence, 0.3),
+                needsManualReview: true
+            )
+        }
+
         let resolved = WorkSession.resolveClockPair(clockIn: rawIn, clockOut: rawOut, calendar: calendar)
+        let hours = resolved.clockOut.timeIntervalSince(resolved.clockIn) / 3600
+        let near24 = ScannerRowValidator.isNear24HourSpan(hours)
+        let tooLong = hours > Self.maxAutoAcceptHours
+        let needsReview = near24 || tooLong || hours <= 0
+
         return ScannedSessionDraft(
             date: date,
-            clockIn: resolved.clockIn,
-            clockOut: resolved.clockOut,
-            notes: AppLocale.tr("scanner.importedNote"),
-            confidence: confidence
+            clockIn: needsReview && near24 ? rawIn : resolved.clockIn,
+            clockOut: needsReview && near24 ? rawOut : resolved.clockOut,
+            notes: L10n.scannerImportedNote,
+            isSelected: !needsReview,
+            confidence: needsReview ? min(confidence, 0.4) : confidence,
+            needsManualReview: needsReview
         )
     }
 
-    private func isLikelyHeader(_ line: String) -> Bool {
+    nonisolated private func isLikelyHeader(_ line: String) -> Bool {
         let lower = line.lowercased()
         let keys = ["תאריך", "כניסה", "יציאה", "שעות", "date", "clock", "hours", "total", "סה\"כ", "סהכ"]
         let hits = keys.filter { lower.contains($0) }.count
         return hits >= 2 && allTimes(in: line).count < 2
     }
 
-    private func firstDate(in text: String, calendar: Calendar) -> Date? {
+    nonisolated private func firstDate(in text: String, calendar: Calendar) -> Date? {
         let patterns = [
             #"(\d{1,2})[./\-](\d{1,2})[./\-](\d{4})"#,
             #"(\d{1,2})[./\-](\d{1,2})[./\-](\d{2})"#,
@@ -460,19 +592,19 @@ actor TimesheetScannerManager {
         return nil
     }
 
-    private func allTimes(in text: String) -> [(Int, Int)] {
+    nonisolated private func allTimes(in text: String) -> [(Int, Int)] {
         matches(in: text, pattern: #"\b([01]?\d|2[0-3])[:.]([0-5]\d)(?:[:.][0-5]\d)?\b"#)
             .compactMap(parseTime)
     }
 
-    private func parseTime(_ text: String) -> (Int, Int)? {
+    nonisolated private func parseTime(_ text: String) -> (Int, Int)? {
         let cleaned = text.replacingOccurrences(of: ".", with: ":")
         let parts = cleaned.split(separator: ":").compactMap { Int($0) }
         guard parts.count >= 2, (0...23).contains(parts[0]), (0...59).contains(parts[1]) else { return nil }
         return (parts[0], parts[1])
     }
 
-    private func combine(date: Date, time: (Int, Int), calendar: Calendar) -> Date {
+    nonisolated private func combine(date: Date, time: (Int, Int), calendar: Calendar) -> Date {
         var components = calendar.dateComponents([.year, .month, .day], from: date)
         components.hour = time.0
         components.minute = time.1
@@ -480,7 +612,7 @@ actor TimesheetScannerManager {
         return calendar.date(from: components) ?? date
     }
 
-    private func matches(in text: String, pattern: String) -> [String] {
+    nonisolated private func matches(in text: String, pattern: String) -> [String] {
         guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
         let range = NSRange(text.startIndex..., in: text)
         return regex.matches(in: text, range: range).compactMap {
@@ -488,7 +620,7 @@ actor TimesheetScannerManager {
         }
     }
 
-    private func firstGroups(in text: String, pattern: String) -> [String]? {
+    nonisolated private func firstGroups(in text: String, pattern: String) -> [String]? {
         guard let regex = try? NSRegularExpression(pattern: pattern),
               let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text))
         else { return nil }

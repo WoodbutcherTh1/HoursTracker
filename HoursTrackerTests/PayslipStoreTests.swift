@@ -157,6 +157,23 @@ final class PayslipStoreTests: XCTestCase {
         XCTAssertTrue(FileManager.default.fileExists(atPath: store.indexURL.path))
     }
 
+    func testStageAndDiscardLeavesNoOrphanOrIndexEntry() throws {
+        let store = makeStore()
+        let staged = try store.stageFile(
+            fileData: Data("bytes".utf8),
+            originalFileName: "a.png",
+            contentType: .png
+        )
+        let url = store.url(forStaged: staged)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+        XCTAssertTrue(try store.listPayslips().isEmpty)
+
+        store.discardStaged(staged)
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: url.path))
+        XCTAssertTrue(try store.listPayslips().isEmpty)
+    }
+
     private func makeStore(
         fileWriter: FileWriting = ProtectedFileWriter.shared,
         dataReader: DataReading = DefaultDataReader.shared,

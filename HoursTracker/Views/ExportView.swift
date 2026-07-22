@@ -12,6 +12,7 @@ struct ExportView: View {
     @State private var customTo = Date()
     @State private var shareItem: ShareableFile?
     @State private var errorMessage: String?
+    @State private var showPayslipUpload = false
 
     /// Menu order is intentional: This month → Specific month → This year → Custom range.
     enum RangeMode: CaseIterable, Identifiable {
@@ -96,6 +97,18 @@ struct ExportView: View {
                     }
                 }
 
+                Section {
+                    Button {
+                        showPayslipUpload = true
+                    } label: {
+                        Label(L10n.payslipUploadAction, systemImage: "doc.text.viewfinder")
+                    }
+                } header: {
+                    Text(L10n.payslipSectionTitle)
+                } footer: {
+                    Text(L10n.payslipUploadEntryFooter)
+                }
+
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
@@ -107,6 +120,11 @@ struct ExportView: View {
             .navigationTitle(L10n.exportTitle)
             .sheet(item: $shareItem) { item in
                 ShareSheet(items: [item.url])
+            }
+            .sheet(isPresented: $showPayslipUpload) {
+                PayslipUploadReviewView { _ in
+                    viewModel.showSuccessToast(L10n.payslipSavedToast)
+                }
             }
         }
     }
