@@ -81,6 +81,9 @@ enum L10n {
     static var historyPayNet: String { t("history.payNet") }
     static var historyPayGross: String { t("history.payGross") }
     static var historyDayHasShifts: String { t("history.dayHasShifts") }
+    static func historyPeriodProgress(_ worked: String, _ expected: String) -> String {
+        String(format: t("history.periodProgress %@ %@"), worked, expected)
+    }
 
     static var scannerConflictTitle: String { t("scanner.conflictTitle") }
     static var scannerConflictReplace: String { t("scanner.conflictReplace") }
