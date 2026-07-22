@@ -14,7 +14,7 @@ struct PayslipUploadReviewView: View {
 
     var onSaved: ((PayslipRecord) -> Void)?
 
-    init(onSaved: ((PayslipRecord) -> Void)? = nil, settings: WorkplaceSettings = .default) {
+    init(settings: WorkplaceSettings = .default, onSaved: ((PayslipRecord) -> Void)? = nil) {
         // Construct on the main actor inside init — default-arg evaluation is nonisolated.
         _viewModel = StateObject(wrappedValue: PayslipUploadViewModel(settings: settings))
         self.onSaved = onSaved
