@@ -40,7 +40,10 @@ targets:
       path: HoursTracker/Info.plist
       properties:
         CFBundleDisplayName: HoursTracker
-        CFBundleShortVersionString: "1.0"
+        # 1.0 was already approved on the App Store — that pre-release train is
+        # permanently closed to new TestFlight builds, so any new submission needs
+        # a higher marketing version even if it's otherwise a minor update.
+        CFBundleShortVersionString: "1.1"
         # Build 15+: do NOT add UIBackgroundModes: location (Guideline 2.5.4).
         # Arrival reminders use CLCircularRegion monitoring only.
         CFBundleVersion: "16"
