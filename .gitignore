@@ -1,9 +1,14 @@
 # Xcode
 build/
 DerivedData/
+.derivedData/
 *.xcuserstate
 *.xcscmblueprint
 xcuserdata/
+
+# Local screenshot capture scratch space (raw simulator PNGs, build caches
+# from ad-hoc marketing shoots) — never meant to be committed.
+AppStoreScreenshots/
 
 # Swift Package Manager
 .build/
