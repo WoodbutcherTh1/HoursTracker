@@ -1,7 +1,8 @@
 import Foundation
 
 /// Priority-2 cloud fallback: OpenAI-compatible Chat Completions (OpenAI, Groq, OpenRouter, etc.).
-/// Uses `KeychainStore.Key.secondaryAPIKey`. Endpoint defaults to Groq’s free-tier-friendly base URL.
+/// Uses `KeychainStore.Key.secondaryAPIKey`. Endpoint and model are inferred from the key's
+/// prefix via `OpenAICompatibleEndpoint` (falls back to Groq if the prefix is unrecognized).
 struct OpenAICompatibleScannerLLMProvider: ScannerLLMProviding {
     let name = "OpenAI-compatible"
     private let apiKey: String?
@@ -11,13 +12,14 @@ struct OpenAICompatibleScannerLLMProvider: ScannerLLMProviding {
 
     init(
         apiKey: String? = KeychainStore.string(for: .secondaryAPIKey),
-        model: String = "llama-3.3-70b-versatile",
-        baseURL: URL = URL(string: "https://api.groq.com/openai/v1")!,
+        model: String? = nil,
+        baseURL: URL? = nil,
         session: URLSession = .shared
     ) {
         self.apiKey = apiKey
-        self.model = model
-        self.baseURL = baseURL
+        let inferred = OpenAICompatibleEndpoint.infer(fromAPIKey: apiKey)
+        self.model = model ?? inferred.model
+        self.baseURL = baseURL ?? inferred.baseURL
         self.session = session
     }
 

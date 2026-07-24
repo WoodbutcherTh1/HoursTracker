@@ -12,6 +12,11 @@ struct ExportView: View {
     @State private var customTo = Date()
     @State private var shareItem: ShareableFile?
     @State private var errorMessage: String?
+    // Owned here (not inside PayslipLibraryView) so the single .navigationDestination
+    // below — declared at the NavigationStack root — can share the same instance the
+    // grid observes. See the comment on PayslipLibraryView for why.
+    @StateObject private var payslipLibraryViewModel = PayslipLibraryViewModel()
+    @State private var payslipDeleteError: String?
 
     /// Menu order is intentional: This month → Specific month → This year → Custom range.
     enum RangeMode: CaseIterable, Identifiable {
@@ -98,7 +103,7 @@ struct ExportView: View {
 
                 Section {
                     NavigationLink {
-                        PayslipLibraryView(appViewModel: viewModel)
+                        PayslipLibraryView(appViewModel: viewModel, viewModel: payslipLibraryViewModel)
                     } label: {
                         HStack(spacing: 14) {
                             Image(systemName: "doc.text.viewfinder")
@@ -130,6 +135,31 @@ struct ExportView: View {
             .navigationTitle(L10n.exportTitle)
             .sheet(item: $shareItem) { item in
                 ShareSheet(items: [item.url])
+            }
+            // Declared once, at the stack root — see PayslipLibraryView's header comment.
+            .navigationDestination(for: PayslipRecord.self) { record in
+                PayslipDetailView(
+                    record: record,
+                    sourceURL: payslipLibraryViewModel.sourceURL(for: record),
+                    onDelete: {
+                        do {
+                            try payslipLibraryViewModel.delete(record)
+                            viewModel.showSuccessToast(L10n.payslipDeletedToast)
+                            return true
+                        } catch {
+                            payslipDeleteError = error.localizedDescription
+                            return false
+                        }
+                    }
+                )
+            }
+            .alert(L10n.payslipDeleteFailed, isPresented: Binding(
+                get: { payslipDeleteError != nil },
+                set: { if !$0 { payslipDeleteError = nil } }
+            )) {
+                Button(L10n.editCancel, role: .cancel) { payslipDeleteError = nil }
+            } message: {
+                Text(payslipDeleteError ?? "")
             }
         }
     }

@@ -2,31 +2,34 @@ import SwiftUI
 import UIKit
 
 /// Grid library of saved payslips — entry point from Export (ייצוא).
-/// Relies on the parent `NavigationStack` (ExportView) for push navigation.
+///
+/// Relies on the parent `NavigationStack` (ExportView) for push navigation. Deliberately
+/// does **not** declare its own `.navigationDestination(for: PayslipRecord.self)` here:
+/// this view is itself pushed onto ExportView's stack (via `NavigationLink`), so a
+/// destination declared on it — rather than on the stack's root — could end up
+/// registered twice as you navigate in and out, which SwiftUI resolves by honoring only
+/// the copy closest to the root. In practice that showed up as the first tap on a
+/// payslip doing nothing until you pushed and popped once. The destination now lives on
+/// `ExportView`'s root `Form`, which is why `viewModel` is injected rather than owned
+/// here — `ExportView` needs the same instance to build `PayslipDetailView`.
 struct PayslipLibraryView: View {
-    @StateObject private var viewModel: PayslipLibraryViewModel
+    @ObservedObject var viewModel: PayslipLibraryViewModel
     @ObservedObject var appViewModel: AppViewModel
-    @State private var deleteError: String?
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
         GridItem(.flexible(), spacing: 12)
     ]
 
-    init(appViewModel: AppViewModel) {
-        self.appViewModel = appViewModel
-        // Construct on the main actor inside init — default-arg evaluation is nonisolated.
-        _viewModel = StateObject(wrappedValue: PayslipLibraryViewModel())
-    }
-
-    /// Test/injection seam — call only from `@MainActor` contexts.
     init(appViewModel: AppViewModel, viewModel: PayslipLibraryViewModel) {
         self.appViewModel = appViewModel
-        _viewModel = StateObject(wrappedValue: viewModel)
+        self.viewModel = viewModel
     }
 
     var body: some View {
-        Group {
+        ZStack {
+            HomeNeon.bg.ignoresSafeArea()
+
             if viewModel.payslips.isEmpty {
                 emptyState
             } else {
@@ -35,29 +38,38 @@ struct PayslipLibraryView: View {
         }
         .navigationTitle(L10n.payslipLibraryTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(HomeNeon.bg, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 Button {
                     viewModel.showUpload = true
                 } label: {
                     Image(systemName: "plus")
+                        .foregroundStyle(HomeNeon.accent)
                 }
                 .accessibilityLabel(L10n.payslipUploadAction)
             }
-        }
-        .navigationDestination(for: PayslipRecord.self) { record in
-            PayslipDetailView(
-                record: record,
-                sourceURL: viewModel.sourceURL(for: record),
-                onDelete: {
-                    do {
-                        try viewModel.delete(record)
-                        appViewModel.showSuccessToast(L10n.payslipDeletedToast)
-                    } catch {
-                        deleteError = error.localizedDescription
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    ForEach(PayslipSortOption.allCases) { option in
+                        Button {
+                            viewModel.sortOption = option
+                        } label: {
+                            if option == viewModel.sortOption {
+                                Label(option.title, systemImage: "checkmark")
+                            } else {
+                                Text(option.title)
+                            }
+                        }
                     }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                        .foregroundStyle(HomeNeon.accent)
                 }
-            )
+                .accessibilityLabel(L10n.payslipSortAccessibility)
+            }
         }
         .sheet(isPresented: $viewModel.showUpload, onDismiss: {
             viewModel.reload()
@@ -67,14 +79,6 @@ struct PayslipLibraryView: View {
             }
         }
         .onAppear { viewModel.reload() }
-        .alert(L10n.payslipDeleteFailed, isPresented: Binding(
-            get: { deleteError != nil },
-            set: { if !$0 { deleteError = nil } }
-        )) {
-            Button(L10n.editCancel, role: .cancel) { deleteError = nil }
-        } message: {
-            Text(deleteError ?? "")
-        }
     }
 
     private var gridContent: some View {
@@ -89,28 +93,35 @@ struct PayslipLibraryView: View {
                             }
                         )
                     }
+                    // Plain, not ScalePressButtonStyle: that style's own `.animation(value:)`
+                    // fought with the NavigationStack's push transition — the detail view
+                    // would silently not render until a second navigation event (e.g. going
+                    // back) forced a redraw. NavigationLink content should stay unstyled.
                     .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal, 16)
             .padding(.vertical, 12)
         }
+        .scrollContentBackground(.hidden)
     }
 
     private var emptyState: some View {
         VStack(spacing: 20) {
             Image(systemName: "doc.text.viewfinder")
                 .font(.system(size: 52))
-                .foregroundStyle(.tint)
+                .foregroundStyle(HomeNeon.accent)
                 .symbolRenderingMode(.hierarchical)
+                .shadow(color: HomeNeon.accent.opacity(0.35), radius: 16)
 
             Text(L10n.payslipLibraryEmptyTitle)
                 .font(.title3.weight(.semibold))
+                .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
 
             Text(L10n.payslipLibraryEmptySubtitle)
                 .font(.body)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.white.opacity(0.55))
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, 24)
 
@@ -118,10 +129,14 @@ struct PayslipLibraryView: View {
                 viewModel.showUpload = true
             } label: {
                 Label(L10n.payslipUploadAction, systemImage: "plus.circle.fill")
+                    .font(.subheadline.weight(.bold))
+                    .foregroundStyle(HomeNeon.bg)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
+                    .background(HomeNeon.accent, in: Capsule())
+                    .shadow(color: HomeNeon.accent.opacity(0.35), radius: 12, y: 4)
             }
-            .buttonStyle(.borderedProminent)
+            .buttonStyle(ScalePressButtonStyle())
             .padding(.horizontal, 32)
 
             Spacer()
@@ -151,7 +166,7 @@ private struct PayslipGridCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .strokeBorder(Color.primary.opacity(0.08), lineWidth: 1)
+                            .strokeBorder(HomeNeon.accent.opacity(0.18), lineWidth: 1)
                     }
 
                 if needsReviewBadge {
@@ -159,7 +174,7 @@ private struct PayslipGridCard: View {
                         .font(.caption2.weight(.semibold))
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(.orange.opacity(0.92), in: Capsule())
+                        .background(HomeNeon.coral.opacity(0.92), in: Capsule())
                         .foregroundStyle(.white)
                         .padding(8)
                 }
@@ -167,15 +182,23 @@ private struct PayslipGridCard: View {
 
             Text(periodLabel)
                 .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
                 .lineLimit(1)
 
             Text(netLabel)
-                .font(.headline)
-                .foregroundStyle(.primary)
+                .font(.headline.monospacedDigit())
+                .foregroundStyle(HomeNeon.accent)
                 .lineLimit(1)
         }
         .padding(10)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                .fill(HomeNeon.card)
+                .overlay(
+                    RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                        .stroke(HomeNeon.accent.opacity(0.14), lineWidth: 1)
+                )
+        )
         .onAppear { requestThumbnailIfNeeded() }
     }
 
@@ -206,8 +229,9 @@ private struct PayslipGridCard: View {
                 .accessibilityLabel(L10n.payslipPreview)
         } else {
             ZStack {
-                Color(.tertiarySystemFill)
+                HomeNeon.card
                 ProgressView()
+                    .tint(HomeNeon.accent)
             }
             .accessibilityLabel(L10n.payslipPreview)
         }

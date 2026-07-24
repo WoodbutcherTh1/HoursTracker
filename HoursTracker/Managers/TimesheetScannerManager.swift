@@ -89,6 +89,7 @@ enum TimesheetScannerError: LocalizedError, Equatable {
     case unsupportedFile
     case pdfRenderFailed
     case fileTooLarge
+    case imageDecodeFailed
 
     var errorDescription: String? {
         switch self {
@@ -98,6 +99,8 @@ enum TimesheetScannerError: LocalizedError, Equatable {
             return AppLocale.tr("scanner.error.pdf")
         case .fileTooLarge:
             return L10n.scannerErrorFileTooLarge
+        case .imageDecodeFailed:
+            return AppLocale.tr("scanner.error.imageDecode")
         }
     }
 }
@@ -128,8 +131,13 @@ actor TimesheetScannerManager {
 
     /// OCR / PDF text only — does not run the timesheet LLM pipeline.
     /// Used by payslip upload so extraction can go through `PayslipLLMRouter` instead.
+    ///
+    /// Propagates Vision errors instead of swallowing them to `""`: a genuine OCR
+    /// failure (bad image data, Vision request error) must surface to the caller as a
+    /// clear failure state, not silently produce an empty-looking, unexplained review
+    /// draft that looks like the AI just "didn't fill anything in."
     func extractOCRText(from image: UIImage) async throws -> String {
-        (try? await recognizeText(in: image)) ?? ""
+        try await recognizeText(in: image)
     }
 
     /// OCR / embedded PDF text for a file URL (image or PDF). No timesheet structuring.
@@ -250,7 +258,9 @@ actor TimesheetScannerManager {
     // MARK: - Vision
 
     private func recognizeText(in image: UIImage) async throws -> String {
-        guard let cgImage = preparedCGImage(from: image) else { return "" }
+        guard let cgImage = preparedCGImage(from: image) else {
+            throw TimesheetScannerError.imageDecodeFailed
+        }
 
         return try await withCheckedThrowingContinuation { continuation in
             let request = VNRecognizeTextRequest { request, error in

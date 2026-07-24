@@ -21,7 +21,7 @@ iOS app for tracking daily work hours with Israeli overtime law calculations (Re
 ## Requirements
 
 - iOS 17+
-- Xcode 16+
+- Xcode 26+ (Apple requires the iOS 26 SDK for App Store submissions as of 28 April 2026)
 - Location Always permission for background geofencing
 
 ## Setup

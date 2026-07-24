@@ -9,7 +9,7 @@ HoursTracker is an iOS app for a single worker to track daily work hours and see
 | Area | Choice |
 |---|---|
 | UI | SwiftUI, 4-tab `TabView`, MVVM |
-| Minimum OS | iOS 17.0, Swift 5.9 |
+| Minimum OS | iOS 17.0 deployment target, built with Xcode 26+ / iOS 26 SDK (Apple mandate since 28 Apr 2026), Swift 5.9 language mode |
 | Project generation | [XcodeGen](https://github.com/yonaskolb/XcodeGen) via `project.yml` (the `.xcodeproj` is generated) |
 | Persistence | Plain JSON files in the app's Documents directory |
 | Sync | CloudKit private database (`iCloud.com.hourstracker.app`), **opt-in via `HTCloudKitEnabled`, off by default** |
@@ -214,13 +214,15 @@ The suite covers the overtime engine (`OvertimeCalculatorTests`), CloudKit merge
 
 ## Networking gate (future features)
 
-HoursTracker ships **without** a general networking layer. CloudKit private database (user + build opt-in) is the only permitted remote store today.
+HoursTracker ships without a general-purpose networking layer for its core data. CloudKit private database (user + build opt-in) remains the only remote store for sessions/settings.
 
-If any feature ever adds HTTPS / URLSession / other network I/O:
+**Current exception — Smart Scanner cloud extraction (opt-in, default off):** when the user enables cloud extraction in Settings and supplies their own API key, `Managers/Scanner/*LLMProvider.swift` sends OCR'd timesheet/payslip text over `URLSession` to Google Gemini (`generativelanguage.googleapis.com`) or an OpenAI-compatible endpoint such as Groq (`api.groq.com`). The request body is text-only (never image/PDF bytes — enforced by `PayslipCloudRequestInspector` and tested); API keys live in Keychain; the router (`PayslipLLMRouter` / `ScannerLLMRouter`) falls back to an on-device heuristic if cloud calls are disabled or fail. No ATS exception domains are needed since both endpoints use standard HTTPS/TLS. See `docs/PRIVACY_MANIFEST.md` for the privacy-manifest reasoning.
+
+If any **other** feature adds HTTPS / URLSession / network I/O beyond this:
 
 1. Keep **App Transport Security defaults** — no ATS exception domains unless a written exception is approved and time-boxed.
 2. Consider **certificate pinning** (or equivalent trust controls) for any first-party API; document the pin rotation process before shipping.
-3. Update `PrivacyInfo.xcprivacy`, `docs/PRIVACY.md`, `docs/DATA_INVENTORY.md`, and the App Store privacy questionnaire for any new data collection or destination.
+3. Update `PrivacyInfo.xcprivacy`, `docs/PRIVACY.md`, `docs/DATA_INVENTORY.md`, `docs/PRIVACY_MANIFEST.md`, and the App Store privacy questionnaire for any new data collection or destination.
 4. Do **not** add analytics, ads, or crash-reporting SDKs without a separate privacy review; prefer Apple frameworks only.
 
 This gate is intentional documentation so networking cannot land as tribal knowledge.

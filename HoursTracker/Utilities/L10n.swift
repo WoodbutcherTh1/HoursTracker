@@ -82,6 +82,8 @@ enum L10n {
     static var historyPayNet: String { t("history.payNet") }
     static var historyPayGross: String { t("history.payGross") }
     static var historyDayHasShifts: String { t("history.dayHasShifts") }
+    static var historyPayBreakdownButton: String { t("history.payBreakdown.button") }
+    static var historyPayBreakdownTitle: String { t("history.payBreakdown.title") }
 
     // Timesheet scanner
     static var scannerTitle: String { t("scanner.title") }
@@ -105,6 +107,16 @@ enum L10n {
     static var scannerProcessingDetails: String { t("scanner.processingDetails") }
     static var scannerProcessingProvider: String { t("scanner.processingProvider") }
     static var scannerProcessingAccepted: String { t("scanner.processingAccepted") }
+    static var homeThemeTitle: String { t("home.theme.title") }
+    static var homeThemePresets: String { t("home.theme.presets") }
+    static var homeThemeCustom: String { t("home.theme.custom") }
+    static var homeThemeReset: String { t("home.theme.reset") }
+    static var homeStatsReorderHint: String { t("home.stats.reorderHint") }
+    static var homeStatsResetOrder: String { t("home.stats.resetOrder") }
+    static var homeStatTodayPay: String { t("home.stat.todayPay") }
+    static var homeStatWeekPay: String { t("home.stat.weekPay") }
+    static var homeStatMonthPay: String { t("home.stat.monthPay") }
+    static var homeStatsCardsTitle: String { t("home.stats.cardsTitle") }
     static var scannerProcessingRejected: String { t("scanner.processingRejected") }
     static var scannerCloudEnabled: String { t("scanner.cloudEnabled") }
     static var scannerCloudPrivacyNotice: String { t("scanner.cloudPrivacyNotice") }
@@ -112,6 +124,11 @@ enum L10n {
     static var scannerGeminiAPIKeyHint: String { t("scanner.geminiAPIKeyHint") }
     static var scannerSecondaryAPIKey: String { t("scanner.secondaryAPIKey") }
     static var scannerSecondaryAPIKeyHint: String { t("scanner.secondaryAPIKeyHint") }
+    static var scannerTestKey: String { t("scanner.testKey") }
+    static var scannerKeyCheckChecking: String { t("scanner.keyCheck.checking") }
+    static var scannerKeyCheckValid: String { t("scanner.keyCheck.valid") }
+    static var scannerKeyCheckInvalid: String { t("scanner.keyCheck.invalid") }
+    static var scannerKeyCheckNetworkError: String { t("scanner.keyCheck.networkError") }
     static var scannerSection: String { t("scanner.section") }
     static var scannerReadyForReview: String { t("scanner.readyForReview") }
     static var scannerContinueInBackground: String { t("scanner.continueInBackground") }
@@ -467,6 +484,7 @@ enum L10n {
     static var payslipFillModeSettingsHint: String { t("payslip.fillMode.settingsHint") }
     static var payslipUploadSourceTitle: String { t("payslip.upload.sourceTitle") }
     static var payslipUploadFailed: String { t("payslip.upload.failed") }
+    static var payslipUploadNoTextFound: String { t("payslip.upload.noTextFound") }
     static var payslipAnalyzing: String { t("payslip.analyzing") }
     static var payslipAnalyzingHint: String { t("payslip.analyzingHint") }
     static var payslipSave: String { t("payslip.save") }
@@ -497,6 +515,9 @@ enum L10n {
     static var payslipPreview: String { t("payslip.preview") }
     static var payslipPreviewUnavailable: String { t("payslip.previewUnavailable") }
     static var payslipLibraryTitle: String { t("payslip.library.title") }
+    static var payslipSortByDate: String { t("payslip.sort.byDate") }
+    static var payslipSortByAmount: String { t("payslip.sort.byAmount") }
+    static var payslipSortAccessibility: String { t("payslip.sort.accessibility") }
     static var payslipLibraryEntrySubtitle: String { t("payslip.library.entrySubtitle") }
     static var payslipLibraryEmptyTitle: String { t("payslip.library.emptyTitle") }
     static var payslipLibraryEmptySubtitle: String { t("payslip.library.emptySubtitle") }

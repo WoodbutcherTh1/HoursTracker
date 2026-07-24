@@ -26,7 +26,8 @@ jobs:
 
   lint:
     name: SwiftLint
-    runs-on: macos-15
+    # iOS 26 SDK / Xcode 26 is mandatory for App Store submissions since 28 Apr 2026.
+    runs-on: macos-26
     steps:
       # actions/checkout@v4.2.2
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -39,7 +40,8 @@ jobs:
 
   test:
     name: Unit tests
-    runs-on: macos-15
+    # iOS 26 SDK / Xcode 26 is mandatory for App Store submissions since 28 Apr 2026.
+    runs-on: macos-26
     steps:
       # actions/checkout@v4.2.2
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683

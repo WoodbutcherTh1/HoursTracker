@@ -7,8 +7,12 @@ import UIKit
 struct PayslipDetailView: View {
     let record: PayslipRecord
     let sourceURL: URL
-    let onDelete: () -> Void
+    /// Returns whether the delete actually succeeded, so this view only pops back to
+    /// the library on success — a failed delete (rare: disk error) leaves the user here
+    /// with the error alert, matching the record still genuinely existing.
+    let onDelete: () -> Bool
 
+    @Environment(\.dismiss) private var dismiss
     @State private var showDeleteConfirm = false
     @State private var previewImage: UIImage?
 
@@ -17,38 +21,54 @@ struct PayslipDetailView: View {
     }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 16) {
-                previewSection
+        ZStack {
+            HomeNeon.bg.ignoresSafeArea()
 
-                if record.reviewState != .confirmed || record.extraction.needsManualReview {
-                    Label(L10n.payslipNeedsReview, systemImage: "exclamationmark.circle.fill")
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.orange)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 16) {
+                    previewSection
+
+                    if record.reviewState != .confirmed || record.extraction.needsManualReview {
+                        Label(L10n.payslipNeedsReview, systemImage: "exclamationmark.circle.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(HomeNeon.coral)
+                    }
+
+                    fieldSection
+
+                    Button(role: .destructive) {
+                        showDeleteConfirm = true
+                    } label: {
+                        Label(L10n.payslipDelete, systemImage: "trash")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(HomeNeon.coral)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 12)
+                            .background(
+                                Capsule(style: .continuous)
+                                    .stroke(HomeNeon.coral.opacity(0.55), lineWidth: 1.2)
+                                    .background(Capsule().fill(HomeNeon.card))
+                            )
+                    }
+                    .buttonStyle(ScalePressButtonStyle())
+                    .padding(.top, 8)
                 }
-
-                fieldSection
-
-                Button(role: .destructive) {
-                    showDeleteConfirm = true
-                } label: {
-                    Label(L10n.payslipDelete, systemImage: "trash")
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 12)
-                }
-                .buttonStyle(.bordered)
-                .padding(.top, 8)
+                .padding(16)
             }
-            .padding(16)
         }
         .navigationTitle(periodTitle)
         .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(HomeNeon.bg, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
         .confirmationDialog(
             L10n.payslipDeleteConfirmTitle,
             isPresented: $showDeleteConfirm,
             titleVisibility: .visible
         ) {
-            Button(L10n.payslipDelete, role: .destructive, action: onDelete)
+            Button(L10n.payslipDelete, role: .destructive) {
+                if onDelete() { dismiss() }
+            }
             Button(L10n.editCancel, role: .cancel) {}
         } message: {
             Text(L10n.payslipDeleteConfirmMessage)
@@ -75,7 +95,7 @@ struct PayslipDetailView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
             } else {
                 Label(L10n.payslipPreviewUnavailable, systemImage: "doc")
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.55))
                     .frame(maxWidth: .infinity, minHeight: 160)
             }
         }
@@ -120,16 +140,24 @@ struct PayslipDetailView: View {
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(HomeNeon.card)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(HomeNeon.accent.opacity(0.14), lineWidth: 1)
+                )
+        )
     }
 
     private func field(_ title: String, _ value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(title)
                 .font(.caption)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.white.opacity(0.5))
             Text(value)
                 .font(.body)
+                .foregroundStyle(.white)
         }
     }
 

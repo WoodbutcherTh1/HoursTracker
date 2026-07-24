@@ -7,6 +7,7 @@ struct ShiftDetailSheet: View {
 
     @Environment(\.dismiss) private var dismiss
     @State private var showEditor = false
+    @State private var showDeleteConfirm = false
 
     private var dateFormatter: DateFormatter {
         AppLocale.makeDateFormatter(dateStyle: .full)
@@ -26,11 +27,20 @@ struct ShiftDetailSheet: View {
 
                     GrossNetBadge(breakdown: breakdown)
 
+                    TaxDeductionsCard(breakdown: breakdown)
+
                     if session.isAIImported || session.isManualEntry {
                         Text(entrySourceLabel)
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
+
+                    Button(L10n.summaryDeleteThisShift, role: .destructive) {
+                        showDeleteConfirm = true
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.top, 4)
                 }
                 .padding()
             }
@@ -51,6 +61,14 @@ struct ShiftDetailSheet: View {
                 EditSessionView(viewModel: viewModel, session: session) {
                     dismiss()
                 }
+            }
+            .alert(L10n.editDeleteConfirm, isPresented: $showDeleteConfirm) {
+                Button(L10n.editDelete, role: .destructive) {
+                    viewModel.deleteSession(session)
+                    viewModel.showSuccessToast(L10n.feedbackSessionDeleted)
+                    dismiss()
+                }
+                Button(L10n.editCancel, role: .cancel) {}
             }
         }
     }

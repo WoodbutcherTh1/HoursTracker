@@ -5,6 +5,7 @@ Run before every App Store / TestFlight submission.
 ## Privacy & App Store Connect
 
 - [ ] **App Privacy questionnaire** answers match `HoursTracker/Resources/PrivacyInfo.xcprivacy` and `docs/PRIVACY.md` (data not collected by the developer; iCloud only if user opts in; location for geofence/arrival; no tracking).
+- [ ] **Smart Scanner cloud extraction** (Gemini / OpenAI-compatible) declared correctly: `NSPrivacyCollectedDataTypeOtherFinancialInfo` entry in `PrivacyInfo.xcprivacy`, matching App Store Connect answer for financial info shared with a third party, and in-app `PrivacyPolicyView` strings (`Localizable.xcstrings`) updated in en/ar/he to match `docs/PRIVACY.md`.
 - [ ] Host the privacy policy at a **public URL** and set it in App Store Connect (in-app copy in `PrivacyPolicyView` / `docs/PRIVACY.md` must stay aligned).
 - [ ] `ITSAppUsesNonExemptEncryption` remains **false** only while using exempt / OS-provided crypto (Keychain, Data Protection, LocalAuthentication — no custom non-exempt crypto).
 - [ ] Re-review all **permission usage strings** (`NSLocation*`, `NSCamera*`, `NSPhotoLibrary*`, `NSFaceIDUsageDescription`, notifications) in `project.yml` / Info.plist / `InfoPlist.xcstrings`.

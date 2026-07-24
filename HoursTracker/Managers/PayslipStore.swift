@@ -81,6 +81,14 @@ struct StagedPayslipFile: Equatable, Identifiable {
 final class PayslipStore {
     static let shared = PayslipStore()
 
+    /// Historical app-group identifier, kept only as a named constant for tests that
+    /// assert paths don't collide with it. Not used to look up a container: there is no
+    /// widget/extension target in this app that would consume a shared container, and
+    /// personal-team builds don't carry the app-groups entitlement, so
+    /// `containerURL(forSecurityApplicationGroupIdentifier:)` always failed here and
+    /// logged a noisy "client is not entitled" line to the console on every access.
+    /// Revisit only if a widget/extension is actually added and the entitlement is
+    /// provisioned for it.
     static let appGroupIdentifier = "group.com.hourstracker.app"
     static let maxFileBytes: Int64 = 25 * 1024 * 1024
 
@@ -97,9 +105,7 @@ final class PayslipStore {
         if let rootDirectoryOverride {
             return rootDirectoryOverride
         }
-        return fileManager.containerURL(
-            forSecurityApplicationGroupIdentifier: Self.appGroupIdentifier
-        ) ?? fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        return fileManager.urls(for: .documentDirectory, in: .userDomainMask)[0]
     }
 
     var payslipsDirectory: URL {

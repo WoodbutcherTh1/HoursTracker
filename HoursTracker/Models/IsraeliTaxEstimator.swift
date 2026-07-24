@@ -38,7 +38,7 @@ enum IsraeliTaxEstimator {
         let rawIncomeTax = progressiveTax(on: gross)
         let credit = TaxCreditPointsCalculator.monthlyCreditValue(for: settings)
         let incomeTax = max(0, rawIncomeTax - credit)
-        let ni = nationalInsurance(on: gross)
+        let ni = nationalInsurance(on: gross, hasReachedRetirementAge: settings.hasReachedRetirementAge)
         let health = healthTax(on: gross)
 
         return MonthlyDeductions(
@@ -86,9 +86,17 @@ enum IsraeliTaxEstimator {
         return tax
     }
 
-    private static func nationalInsurance(on monthlyGross: Double) -> Double {
-        let reduced = min(monthlyGross, averageWageThresholdMonthly) * 0.004
-        let full = max(0, monthlyGross - averageWageThresholdMonthly) * 0.07
+    /// Employee-side NI rates for a worker who has reached retirement age
+    /// (approximate — the real published "senior" rates are lower than the
+    /// standard working-age rates below).
+    private static let seniorReducedRate = 0.0004
+    private static let seniorFullRate = 0.0087
+
+    private static func nationalInsurance(on monthlyGross: Double, hasReachedRetirementAge: Bool) -> Double {
+        let reducedRate = hasReachedRetirementAge ? seniorReducedRate : 0.004
+        let fullRate = hasReachedRetirementAge ? seniorFullRate : 0.07
+        let reduced = min(monthlyGross, averageWageThresholdMonthly) * reducedRate
+        let full = max(0, monthlyGross - averageWageThresholdMonthly) * fullRate
         return reduced + full
     }
 

@@ -3,6 +3,13 @@ import UIKit
 import CoreLocation
 import UniformTypeIdentifiers
 
+/// UI state for the inline "Test Key" check next to each Smart Scanner API key field.
+enum KeyCheckUIState: Equatable {
+    case idle
+    case checking
+    case result(APIKeyCheckResult)
+}
+
 struct SettingsView: View {
     @ObservedObject var viewModel: AppViewModel
     @EnvironmentObject private var appLock: AppLockController
@@ -22,6 +29,8 @@ struct SettingsView: View {
     @State private var smartScannerCloudEnabled = UserDefaultsSmartScannerCloudPreference.shared.isEnabled
     @State private var geminiAPIKeyDraft = KeychainStore.string(for: .geminiAPIKey) ?? ""
     @State private var secondaryAPIKeyDraft = KeychainStore.string(for: .secondaryAPIKey) ?? ""
+    @State private var geminiKeyCheck: KeyCheckUIState = .idle
+    @State private var secondaryKeyCheck: KeyCheckUIState = .idle
 
     private var syncDateFormatter: DateFormatter {
         AppLocale.makeDateFormatter(dateStyle: .short, timeStyle: .short)
@@ -201,6 +210,12 @@ struct SettingsView: View {
                 SecureField(L10n.scannerGeminiAPIKey, text: $geminiAPIKeyDraft)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .onChange(of: geminiAPIKeyDraft) { _, _ in geminiKeyCheck = .idle }
+                keyCheckRow(state: geminiKeyCheck) {
+                    testKey(draft: geminiAPIKeyDraft, result: $geminiKeyCheck) {
+                        await ScannerAPIKeyValidator.checkGeminiKey($0)
+                    }
+                }
                 Text(L10n.scannerGeminiAPIKeyHint)
                     .font(.caption)
                     .foregroundStyle(.secondary)
@@ -208,12 +223,68 @@ struct SettingsView: View {
                 SecureField(L10n.scannerSecondaryAPIKey, text: $secondaryAPIKeyDraft)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .onChange(of: secondaryAPIKeyDraft) { _, _ in secondaryKeyCheck = .idle }
+                keyCheckRow(state: secondaryKeyCheck) {
+                    testKey(draft: secondaryAPIKeyDraft, result: $secondaryKeyCheck) {
+                        await ScannerAPIKeyValidator.checkOpenAICompatibleKey($0)
+                    }
+                }
                 Text(L10n.scannerSecondaryAPIKeyHint)
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         } header: {
             Text(L10n.scannerSection)
+        }
+    }
+
+    /// Fires an async key check against `draft` and stores the outcome in `result`.
+    /// Shared by the Gemini and secondary-key rows — only the network call differs.
+    private func testKey(
+        draft: String,
+        result: Binding<KeyCheckUIState>,
+        check: @escaping (String) async -> APIKeyCheckResult
+    ) {
+        let key = draft
+        guard !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        result.wrappedValue = .checking
+        Task {
+            let outcome = await check(key)
+            result.wrappedValue = .result(outcome)
+        }
+    }
+
+    /// "Test Key" button + inline red/green status, shown under each API key field.
+    private func keyCheckRow(state: KeyCheckUIState, action: @escaping () -> Void) -> some View {
+        HStack(spacing: 8) {
+            Button(L10n.scannerTestKey, action: action)
+                .font(.caption.weight(.semibold))
+                .disabled(state == .checking)
+
+            switch state {
+            case .idle:
+                EmptyView()
+            case .checking:
+                ProgressView()
+                    .controlSize(.mini)
+                Text(L10n.scannerKeyCheckChecking)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .result(let outcome):
+                Image(systemName: outcome.isValid ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .foregroundStyle(outcome.isValid ? .green : .red)
+                Text(keyCheckMessage(for: outcome))
+                    .font(.caption)
+                    .foregroundStyle(outcome.isValid ? .green : .red)
+            }
+        }
+    }
+
+    private func keyCheckMessage(for outcome: APIKeyCheckResult) -> String {
+        switch outcome {
+        case .valid: return L10n.scannerKeyCheckValid
+        case .invalid: return L10n.scannerKeyCheckInvalid
+        case .networkError: return L10n.scannerKeyCheckNetworkError
         }
     }
 
@@ -403,6 +474,17 @@ struct SettingsView: View {
 
     private var taxSection: some View {
         Section {
+            DatePicker(
+                AppLocale.tr("tax.birthDate"),
+                selection: Binding(
+                    get: {
+                        draft.birthDate ?? Calendar.current.date(byAdding: .year, value: -30, to: Date()) ?? Date()
+                    },
+                    set: { draft.birthDate = $0 }
+                ),
+                displayedComponents: .date
+            )
+
             Picker(
                 AppLocale.tr("tax.maritalStatus"),
                 selection: $draft.maritalStatus

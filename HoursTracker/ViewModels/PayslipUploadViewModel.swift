@@ -54,8 +54,8 @@ struct PayslipReviewDraft: Equatable {
             return settings.contractorName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         }()
 
-        let extractedEmployer = fields.employerName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-        let extractedEmployee = fields.employeeName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let extractedEmployer = Self.cleanedOptionalString(fields.employerName) ?? ""
+        let extractedEmployee = Self.cleanedOptionalString(fields.employeeName) ?? ""
         let employer = extractedEmployer.isEmpty ? settingsEmployer : extractedEmployer
         let employee = extractedEmployee.isEmpty ? settingsEmployee : extractedEmployee
 
@@ -67,7 +67,7 @@ struct PayslipReviewDraft: Equatable {
             rawJSON: result.rawJSON,
             grossPay: fields.grossPay.map { Decimal($0) },
             netPay: fields.netPay.map { Decimal($0) },
-            currencyCode: fields.currency ?? "ILS",
+            currencyCode: Self.cleanedOptionalString(fields.currency) ?? "ILS",
             employerName: employer.isEmpty ? nil : employer,
             employeeName: employee.isEmpty ? nil : employee,
             employeeID: nil,
@@ -92,9 +92,25 @@ struct PayslipReviewDraft: Equatable {
             hoursRegular: extraction.hoursRegular,
             hoursOT: extraction.hoursOT,
             deductionsTotal: extraction.deductionsTotal,
-            notes: fields.notes ?? "",
+            notes: Self.cleanedOptionalString(fields.notes) ?? "",
             extraction: extraction
         )
+    }
+
+    /// Some LLM providers emit an empty string, `"null"`, or `"N/A"` instead of a real
+    /// JSON `null` for an unset field, despite the prompt asking for `null`. Treated as
+    /// nil here so downstream `?? "ILS"` / Settings-fallback logic actually kicks in —
+    /// previously an empty-string currency silently won the `??` over the "ILS" default
+    /// because `Optional("")` is non-nil, leaving the field blank in the review form.
+    private static func cleanedOptionalString(_ raw: String?) -> String? {
+        guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else {
+            return nil
+        }
+        let lowered = trimmed.lowercased()
+        if lowered == "null" || lowered == "none" || lowered == "n/a" || lowered == "unknown" {
+            return nil
+        }
+        return trimmed
     }
 
     /// Blank review draft for manual entry — still seeds name/workplace from Settings.
@@ -414,6 +430,17 @@ final class PayslipUploadViewModel: ObservableObject {
             if Task.isCancelled {
                 store.discardStaged(stagedFile)
                 staged = nil
+                return
+            }
+
+            // OCR can succeed with no error yet find no recognizable text (blurry photo,
+            // blank page, all-image PDF page that didn't OCR). Surface that explicitly
+            // instead of silently continuing to an empty-looking review draft — that
+            // looked like "AI didn't fill anything in" with no explanation.
+            guard !ocrText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+                store.discardStaged(stagedFile)
+                staged = nil
+                phase = .failed(L10n.payslipUploadNoTextFound)
                 return
             }
 

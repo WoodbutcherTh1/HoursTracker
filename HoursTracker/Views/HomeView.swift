@@ -34,8 +34,12 @@ struct LiveTimerView: View {
 
 struct HomeView: View {
     @ObservedObject var viewModel: AppViewModel
+    @ObservedObject private var homeTheme = HomeAccentTheme.shared
+    @ObservedObject private var homeStatsLayout = HomeStatsLayout.shared
+    @AppStorage("homeStatsReorderHintDismissed") private var didReorderStats = false
     @State private var showScanner = false
     @State private var showForgotClockIn = false
+    @State private var showThemePicker = false
     @State private var liveNow = Date()
 
     private var timeFormatter: DateFormatter {
@@ -51,28 +55,38 @@ struct HomeView: View {
 
                 // Ambient neon wash
                 Circle()
-                    .fill(HomeNeon.accent.opacity(viewModel.activeSession == nil ? 0.12 : 0.08))
+                    .fill((viewModel.activeSession == nil ? homeTheme.accent : HomeNeon.coral)
+                        .opacity(viewModel.activeSession == nil ? 0.12 : 0.08))
                     .frame(width: 320, height: 320)
                     .blur(radius: 70)
                     .offset(y: 40)
                     .allowsHitTesting(false)
 
-                HomeAuroraRibbon()
+                HomeAuroraRibbon(accent: viewModel.activeSession == nil ? homeTheme.accent : HomeNeon.coral)
                     .frame(maxHeight: 160)
                     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
                     .padding(.top, 8)
 
                 GeometryReader { geo in
-                    let metrics = HomeLayoutMetrics(width: geo.size.width)
-                    Group {
-                        if let session = viewModel.activeSession {
-                            clockedInView(session: session, metrics: metrics)
-                        } else {
-                            clockedOutView(metrics: metrics)
+                    let metrics = HomeLayoutMetrics(width: geo.size.width, height: geo.size.height)
+                    // ScrollView instead of a hard `.frame(maxHeight: .infinity)`: on
+                    // shorter screens, larger Dynamic Type, or a taller system tab bar,
+                    // the fixed-height sparkline at the bottom could previously overflow
+                    // past the safe area and render underneath the tab bar. `minHeight`
+                    // keeps the old vertically-centered look when everything fits, and
+                    // lets content scroll instead of getting clipped when it doesn't.
+                    ScrollView {
+                        Group {
+                            if let session = viewModel.activeSession {
+                                clockedInView(session: session, metrics: metrics)
+                            } else {
+                                clockedOutView(metrics: metrics)
+                            }
                         }
+                        .padding(.horizontal, metrics.horizontalPadding)
+                        .frame(minHeight: geo.size.height)
                     }
-                    .padding(.horizontal, metrics.horizontalPadding)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    .scrollBounceBehavior(.basedOnSize)
                 }
             }
             .toolbar {
@@ -81,10 +95,19 @@ struct HomeView: View {
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
+                        showThemePicker = true
+                    } label: {
+                        Image(systemName: "paintpalette")
+                            .foregroundStyle(homeTheme.accent)
+                    }
+                    .accessibilityLabel(L10n.homeThemeTitle)
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
                         showScanner = true
                     } label: {
                         Image(systemName: "doc.viewfinder")
-                            .foregroundStyle(HomeNeon.accent)
+                            .foregroundStyle(homeTheme.accent)
                     }
                     .accessibilityLabel(L10n.gridTitle)
                 }
@@ -107,6 +130,10 @@ struct HomeView: View {
                 ForgotClockInSheet(viewModel: viewModel)
                     .presentationDetents([.medium, .large])
             }
+            .sheet(isPresented: $showThemePicker) {
+                HomeThemePickerSheet(theme: homeTheme)
+                    .presentationDetents([.medium, .large])
+            }
         }
     }
 
@@ -120,7 +147,9 @@ struct HomeView: View {
 
             HomeAnimatedDoorButton(
                 mode: .clockIn,
-                title: L10n.homeClockIn
+                title: L10n.homeClockIn,
+                compact: metrics.isCompact || metrics.isShort,
+                accent: homeTheme.accent
             ) {
                 viewModel.clockIn()
             }
@@ -154,12 +183,12 @@ struct HomeView: View {
                     .font(.footnote.weight(.semibold))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
-                    .foregroundStyle(HomeNeon.accent)
+                    .foregroundStyle(homeTheme.accent)
                     .padding(.horizontal, metrics.isCompact ? 14 : 18)
                     .padding(.vertical, metrics.isCompact ? 8 : 10)
                     .background(
                         Capsule(style: .continuous)
-                            .stroke(HomeNeon.accent.opacity(0.55), lineWidth: 1.2)
+                            .stroke(homeTheme.accent.opacity(0.55), lineWidth: 1.2)
                             .background(Capsule().fill(HomeNeon.card.opacity(0.7)))
                     )
             }
@@ -172,7 +201,7 @@ struct HomeView: View {
                 weekdayLabels: weekDayLabels,
                 highlightedDayIndex: todayWeekdayIndex,
                 isTodayShiftOpen: hasOpenShiftToday,
-                accent: HomeNeon.accent
+                accent: homeTheme.accent
             )
             .padding(.bottom, 2)
         }
@@ -183,7 +212,7 @@ struct HomeView: View {
             let greeting = DaypartGreeting.current(at: context.date, calendar: calendar)
             let title = greeting.title(withName: viewModel.settings.workerFullName)
             ZStack {
-                HomeFloatingParticles()
+                HomeFloatingParticles(accent: homeTheme.accent)
                     .frame(height: metrics.particleHeight)
 
                 Text(title)
@@ -202,32 +231,121 @@ struct HomeView: View {
     }
 
     private func statsRow(metrics: HomeLayoutMetrics) -> some View {
-        HStack(spacing: metrics.statsSpacing) {
+        VStack(spacing: 6) {
+            HStack(spacing: metrics.statsSpacing) {
+                ForEach(homeStatsLayout.order) { kind in
+                    statCard(for: kind, metrics: metrics)
+                        .draggable(kind.rawValue) {
+                            statCard(for: kind, metrics: metrics)
+                                .frame(width: 96)
+                                .opacity(0.9)
+                        }
+                        .dropDestination(for: String.self) { items, _ in
+                            guard let raw = items.first, let dragged = HomeStatMetric(rawValue: raw) else {
+                                return false
+                            }
+                            homeStatsLayout.move(dragged, onto: kind)
+                            didReorderStats = true
+                            return true
+                        }
+                }
+            }
+
+            if !didReorderStats {
+                Text(L10n.homeStatsReorderHint)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.35))
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func statCard(for kind: HomeStatMetric, metrics: HomeLayoutMetrics) -> some View {
+        switch kind {
+        case .month:
             HomeNeonStatCard(
                 title: L10n.homeStatMonth,
                 value: "\(monthShiftCount)",
                 icon: .calendar,
                 sparkSeed: 0.4,
+                level: Self.normalizedLevel(monthShiftCount, max: Self.monthShiftLevelMax),
                 compact: metrics.isCompact,
-                showSparkline: metrics.showStatSparkline
+                showSparkline: metrics.showStatSparkline,
+                accent: homeTheme.accent
             )
+        case .week:
             HomeNeonStatCard(
                 title: L10n.homeStatWeek,
                 value: HistoryPeriodHelper.formatHoursClock(weekHours),
                 icon: .chart,
                 sparkSeed: 1.3,
+                level: Self.normalizedLevel(weekHours, max: Self.weekHoursLevelMax),
                 compact: metrics.isCompact,
-                showSparkline: metrics.showStatSparkline
+                showSparkline: metrics.showStatSparkline,
+                accent: homeTheme.accent
             )
+        case .today:
             HomeNeonStatCard(
                 title: L10n.homeStatToday,
                 value: HistoryPeriodHelper.formatHoursClock(todayHours),
                 icon: .clock,
                 sparkSeed: 2.2,
+                level: Self.normalizedLevel(todayHours, max: Self.todayHoursLevelMax),
                 compact: metrics.isCompact,
-                showSparkline: metrics.showStatSparkline
+                showSparkline: metrics.showStatSparkline,
+                accent: homeTheme.accent
+            )
+        case .todayPay:
+            HomeNeonStatCard(
+                title: L10n.homeStatTodayPay,
+                value: todayPayBreakdown.formattedNetPay,
+                icon: .clock,
+                sparkSeed: 2.7,
+                level: Self.normalizedLevel(todayHours, max: Self.todayHoursLevelMax),
+                compact: metrics.isCompact,
+                showSparkline: metrics.showStatSparkline,
+                accent: homeTheme.accent
+            )
+        case .weekPay:
+            HomeNeonStatCard(
+                title: L10n.homeStatWeekPay,
+                value: weekPayBreakdown.formattedNetPay,
+                icon: .chart,
+                sparkSeed: 1.7,
+                level: Self.normalizedLevel(weekHours, max: Self.weekHoursLevelMax),
+                compact: metrics.isCompact,
+                showSparkline: metrics.showStatSparkline,
+                accent: homeTheme.accent
+            )
+        case .monthPay:
+            HomeNeonStatCard(
+                title: L10n.homeStatMonthPay,
+                value: monthPayBreakdown.formattedNetPay,
+                icon: .calendar,
+                sparkSeed: 0.9,
+                level: Self.normalizedLevel(monthShiftCount, max: Self.monthShiftLevelMax),
+                compact: metrics.isCompact,
+                showSparkline: metrics.showStatSparkline,
+                accent: homeTheme.accent
             )
         }
+    }
+
+    // MARK: - Stat card sparkline levels
+
+    /// Reasonable "full bar" ceilings for each stat, chosen so a typical value sits
+    /// mid-height rather than maxing the line out immediately.
+    private static let monthShiftLevelMax: Double = 24
+    private static let weekHoursLevelMax: Double = 60
+    private static let todayHoursLevelMax: Double = 12
+
+    private static func normalizedLevel(_ value: Double, max: Double) -> Double {
+        guard max > 0 else { return 0 }
+        return Swift.min(Swift.max(value / max, 0), 1)
+    }
+
+    private static func normalizedLevel(_ value: Int, max: Double) -> Double {
+        normalizedLevel(Double(value), max: max)
     }
 
     private func clockedInView(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {
@@ -275,7 +393,7 @@ struct HomeView: View {
                         .minimumScaleFactor(0.75)
                     Text(PayFormatter.string(basicGross, currencyCode: viewModel.settings.currencyCode))
                         .font(.headline.monospacedDigit())
-                        .foregroundStyle(HomeNeon.accent)
+                        .foregroundStyle(homeTheme.accent)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                         .contentTransition(.numericText())
@@ -295,7 +413,9 @@ struct HomeView: View {
 
             HomeAnimatedDoorButton(
                 mode: .clockOut,
-                title: L10n.homeClockOut
+                title: L10n.homeClockOut,
+                compact: metrics.isCompact || metrics.isShort,
+                accent: homeTheme.accent
             ) {
                 viewModel.clockOut()
             }
@@ -351,6 +471,27 @@ struct HomeView: View {
         return completedSessions.filter {
             calendar.isDate($0.date, equalTo: now, toGranularity: .month)
         }.count
+    }
+
+    /// Backing breakdowns for the optional "…'s Pay" stat cards — same session
+    /// filters as `todayHours`/`weekHours`/`monthShiftCount`, run through the
+    /// overtime engine so the figure includes OT tiers, not just base rate × hours.
+    private var todayPayBreakdown: DayPayBreakdown {
+        let today = calendar.startOfDay(for: Date())
+        let sessions = completedSessions.filter { calendar.isDate($0.date, inSameDayAs: today) }
+        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.settings)
+    }
+
+    private var weekPayBreakdown: DayPayBreakdown {
+        let interval = weekInterval
+        let sessions = completedSessions.filter { interval.contains($0.date) }
+        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.settings)
+    }
+
+    private var monthPayBreakdown: DayPayBreakdown {
+        let now = Date()
+        let sessions = completedSessions.filter { calendar.isDate($0.date, equalTo: now, toGranularity: .month) }
+        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.settings)
     }
 
     private var weekDailyHours: [Double] {
@@ -450,6 +591,7 @@ struct DaySummarySheet: View {
                         )
                         Divider()
                         GrossNetBadge(breakdown: breakdown)
+                        TaxDeductionsCard(breakdown: breakdown)
                         summaryRow(
                             AppLocale.tr("tax.creditPoints"),
                             value: String(format: "%.2f", breakdown.creditPoints)

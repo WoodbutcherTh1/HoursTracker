@@ -17,6 +17,10 @@ struct WorkplaceSettings: Codable, Equatable {
     var hasChildren: Bool
     var numberOfChildren: Int
     var spouseEmployed: Bool
+    /// Optional — only used to estimate the National Insurance rate reduction that
+    /// applies once a worker reaches retirement age. `nil` (not set) behaves exactly
+    /// like before this field existed: no age-based adjustment.
+    var birthDate: Date?
     /// Day of month when the payroll cycle starts (1...28). Default 1 = calendar month.
     var payrollStartDay: Int
     /// Primary weekly rest day in `Calendar` weekday numbering (1 = Sunday ... 7 = Saturday).
@@ -51,6 +55,7 @@ struct WorkplaceSettings: Codable, Equatable {
         hasChildren: false,
         numberOfChildren: 0,
         spouseEmployed: false,
+        birthDate: nil,
         payrollStartDay: 1,
         restDayWeekday: 7,
         secondRestDayWeekday: nil,
@@ -67,6 +72,24 @@ struct WorkplaceSettings: Codable, Equatable {
 
     var creditPoints: Double {
         TaxCreditPointsCalculator.creditPoints(for: self)
+    }
+
+    /// Whole-years age as of today, if `birthDate` is set.
+    var age: Int? {
+        guard let birthDate else { return nil }
+        return Calendar.current.dateComponents([.year], from: birthDate, to: Date()).year
+    }
+
+    /// Israeli retirement age (גיל פרישה) — used only to estimate the reduced
+    /// National Insurance rate that applies from this age. Simplified to one
+    /// figure; the real law phases women's retirement age up gradually.
+    static let retirementAge = 67
+
+    /// `true` once the worker has reached retirement age. `nil` `birthDate` means
+    /// "unknown" and is treated as not-yet-retired, matching pre-existing behavior.
+    var hasReachedRetirementAge: Bool {
+        guard let age else { return false }
+        return age >= Self.retirementAge
     }
 
     /// Weekdays that count as weekly rest days for automatic day-type detection.
@@ -86,7 +109,7 @@ struct WorkplaceSettings: Codable, Equatable {
         case workplaceName, contractorName, workerFullName, workerIDNumber, employeeNumber
         case hourlyRate, dailyGasAllowance, standardDayHours, ot125HoursCap
         case locationLatitude, locationLongitude, locationRadiusMeters
-        case maritalStatus, hasChildren, numberOfChildren, spouseEmployed, payrollStartDay
+        case maritalStatus, hasChildren, numberOfChildren, spouseEmployed, birthDate, payrollStartDay
         case restDayWeekday, secondRestDayWeekday, defaultBreakMinutes, nightStandardDayHours, currencyCode
         case arrivalRemindersEnabled
         case modifiedAt
@@ -109,6 +132,7 @@ struct WorkplaceSettings: Codable, Equatable {
         hasChildren: Bool = false,
         numberOfChildren: Int = 0,
         spouseEmployed: Bool = false,
+        birthDate: Date? = nil,
         payrollStartDay: Int = 1,
         restDayWeekday: Int = 7,
         secondRestDayWeekday: Int? = nil,
@@ -134,6 +158,7 @@ struct WorkplaceSettings: Codable, Equatable {
         self.hasChildren = hasChildren
         self.numberOfChildren = numberOfChildren
         self.spouseEmployed = spouseEmployed
+        self.birthDate = birthDate
         self.payrollStartDay = payrollStartDay
         self.restDayWeekday = restDayWeekday
         self.secondRestDayWeekday = secondRestDayWeekday
@@ -163,6 +188,7 @@ struct WorkplaceSettings: Codable, Equatable {
         hasChildren = try c.decodeIfPresent(Bool.self, forKey: .hasChildren) ?? false
         numberOfChildren = try c.decodeIfPresent(Int.self, forKey: .numberOfChildren) ?? 0
         spouseEmployed = try c.decodeIfPresent(Bool.self, forKey: .spouseEmployed) ?? false
+        birthDate = try c.decodeIfPresent(Date.self, forKey: .birthDate)
         payrollStartDay = try c.decodeIfPresent(Int.self, forKey: .payrollStartDay) ?? 1
         restDayWeekday = try c.decodeIfPresent(Int.self, forKey: .restDayWeekday) ?? 7
         secondRestDayWeekday = try c.decodeIfPresent(Int.self, forKey: .secondRestDayWeekday)

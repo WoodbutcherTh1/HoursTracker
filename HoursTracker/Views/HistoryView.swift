@@ -12,7 +12,7 @@ struct HistoryView: View {
     @State private var selectedDay: Date? = nil
     /// Page index into `periodWeeks` for the Health-style week strip.
     @State private var selectedWeekIndex: Int = 0
-    @State private var payMode: PayDisplayMode = .net
+    @AppStorage("historyPayDisplayMode") private var payMode: PayDisplayMode = .net
     @State private var selectedSession: WorkSession?
     @State private var editingSession: WorkSession?
     @State private var sessionPendingDelete: WorkSession?
@@ -22,6 +22,7 @@ struct HistoryView: View {
     @State private var shareItem: ShareableFile?
     @State private var exportError: String?
     @State private var copyToastVisible = false
+    @State private var showPayBreakdown = false
 
     private let calendar = Calendar.current
 
@@ -102,6 +103,9 @@ struct HistoryView: View {
             }
             .sheet(item: $shareItem) { item in
                 ShareSheet(items: [item.url])
+            }
+            .sheet(isPresented: $showPayBreakdown) {
+                HistoryPayBreakdownSheet(breakdown: periodTotals)
             }
             .alert(
                 L10n.editDeleteConfirm,
@@ -604,6 +608,14 @@ struct HistoryView: View {
                         }
                         .pickerStyle(.segmented)
                         .frame(width: 120)
+
+                        Button {
+                            showPayBreakdown = true
+                        } label: {
+                            Image(systemName: "info.circle")
+                                .font(.caption)
+                        }
+                        .accessibilityLabel(L10n.historyPayBreakdownButton)
                     }
 
                     Text(String(
