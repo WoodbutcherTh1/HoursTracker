@@ -32,12 +32,13 @@ extension Color {
     }
 }
 
-/// User-customizable accent color for the Home screen's neon elements (stat cards,
-/// week chart, door button when idle). Defaults to the app's original green — nothing
-/// changes in appearance until the user opens the picker and picks something else.
-/// Deliberately Home-only for now: the coral "active session" / warning color elsewhere
-/// stays fixed since it carries semantic meaning (currently clocked in, destructive
-/// action), not just decoration.
+/// User-customizable accent color for the app: drives the tab bar tint, the
+/// HourTrackers wordmark, and every neon-styled element across Home, Payslip
+/// Library/Detail, and the Forgot Clock In / launch splash screens. Defaults to
+/// the app's original green — nothing changes in appearance until the user opens
+/// the picker and picks something else. The coral "active session" / warning
+/// color stays fixed everywhere since it carries semantic meaning (currently
+/// clocked in, destructive action), not just decoration.
 @MainActor
 final class HomeAccentTheme: ObservableObject {
     static let shared = HomeAccentTheme()

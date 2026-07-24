@@ -8205,19 +8205,19 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تخصيص الشاشة الرئيسية"
+            "value" : "مظهر التطبيق"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Customize Home"
+            "value" : "App Theme"
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "התאמה אישית למסך הבית"
+            "value" : "עיצוב האפליקציה"
           }
         }
       }

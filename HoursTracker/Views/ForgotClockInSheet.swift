@@ -3,6 +3,7 @@ import SwiftUI
 /// Late clock-in flow: pick arrival time → confirm/edit → open a normal shift.
 struct ForgotClockInSheet: View {
     @ObservedObject var viewModel: AppViewModel
+    @ObservedObject private var theme = HomeAccentTheme.shared
     @Environment(\.dismiss) private var dismiss
 
     enum Step {
@@ -77,7 +78,7 @@ struct ForgotClockInSheet: View {
                     .padding(.vertical, 14)
             }
             .buttonStyle(.borderedProminent)
-            .tint(HomeNeon.accent)
+            .tint(theme.accent)
             .padding(.horizontal, 24)
 
             Spacer(minLength: 12)
@@ -102,7 +103,7 @@ struct ForgotClockInSheet: View {
             Text(timeFormatter.string(from: arrival))
                 .font(.system(size: 44, weight: .light, design: .rounded))
                 .monospacedDigit()
-                .foregroundStyle(HomeNeon.accent)
+                .foregroundStyle(theme.accent)
 
             VStack(spacing: 12) {
                 Button {
@@ -115,7 +116,7 @@ struct ForgotClockInSheet: View {
                         .padding(.vertical, 14)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(HomeNeon.accent)
+                .tint(theme.accent)
 
                 Button {
                     step = .pickArrival
