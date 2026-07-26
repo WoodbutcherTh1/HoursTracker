@@ -46,7 +46,10 @@ targets:
         CFBundleShortVersionString: "1.1"
         # Build 15+: do NOT add UIBackgroundModes: location (Guideline 2.5.4).
         # Arrival reminders use CLCircularRegion monitoring only.
-        CFBundleVersion: "16"
+        # Build 17: re-submission after confirming the "Forgot to clock in?"
+        # button/localizations were intact in source; bumped past 16 so App
+        # Store Connect accepts a fresh, clean archive.
+        CFBundleVersion: "17"
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations:
