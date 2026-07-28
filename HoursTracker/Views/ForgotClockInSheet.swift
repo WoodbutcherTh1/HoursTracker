@@ -11,7 +11,12 @@ struct ForgotClockInSheet: View {
     }
 
     @State private var step: Step = .pickArrival
-    @State private var arrival = ForgotClockInSheet.defaultArrival()
+    @State private var arrival: Date
+
+    init(viewModel: AppViewModel) {
+        self.viewModel = viewModel
+        _arrival = State(initialValue: Self.defaultArrival(settings: viewModel.settings))
+    }
 
     private var timeFormatter: DateFormatter {
         AppLocale.makeDateFormatter(timeStyle: .short)
@@ -136,13 +141,21 @@ struct ForgotClockInSheet: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// Default suggested arrival: 08:00 today, or “now” if before 08:00.
-    /// TODO(expectedShiftStart): Same temporary 08:00 default as
-    /// `AppViewModel.shouldOfferForgotClockIn` — replace with settings
-    /// `expectedShiftStart` when that optional field is added.
-    static func defaultArrival(now: Date = Date(), calendar: Calendar = .current) -> Date {
+    /// Default suggested arrival: the worker's configured typical shift start
+    /// today, clamped to "now" if that hasn't happened yet (e.g. a night-shift
+    /// worker checking this sheet before their 22:00 start).
+    static func defaultArrival(
+        settings: WorkplaceSettings,
+        now: Date = Date(),
+        calendar: Calendar = .current
+    ) -> Date {
         let start = calendar.startOfDay(for: now)
-        let eight = calendar.date(bySettingHour: 8, minute: 0, second: 0, of: start) ?? start
-        return min(max(eight, start), now)
+        let typicalStart = calendar.date(
+            bySettingHour: settings.expectedShiftStartHour,
+            minute: settings.expectedShiftStartMinute,
+            second: 0,
+            of: start
+        ) ?? start
+        return min(max(typicalStart, start), now)
     }
 }

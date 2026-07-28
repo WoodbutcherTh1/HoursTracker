@@ -136,6 +136,38 @@ final class AppViewModelTests: XCTestCase {
         )
     }
 
+    /// A night-shift worker's typical start (e.g. 22:00) must drive the prompt,
+    /// not the old hardcoded 08:00 — otherwise they'd get nagged every morning
+    /// before they've even started their shift.
+    func testShouldOfferForgotClockInUsesConfiguredNightShiftStart() {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let day = calendar.date(from: DateComponents(year: 2026, month: 7, day: 14))! // Tuesday
+        var settings = WorkplaceSettings.default
+        settings.expectedShiftStartHour = 22
+        settings.expectedShiftStartMinute = 0
+
+        let morning = calendar.date(bySettingHour: 8, minute: 30, second: 0, of: day)!
+        XCTAssertFalse(
+            AppViewModel.shouldOfferForgotClockIn(
+                now: morning,
+                sessions: [],
+                settings: settings,
+                calendar: calendar
+            )
+        )
+
+        let afterNightGrace = calendar.date(bySettingHour: 22, minute: 30, second: 0, of: day)!
+        XCTAssertTrue(
+            AppViewModel.shouldOfferForgotClockIn(
+                now: afterNightGrace,
+                sessions: [],
+                settings: settings,
+                calendar: calendar
+            )
+        )
+    }
+
     func testSecondClockInSameDayAfterClockOutIsAllowed() {
         let (viewModel, _) = makeViewModel()
 

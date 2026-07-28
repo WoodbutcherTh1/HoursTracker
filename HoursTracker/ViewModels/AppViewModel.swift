@@ -210,7 +210,9 @@ final class AppViewModel: ObservableObject {
     /// - there is no open shift,
     /// - there is no completed shift yet today,
     /// - today is not a configured rest day,
-    /// - local time is at least 30 minutes past the app’s typical 08:00 start.
+    /// - local time is at least `graceMinutes` past the worker's configured
+    ///   typical shift start (`settings.expectedShiftStartHour/Minute`) — so a
+    ///   night-shift worker whose typical start is e.g. 22:00 isn't nagged at 08:30.
     var shouldOfferForgotClockIn: Bool {
         Self.shouldOfferForgotClockIn(
             now: Date(),
@@ -224,11 +226,6 @@ final class AppViewModel: ObservableObject {
         sessions: [WorkSession],
         settings: WorkplaceSettings,
         calendar: Calendar = .current,
-        // TODO(expectedShiftStart): Temporary hardcoded typical start (08:00) + grace.
-        // WorkplaceSettings has no expected shift-start field yet; keep this until we add an
-        // optional `expectedShiftStart` setting and drive the forgot-clock-in threshold from it
-        // (still with a ~30–45 min grace after the configured time). See PR #14 discussion.
-        typicalStartHour: Int = 8,
         graceMinutes: Int = 30
     ) -> Bool {
         if sessions.contains(where: \.isOpen) { return false }
@@ -244,8 +241,8 @@ final class AppViewModel: ObservableObject {
 
         guard
             let typicalStart = calendar.date(
-                bySettingHour: typicalStartHour,
-                minute: 0,
+                bySettingHour: settings.expectedShiftStartHour,
+                minute: settings.expectedShiftStartMinute,
                 second: 0,
                 of: today
             )
