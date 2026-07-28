@@ -36,6 +36,15 @@ struct ManualEntryView: View {
                         .font(.footnote)
                         .foregroundStyle(.secondary)
                 }
+            } else if dayType == .sick {
+                Section(L10n.dayTypeSick) {
+                    let preview = viewModel.sickStreakPreview(for: selectedDate)
+                    Text(L10n.manualSickPreview(preview.dayNumber, Int(preview.percentage * 100)))
+                        .font(.subheadline.weight(.semibold))
+                    Text(L10n.manualSickHint)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
             } else {
                 Section(L10n.manualEntryMode) {
                     Picker(L10n.manualMode, selection: $useDirectHours) {
@@ -60,15 +69,17 @@ struct ManualEntryView: View {
                 }
             }
 
-            Section {
-                Toggle(L10n.sessionNightShift, isOn: $isNightShift)
-                Stepper(value: $breakMinutes, in: 0...240, step: 5) {
-                    HStack {
-                        Text(L10n.sessionBreakMinutes)
-                        Spacer()
-                        Text("\(breakMinutes)")
-                            .monospacedDigit()
-                            .foregroundStyle(.secondary)
+            if dayType != .sick {
+                Section {
+                    Toggle(L10n.sessionNightShift, isOn: $isNightShift)
+                    Stepper(value: $breakMinutes, in: 0...240, step: 5) {
+                        HStack {
+                            Text(L10n.sessionBreakMinutes)
+                            Spacer()
+                            Text("\(breakMinutes)")
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -115,7 +126,7 @@ struct ManualEntryView: View {
     }
 
     private var isValid: Bool {
-        if dayType == .holiday {
+        if dayType == .holiday || dayType == .sick {
             return true
         }
         if useDirectHours {
@@ -151,6 +162,13 @@ struct ManualEntryView: View {
     private func save() {
         let calendar = Calendar.current
         let day = calendar.startOfDay(for: selectedDate)
+
+        if dayType == .sick {
+            viewModel.addSickDay(date: day, notes: notes.isEmpty ? nil : notes)
+            viewModel.showSuccessToast(L10n.feedbackSessionSaved)
+            dismiss()
+            return
+        }
 
         let finalClockIn: Date
         let finalClockOut: Date

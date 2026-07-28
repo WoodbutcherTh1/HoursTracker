@@ -302,6 +302,42 @@ final class AppViewModel: ObservableObject {
         return DayType.automatic(for: date, settings: settings)
     }
 
+    /// What marking `date` as sick would pay, given the worker's existing sick
+    /// history — lets the entry UI preview the day-number/percentage live,
+    /// before saving.
+    func sickStreakPreview(for date: Date, calendar: Calendar = .current) -> (dayNumber: Int, percentage: Double) {
+        let day = calendar.startOfDay(for: date)
+        var sickDates = Set(sessions.filter { $0.dayType == .sick }.map { calendar.startOfDay(for: $0.date) })
+        sickDates.insert(day)
+        let number = OvertimeCalculator.sickStreakDayNumber(for: day, sickDates: sickDates, calendar: calendar)
+        return (number, OvertimeCalculator.sickPayPercentage(streakDayNumber: number))
+    }
+
+    /// A sick day has no worked hours — `clockIn == clockOut` so `effectiveHours`
+    /// is naturally 0, but `clockOut` is non-nil so it's never mistaken for an
+    /// open/active session. Pay is computed separately in `OvertimeCalculator`
+    /// from the sick-day streak, not from these times.
+    func addSickDay(date: Date, notes: String?) {
+        let day = Calendar.current.startOfDay(for: date)
+        let session = WorkSession(
+            date: day,
+            clockIn: day,
+            clockOut: day,
+            isManualEntry: true,
+            dayType: .sick,
+            notes: notes
+        )
+        sessions.append(session)
+        persist()
+        refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventManualEntry,
+            level: .success,
+            category: "session",
+            details: day.formatted(date: .abbreviated, time: .omitted)
+        )
+    }
+
     // MARK: - Manual Entry
 
     func addManualSession(
@@ -661,13 +697,15 @@ final class AppViewModel: ObservableObject {
     func export(
         range: ExportDateRange,
         format: ExportFormat,
-        language: ExportLanguage = .phone
+        language: ExportLanguage = .phone,
+        dayTypes: Set<DayType>? = nil
     ) throws -> URL {
         let report = exportManager.buildReport(
             sessions: sessions,
             settings: settings,
             range: range,
-            language: language
+            language: language,
+            dayTypes: dayTypes
         )
         let url = try exportManager.export(report: report, format: format, language: language)
         ActivityLogStore.shared.log(

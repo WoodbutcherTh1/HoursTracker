@@ -84,11 +84,15 @@ final class ExportManager {
         sessions: [WorkSession],
         settings: WorkplaceSettings,
         range: ExportDateRange,
-        language: ExportLanguage = .phone
+        language: ExportLanguage = .phone,
+        dayTypes: Set<DayType>? = nil
     ) -> ExportReport {
         apply(language: language)
         let filtered = filter(sessions: sessions, range: range)
-        let completed = filtered.filter { $0.clockOut != nil }
+        var completed = filtered.filter { $0.clockOut != nil }
+        if let dayTypes {
+            completed = completed.filter { dayTypes.contains($0.dayType) }
+        }
         let rows = OvertimeCalculator.dayAwareBreakdowns(sessions: completed, settings: settings)
             .map { ExportRow(session: $0.session, breakdown: $0.breakdown) }
         let totals = OvertimeCalculator.aggregate(sessions: completed, settings: settings)

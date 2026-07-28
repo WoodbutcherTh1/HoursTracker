@@ -413,6 +413,29 @@
         }
       }
     },
+    "dayType.sick" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يوم مرضي"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sick Day"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "יום מחלה"
+          }
+        }
+      }
+    },
     "edit.cancel" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -916,6 +939,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Markdown"
+          }
+        }
+      }
+    },
+    "export.dayType" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نوع اليوم"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day Type"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "סוג יום"
+          }
+        }
+      }
+    },
+    "export.dayType.all" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "كل الأيام"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "All Days"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "כל הימים"
           }
         }
       }
@@ -4561,6 +4630,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "שעות חג"
+          }
+        }
+      }
+    },
+    "manual.sickHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اليوم الأول بلا أجر، يوم 2-3 نص أجر، من اليوم الرابع أجر كامل. الأجر بيتحسب أوتوماتيك — بدون ساعات دخول/خروج."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day 1 is unpaid, days 2–3 are half pay, day 4 onward is full pay. Pay is calculated automatically — no clock-in/out needed."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "יום 1 ללא תשלום, ימים 2–3 בחצי שכר, מהיום הרביעי שכר מלא. השכר מחושב אוטומטית — בלי שעות כניסה/יציאה."
+          }
+        }
+      }
+    },
+    "manual.sickPreview %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اليوم %lld من تسلسل المرضي — %lld%% من الأجر"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day %lld of this sick streak — %lld%% of pay"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "יום %lld ברצף המחלה — %lld%% מהשכר"
           }
         }
       }

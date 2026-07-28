@@ -264,21 +264,32 @@ struct EditSessionView: View {
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
+                } else if dayType == .sick {
+                    Section(L10n.dayTypeSick) {
+                        let preview = viewModel.sickStreakPreview(for: session.date)
+                        Text(L10n.manualSickPreview(preview.dayNumber, Int(preview.percentage * 100)))
+                            .font(.subheadline.weight(.semibold))
+                        Text(L10n.manualSickHint)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
                 } else {
                     Section(L10n.editTimes) {
                         DatePicker(L10n.editClockIn, selection: $clockIn)
                         DatePicker(L10n.editClockOut, selection: $clockOut)
                     }
                 }
-                Section {
-                    Toggle(L10n.sessionNightShift, isOn: $isNightShift)
-                    Stepper(value: $breakMinutes, in: 0...240, step: 5) {
-                        HStack {
-                            Text(L10n.sessionBreakMinutes)
-                            Spacer()
-                            Text("\(breakMinutes)")
-                                .monospacedDigit()
-                                .foregroundStyle(.secondary)
+                if dayType != .sick {
+                    Section {
+                        Toggle(L10n.sessionNightShift, isOn: $isNightShift)
+                        Stepper(value: $breakMinutes, in: 0...240, step: 5) {
+                            HStack {
+                                Text(L10n.sessionBreakMinutes)
+                                Spacer()
+                                Text("\(breakMinutes)")
+                                    .monospacedDigit()
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -295,10 +306,15 @@ struct EditSessionView: View {
             .navigationBarTitleDisplayMode(.inline)
             .keyboardDismissible()
             .onChange(of: dayType) { _, newValue in
-                guard newValue == .holiday else { return }
-                let expected = viewModel.settings.expectedShift(on: session.date)
-                clockIn = expected.clockIn
-                clockOut = expected.clockOut
+                if newValue == .holiday {
+                    let expected = viewModel.settings.expectedShift(on: session.date)
+                    clockIn = expected.clockIn
+                    clockOut = expected.clockOut
+                } else if newValue == .sick {
+                    let day = Calendar.current.startOfDay(for: session.date)
+                    clockIn = day
+                    clockOut = day
+                }
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
@@ -318,7 +334,7 @@ struct EditSessionView: View {
                         viewModel.showSuccessToast(L10n.feedbackSessionUpdated)
                         dismiss()
                     }
-                    .disabled(sameClockTimes)
+                    .disabled(dayType != .sick && sameClockTimes)
                 }
             }
             .alert(

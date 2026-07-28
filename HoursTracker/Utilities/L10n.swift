@@ -206,6 +206,10 @@ enum L10n {
     }
     static var manualHolidayAutoFilledTitle: String { t("manual.holidayAutoFilledTitle") }
     static var manualHolidayAutoFilledHint: String { t("manual.holidayAutoFilledHint") }
+    static var manualSickHint: String { t("manual.sickHint") }
+    static func manualSickPreview(_ day: Int, _ percent: Int) -> String {
+        String(format: t("manual.sickPreview %lld %lld"), day, percent)
+    }
 
     // Settings
     static var settingsTitle: String { t("settings.title") }
@@ -307,6 +311,8 @@ enum L10n {
     static var exportFormatTXT: String { t("export.format.txt") }
     static var exportFormatDOCX: String { t("export.format.docx") }
     static var exportFormatMD: String { t("export.format.md") }
+    static var exportDayType: String { t("export.dayType") }
+    static var exportDayTypeAll: String { t("export.dayType.all") }
 
     static var exportLanguage: String { t("export.language") }
     static func exportLanguagePhone(_ languageName: String) -> String {
@@ -381,6 +387,7 @@ enum L10n {
     static var dayTypeRegular: String { t("dayType.regular") }
     static var dayTypeRestDay: String { t("dayType.restDay") }
     static var dayTypeHoliday: String { t("dayType.holiday") }
+    static var dayTypeSick: String { t("dayType.sick") }
 
     // Errors
     static var errorTitle: String { t("error.title") }
