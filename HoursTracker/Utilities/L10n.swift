@@ -204,6 +204,8 @@ enum L10n {
     static func manualHoursFormat(_ hours: Double) -> String {
         String(format: t("manual.hoursFormat %@"), String(format: "%.1f", hours))
     }
+    static var manualHolidayAutoFilledTitle: String { t("manual.holidayAutoFilledTitle") }
+    static var manualHolidayAutoFilledHint: String { t("manual.holidayAutoFilledHint") }
 
     // Settings
     static var settingsTitle: String { t("settings.title") }
@@ -372,6 +374,7 @@ enum L10n {
     static var settingsDefaultBreak: String { t("settings.defaultBreak") }
     static var settingsCurrency: String { t("settings.currency") }
     static var settingsWorkRulesNote: String { t("settings.workRulesNote") }
+    static var settingsExpectedShiftStart: String { t("settings.expectedShiftStart") }
     static var sessionDayType: String { t("session.dayType") }
     static var sessionNightShift: String { t("session.nightShift") }
     static var sessionBreakMinutes: String { t("session.breakMinutes") }

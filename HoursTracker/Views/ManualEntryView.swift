@@ -20,34 +20,47 @@ struct ManualEntryView: View {
                 DatePicker(L10n.manualWorkDay, selection: $selectedDate, displayedComponents: .date)
             }
 
-            Section(L10n.manualEntryMode) {
-                Picker(L10n.manualMode, selection: $useDirectHours) {
-                    Text(L10n.manualClockInOut).tag(false)
-                    Text(L10n.manualTotalHours).tag(true)
-                }
-                .pickerStyle(.segmented)
-            }
-
-            if useDirectHours {
-                Section(L10n.manualHours) {
-                    Stepper(value: $directHours, in: 0...24, step: 0.1) {
-                        Text(L10n.manualHoursFormat(directHours))
-                            .monospacedDigit()
-                    }
-                }
-            } else {
-                Section(L10n.editTimes) {
-                    DatePicker(L10n.editClockIn, selection: $clockIn, displayedComponents: .hourAndMinute)
-                    DatePicker(L10n.editClockOut, selection: $clockOut, displayedComponents: .hourAndMinute)
-                }
-            }
-
             Section(L10n.settingsWorkRules) {
                 Picker(L10n.sessionDayType, selection: $dayType) {
                     ForEach(DayType.allCases) { type in
                         Text(type.localizedName).tag(type)
                     }
                 }
+            }
+
+            if dayType == .holiday {
+                Section(L10n.manualHolidayAutoFilledTitle) {
+                    LabeledContent(L10n.editClockIn, value: clockIn.formatted(date: .omitted, time: .shortened))
+                    LabeledContent(L10n.editClockOut, value: clockOut.formatted(date: .omitted, time: .shortened))
+                    Text(L10n.manualHolidayAutoFilledHint)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            } else {
+                Section(L10n.manualEntryMode) {
+                    Picker(L10n.manualMode, selection: $useDirectHours) {
+                        Text(L10n.manualClockInOut).tag(false)
+                        Text(L10n.manualTotalHours).tag(true)
+                    }
+                    .pickerStyle(.segmented)
+                }
+
+                if useDirectHours {
+                    Section(L10n.manualHours) {
+                        Stepper(value: $directHours, in: 0...24, step: 0.1) {
+                            Text(L10n.manualHoursFormat(directHours))
+                                .monospacedDigit()
+                        }
+                    }
+                } else {
+                    Section(L10n.editTimes) {
+                        DatePicker(L10n.editClockIn, selection: $clockIn, displayedComponents: .hourAndMinute)
+                        DatePicker(L10n.editClockOut, selection: $clockOut, displayedComponents: .hourAndMinute)
+                    }
+                }
+            }
+
+            Section {
                 Toggle(L10n.sessionNightShift, isOn: $isNightShift)
                 Stepper(value: $breakMinutes, in: 0...240, step: 5) {
                     HStack {
@@ -78,15 +91,33 @@ struct ManualEntryView: View {
         .onAppear {
             syncTimesToDate()
             breakMinutes = viewModel.settings.defaultBreakMinutes
-            dayType = DayType.automatic(for: selectedDate, settings: viewModel.settings)
+            dayType = viewModel.resolvedDayType(for: selectedDate)
+            applyHolidayAutoFillIfNeeded()
         }
         .onChange(of: selectedDate) { _, _ in
             syncTimesToDate()
-            dayType = DayType.automatic(for: selectedDate, settings: viewModel.settings)
+            dayType = viewModel.resolvedDayType(for: selectedDate)
+            applyHolidayAutoFillIfNeeded()
+        }
+        .onChange(of: dayType) { _, _ in
+            applyHolidayAutoFillIfNeeded()
         }
     }
 
+    /// Holiday hours are never typed in — they're derived from the worker's
+    /// typical shift, since a holiday isn't a day anyone actually clocked.
+    private func applyHolidayAutoFillIfNeeded() {
+        guard dayType == .holiday else { return }
+        let expected = viewModel.settings.expectedShift(on: selectedDate)
+        clockIn = expected.clockIn
+        clockOut = expected.clockOut
+        useDirectHours = false
+    }
+
     private var isValid: Bool {
+        if dayType == .holiday {
+            return true
+        }
         if useDirectHours {
             return directHours > 0
         }

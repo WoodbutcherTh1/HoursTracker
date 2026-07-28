@@ -193,7 +193,7 @@ final class AppViewModel: ObservableObject {
             clockIn: clockInDate,
             clockOut: nil,
             isManualEntry: isManual,
-            dayType: DayType.automatic(for: clockInDate, settings: settings)
+            dayType: resolvedDayType(for: clockInDate)
         )
         sessions.append(session)
         persist()
@@ -294,6 +294,17 @@ final class AppViewModel: ObservableObject {
         lastCompletedSessionID = nil
     }
 
+    /// Day type to use for a new session on `date`, honoring a holiday already
+    /// marked that day (e.g. via manual entry) instead of letting an automatic
+    /// clock-in or import silently downgrade it back to `.regular`/`.restDay`.
+    func resolvedDayType(for date: Date, calendar: Calendar = .current) -> DayType {
+        let hasHolidayMarked = sessions.contains {
+            $0.dayType == .holiday && calendar.isDate($0.date, inSameDayAs: date)
+        }
+        if hasHolidayMarked { return .holiday }
+        return DayType.automatic(for: date, settings: settings)
+    }
+
     // MARK: - Manual Entry
 
     func addManualSession(
@@ -315,7 +326,7 @@ final class AppViewModel: ObservableObject {
             clockOut: resolved.clockOut,
             isManualEntry: true,
             breakMinutes: breakMinutes,
-            dayType: dayType ?? DayType.automatic(for: day, settings: settings),
+            dayType: dayType ?? resolvedDayType(for: day),
             isNightShift: isNightShift
                 ?? WorkSession.qualifiesAsNightShift(clockIn: resolved.clockIn, clockOut: resolved.clockOut),
             notes: notes
@@ -358,7 +369,7 @@ final class AppViewModel: ObservableObject {
             session.date = day
             session.clockIn = resolved.clockIn
             session.clockOut = resolved.clockOut
-            session.dayType = DayType.automatic(for: day, settings: settings)
+            session.dayType = resolvedDayType(for: day)
             session.isNightShift = WorkSession.qualifiesAsNightShift(
                 clockIn: resolved.clockIn,
                 clockOut: resolved.clockOut

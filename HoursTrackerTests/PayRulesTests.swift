@@ -224,6 +224,23 @@ final class PayRulesTests: XCTestCase {
         XCTAssertEqual(DayType.automatic(for: saturday, settings: settings), .restDay)
         XCTAssertEqual(DayType.automatic(for: sunday, settings: settings), .regular)
     }
+
+    func testExpectedShiftDerivesFromExpectedStartAndStandardDayHours() {
+        var settings = TestData.settings()
+        settings.expectedShiftStartHour = 7
+        settings.expectedShiftStartMinute = 30
+        settings.standardDayHours = 8
+        settings.defaultBreakMinutes = 30
+        let day = TestData.date(2026, 7, 10)
+
+        let expected = settings.expectedShift(on: day)
+
+        let calendar = Calendar.current
+        let inParts = calendar.dateComponents([.hour, .minute], from: expected.clockIn)
+        XCTAssertEqual(inParts.hour, 7)
+        XCTAssertEqual(inParts.minute, 30)
+        XCTAssertEqual(expected.clockOut.timeIntervalSince(expected.clockIn), 8.5 * 3600, accuracy: 1)
+    }
 }
 
 final class TaxCreditApplicationTests: XCTestCase {
@@ -319,5 +336,44 @@ final class PayRulesViewModelTests: XCTestCase {
         viewModel.clockIn()
 
         XCTAssertEqual(viewModel.sessions.first?.dayType, .restDay)
+    }
+
+    func testClockInPreservesExistingHolidayMarking() {
+        let store = InMemoryStore()
+        store.storedSettings = TestData.settings()
+        let today = Calendar.current.startOfDay(for: Date())
+        // A holiday marker already exists for today (e.g. entered manually);
+        // clocking in for actual work that day must not downgrade it back to regular.
+        var holidaySession = TestData.session(day: 1, inHour: 8, outHour: 16)
+        holidaySession.date = today
+        holidaySession.dayType = .holiday
+        store.storedSessions = [holidaySession]
+        let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+
+        viewModel.clockIn()
+
+        let newSession = viewModel.sessions.first { $0.id != holidaySession.id }
+        XCTAssertEqual(newSession?.dayType, .holiday)
+    }
+
+    func testManualSessionWithoutExplicitDayTypePreservesExistingHoliday() {
+        let store = InMemoryStore()
+        store.storedSettings = TestData.settings()
+        let today = Calendar.current.startOfDay(for: Date())
+        var holidaySession = TestData.session(day: 1, inHour: 8, outHour: 16)
+        holidaySession.date = today
+        holidaySession.dayType = .holiday
+        store.storedSessions = [holidaySession]
+        let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+
+        viewModel.addManualSession(
+            date: today,
+            clockIn: today.addingTimeInterval(9 * 3600),
+            clockOut: today.addingTimeInterval(17 * 3600),
+            notes: nil
+        )
+
+        let newSession = viewModel.sessions.first { $0.id != holidaySession.id }
+        XCTAssertEqual(newSession?.dayType, .holiday)
     }
 }
