@@ -545,4 +545,7 @@ enum L10n {
     static func hoursLong(_ hours: Double) -> String {
         String(format: t("common.hoursLong %@"), String(format: "%.2f", hours))
     }
+
+    // User Guide
+    static var guideTitle: String { t("guide.title") }
 }

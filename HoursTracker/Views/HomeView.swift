@@ -40,6 +40,7 @@ struct HomeView: View {
     @State private var showScanner = false
     @State private var showForgotClockIn = false
     @State private var showThemePicker = false
+    @State private var showUserGuide = false
     @State private var liveNow = Date()
 
     private var timeFormatter: DateFormatter {
@@ -111,6 +112,15 @@ struct HomeView: View {
                     }
                     .accessibilityLabel(L10n.gridTitle)
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showUserGuide = true
+                    } label: {
+                        Image(systemName: "questionmark.circle")
+                            .foregroundStyle(homeTheme.accent)
+                    }
+                    .accessibilityLabel(L10n.guideTitle)
+                }
             }
             .toolbarBackground(HomeNeon.bg, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
@@ -132,6 +142,10 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showThemePicker) {
                 HomeThemePickerSheet(theme: homeTheme)
+                    .presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: $showUserGuide) {
+                UserGuideSheet()
                     .presentationDetents([.medium, .large])
             }
         }
