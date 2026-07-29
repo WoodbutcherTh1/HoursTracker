@@ -51,7 +51,53 @@ enum OvertimeCalculator {
             // Rest-day / holiday work pays 150% from the first hour;
             // overtime tiers add the same +25% / +50% on top.
             return RateTiers(base: 1.5, tier1: 1.75, tier2: 2.0)
+        case .sick:
+            // Sick days never have worked hours, so this is never actually
+            // consulted — `breakdowns(forDay:)` prices sick sessions itself.
+            return RateTiers(base: 0, tier1: 0, tier2: 0)
         }
+    }
+
+    /// 1-indexed position within a run of consecutive *calendar* days all
+    /// marked `.sick`. A gap of any kind — including the weekly rest day —
+    /// resets the run; only calendar-adjacent sick-marked days extend it.
+    static func sickStreakDayNumber(
+        for date: Date,
+        sickDates: Set<Date>,
+        calendar: Calendar = .current
+    ) -> Int {
+        var count = 1
+        var cursor = calendar.startOfDay(for: date)
+        while let previous = calendar.date(byAdding: .day, value: -1, to: cursor),
+              sickDates.contains(calendar.startOfDay(for: previous)) {
+            count += 1
+            cursor = previous
+        }
+        return count
+    }
+
+    /// Israeli sick-pay schedule: day 1 unpaid, days 2–3 half pay, day 4+ full pay.
+    static func sickPayPercentage(streakDayNumber: Int) -> Double {
+        switch streakDayNumber {
+        case ...1: return 0.0
+        case 2, 3: return 0.5
+        default: return 1.0
+        }
+    }
+
+    /// Streak position for every `.sick`-marked calendar day found in `sessions`.
+    static func sickStreakDayNumbers(
+        sessions: [WorkSession],
+        calendar: Calendar = .current
+    ) -> [Date: Int] {
+        let sickDates = Set(
+            sessions.filter { $0.dayType == .sick }.map { calendar.startOfDay(for: $0.date) }
+        )
+        var result: [Date: Int] = [:]
+        for date in sickDates {
+            result[date] = sickStreakDayNumber(for: date, sickDates: sickDates, calendar: calendar)
+        }
+        return result
     }
 
     static func standardHours(for session: WorkSession, settings: WorkplaceSettings) -> Double {
@@ -108,7 +154,9 @@ enum OvertimeCalculator {
     /// sum exactly to the day's totals.
     static func breakdowns(
         forDay daySessions: [WorkSession],
-        settings: WorkplaceSettings
+        settings: WorkplaceSettings,
+        sickStreakDayNumbers: [Date: Int] = [:],
+        calendar: Calendar = .current
     ) -> [(session: WorkSession, breakdown: DayPayBreakdown)] {
         guard !daySessions.isEmpty else { return [] }
 
@@ -132,7 +180,8 @@ enum OvertimeCalculator {
         var slices: [Slice] = []
 
         for session in ordered {
-            let hours = session.effectiveHours
+            let isSick = session.dayType == .sick
+            let hours = isSick ? 0 : session.effectiveHours
             let standard = standardHours(for: session, settings: settings)
             let tier1Boundary = standard
             let tier2Boundary = standard + settings.ot125HoursCap
@@ -144,8 +193,8 @@ enum OvertimeCalculator {
             let tier2 = max(0, end - max(start, tier2Boundary))
             consumed = end
 
-            let rates = tiers(for: session.dayType)
             // Travel allowance applies once per day, on the first session with paid hours.
+            // Sick days never earn it — `hours` is 0, so this already excludes them.
             let gas: Double
             if hours > 0, gasRemaining > 0 {
                 gas = gasRemaining
@@ -154,9 +203,21 @@ enum OvertimeCalculator {
                 gas = 0
             }
 
-            let basePay = base * rate * rates.base
-            let tier1Pay = tier1 * rate * rates.tier1
-            let tier2Pay = tier2 * rate * rates.tier2
+            let basePay: Double
+            let tier1Pay: Double
+            let tier2Pay: Double
+            if isSick {
+                let dayKey = calendar.startOfDay(for: session.date)
+                let streakNumber = sickStreakDayNumbers[dayKey] ?? 1
+                basePay = standard * rate * sickPayPercentage(streakDayNumber: streakNumber)
+                tier1Pay = 0
+                tier2Pay = 0
+            } else {
+                let rates = tiers(for: session.dayType)
+                basePay = base * rate * rates.base
+                tier1Pay = tier1 * rate * rates.tier1
+                tier2Pay = tier2 * rate * rates.tier2
+            }
 
             slices.append(Slice(
                 session: session,
@@ -209,9 +270,12 @@ enum OvertimeCalculator {
         calendar: Calendar = .current
     ) -> [(session: WorkSession, breakdown: DayPayBreakdown)] {
         let groups = Dictionary(grouping: sessions) { calendar.startOfDay(for: $0.date) }
+        let streaks = sickStreakDayNumbers(sessions: sessions, calendar: calendar)
         return groups
             .sorted { $0.key < $1.key }
-            .flatMap { breakdowns(forDay: $0.value, settings: settings) }
+            .flatMap {
+                breakdowns(forDay: $0.value, settings: settings, sickStreakDayNumbers: streaks, calendar: calendar)
+            }
     }
 
     /// Breakdown of a single session evaluated alone (no same-day context).
@@ -233,7 +297,10 @@ enum OvertimeCalculator {
         if !sameDay.contains(where: { $0.id == session.id }) {
             sameDay.append(session)
         }
-        let results = breakdowns(forDay: sameDay, settings: settings)
+        // Sick-day pricing needs the worker's full sick history, not just
+        // this calendar day, to place `session` correctly within its streak.
+        let streaks = sickStreakDayNumbers(sessions: allSessions, calendar: calendar)
+        let results = breakdowns(forDay: sameDay, settings: settings, sickStreakDayNumbers: streaks, calendar: calendar)
         return results.first { $0.session.id == session.id }?.breakdown
             ?? breakdown(for: session, settings: settings)
     }

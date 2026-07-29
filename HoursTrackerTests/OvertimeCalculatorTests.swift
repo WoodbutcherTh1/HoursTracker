@@ -115,6 +115,47 @@ final class OvertimeCalculatorTests: XCTestCase {
             isManualEntry: false
         )
     }
+
+    // MARK: - Sick days
+
+    func testSickPayPercentageSchedule() {
+        XCTAssertEqual(OvertimeCalculator.sickPayPercentage(streakDayNumber: 1), 0.0)
+        XCTAssertEqual(OvertimeCalculator.sickPayPercentage(streakDayNumber: 2), 0.5)
+        XCTAssertEqual(OvertimeCalculator.sickPayPercentage(streakDayNumber: 3), 0.5)
+        XCTAssertEqual(OvertimeCalculator.sickPayPercentage(streakDayNumber: 4), 1.0)
+        XCTAssertEqual(OvertimeCalculator.sickPayPercentage(streakDayNumber: 9), 1.0)
+    }
+
+    func testSingleSickDayIsUnpaid() {
+        let sick = TestData.sickDay(year: 2026, month: 1, day: 12) // Monday
+        let result = OvertimeCalculator.breakdown(for: sick, settings: settings)
+        XCTAssertEqual(result.totalHours, 0, accuracy: 0.001)
+        XCTAssertEqual(result.basePay, 0, accuracy: 0.01)
+        XCTAssertEqual(result.gasAllowance, 0, accuracy: 0.01)
+    }
+
+    func testFourConsecutiveSickDaysFollowTheLegalSchedule() {
+        let sessions = (12...15).map { TestData.sickDay(year: 2026, month: 1, day: $0) } // Mon–Thu
+        let results = OvertimeCalculator.dayAwareBreakdowns(sessions: sessions, settings: settings)
+        // Day 1: unpaid, days 2–3: half a standard day, day 4: a full standard day.
+        let halfDay = settings.standardDayHours * settings.hourlyRate * 0.5
+        let fullDay = settings.standardDayHours * settings.hourlyRate
+        XCTAssertEqual(results[0].breakdown.basePay, 0, accuracy: 0.01)
+        XCTAssertEqual(results[1].breakdown.basePay, halfDay, accuracy: 0.01)
+        XCTAssertEqual(results[2].breakdown.basePay, halfDay, accuracy: 0.01)
+        XCTAssertEqual(results[3].breakdown.basePay, fullDay, accuracy: 0.01)
+    }
+
+    func testRestDayGapResetsTheSickStreak() {
+        // Jan 16 2026 is a Friday, Jan 17 a Saturday (rest day, not marked sick),
+        // Jan 18 a Sunday marked sick again — the rest-day gap must NOT bridge
+        // the streak, so Jan 18 starts back at day 1 (unpaid).
+        let firstRun = [TestData.sickDay(year: 2026, month: 1, day: 15), TestData.sickDay(year: 2026, month: 1, day: 16)]
+        let afterGap = TestData.sickDay(year: 2026, month: 1, day: 18)
+        let results = OvertimeCalculator.dayAwareBreakdowns(sessions: firstRun + [afterGap], settings: settings)
+        let resumed = results.first { Calendar.current.isDate($0.session.date, inSameDayAs: afterGap.date) }
+        XCTAssertEqual(resumed?.breakdown.basePay, 0, accuracy: 0.01)
+    }
 }
 
 final class PayrollPeriodTests: XCTestCase {

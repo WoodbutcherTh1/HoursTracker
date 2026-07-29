@@ -21,6 +21,30 @@ final class ExportManagerTests: XCTestCase {
         XCTAssertEqual(report.rows.first?.session.id, completed.id)
     }
 
+    func testDayTypeFilterOnlyIncludesRequestedTypes() {
+        let regular = TestData.session(day: 5, dayType: .regular)
+        let holiday = TestData.session(day: 6, dayType: .holiday)
+        let sick = TestData.sickDay(day: 7)
+
+        let report = manager.buildReport(
+            sessions: [regular, holiday, sick],
+            settings: settings,
+            range: .all,
+            dayTypes: [.regular]
+        )
+
+        XCTAssertEqual(report.rows.map(\.session.id), [regular.id])
+    }
+
+    func testNilDayTypeFilterIncludesEveryType() {
+        let regular = TestData.session(day: 5, dayType: .regular)
+        let sick = TestData.sickDay(day: 7)
+
+        let report = manager.buildReport(sessions: [regular, sick], settings: settings, range: .all)
+
+        XCTAssertEqual(Set(report.rows.map(\.session.id)), [regular.id, sick.id])
+    }
+
     func testMonthRangeFiltersOtherMonths() {
         let january = TestData.session(month: 1, day: 15)
         let february = TestData.session(month: 2, day: 15)

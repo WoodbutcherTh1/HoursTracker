@@ -382,6 +382,26 @@ struct SettingsView: View {
         }
     }
 
+    /// Wraps `expectedShiftStartHour`/`Minute` as a `Date` for the time picker;
+    /// used to auto-fill holiday/rest-day hours from the worker's typical start.
+    private var expectedShiftStartBinding: Binding<Date> {
+        Binding(
+            get: {
+                Calendar.current.date(
+                    bySettingHour: draft.expectedShiftStartHour,
+                    minute: draft.expectedShiftStartMinute,
+                    second: 0,
+                    of: Date()
+                ) ?? Date()
+            },
+            set: { newValue in
+                let parts = Calendar.current.dateComponents([.hour, .minute], from: newValue)
+                draft.expectedShiftStartHour = parts.hour ?? draft.expectedShiftStartHour
+                draft.expectedShiftStartMinute = parts.minute ?? draft.expectedShiftStartMinute
+            }
+        )
+    }
+
     private var workRulesSection: some View {
         Section(L10n.settingsWorkRules) {
             Picker(L10n.settingsRestDay, selection: $draft.restDayWeekday) {
@@ -419,6 +439,12 @@ struct SettingsView: View {
                         .foregroundStyle(.secondary)
                 }
             }
+
+            DatePicker(
+                L10n.settingsExpectedShiftStart,
+                selection: expectedShiftStartBinding,
+                displayedComponents: .hourAndMinute
+            )
 
             Picker(L10n.settingsCurrency, selection: $draft.currencyCode) {
                 ForEach(PayFormatter.supportedCurrencyCodes, id: \.self) { code in

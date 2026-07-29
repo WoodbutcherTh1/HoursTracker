@@ -6,6 +6,10 @@ enum DayType: String, Codable, CaseIterable, Identifiable {
     case regular
     case restDay
     case holiday
+    /// No worked hours — pay is a percentage of a standard day based on
+    /// the sick-leave streak (see `OvertimeCalculator.sickStreakDayNumber`),
+    /// not on `clockIn`/`clockOut`.
+    case sick
 
     var id: Self { self }
 
@@ -18,6 +22,7 @@ enum DayType: String, Codable, CaseIterable, Identifiable {
         case .regular: return L10n.dayTypeRegular
         case .restDay: return L10n.dayTypeRestDay
         case .holiday: return L10n.dayTypeHoliday
+        case .sick: return L10n.dayTypeSick
         }
     }
 

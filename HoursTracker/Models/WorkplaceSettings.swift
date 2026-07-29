@@ -36,6 +36,11 @@ struct WorkplaceSettings: Codable, Equatable {
     var currencyCode: String
     /// User opted into workplace arrival reminders (requires Always location).
     var arrivalRemindersEnabled: Bool
+    /// Typical shift start time (hour, 0...23), used to auto-fill holiday/rest-day
+    /// hours so the user isn't asked to punch in a day they didn't actually work.
+    var expectedShiftStartHour: Int
+    /// Typical shift start time (minute, 0...59).
+    var expectedShiftStartMinute: Int
     var modifiedAt: Date
 
     static let `default` = WorkplaceSettings(
@@ -63,6 +68,8 @@ struct WorkplaceSettings: Codable, Equatable {
         nightStandardDayHours: 7.0,
         currencyCode: "ILS",
         arrivalRemindersEnabled: false,
+        expectedShiftStartHour: 8,
+        expectedShiftStartMinute: 0,
         modifiedAt: Date()
     )
 
@@ -112,6 +119,7 @@ struct WorkplaceSettings: Codable, Equatable {
         case maritalStatus, hasChildren, numberOfChildren, spouseEmployed, birthDate, payrollStartDay
         case restDayWeekday, secondRestDayWeekday, defaultBreakMinutes, nightStandardDayHours, currencyCode
         case arrivalRemindersEnabled
+        case expectedShiftStartHour, expectedShiftStartMinute
         case modifiedAt
     }
 
@@ -140,6 +148,8 @@ struct WorkplaceSettings: Codable, Equatable {
         nightStandardDayHours: Double = 7.0,
         currencyCode: String = "ILS",
         arrivalRemindersEnabled: Bool = false,
+        expectedShiftStartHour: Int = 8,
+        expectedShiftStartMinute: Int = 0,
         modifiedAt: Date
     ) {
         self.workplaceName = workplaceName
@@ -166,6 +176,8 @@ struct WorkplaceSettings: Codable, Equatable {
         self.nightStandardDayHours = nightStandardDayHours
         self.currencyCode = currencyCode
         self.arrivalRemindersEnabled = arrivalRemindersEnabled
+        self.expectedShiftStartHour = expectedShiftStartHour
+        self.expectedShiftStartMinute = expectedShiftStartMinute
         self.modifiedAt = modifiedAt
         normalizeValidatedFields()
     }
@@ -196,6 +208,8 @@ struct WorkplaceSettings: Codable, Equatable {
         nightStandardDayHours = try c.decodeIfPresent(Double.self, forKey: .nightStandardDayHours) ?? 7.0
         currencyCode = try c.decodeIfPresent(String.self, forKey: .currencyCode) ?? "ILS"
         arrivalRemindersEnabled = try c.decodeIfPresent(Bool.self, forKey: .arrivalRemindersEnabled) ?? false
+        expectedShiftStartHour = try c.decodeIfPresent(Int.self, forKey: .expectedShiftStartHour) ?? 8
+        expectedShiftStartMinute = try c.decodeIfPresent(Int.self, forKey: .expectedShiftStartMinute) ?? 0
         modifiedAt = try c.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? Date()
         normalizeValidatedFields()
     }
@@ -218,5 +232,22 @@ struct WorkplaceSettings: Codable, Equatable {
         }
         defaultBreakMinutes = max(0, defaultBreakMinutes)
         nightStandardDayHours = min(24, max(0.1, nightStandardDayHours))
+        expectedShiftStartHour = min(max(expectedShiftStartHour, 0), 23)
+        expectedShiftStartMinute = min(max(expectedShiftStartMinute, 0), 59)
+    }
+
+    /// Auto-filled clock-in/out for a day the worker is marked as not actually
+    /// working (holiday, rest day) — built from the typical shift start plus
+    /// the configured standard day length, not from anything the user types.
+    func expectedShift(on day: Date, calendar: Calendar = .current) -> (clockIn: Date, clockOut: Date) {
+        let dayStart = calendar.startOfDay(for: day)
+        let clockIn = calendar.date(
+            bySettingHour: expectedShiftStartHour,
+            minute: expectedShiftStartMinute,
+            second: 0,
+            of: dayStart
+        ) ?? dayStart
+        let clockOut = clockIn.addingTimeInterval((standardDayHours * 3600) + Double(defaultBreakMinutes * 60))
+        return (clockIn, clockOut)
     }
 }

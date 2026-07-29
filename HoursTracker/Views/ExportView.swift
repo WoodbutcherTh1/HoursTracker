@@ -6,6 +6,7 @@ struct ExportView: View {
 
     @State private var selectedFormat: ExportFormat = .pdf
     @State private var selectedLanguage: ExportLanguage = .phone
+    @State private var dayTypeFilter: ExportDayTypeFilter = .all
     @State private var rangeMode: RangeMode = .thisMonth
     @State private var selectedMonth = Date()
     @State private var customFrom = Calendar.current.date(byAdding: .month, value: -1, to: Date()) ?? Date()
@@ -81,6 +82,14 @@ struct ExportView: View {
                     Picker(L10n.exportFormat, selection: $selectedFormat) {
                         ForEach(ExportFormat.allCases) { format in
                             Text(format.localizedName).tag(format)
+                        }
+                    }
+                }
+
+                Section(L10n.exportDayType) {
+                    Picker(L10n.exportDayType, selection: $dayTypeFilter) {
+                        ForEach(ExportDayTypeFilter.allCases) { filter in
+                            Text(filter.label).tag(filter)
                         }
                     }
                 }
@@ -183,7 +192,8 @@ struct ExportView: View {
             let url = try viewModel.export(
                 range: buildRange(),
                 format: selectedFormat,
-                language: selectedLanguage
+                language: selectedLanguage,
+                dayTypes: dayTypeFilter.dayTypes
             )
             // Present on the next run loop so the sheet always has a non-nil item
             // (avoids the blank first-presentation SwiftUI race).
@@ -208,6 +218,35 @@ struct ExportView: View {
             return .year(year)
         case .custom:
             return .custom(from: customFrom, to: customTo)
+        }
+    }
+}
+
+/// Which day types to include in the exported file. `.holiday` bundles rest
+/// days in with holidays since both pay the same 150%+ premium tiers.
+enum ExportDayTypeFilter: CaseIterable, Identifiable {
+    case all
+    case regular
+    case holiday
+    case sick
+
+    var id: Self { self }
+
+    var dayTypes: Set<DayType>? {
+        switch self {
+        case .all: return nil
+        case .regular: return [.regular]
+        case .holiday: return [.restDay, .holiday]
+        case .sick: return [.sick]
+        }
+    }
+
+    var label: String {
+        switch self {
+        case .all: return L10n.exportDayTypeAll
+        case .regular: return L10n.dayTypeRegular
+        case .holiday: return L10n.dayTypeHoliday
+        case .sick: return L10n.dayTypeSick
         }
     }
 }

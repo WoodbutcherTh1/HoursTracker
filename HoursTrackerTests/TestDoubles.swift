@@ -241,6 +241,7 @@ enum TestData {
         inHour: Int = 8,
         outHour: Int? = 16,
         outMinute: Int = 0,
+        dayType: DayType = .regular,
         id: UUID = UUID(),
         modifiedAt: Date = Date()
     ) -> WorkSession {
@@ -250,9 +251,16 @@ enum TestData {
             clockIn: date(year, month, day, inHour),
             clockOut: outHour.map { date(year, month, day, $0, outMinute) },
             isManualEntry: false,
+            dayType: dayType,
             notes: nil,
             modifiedAt: modifiedAt
         )
+    }
+
+    /// A sick day: zero-duration clockIn/clockOut, per `AppViewModel.addSickDay`.
+    static func sickDay(year: Int = 2026, month: Int = 1, day: Int) -> WorkSession {
+        let d = date(year, month, day)
+        return WorkSession(date: d, clockIn: d, clockOut: d, isManualEntry: true, dayType: .sick)
     }
 
     static func settings(hourlyRate: Double = 100) -> WorkplaceSettings {

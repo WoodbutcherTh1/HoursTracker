@@ -204,6 +204,12 @@ enum L10n {
     static func manualHoursFormat(_ hours: Double) -> String {
         String(format: t("manual.hoursFormat %@"), String(format: "%.1f", hours))
     }
+    static var manualHolidayAutoFilledTitle: String { t("manual.holidayAutoFilledTitle") }
+    static var manualHolidayAutoFilledHint: String { t("manual.holidayAutoFilledHint") }
+    static var manualSickHint: String { t("manual.sickHint") }
+    static func manualSickPreview(_ day: Int, _ percent: Int) -> String {
+        String(format: t("manual.sickPreview %lld %lld"), day, percent)
+    }
 
     // Settings
     static var settingsTitle: String { t("settings.title") }
@@ -305,6 +311,8 @@ enum L10n {
     static var exportFormatTXT: String { t("export.format.txt") }
     static var exportFormatDOCX: String { t("export.format.docx") }
     static var exportFormatMD: String { t("export.format.md") }
+    static var exportDayType: String { t("export.dayType") }
+    static var exportDayTypeAll: String { t("export.dayType.all") }
 
     static var exportLanguage: String { t("export.language") }
     static func exportLanguagePhone(_ languageName: String) -> String {
@@ -372,12 +380,14 @@ enum L10n {
     static var settingsDefaultBreak: String { t("settings.defaultBreak") }
     static var settingsCurrency: String { t("settings.currency") }
     static var settingsWorkRulesNote: String { t("settings.workRulesNote") }
+    static var settingsExpectedShiftStart: String { t("settings.expectedShiftStart") }
     static var sessionDayType: String { t("session.dayType") }
     static var sessionNightShift: String { t("session.nightShift") }
     static var sessionBreakMinutes: String { t("session.breakMinutes") }
     static var dayTypeRegular: String { t("dayType.regular") }
     static var dayTypeRestDay: String { t("dayType.restDay") }
     static var dayTypeHoliday: String { t("dayType.holiday") }
+    static var dayTypeSick: String { t("dayType.sick") }
 
     // Errors
     static var errorTitle: String { t("error.title") }
@@ -535,4 +545,7 @@ enum L10n {
     static func hoursLong(_ hours: Double) -> String {
         String(format: t("common.hoursLong %@"), String(format: "%.2f", hours))
     }
+
+    // User Guide
+    static var guideTitle: String { t("guide.title") }
 }

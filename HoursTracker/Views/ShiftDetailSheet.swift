@@ -249,24 +249,47 @@ struct EditSessionView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section(L10n.editTimes) {
-                    DatePicker(L10n.editClockIn, selection: $clockIn)
-                    DatePicker(L10n.editClockOut, selection: $clockOut)
-                }
                 Section(L10n.settingsWorkRules) {
                     Picker(L10n.sessionDayType, selection: $dayType) {
                         ForEach(DayType.allCases) { type in
                             Text(type.localizedName).tag(type)
                         }
                     }
-                    Toggle(L10n.sessionNightShift, isOn: $isNightShift)
-                    Stepper(value: $breakMinutes, in: 0...240, step: 5) {
-                        HStack {
-                            Text(L10n.sessionBreakMinutes)
-                            Spacer()
-                            Text("\(breakMinutes)")
-                                .monospacedDigit()
-                                .foregroundStyle(.secondary)
+                }
+                if dayType == .holiday {
+                    Section(L10n.manualHolidayAutoFilledTitle) {
+                        LabeledContent(L10n.editClockIn, value: clockIn.formatted(date: .omitted, time: .shortened))
+                        LabeledContent(L10n.editClockOut, value: clockOut.formatted(date: .omitted, time: .shortened))
+                        Text(L10n.manualHolidayAutoFilledHint)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                } else if dayType == .sick {
+                    Section(L10n.dayTypeSick) {
+                        let preview = viewModel.sickStreakPreview(for: session.date)
+                        Text(L10n.manualSickPreview(preview.dayNumber, Int(preview.percentage * 100)))
+                            .font(.subheadline.weight(.semibold))
+                        Text(L10n.manualSickHint)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    Section(L10n.editTimes) {
+                        DatePicker(L10n.editClockIn, selection: $clockIn)
+                        DatePicker(L10n.editClockOut, selection: $clockOut)
+                    }
+                }
+                if dayType != .sick {
+                    Section {
+                        Toggle(L10n.sessionNightShift, isOn: $isNightShift)
+                        Stepper(value: $breakMinutes, in: 0...240, step: 5) {
+                            HStack {
+                                Text(L10n.sessionBreakMinutes)
+                                Spacer()
+                                Text("\(breakMinutes)")
+                                    .monospacedDigit()
+                                    .foregroundStyle(.secondary)
+                            }
                         }
                     }
                 }
@@ -282,6 +305,17 @@ struct EditSessionView: View {
             .navigationTitle(L10n.editTitle)
             .navigationBarTitleDisplayMode(.inline)
             .keyboardDismissible()
+            .onChange(of: dayType) { _, newValue in
+                if newValue == .holiday {
+                    let expected = viewModel.settings.expectedShift(on: session.date)
+                    clockIn = expected.clockIn
+                    clockOut = expected.clockOut
+                } else if newValue == .sick {
+                    let day = Calendar.current.startOfDay(for: session.date)
+                    clockIn = day
+                    clockOut = day
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n.editCancel) { dismiss() }
@@ -300,7 +334,7 @@ struct EditSessionView: View {
                         viewModel.showSuccessToast(L10n.feedbackSessionUpdated)
                         dismiss()
                     }
-                    .disabled(sameClockTimes)
+                    .disabled(dayType != .sick && sameClockTimes)
                 }
             }
             .alert(

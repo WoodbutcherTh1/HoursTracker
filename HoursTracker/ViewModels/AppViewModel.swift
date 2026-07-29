@@ -193,7 +193,7 @@ final class AppViewModel: ObservableObject {
             clockIn: clockInDate,
             clockOut: nil,
             isManualEntry: isManual,
-            dayType: DayType.automatic(for: clockInDate, settings: settings)
+            dayType: resolvedDayType(for: clockInDate)
         )
         sessions.append(session)
         persist()
@@ -210,7 +210,9 @@ final class AppViewModel: ObservableObject {
     /// - there is no open shift,
     /// - there is no completed shift yet today,
     /// - today is not a configured rest day,
-    /// - local time is at least 30 minutes past the app’s typical 08:00 start.
+    /// - local time is at least `graceMinutes` past the worker's configured
+    ///   typical shift start (`settings.expectedShiftStartHour/Minute`) — so a
+    ///   night-shift worker whose typical start is e.g. 22:00 isn't nagged at 08:30.
     var shouldOfferForgotClockIn: Bool {
         Self.shouldOfferForgotClockIn(
             now: Date(),
@@ -224,11 +226,6 @@ final class AppViewModel: ObservableObject {
         sessions: [WorkSession],
         settings: WorkplaceSettings,
         calendar: Calendar = .current,
-        // TODO(expectedShiftStart): Temporary hardcoded typical start (08:00) + grace.
-        // WorkplaceSettings has no expected shift-start field yet; keep this until we add an
-        // optional `expectedShiftStart` setting and drive the forgot-clock-in threshold from it
-        // (still with a ~30–45 min grace after the configured time). See PR #14 discussion.
-        typicalStartHour: Int = 8,
         graceMinutes: Int = 30
     ) -> Bool {
         if sessions.contains(where: \.isOpen) { return false }
@@ -244,8 +241,8 @@ final class AppViewModel: ObservableObject {
 
         guard
             let typicalStart = calendar.date(
-                bySettingHour: typicalStartHour,
-                minute: 0,
+                bySettingHour: settings.expectedShiftStartHour,
+                minute: settings.expectedShiftStartMinute,
                 second: 0,
                 of: today
             )
@@ -294,6 +291,53 @@ final class AppViewModel: ObservableObject {
         lastCompletedSessionID = nil
     }
 
+    /// Day type to use for a new session on `date`, honoring a holiday already
+    /// marked that day (e.g. via manual entry) instead of letting an automatic
+    /// clock-in or import silently downgrade it back to `.regular`/`.restDay`.
+    func resolvedDayType(for date: Date, calendar: Calendar = .current) -> DayType {
+        let hasHolidayMarked = sessions.contains {
+            $0.dayType == .holiday && calendar.isDate($0.date, inSameDayAs: date)
+        }
+        if hasHolidayMarked { return .holiday }
+        return DayType.automatic(for: date, settings: settings)
+    }
+
+    /// What marking `date` as sick would pay, given the worker's existing sick
+    /// history — lets the entry UI preview the day-number/percentage live,
+    /// before saving.
+    func sickStreakPreview(for date: Date, calendar: Calendar = .current) -> (dayNumber: Int, percentage: Double) {
+        let day = calendar.startOfDay(for: date)
+        var sickDates = Set(sessions.filter { $0.dayType == .sick }.map { calendar.startOfDay(for: $0.date) })
+        sickDates.insert(day)
+        let number = OvertimeCalculator.sickStreakDayNumber(for: day, sickDates: sickDates, calendar: calendar)
+        return (number, OvertimeCalculator.sickPayPercentage(streakDayNumber: number))
+    }
+
+    /// A sick day has no worked hours — `clockIn == clockOut` so `effectiveHours`
+    /// is naturally 0, but `clockOut` is non-nil so it's never mistaken for an
+    /// open/active session. Pay is computed separately in `OvertimeCalculator`
+    /// from the sick-day streak, not from these times.
+    func addSickDay(date: Date, notes: String?) {
+        let day = Calendar.current.startOfDay(for: date)
+        let session = WorkSession(
+            date: day,
+            clockIn: day,
+            clockOut: day,
+            isManualEntry: true,
+            dayType: .sick,
+            notes: notes
+        )
+        sessions.append(session)
+        persist()
+        refreshReminders()
+        ActivityLogStore.shared.log(
+            L10n.logEventManualEntry,
+            level: .success,
+            category: "session",
+            details: day.formatted(date: .abbreviated, time: .omitted)
+        )
+    }
+
     // MARK: - Manual Entry
 
     func addManualSession(
@@ -315,7 +359,7 @@ final class AppViewModel: ObservableObject {
             clockOut: resolved.clockOut,
             isManualEntry: true,
             breakMinutes: breakMinutes,
-            dayType: dayType ?? DayType.automatic(for: day, settings: settings),
+            dayType: dayType ?? resolvedDayType(for: day),
             isNightShift: isNightShift
                 ?? WorkSession.qualifiesAsNightShift(clockIn: resolved.clockIn, clockOut: resolved.clockOut),
             notes: notes
@@ -358,7 +402,7 @@ final class AppViewModel: ObservableObject {
             session.date = day
             session.clockIn = resolved.clockIn
             session.clockOut = resolved.clockOut
-            session.dayType = DayType.automatic(for: day, settings: settings)
+            session.dayType = resolvedDayType(for: day)
             session.isNightShift = WorkSession.qualifiesAsNightShift(
                 clockIn: resolved.clockIn,
                 clockOut: resolved.clockOut
@@ -653,13 +697,15 @@ final class AppViewModel: ObservableObject {
     func export(
         range: ExportDateRange,
         format: ExportFormat,
-        language: ExportLanguage = .phone
+        language: ExportLanguage = .phone,
+        dayTypes: Set<DayType>? = nil
     ) throws -> URL {
         let report = exportManager.buildReport(
             sessions: sessions,
             settings: settings,
             range: range,
-            language: language
+            language: language,
+            dayTypes: dayTypes
         )
         let url = try exportManager.export(report: report, format: format, language: language)
         ActivityLogStore.shared.log(
