@@ -13,11 +13,19 @@ struct ExportView: View {
     @State private var customTo = Date()
     @State private var shareItem: ShareableFile?
     @State private var errorMessage: String?
-    // Owned here (not inside PayslipLibraryView) so the single .navigationDestination
+    // Owned here (not inside PayslipLibraryView) so the .navigationDestination(for:)
     // below — declared at the NavigationStack root — can share the same instance the
     // grid observes. See the comment on PayslipLibraryView for why.
     @StateObject private var payslipLibraryViewModel = PayslipLibraryViewModel()
     @State private var payslipDeleteError: String?
+    // Explicit path (rather than two independent implicit NavigationLinks — one closure-
+    // based to push the library, one value-based to push a payslip from inside it) so
+    // every push is a single, observable mutation SwiftUI is guaranteed to redraw for.
+    // The implicit two-hop setup silently pushed the detail view onto the stack without
+    // repainting the screen — it only became visible once a second navigation event (e.g.
+    // going back) forced SwiftUI to recompute the stack, so the payslip would "appear"
+    // while leaving the library instead of when tapped.
+    @State private var exportPath = NavigationPath()
 
     /// Menu order is intentional: This month → Specific month → This year → Custom range.
     enum RangeMode: CaseIterable, Identifiable {
@@ -46,7 +54,7 @@ struct ExportView: View {
     }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $exportPath) {
             Form {
                 Section {
                     Picker(L10n.exportRange, selection: $rangeMode) {
@@ -111,9 +119,7 @@ struct ExportView: View {
                 }
 
                 Section {
-                    NavigationLink {
-                        PayslipLibraryView(appViewModel: viewModel, viewModel: payslipLibraryViewModel)
-                    } label: {
+                    NavigationLink(value: PayslipLibraryRoute()) {
                         HStack(spacing: 14) {
                             Image(systemName: "doc.text.viewfinder")
                                 .font(.title3)
@@ -145,7 +151,11 @@ struct ExportView: View {
             .sheet(item: $shareItem) { item in
                 ShareSheet(items: [item.url])
             }
-            // Declared once, at the stack root — see PayslipLibraryView's header comment.
+            // Both destinations declared once, at the stack root, and pushed onto the
+            // same explicit `exportPath` — see the comment by its declaration above.
+            .navigationDestination(for: PayslipLibraryRoute.self) { _ in
+                PayslipLibraryView(appViewModel: viewModel, viewModel: payslipLibraryViewModel)
+            }
             .navigationDestination(for: PayslipRecord.self) { record in
                 PayslipDetailView(
                     record: record,
@@ -250,6 +260,10 @@ enum ExportDayTypeFilter: CaseIterable, Identifiable {
         }
     }
 }
+
+/// Marker value pushed onto `ExportView`'s `exportPath` to open the payslip library —
+/// paired with `PayslipRecord` as the second type the same explicit path can carry.
+private struct PayslipLibraryRoute: Hashable {}
 
 /// Identifiable file handle for `.sheet(item:)` share presentation.
 struct ShareableFile: Identifiable {

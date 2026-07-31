@@ -121,7 +121,10 @@ struct GeminiPayslipLLMProvider: PayslipLLMProviding {
     /// exactly the same schema. Vocabulary covers Hebrew, English and Arabic.
     static func buildPrompt(ocrText: String) -> String {
         """
-        You extract payslip data from noisy OCR text (Hebrew, English or Arabic).
+        You extract payslip data from noisy OCR text (Hebrew, English or Arabic). Israeli
+        payslips (תלוש שכר) are the most common input — a dense multi-column table, not a
+        simple form, so read every row of the payments/deductions tables rather than only
+        the summary lines.
 
         Return ONLY valid JSON matching this exact schema — no markdown, no commentary:
         {
@@ -136,23 +139,61 @@ struct GeminiPayslipLLMProvider: PayslipLLMProviding {
           "hours_regular":    0.0,
           "hours_ot":         0.0,
           "deductions_total": 0.0,
+          "overtime_lines":   [{"rate_percent": 125, "hours": 0.0, "amount": 0.0}],
+          "deduction_lines":  [{"label": "string", "amount": 0.0}],
           "confidence":       0.0,
           "notes":            "short free text | null"
         }
 
         Vocabulary hints:
-        - Hebrew: שכר ברוטו / ברוטו = gross_pay; שכר נטו / נטו = net_pay; תקופה = period.
-        - English: Gross / Gross Pay = gross_pay; Net / Net Pay / Take Home = net_pay.
-        - Arabic: صافي = net_pay; إجمالي / الراتب الإجمالي = gross_pay.
+        - Pay: Hebrew שכר ברוטו / ברוטו / סה"כ תשלומים = gross_pay; שכר נטו / נטו / לתשלום =
+          net_pay. English Gross / Gross Pay = gross_pay; Net / Net Pay / Take Home = net_pay.
+          Arabic صافي = net_pay; إجمالي / الراتب الإجمالي = gross_pay.
+        - Hours: Hebrew שעות עבודה / שעות רגילות (often on the row labeled משכורת or 001) =
+          hours_regular. Overtime is usually split across SEVERAL rows by rate, each row's
+          own "כמות"/"quantity" column being that tier's hours — e.g. ש.נוספות 125%,
+          ש.נוס 150%, גמול שעות נוספות. Put each such row into `overtime_lines` (rate_percent
+          parsed from the row label, e.g. "125% ש.נוספות" → 125) and set `hours_ot` to the
+          SUM of every overtime row's hours (not just one row, and not 0 when overtime rows
+          exist). English "Overtime" / "OT" behave the same way.
+        - Deductions: Hebrew ניכויי חובה / ניכויים / נכויים — this is a distinct table from
+          the payments table, usually listing rows like ביטוח לאומי, מס בריאות, מס הכנסה,
+          קרן פנסיה, each with its own amount. Put each row into `deduction_lines` and set
+          `deductions_total` to their sum (use the printed סה"כ ניכויי חובה total if present
+          instead of summing yourself, when it's visible). English "Deductions" / "Tax"
+          behave the same way. Arabic خصم / خصومات.
+        - Employer vs. department: `employer_name` is the company at the TOP of the payslip,
+          usually next to חברה / שם המעסיק / a company-number line. A line labeled מחלקה
+          (department) is NOT the employer even when it contains a person's name (e.g. a
+          department named after its manager) — never use it for employer_name.
+        - Employee: עובד / שם העובד / לכבוד (the "To" block, often just above an address) =
+          employee_name.
 
-        Rules:
+        Rules for dates — read carefully, this is the most common mistake:
+        - `payment_month` is the month the payslip COVERS, normally printed as
+          "תלוש שכר לחודש MM/YYYY" or "לחודש MM/YYYY". It is almost never the same as a
+          separately printed "הודפס בתאריך" / "printed on" date — that is only when the
+          document was generated and must be ignored for payment_month and period purposes.
+        - `pay_period_start` / `pay_period_end` should only be filled from an EXPLICIT
+          "מתאריך .. עד תאריך" / "period" range for THIS payslip. Do not use an unrelated
+          date such as "תחילת עבודה" (the employee's overall employment start date — a
+          one-time hire date, not this period) or the print date. If no explicit period
+          range is printed, leave both null; the app derives the period from payment_month.
+        - Sanity check: pay_period_start must not be after pay_period_end. If your extracted
+          pair would violate that, the dates were misread — set both to null instead of
+          guessing.
+
+        Other rules:
         - NEVER invent monetary amounts. If a value is not clearly present, use null and
           lower the confidence.
         - Numbers may be formatted as 1,234.56 or 1.234,56 or 1234.56 — normalise to a plain
           number (dot as decimal separator, no thousands separators).
-        - `payment_month` is the calendar month the payslip pays for, formatted YYYY-MM.
         - Dates should be DD/MM/YYYY (day first) when order is ambiguous.
-        - `confidence` is 0..1. Use < 0.6 when several key fields are unclear.
+        - `overtime_lines` and `deduction_lines` are `[]` (not null) when the payslip has no
+          such breakdown — never omit the keys.
+        - `confidence` is 0..1. Use < 0.6 when several key fields are unclear, including when
+          hours_regular/hours_ot/deductions_total were left at 0 for lack of a clear source
+          (0 must mean "confirmed zero on the payslip", never "couldn't find it").
 
         OCR:
         \(ocrText)

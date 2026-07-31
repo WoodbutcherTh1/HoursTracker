@@ -36,6 +36,14 @@ struct PayslipDetailView: View {
 
                     fieldSection
 
+                    if !record.extraction.overtimeLinesOrEmpty.isEmpty {
+                        overtimeBreakdownSection
+                    }
+
+                    if !record.extraction.deductionLinesOrEmpty.isEmpty {
+                        deductionBreakdownSection
+                    }
+
                     Button(role: .destructive) {
                         showDeleteConfirm = true
                     } label: {
@@ -137,6 +145,51 @@ struct PayslipDetailView: View {
                 field(L10n.payslipNotes, notes)
             }
             field(L10n.payslipConfidence, "\(Int((record.extraction.confidence * 100).rounded()))%")
+        }
+        .padding(14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(HomeNeon.card)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(HomeNeon.accent.opacity(0.14), lineWidth: 1)
+                )
+        )
+    }
+
+    private var overtimeBreakdownSection: some View {
+        breakdownCard(title: L10n.payslipOvertimeBreakdownTitle) {
+            ForEach(Array(record.extraction.overtimeLinesOrEmpty.enumerated()), id: \.offset) { _, line in
+                field(L10n.payslipOvertimeLineLabel(line.ratePercent), overtimeLineValue(line))
+            }
+        }
+    }
+
+    private var deductionBreakdownSection: some View {
+        breakdownCard(title: L10n.payslipDeductionBreakdownTitle) {
+            ForEach(Array(record.extraction.deductionLinesOrEmpty.enumerated()), id: \.offset) { _, line in
+                field(line.label, PayslipDisplayFormatting.money(line.amount, currencyCode: currencyCode))
+            }
+        }
+    }
+
+    /// Rows generated with `Self.field` are just hours; append the line's amount when
+    /// the LLM captured one — the payslip's payment table always prices overtime, but the
+    /// extractor may not have located the amount column even when it found the hours.
+    private func overtimeLineValue(_ line: PayslipOvertimeLine) -> String {
+        let hours = String(format: "%.2f", line.hours)
+        guard let amount = line.amount else { return hours }
+        return "\(hours) · \(PayslipDisplayFormatting.money(amount, currencyCode: currencyCode))"
+    }
+
+    private func breakdownCard<Content: View>(title: String, @ViewBuilder rows: () -> Content) -> some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Text(title)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.5))
+                .textCase(.uppercase)
+            rows()
         }
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
