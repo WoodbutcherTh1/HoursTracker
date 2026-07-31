@@ -41,6 +41,7 @@ final class PayslipLibraryTests: XCTestCase {
         XCTAssertFalse(path.contains("group.com.hourstracker.app"))
     }
 
+    @MainActor
     func testGridSortsByPeriodMonthDescending() {
         let older = TestData.payslipRecord(
             id: UUID(),
