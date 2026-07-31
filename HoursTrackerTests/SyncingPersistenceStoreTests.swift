@@ -109,6 +109,29 @@ final class SyncingPersistenceStoreTests: XCTestCase {
         XCTAssertEqual(tombstones.tombstoneIDs, ids)
     }
 
+    func testHungCloudSyncSurfacesAsFailedWithinTimeout() async {
+        cloud.hangIndefinitely = true
+        let timeoutStore = SyncingPersistenceStore(
+            local: local,
+            cloud: cloud,
+            syncPreference: InMemoryCloudSyncPreference(isEnabled: true),
+            tombstones: tombstones,
+            syncTimeoutNanoseconds: 200_000_000 // 0.2s, so the test stays fast
+        )
+
+        do {
+            _ = try await timeoutStore.syncNow()
+            XCTFail("expected the hung sync to time out and throw")
+        } catch {
+            XCTAssertTrue(error is SyncTimeoutError)
+        }
+
+        guard case .failed = timeoutStore.syncState else {
+            XCTFail("expected syncState to be .failed, got \(timeoutStore.syncState)")
+            return
+        }
+    }
+
     func testLocalDeletionRecordsTombstoneEvenWhenSyncDisabled() throws {
         let kept = TestData.session(day: 1)
         let removed = TestData.session(day: 2)
