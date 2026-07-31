@@ -1,7 +1,8 @@
 import SwiftUI
 
-/// Compact sheet for customizing the Home screen's accent color — presets plus a full
-/// picker for anything else. Changes apply live since `theme.accent` is `@Published`.
+/// Compact sheet for customizing the app's accent color and Home card layout —
+/// presets plus a full picker for anything else. Changes apply live and app-wide
+/// since `theme.accent` is `@Published`.
 struct HomeThemePickerSheet: View {
     @ObservedObject var theme: HomeAccentTheme
     @ObservedObject private var statsLayout = HomeStatsLayout.shared

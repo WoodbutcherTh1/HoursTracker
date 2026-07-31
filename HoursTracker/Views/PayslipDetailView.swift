@@ -13,6 +13,7 @@ struct PayslipDetailView: View {
     let onDelete: () -> Bool
 
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var theme = HomeAccentTheme.shared
     @State private var showDeleteConfirm = false
     @State private var previewImage: UIImage?
 
@@ -153,7 +154,7 @@ struct PayslipDetailView: View {
                 .fill(HomeNeon.card)
                 .overlay(
                     RoundedRectangle(cornerRadius: 14, style: .continuous)
-                        .stroke(HomeNeon.accent.opacity(0.14), lineWidth: 1)
+                        .stroke(theme.accent.opacity(0.14), lineWidth: 1)
                 )
         )
     }

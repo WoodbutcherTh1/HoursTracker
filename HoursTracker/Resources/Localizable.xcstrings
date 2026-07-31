@@ -8090,19 +8090,19 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "يُحفظ في Keychain على هذا الجهاز فقط. لا تضع مفاتيح API في الشيفرة."
+            "value" : "يُحفظ بأمان في Keychain على هذا الجهاز فقط — لا يُشارك إلا مع مزوّد الذكاء الاصطناعي الذي اخترته."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Stored in Keychain on this device only. Never commit API keys."
+            "value" : "Stored securely in your device's Keychain — never shared except with your chosen AI provider."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "נשמר ב-Keychain במכשיר בלבד. אל תשמרו מפתחות בקוד."
+            "value" : "נשמר בבטחה ב-Keychain של המכשיר בלבד — לא משותף עם אף אחד מלבד ספק ה-AI שבחרתם."
           }
         }
       }
@@ -8389,19 +8389,19 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تخصيص الشاشة الرئيسية"
+            "value" : "مظهر التطبيق"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Customize Home"
+            "value" : "App Theme"
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "התאמה אישית למסך הבית"
+            "value" : "עיצוב האפליקציה"
           }
         }
       }

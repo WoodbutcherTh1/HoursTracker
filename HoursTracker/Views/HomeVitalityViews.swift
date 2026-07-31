@@ -491,12 +491,14 @@ struct HomePrimaryActionButton: View {
 
 /// Brand mark: Hour (white) + Trackers (neon).
 struct HomeBrandTitle: View {
+    var accent: Color = HomeNeon.accent
+
     var body: some View {
         HStack(spacing: 0) {
             Text("Hour")
                 .foregroundStyle(.white)
             Text("Trackers")
-                .foregroundStyle(HomeNeon.accent)
+                .foregroundStyle(accent)
         }
         .font(.headline.weight(.bold))
         .accessibilityLabel(L10n.brandName)

@@ -74,6 +74,10 @@ struct HoursTrackerApp: App {
 struct MainTabView: View {
     @ObservedObject var viewModel: AppViewModel
     @EnvironmentObject private var appLanguage: AppLanguageController
+    // The Home screen's color picker is app-wide: this drives the tab bar's selected
+    // color and every standard button/toggle/link tint across History, Export, and
+    // Settings, not just Home's own neon-styled elements.
+    @ObservedObject private var homeTheme = HomeAccentTheme.shared
 
     var body: some View {
         let _ = appLanguage.preference // keep tab labels tied to language changes
@@ -111,6 +115,7 @@ struct MainTabView: View {
                     Label(L10n.tabSettings, systemImage: "gearshape.fill")
                 }
         }
+        .tint(homeTheme.accent)
         .overlay(alignment: .bottom) {
             if let message = viewModel.successToast {
                 SuccessToastBanner(message: message)

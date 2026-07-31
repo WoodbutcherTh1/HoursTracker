@@ -92,7 +92,7 @@ struct HomeView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .principal) {
-                    HomeBrandTitle()
+                    HomeBrandTitle(accent: homeTheme.accent)
                 }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {

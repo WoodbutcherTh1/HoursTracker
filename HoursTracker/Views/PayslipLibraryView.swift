@@ -19,6 +19,7 @@ import UIKit
 struct PayslipLibraryView: View {
     @ObservedObject var viewModel: PayslipLibraryViewModel
     @ObservedObject var appViewModel: AppViewModel
+    @ObservedObject private var theme = HomeAccentTheme.shared
 
     /// Set by a long-press on a grid card — deletes directly from the grid without
     /// requiring a trip into `PayslipDetailView` first.
@@ -56,7 +57,7 @@ struct PayslipLibraryView: View {
                     viewModel.showUpload = true
                 } label: {
                     Image(systemName: "plus")
-                        .foregroundStyle(HomeNeon.accent)
+                        .foregroundStyle(theme.accent)
                 }
                 .accessibilityLabel(L10n.payslipUploadAction)
             }
@@ -75,7 +76,7 @@ struct PayslipLibraryView: View {
                     }
                 } label: {
                     Image(systemName: "arrow.up.arrow.down")
-                        .foregroundStyle(HomeNeon.accent)
+                        .foregroundStyle(theme.accent)
                 }
                 .accessibilityLabel(L10n.payslipSortAccessibility)
             }
@@ -132,6 +133,7 @@ struct PayslipLibraryView: View {
                     NavigationLink(value: record) {
                         PayslipGridCard(
                             record: record,
+                            accent: theme.accent,
                             loadThumbnail: { completion in
                                 viewModel.requestThumbnail(for: record, completion: completion)
                             }
@@ -169,9 +171,9 @@ struct PayslipLibraryView: View {
         VStack(spacing: 20) {
             Image(systemName: "doc.text.viewfinder")
                 .font(.system(size: 52))
-                .foregroundStyle(HomeNeon.accent)
+                .foregroundStyle(theme.accent)
                 .symbolRenderingMode(.hierarchical)
-                .shadow(color: HomeNeon.accent.opacity(0.35), radius: 16)
+                .shadow(color: theme.accent.opacity(0.35), radius: 16)
 
             Text(L10n.payslipLibraryEmptyTitle)
                 .font(.title3.weight(.semibold))
@@ -192,8 +194,8 @@ struct PayslipLibraryView: View {
                     .foregroundStyle(HomeNeon.bg)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
-                    .background(HomeNeon.accent, in: Capsule())
-                    .shadow(color: HomeNeon.accent.opacity(0.35), radius: 12, y: 4)
+                    .background(theme.accent, in: Capsule())
+                    .shadow(color: theme.accent.opacity(0.35), radius: 12, y: 4)
             }
             .buttonStyle(ScalePressButtonStyle())
             .padding(.horizontal, 32)
@@ -209,6 +211,7 @@ struct PayslipLibraryView: View {
 
 private struct PayslipGridCard: View {
     let record: PayslipRecord
+    var accent: Color = HomeNeon.accent
     let loadThumbnail: (@escaping (UIImage?) -> Void) -> Void
 
     @State private var thumbnail: UIImage?
@@ -225,7 +228,7 @@ private struct PayslipGridCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .strokeBorder(HomeNeon.accent.opacity(0.18), lineWidth: 1)
+                            .strokeBorder(accent.opacity(0.18), lineWidth: 1)
                     }
 
                 if needsReviewBadge {
@@ -246,7 +249,7 @@ private struct PayslipGridCard: View {
 
             Text(netLabel)
                 .font(.headline.monospacedDigit())
-                .foregroundStyle(HomeNeon.accent)
+                .foregroundStyle(accent)
                 .lineLimit(1)
         }
         .padding(10)
@@ -255,7 +258,7 @@ private struct PayslipGridCard: View {
                 .fill(HomeNeon.card)
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(HomeNeon.accent.opacity(0.14), lineWidth: 1)
+                        .stroke(accent.opacity(0.14), lineWidth: 1)
                 )
         )
         .onAppear { requestThumbnailIfNeeded() }
@@ -290,7 +293,7 @@ private struct PayslipGridCard: View {
             ZStack {
                 HomeNeon.card
                 ProgressView()
-                    .tint(HomeNeon.accent)
+                    .tint(accent)
             }
             .accessibilityLabel(L10n.payslipPreview)
         }

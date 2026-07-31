@@ -263,9 +263,28 @@ actor TimesheetScannerManager {
         }
 
         return try await withCheckedThrowingContinuation { continuation in
+            // Vision can invoke the request's completion handler with an error
+            // AND have `perform` itself throw for the same failure (e.g. an
+            // image too small to process) — guard so the continuation only
+            // ever resumes once.
+            let resumeLock = NSLock()
+            var hasResumed = false
+            func resumeOnce(_ result: Result<String, Error>) {
+                resumeLock.lock()
+                defer { resumeLock.unlock() }
+                guard !hasResumed else { return }
+                hasResumed = true
+                switch result {
+                case .success(let value):
+                    continuation.resume(returning: value)
+                case .failure(let error):
+                    continuation.resume(throwing: error)
+                }
+            }
+
             let request = VNRecognizeTextRequest { request, error in
                 if let error {
-                    continuation.resume(throwing: error)
+                    resumeOnce(.failure(error))
                     return
                 }
                 let observations = (request.results as? [VNRecognizedTextObservation]) ?? []
@@ -276,7 +295,7 @@ actor TimesheetScannerManager {
                     return lhs.boundingBox.minX < rhs.boundingBox.minX
                 }
                 let lines = sorted.compactMap { $0.topCandidates(1).first?.string }
-                continuation.resume(returning: lines.joined(separator: "\n"))
+                resumeOnce(.success(lines.joined(separator: "\n")))
             }
             request.recognitionLevel = .accurate
             request.usesLanguageCorrection = true
@@ -289,7 +308,7 @@ actor TimesheetScannerManager {
             do {
                 try VNImageRequestHandler(cgImage: cgImage, options: [:]).perform([request])
             } catch {
-                continuation.resume(throwing: error)
+                resumeOnce(.failure(error))
             }
         }
     }

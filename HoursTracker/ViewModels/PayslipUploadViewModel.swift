@@ -437,6 +437,13 @@ final class PayslipUploadViewModel: ObservableObject {
                 return
             }
 
+            // Resolve providers before OCR runs so the cloud opt-in is captured
+            // regardless of whether OCR later succeeds, finds no text, or throws —
+            // callers observing routerFactory must see a consistent includeCloud
+            // value on every path, not just the happy path.
+            let includeCloud = cloudPreference.isEnabled
+            let router = routerFactory(includeCloud)
+
             let ocrText: String
             if contentType.conforms(to: .pdf) {
                 let temp = FileManager.default.temporaryDirectory
@@ -467,9 +474,6 @@ final class PayslipUploadViewModel: ObservableObject {
                 return
             }
 
-            // Cloud opt-in: when OFF, includeCloud is false → local heuristic only (no network).
-            let includeCloud = cloudPreference.isEnabled
-            let router = routerFactory(includeCloud)
             let result = await router.extractPayslip(ocrText: ocrText)
 
             if Task.isCancelled {

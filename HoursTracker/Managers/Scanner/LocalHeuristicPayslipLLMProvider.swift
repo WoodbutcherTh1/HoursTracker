@@ -118,7 +118,11 @@ struct LocalHeuristicPayslipLLMProvider: PayslipLLMProviding {
     }
 
     private static func isGrossLine(_ line: String, lower: String) -> Bool {
-        line.contains("ברוטו")
+        // "משכורת" alone also appears in the generic payslip title line
+        // ("תלוש משכורת לחודש ..."), which carries no gross amount — only
+        // treat it as a gross line when it's not that header.
+        if line.contains("לחודש") { return false }
+        return line.contains("ברוטו")
             || line.contains("משכורת")
             || lower.contains("gross")
             || line.contains("إجمالي")

@@ -3,6 +3,7 @@ import SwiftUI
 /// Simple launch splash matching Home neon style.
 struct LaunchHourglassSplash: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @ObservedObject private var theme = HomeAccentTheme.shared
     @State private var flipped = false
     @State private var pulse = false
 
@@ -15,10 +16,10 @@ struct LaunchHourglassSplash: View {
 
                 Image(systemName: "hourglass")
                     .font(.system(size: 62, weight: .light))
-                    .foregroundStyle(HomeNeon.accent)
+                    .foregroundStyle(theme.accent)
                     .rotationEffect(.degrees(flipped ? 180 : 0))
                     .scaleEffect(pulse ? 1.04 : 0.98)
-                    .shadow(color: HomeNeon.accent.opacity(pulse ? 0.5 : 0.22), radius: pulse ? 20 : 8)
+                    .shadow(color: theme.accent.opacity(pulse ? 0.5 : 0.22), radius: pulse ? 20 : 8)
                     .accessibilityHidden(true)
 
                 Text(L10n.brandName)
