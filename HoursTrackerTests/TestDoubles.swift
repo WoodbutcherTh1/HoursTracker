@@ -277,7 +277,8 @@ enum TestData {
         confidence: Double = 0.9,
         needsManualReview: Bool = false,
         netPay: Decimal? = Decimal(1010.50),
-        grossPay: Decimal? = Decimal(1250)
+        grossPay: Decimal? = Decimal(1250),
+        payPeriodStart: Date = date(2026, 5, 1)
     ) -> PayslipExtraction {
         PayslipExtraction(
             providerName: "UnitTestOCR",
@@ -291,8 +292,8 @@ enum TestData {
             employerName: "Example Employer",
             employeeName: "Example Worker",
             employeeID: "123456789",
-            payPeriodStart: date(2026, 5, 1),
-            payPeriodEnd: date(2026, 5, 31),
+            payPeriodStart: payPeriodStart,
+            payPeriodEnd: payPeriodStart,
             paymentDate: date(2026, 6, 1),
             hoursRegular: 160,
             hoursOT: 8,
@@ -318,7 +319,7 @@ enum TestData {
             relativeFilePath: "payslips/files/\(id.uuidString).png",
             fileByteSize: 12,
             contentTypeUTI: "public.png",
-            extraction: payslipExtraction(),
+            extraction: payslipExtraction(payPeriodStart: periodMonth),
             userOverrides: nil,
             reviewState: reviewState,
             notes: nil
