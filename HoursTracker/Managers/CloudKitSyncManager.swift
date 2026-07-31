@@ -261,7 +261,7 @@ final class CloudKitSyncManager: CloudSyncing {
         return intendedModifiedAt >= serverModifiedAt ? intended : server
     }
 
-    private func resolveSessionConflict(intended: WorkSession, error: CKError) throws -> CKRecord {
+    func resolveSessionConflict(intended: WorkSession, error: CKError) throws -> CKRecord {
         guard let serverRecord = error.serverRecord else {
             return try makeSessionRecord(intended)
         }
@@ -277,7 +277,7 @@ final class CloudKitSyncManager: CloudSyncing {
         return serverRecord
     }
 
-    private func resolveSettingsConflict(intended: WorkplaceSettings, error: CKError) throws -> CKRecord {
+    func resolveSettingsConflict(intended: WorkplaceSettings, error: CKError) throws -> CKRecord {
         guard let serverRecord = error.serverRecord else {
             return try makeSettingsRecord(intended)
         }
