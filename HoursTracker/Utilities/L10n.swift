@@ -519,6 +519,11 @@ enum L10n {
     static var payslipEmployee: String { t("payslip.employee") }
     static var payslipHoursRegular: String { t("payslip.hoursRegular") }
     static var payslipHoursOT: String { t("payslip.hoursOT") }
+    static var payslipOvertimeBreakdownTitle: String { t("payslip.section.overtimeBreakdown") }
+    static func payslipOvertimeLineLabel(_ ratePercent: Int) -> String {
+        String(format: t("payslip.overtimeLineLabel %d"), ratePercent)
+    }
+    static var payslipDeductionBreakdownTitle: String { t("payslip.section.deductionBreakdown") }
     static var payslipNotes: String { t("payslip.notes") }
     static var payslipConfidence: String { t("payslip.confidence") }
     static var payslipNeedsReview: String { t("payslip.needsReview") }

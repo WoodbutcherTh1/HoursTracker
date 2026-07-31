@@ -77,6 +77,8 @@ struct PayslipReviewDraft: Equatable {
             hoursRegular: fields.hoursRegular,
             hoursOT: fields.hoursOt,
             deductionsTotal: fields.deductionsTotal.map { Decimal($0) },
+            overtimeLines: Self.mappedOvertimeLines(fields.overtimeLines),
+            deductionLines: Self.mappedDeductionLines(fields.deductionLines),
             extras: [:]
         )
 
@@ -191,6 +193,27 @@ struct PayslipReviewDraft: Equatable {
         confirmed.hoursOT = hoursOT
         confirmed.deductionsTotal = deductionsTotal
         return confirmed
+    }
+
+    /// Drops rows missing the fields needed to display them meaningfully (rate + hours).
+    /// `amount` is nice-to-have, not required.
+    private static func mappedOvertimeLines(_ raw: [PayslipLLMOvertimeLine]) -> [PayslipOvertimeLine] {
+        raw.compactMap { line in
+            guard let ratePercent = line.ratePercent, let hours = line.hours else { return nil }
+            return PayslipOvertimeLine(
+                ratePercent: ratePercent,
+                hours: hours,
+                amount: line.amount.map { Decimal($0) }
+            )
+        }
+    }
+
+    /// Drops rows missing the fields needed to display them meaningfully (label + amount).
+    private static func mappedDeductionLines(_ raw: [PayslipLLMDeductionLine]) -> [PayslipDeductionLine] {
+        raw.compactMap { line in
+            guard let label = cleanedOptionalString(line.label), let amount = line.amount else { return nil }
+            return PayslipDeductionLine(label: label, amount: Decimal(amount))
+        }
     }
 
     private static func parseFlexibleDate(_ raw: String?) -> Date? {

@@ -60,7 +60,10 @@ final class PayslipLibraryViewModel: ObservableObject {
         }
     }
 
-    static func sorted(_ records: [PayslipRecord], by option: PayslipSortOption) -> [PayslipRecord] {
+    // nonisolated: pure functions over their arguments only, no MainActor-isolated state —
+    // callers (including plain synchronous tests) shouldn't need to hop to the main actor
+    // just to sort an array.
+    nonisolated static func sorted(_ records: [PayslipRecord], by option: PayslipSortOption) -> [PayslipRecord] {
         switch option {
         case .dateDescending:
             return sortedByPeriodDescending(records)
@@ -76,7 +79,7 @@ final class PayslipLibraryViewModel: ObservableObject {
         }
     }
 
-    static func sortedByPeriodDescending(_ records: [PayslipRecord]) -> [PayslipRecord] {
+    nonisolated static func sortedByPeriodDescending(_ records: [PayslipRecord]) -> [PayslipRecord] {
         records.sorted { lhs, rhs in
             let left = lhs.effectivePeriodMonth
             let right = rhs.effectivePeriodMonth

@@ -3,18 +3,27 @@ import UIKit
 
 /// Grid library of saved payslips — entry point from Export (ייצוא).
 ///
-/// Relies on the parent `NavigationStack` (ExportView) for push navigation. Deliberately
-/// does **not** declare its own `.navigationDestination(for: PayslipRecord.self)` here:
-/// this view is itself pushed onto ExportView's stack (via `NavigationLink`), so a
-/// destination declared on it — rather than on the stack's root — could end up
-/// registered twice as you navigate in and out, which SwiftUI resolves by honoring only
-/// the copy closest to the root. In practice that showed up as the first tap on a
-/// payslip doing nothing until you pushed and popped once. The destination now lives on
-/// `ExportView`'s root `Form`, which is why `viewModel` is injected rather than owned
-/// here — `ExportView` needs the same instance to build `PayslipDetailView`.
+/// Relies on the parent `NavigationStack` (ExportView) for push navigation, via its
+/// explicit `exportPath`. Deliberately does **not** declare its own
+/// `.navigationDestination(for: PayslipRecord.self)` here: both this view and
+/// `PayslipDetailView` are pushed onto the *same* `exportPath`, with both destinations
+/// registered once at `ExportView`'s stack root. A destination declared here instead
+/// could end up registered twice as you navigate in and out, which SwiftUI resolves by
+/// honoring only the copy closest to the root — and previously, with two independent
+/// implicit `NavigationLink`s instead of one shared path, that showed up as a tap on a
+/// payslip silently pushing the detail view without repainting the screen (it only
+/// appeared once a later navigation event, like going back, forced a redraw). The
+/// destination lives on `ExportView`'s root `Form`, which is why `viewModel` is injected
+/// rather than owned here — `ExportView` needs the same instance to build
+/// `PayslipDetailView`.
 struct PayslipLibraryView: View {
     @ObservedObject var viewModel: PayslipLibraryViewModel
     @ObservedObject var appViewModel: AppViewModel
+
+    /// Set by a long-press on a grid card — deletes directly from the grid without
+    /// requiring a trip into `PayslipDetailView` first.
+    @State private var pendingDeleteRecord: PayslipRecord?
+    @State private var deleteError: String?
 
     private let columns = [
         GridItem(.flexible(), spacing: 12),
@@ -79,6 +88,41 @@ struct PayslipLibraryView: View {
             }
         }
         .onAppear { viewModel.reload() }
+        .confirmationDialog(
+            L10n.payslipDeleteConfirmTitle,
+            isPresented: Binding(
+                get: { pendingDeleteRecord != nil },
+                set: { if !$0 { pendingDeleteRecord = nil } }
+            ),
+            titleVisibility: .visible
+        ) {
+            Button(L10n.payslipDelete, role: .destructive) {
+                if let record = pendingDeleteRecord {
+                    deleteFromGrid(record)
+                }
+            }
+            Button(L10n.editCancel, role: .cancel) { pendingDeleteRecord = nil }
+        } message: {
+            Text(L10n.payslipDeleteConfirmMessage)
+        }
+        .alert(L10n.payslipDeleteFailed, isPresented: Binding(
+            get: { deleteError != nil },
+            set: { if !$0 { deleteError = nil } }
+        )) {
+            Button(L10n.editCancel, role: .cancel) { deleteError = nil }
+        } message: {
+            Text(deleteError ?? "")
+        }
+    }
+
+    private func deleteFromGrid(_ record: PayslipRecord) {
+        pendingDeleteRecord = nil
+        do {
+            try viewModel.delete(record)
+            appViewModel.showSuccessToast(L10n.payslipDeletedToast)
+        } catch {
+            deleteError = error.localizedDescription
+        }
     }
 
     private var gridContent: some View {
@@ -98,6 +142,21 @@ struct PayslipLibraryView: View {
                     // would silently not render until a second navigation event (e.g. going
                     // back) forced a redraw. NavigationLink content should stay unstyled.
                     .buttonStyle(.plain)
+                    // `.highPriorityGesture` (not `.simultaneousGesture`): a plain Button/
+                    // NavigationLink counts ANY press-then-release-inside-bounds as a tap
+                    // regardless of how long the hold was, so a simultaneous long-press
+                    // gesture would fire *and then* the tap would still navigate on release
+                    // — showing the delete confirmation and pushing the detail view at
+                    // once. Giving the long press priority means once it recognizes (at
+                    // 0.25s) it claims the touch, so the tap never also fires; releasing
+                    // before 0.25s lets the claim fail and the tap through normally.
+                    .highPriorityGesture(
+                        LongPressGesture(minimumDuration: 0.25)
+                            .onEnded { _ in
+                                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                                pendingDeleteRecord = record
+                            }
+                    )
                 }
             }
             .padding(.horizontal, 16)

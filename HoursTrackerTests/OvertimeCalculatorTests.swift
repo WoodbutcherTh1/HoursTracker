@@ -154,7 +154,8 @@ final class OvertimeCalculatorTests: XCTestCase {
         let afterGap = TestData.sickDay(year: 2026, month: 1, day: 18)
         let results = OvertimeCalculator.dayAwareBreakdowns(sessions: firstRun + [afterGap], settings: settings)
         let resumed = results.first { Calendar.current.isDate($0.session.date, inSameDayAs: afterGap.date) }
-        XCTAssertEqual(resumed?.breakdown.basePay, 0, accuracy: 0.01)
+        XCTAssertNotNil(resumed)
+        XCTAssertEqual(resumed?.breakdown.basePay ?? -1, 0, accuracy: 0.01)
     }
 }
 
