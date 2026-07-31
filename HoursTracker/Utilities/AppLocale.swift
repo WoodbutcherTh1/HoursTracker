@@ -53,17 +53,12 @@ enum AppLocale {
     }
 
     /// Resolve a String Catalog / lproj key for the requested in-app language.
-    /// Tries `String(localized:locale:)` first (reliable for en/he/ar catalogs),
-    /// then matching `*.lproj` bundles, then English, then the main bundle.
+    /// Tries the language-specific `*.lproj` bundle first — `String(localized:locale:)`'s
+    /// `locale:` override is unreliable on-device/simulator (it silently falls back to the
+    /// bundle's current preferred language instead of honoring the explicit locale), so it's
+    /// only used as a last resort. Falls through to English, then the raw main bundle lookup.
     static func localizedString(_ key: String, language: Language) -> String {
         let code = language.localeIdentifier
-        let locale = Locale(identifier: code)
-
-        // String Catalog path — prefer explicit locale so in-app overrides work.
-        let catalogValue = String(localized: String.LocalizationValue(key), locale: locale)
-        if catalogValue != key {
-            return catalogValue
-        }
 
         if let path = Bundle.main.path(forResource: code, ofType: "lproj"),
            let bundle = Bundle(path: path) {
@@ -71,17 +66,23 @@ enum AppLocale {
             if value != key { return value }
         }
 
-        // Fall back through English catalog + lproj, then the development bundle.
-        if language != .english {
-            let enLocale = Locale(identifier: "en")
-            let enCatalog = String(localized: String.LocalizationValue(key), locale: enLocale)
-            if enCatalog != key { return enCatalog }
+        let locale = Locale(identifier: code)
+        let catalogValue = String(localized: String.LocalizationValue(key), locale: locale)
+        if catalogValue != key {
+            return catalogValue
+        }
 
+        // Fall back through English lproj + catalog, then the development bundle.
+        if language != .english {
             if let path = Bundle.main.path(forResource: "en", ofType: "lproj"),
                let bundle = Bundle(path: path) {
                 let value = bundle.localizedString(forKey: key, value: nil, table: nil)
                 if value != key { return value }
             }
+
+            let enLocale = Locale(identifier: "en")
+            let enCatalog = String(localized: String.LocalizationValue(key), locale: enLocale)
+            if enCatalog != key { return enCatalog }
         }
         return Bundle.main.localizedString(forKey: key, value: key, table: nil)
     }

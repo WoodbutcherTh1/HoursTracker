@@ -35,8 +35,11 @@ final class AppViewModelTests: XCTestCase {
     func testClockInAtCustomTimePersistsOpenSession() {
         let (viewModel, store) = makeViewModel()
         let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let arrival = calendar.date(bySettingHour: 8, minute: 15, second: 0, of: today)!
+        // A fixed offset from "now" (rather than a hardcoded wall-clock hour like 8:15 AM)
+        // so this doesn't flake when the suite runs before that hour and clockIn's
+        // future-clamp (`min(date, Date())`) silently substitutes "now" for the arrival.
+        let arrival = calendar.date(byAdding: .minute, value: -5, to: Date())!
+        let expectedDay = calendar.startOfDay(for: arrival)
 
         viewModel.clockIn(at: arrival, isManual: true)
 
@@ -46,7 +49,7 @@ final class AppViewModelTests: XCTestCase {
         XCTAssertTrue(session.isOpen)
         XCTAssertTrue(session.isManualEntry)
         XCTAssertEqual(session.clockIn.timeIntervalSince1970, arrival.timeIntervalSince1970, accuracy: 1)
-        XCTAssertTrue(calendar.isDate(session.date, inSameDayAs: today))
+        XCTAssertTrue(calendar.isDate(session.date, inSameDayAs: expectedDay))
     }
 
     func testClockInAtFutureTimeIsClampedToNow() {
