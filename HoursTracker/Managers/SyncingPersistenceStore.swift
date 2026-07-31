@@ -22,6 +22,7 @@ final class SyncingPersistenceStore: SyncingStore {
     private let syncPreference: CloudSyncPreferencing
     private let tombstones: SessionTombstoneStoring
     private let writeQueue = CloudWriteQueue()
+    private let syncTimeoutNanoseconds: UInt64
 
     private(set) var syncState: SyncState = .idle
 
@@ -36,12 +37,14 @@ final class SyncingPersistenceStore: SyncingStore {
         local: PersistableStore = PersistenceManager.shared,
         cloud: CloudSyncing? = nil,
         syncPreference: CloudSyncPreferencing = UserDefaultsCloudSyncPreference.shared,
-        tombstones: SessionTombstoneStoring = SessionTombstoneStore.shared
+        tombstones: SessionTombstoneStoring = SessionTombstoneStore.shared,
+        syncTimeoutNanoseconds: UInt64 = 30 * NSEC_PER_SEC
     ) {
         self.local = local
         self.cloud = cloud ?? CloudKitSyncManager.makeDefault()
         self.syncPreference = syncPreference
         self.tombstones = tombstones
+        self.syncTimeoutNanoseconds = syncTimeoutNanoseconds
         if !self.cloud.isSupported {
             syncState = .unavailable
         }
@@ -147,11 +150,14 @@ final class SyncingPersistenceStore: SyncingStore {
         let deleted = tombstones.tombstoneIDs
 
         do {
-            let result = try await cloud.sync(
-                localSessions: localSessions,
-                localSettings: localSettings,
-                tombstoneIDs: deleted
-            )
+            let cloud = self.cloud
+            let result = try await Self.withTimeout(nanoseconds: syncTimeoutNanoseconds) {
+                try await cloud.sync(
+                    localSessions: localSessions,
+                    localSettings: localSettings,
+                    tombstoneIDs: deleted
+                )
+            }
             try local.saveSessions(result.sessions)
             try local.saveSettings(result.settings)
             syncState = cloud.state
@@ -160,6 +166,37 @@ final class SyncingPersistenceStore: SyncingStore {
             syncState = .failed(error.localizedDescription)
             throw error
         }
+    }
+
+    /// Races `operation` against a deadline so a hung CloudKit call surfaces as a
+    /// thrown error instead of blocking `syncNow()` (and therefore `isSyncing`)
+    /// forever. The losing task is cancelled but may keep running in the
+    /// background if it doesn't observe cancellation (e.g. a CKOperation
+    /// continuation) — harmless since only its result is discarded.
+    private static func withTimeout<T: Sendable>(
+        nanoseconds: UInt64,
+        operation: @escaping @Sendable () async throws -> T
+    ) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            group.addTask { try await operation() }
+            group.addTask {
+                try await Task.sleep(nanoseconds: nanoseconds)
+                throw SyncTimeoutError.timedOut
+            }
+            defer { group.cancelAll() }
+            guard let result = try await group.next() else {
+                throw SyncTimeoutError.timedOut
+            }
+            return result
+        }
+    }
+}
+
+enum SyncTimeoutError: LocalizedError {
+    case timedOut
+
+    var errorDescription: String? {
+        "iCloud sync timed out. Check your connection and try again."
     }
 }
 
