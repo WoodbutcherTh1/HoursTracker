@@ -60,7 +60,7 @@ final class PayslipLibraryViewModel: ObservableObject {
         }
     }
 
-    static func sorted(_ records: [PayslipRecord], by option: PayslipSortOption) -> [PayslipRecord] {
+    nonisolated static func sorted(_ records: [PayslipRecord], by option: PayslipSortOption) -> [PayslipRecord] {
         switch option {
         case .dateDescending:
             return sortedByPeriodDescending(records)
@@ -76,7 +76,7 @@ final class PayslipLibraryViewModel: ObservableObject {
         }
     }
 
-    static func sortedByPeriodDescending(_ records: [PayslipRecord]) -> [PayslipRecord] {
+    nonisolated static func sortedByPeriodDescending(_ records: [PayslipRecord]) -> [PayslipRecord] {
         records.sorted { lhs, rhs in
             let left = lhs.effectivePeriodMonth
             let right = rhs.effectivePeriodMonth

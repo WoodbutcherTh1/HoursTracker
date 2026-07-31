@@ -42,21 +42,26 @@ final class PayslipLibraryTests: XCTestCase {
     }
 
     func testGridSortsByPeriodMonthDescending() {
-        let older = TestData.payslipRecord(
+        // `effectivePeriodMonth` prefers `extraction.payPeriodStart` over `periodMonth`;
+        // clear it so each record's own `periodMonth` actually drives the sort.
+        var older = TestData.payslipRecord(
             id: UUID(),
             periodMonth: TestData.date(2026, 3, 1),
             uploadedAt: TestData.date(2026, 7, 1)
         )
-        let newer = TestData.payslipRecord(
+        older.extraction.payPeriodStart = nil
+        var newer = TestData.payslipRecord(
             id: UUID(),
             periodMonth: TestData.date(2026, 6, 1),
             uploadedAt: TestData.date(2026, 7, 2)
         )
-        let mid = TestData.payslipRecord(
+        newer.extraction.payPeriodStart = nil
+        var mid = TestData.payslipRecord(
             id: UUID(),
             periodMonth: TestData.date(2026, 5, 1),
             uploadedAt: TestData.date(2026, 7, 3)
         )
+        mid.extraction.payPeriodStart = nil
 
         let sorted = PayslipLibraryViewModel.sortedByPeriodDescending([older, newer, mid])
         XCTAssertEqual(sorted.map(\.id), [newer.id, mid.id, older.id])
