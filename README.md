@@ -1,3 +1,9 @@
+<div align="center">
+
+<img src="assets/banner.svg" alt="HoursTracker — Israeli overtime tracking" width="100%">
+
+</div>
+
 # HoursTracker
 
 iOS app for tracking daily work hours with Israeli overtime law calculations (Regular / 125% / 150%), geofence reminders, and multi-format export.

@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 260" width="1000" height="260" role="img" aria-label="HoursTracker by WoodbutcherTh1">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#071a1f"/><stop offset="1" stop-color="#03282b"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#2dd4bf"/><stop offset="1" stop-color="#22d3ee"/>
+    </linearGradient>
+    <style>
+      .hh { transform-origin: 862px 130px; animation: hh 24s linear infinite; }
+      .mm { transform-origin: 862px 130px; animation: mm 4s linear infinite; }
+      @keyframes hh { to { transform: rotate(360deg) } }
+      @keyframes mm { to { transform: rotate(360deg) } }
+      .ring { stroke-dasharray: 396; stroke-dashoffset: 396; animation: fill 5s ease-in-out infinite; }
+      @keyframes fill { 0% { stroke-dashoffset: 396 } 60%,100% { stroke-dashoffset: 70 } }
+      .rise { opacity:0; animation: rise .8s cubic-bezier(.16,1,.3,1) forwards; }
+      .d2 { animation-delay:.3s } .d3 { animation-delay:.55s }
+      @keyframes rise { to { opacity:1; transform: translateY(0) } }
+      .grow { transform-origin: bottom; animation: grow 3s ease-in-out infinite alternate; }
+      .g2 { animation-delay:.4s } .g3 { animation-delay:.8s } .g4 { animation-delay:1.2s } .g5 { animation-delay:1.6s }
+      @keyframes grow { from { transform: scaleY(.5) } to { transform: scaleY(1) } }
+      .tick { animation: tk 1s steps(1) infinite; }
+      @keyframes tk { 0%,49% { opacity:1 } 50%,100% { opacity:.3 } }
+    </style>
+  </defs>
+
+  <rect width="1000" height="260" fill="url(#bg)"/>
+
+  <!-- title -->
+  <text class="rise" x="60" y="112" font-family="Segoe UI,Helvetica,Arial,sans-serif" font-size="58" font-weight="800" letter-spacing="-1.5" fill="#eafffb" transform="translate(0,10)">Hours<tspan fill="url(#teal)">Tracker</tspan></text>
+  <text class="rise d2" x="64" y="150" font-family="ui-monospace,Menlo,monospace" font-size="16" fill="#7fe9dc" transform="translate(0,8)">Israeli overtime — Regular · <tspan fill="#5eead4">125%</tspan> · <tspan fill="#22d3ee">150%</tspan> · geofence · export</text>
+
+  <!-- badges -->
+  <g class="rise d3" transform="translate(0,6)" font-family="ui-monospace,Menlo,monospace" font-size="13" fill="#c7fff5">
+    <rect x="60" y="176" width="150" height="28" rx="14" fill="#2dd4bf" fill-opacity="0.12" stroke="#2dd4bf" stroke-opacity="0.4"/><text x="74" y="195">@WoodbutcherTh1</text>
+    <rect x="220" y="176" width="84" height="28" rx="14" fill="#2dd4bf" fill-opacity="0.12" stroke="#2dd4bf" stroke-opacity="0.4"/><text x="234" y="195">SwiftUI</text>
+    <rect x="314" y="176" width="76" height="28" rx="14" fill="#2dd4bf" fill-opacity="0.12" stroke="#2dd4bf" stroke-opacity="0.4"/><text x="328" y="195">iOS 17</text>
+    <rect x="400" y="176" width="98" height="28" rx="14" fill="#2dd4bf" fill-opacity="0.12" stroke="#2dd4bf" stroke-opacity="0.4"/><text x="414" y="195">CloudKit</text>
+  </g>
+
+  <!-- accumulating bars (weekly hours) -->
+  <g transform="translate(60,214)">
+    <rect class="grow"    x="0"   y="-6" width="14" height="30" rx="3" fill="#2dd4bf" opacity="0.7"/>
+    <rect class="grow g2" x="22"  y="-16" width="14" height="40" rx="3" fill="#2dd4bf" opacity="0.7"/>
+    <rect class="grow g3" x="44"  y="-26" width="14" height="50" rx="3" fill="#22d3ee" opacity="0.8"/>
+    <rect class="grow g4" x="66"  y="-12" width="14" height="36" rx="3" fill="#2dd4bf" opacity="0.7"/>
+    <rect class="grow g5" x="88"  y="-30" width="14" height="54" rx="3" fill="#22d3ee" opacity="0.8"/>
+  </g>
+
+  <!-- clock, right -->
+  <circle cx="862" cy="130" r="72" fill="#04202a" stroke="#2dd4bf" stroke-opacity="0.25" stroke-width="2"/>
+  <circle class="ring" cx="862" cy="130" r="63" fill="none" stroke="url(#teal)" stroke-width="6" stroke-linecap="round" transform="rotate(-90 862 130)"/>
+  <g stroke="#5eead4" stroke-width="2" stroke-linecap="round">
+    <line x1="862" y1="66" x2="862" y2="76"/><line x1="862" y1="184" x2="862" y2="194"/>
+    <line x1="798" y1="130" x2="808" y2="130"/><line x1="916" y1="130" x2="926" y2="130"/>
+  </g>
+  <g class="hh"><line x1="862" y1="130" x2="862" y2="92" stroke="#eafffb" stroke-width="4" stroke-linecap="round"/></g>
+  <g class="mm"><line x1="862" y1="130" x2="862" y2="80" stroke="#22d3ee" stroke-width="3" stroke-linecap="round"/></g>
+  <circle class="tick" cx="862" cy="130" r="5" fill="#2dd4bf"/>
+
+  <rect x="0" y="256" width="1000" height="4" fill="url(#teal)"/>
+</svg>
