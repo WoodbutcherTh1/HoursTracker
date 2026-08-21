@@ -76,6 +76,40 @@ final class AppLanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(AppLanguageOption.arabic.layoutDirection, .rightToLeft)
     }
 
+    /// Guards the exact regression that made the in-app language switcher a no-op:
+    /// `localizedString(_:language:)` used to resolve through `String(localized:locale:)`,
+    /// whose `locale:` argument only formats interpolated values and does not select a
+    /// language. Every language therefore returned whatever the host app was running in,
+    /// so all three of these came back identical.
+    func testEachLanguageResolvesIndependentlyOfTheHostAppLanguage() {
+        for key in ["tab.home", "home.clockIn", "history.emptyPeriod"] {
+            let values = [AppLocale.Language.english, .hebrew, .arabic]
+                .map { AppLocale.localizedString(key, language: $0) }
+
+            XCTAssertEqual(
+                Set(values).count,
+                3,
+                "\(key) resolved to \(values) — each language must get its own string"
+            )
+            XCTAssertFalse(
+                values.contains(key),
+                "\(key) fell back to the raw catalog key in at least one language"
+            )
+        }
+    }
+
+    /// A key with no translation must show the development language, not a dotted
+    /// identifier — the English fallback has to survive the reordering above.
+    func testUntranslatedKeyFallsBackToEnglishRatherThanTheRawKey() {
+        let missing = "definitely.not.a.real.key.\(UUID().uuidString)"
+        XCTAssertEqual(AppLocale.localizedString(missing, language: .hebrew), missing)
+
+        // A key deliberately identical in all three languages must still resolve — the
+        // fallback chain has to distinguish "same in every language" from "not found".
+        XCTAssertEqual(AppLocale.localizedString("app.brandName", language: .hebrew), "HoursTracker")
+        XCTAssertEqual(AppLocale.localizedString("app.brandName", language: .arabic), "HoursTracker")
+    }
+
     func testLocalizedStringsComeFromLanguageSpecificLproj() {
         let english = AppLocale.localizedString("tab.home", language: .english)
         let hebrew = AppLocale.localizedString("tab.home", language: .hebrew)

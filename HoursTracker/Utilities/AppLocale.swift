@@ -52,39 +52,77 @@ enum AppLocale {
         localizedString(key, language: current)
     }
 
-    /// Resolve a String Catalog / lproj key for the requested in-app language.
-    /// Tries `String(localized:locale:)` first (reliable for en/he/ar catalogs),
-    /// then matching `*.lproj` bundles, then English, then the main bundle.
+    /// Resolve a String Catalog key in the requested in-app language: the requested
+    /// language's `.lproj` bundle, then English, then whatever the app itself resolves.
+    ///
+    /// The order matters, and it is the reverse of what it used to be. This tried
+    /// `String(localized:locale:)` first, on the assumption that `locale:` selects the
+    /// language. It does not — that parameter only localizes *interpolated values*, and
+    /// the string itself still comes back in whatever language the app is currently
+    /// running in. Since that value is essentially never equal to the key, the early
+    /// return fired on every single lookup and the correct per-language code below was
+    /// unreachable. The in-app language override therefore only appeared to work when it
+    /// happened to agree with the device language, and picking Hebrew on an English
+    /// phone silently kept showing English.
+    ///
+    /// Xcode compiles `Localizable.xcstrings` into a `<lang>.lproj/Localizable.strings`
+    /// inside the built app, so asking that bundle directly is what actually honors the
+    /// override. `String(localized:)` is kept as a last resort for the case where those
+    /// resources are somehow absent.
     static func localizedString(_ key: String, language: Language) -> String {
-        let code = language.localeIdentifier
-        let locale = Locale(identifier: code)
+        if let value = stringFromLproj(key, code: language.localeIdentifier) {
+            return value
+        }
 
-        // String Catalog path — prefer explicit locale so in-app overrides work.
-        let catalogValue = String(localized: String.LocalizationValue(key), locale: locale)
+        // A key that hasn't been translated yet shows the development language rather
+        // than a raw dotted identifier.
+        if language != .english, let value = stringFromLproj(key, code: "en") {
+            return value
+        }
+
+        let catalogValue = String(localized: String.LocalizationValue(key))
         if catalogValue != key {
             return catalogValue
         }
-
-        if let path = Bundle.main.path(forResource: code, ofType: "lproj"),
-           let bundle = Bundle(path: path) {
-            let value = bundle.localizedString(forKey: key, value: nil, table: nil)
-            if value != key { return value }
-        }
-
-        // Fall back through English catalog + lproj, then the development bundle.
-        if language != .english {
-            let enLocale = Locale(identifier: "en")
-            let enCatalog = String(localized: String.LocalizationValue(key), locale: enLocale)
-            if enCatalog != key { return enCatalog }
-
-            if let path = Bundle.main.path(forResource: "en", ofType: "lproj"),
-               let bundle = Bundle(path: path) {
-                let value = bundle.localizedString(forKey: key, value: nil, table: nil)
-                if value != key { return value }
-            }
-        }
         return Bundle.main.localizedString(forKey: key, value: key, table: nil)
     }
+
+    /// Looks `key` up in one specific `<code>.lproj` bundle, or `nil` when that bundle
+    /// is absent or doesn't carry the key — `localizedString(forKey:value:table:)`
+    /// echoes the key back on a miss when `value` is `nil`.
+    private static func stringFromLproj(_ key: String, code: String) -> String? {
+        guard let bundle = lprojBundle(for: code) else { return nil }
+        let value = bundle.localizedString(forKey: key, value: nil, table: nil)
+        return value == key ? nil : value
+    }
+
+    /// Cached, including misses: `tr(_:)` runs for practically every string in every
+    /// view body, and resolving a bundle path hits the filesystem.
+    private static func lprojBundle(for code: String) -> Bundle? {
+        lprojCacheLock.lock()
+        defer { lprojCacheLock.unlock() }
+
+        if let cached = lprojCache[code] {
+            return cached
+        }
+
+        // Hebrew ships as `he`, but Foundation still answers to the legacy `iw` in
+        // places, so try both rather than silently losing an entire language.
+        let candidates = code == "he" ? [code, "iw"] : [code]
+        var resolved: Bundle?
+        for candidate in candidates {
+            if let path = Bundle.main.path(forResource: candidate, ofType: "lproj"),
+               let bundle = Bundle(path: path) {
+                resolved = bundle
+                break
+            }
+        }
+        lprojCache[code] = resolved
+        return resolved
+    }
+
+    private static var lprojCache: [String: Bundle?] = [:]
+    private static let lprojCacheLock = NSLock()
 
     /// Prefer the in-app language override; fall back to the device preferred languages.
     static var current: Language {
