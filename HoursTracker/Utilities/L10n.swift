@@ -82,6 +82,11 @@ enum L10n {
     static var historyPayNet: String { t("history.payNet") }
     static var historyPayGross: String { t("history.payGross") }
     static var historyDayHasShifts: String { t("history.dayHasShifts") }
+    static var historyDaysWorked: String { t("history.daysWorked") }
+    static func historyDaysWorkedAccessibility(_ days: Int) -> String {
+        String(format: t("history.daysWorkedAccessibility %lld"), days)
+    }
+    static var historyDaysWorkedPendingHint: String { t("history.daysWorkedPendingHint") }
     static var historyPayBreakdownButton: String { t("history.payBreakdown.button") }
     static var historyPayBreakdownTitle: String { t("history.payBreakdown.title") }
 

@@ -105,7 +105,11 @@ struct HistoryView: View {
                 ShareSheet(items: [item.url])
             }
             .sheet(isPresented: $showPayBreakdown) {
-                HistoryPayBreakdownSheet(breakdown: periodTotals)
+                HistoryPayBreakdownSheet(
+                    breakdown: periodTotals,
+                    workedDayCount: workedDayCount,
+                    showsPendingWorkedDay: hasPendingWorkedDay
+                )
             }
             .alert(
                 L10n.editDeleteConfirm,
@@ -627,15 +631,24 @@ struct HistoryView: View {
 
                 Spacer(minLength: 8)
 
+                WorkedDaysBadge(
+                    dayCount: workedDayCount,
+                    showsPendingDay: hasPendingWorkedDay
+                )
+
                 VStack(alignment: .trailing, spacing: 3) {
                     Text(L10n.historyTotalHours)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     Text(String(
                         format: AppLocale.tr("history.totalHoursValue %@"),
                         HistoryPeriodHelper.formatHoursClock(totals.totalHours)
                     ))
                     .font(.subheadline.weight(.semibold).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                 }
             }
             .padding(.horizontal, 14)
@@ -656,6 +669,33 @@ struct HistoryView: View {
         return viewModel.sortedSessions.filter {
             period.contains($0.date, calendar: calendar)
         }
+    }
+
+    /// Distinct calendar days worked — not the number of shifts. Two clock-in/out pairs
+    /// on one day are one day here, which is what "days worked" means to a reader (and
+    /// is why Home's session-counting `monthShiftCount` is deliberately not reused).
+    ///
+    /// Anchored to the calendar month the displayed payroll period is labeled with, so
+    /// paging back to June shows June's days rather than this month's. In the default
+    /// state — History opens on the current period — that is the current calendar month.
+    private var workedDayCount: Int {
+        WorkedDaysCounter.distinctWorkedDays(
+            in: viewModel.sessions,
+            month: activePeriod.labelMonth,
+            calendar: calendar
+        )
+    }
+
+    /// Drives the green "+1?" bubble: a shift is running, and its day has no completed
+    /// session yet, so clocking out will genuinely add a day. Clocking in a second time
+    /// on a day already worked shows nothing — that day is counted either way.
+    private var hasPendingWorkedDay: Bool {
+        WorkedDaysCounter.openShiftWouldAddADay(
+            activeSession: viewModel.activeSession,
+            sessions: viewModel.sessions,
+            month: activePeriod.labelMonth,
+            calendar: calendar
+        )
     }
 
     /// Totals for the full custom payroll window (not a calendar month).

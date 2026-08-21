@@ -11238,6 +11238,75 @@
           }
         }
       }
+    },
+    "history.daysWorked" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أيام العمل"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Days worked"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ימי עבודה"
+          }
+        }
+      }
+    },
+    "history.daysWorkedAccessibility %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld يوم عمل هذا الشهر"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld days worked this month"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ימי עבודה החודש"
+          }
+        }
+      }
+    },
+    "history.daysWorkedPendingHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يوم إضافي عند تسجيل الخروج"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "one more once you clock out"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "עוד יום אחד עם היציאה"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"
