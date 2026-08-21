@@ -12,6 +12,7 @@ enum KeyCheckUIState: Equatable {
 
 struct SettingsView: View {
     @ObservedObject var viewModel: AppViewModel
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @EnvironmentObject private var appLock: AppLockController
     @EnvironmentObject private var appLanguage: AppLanguageController
 
@@ -60,6 +61,8 @@ struct SettingsView: View {
                 languageSection
                 aboutSection
             }
+            .scrollContentBackground(.hidden)
+            .background(appBackground.background.ignoresSafeArea())
             .scrollDismissesKeyboard(.interactively)
             .keyboardDismissible()
             .navigationTitle(L10n.settingsTitle)

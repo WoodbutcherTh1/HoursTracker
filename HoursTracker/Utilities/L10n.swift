@@ -118,6 +118,13 @@ enum L10n {
     static var homeThemePresets: String { t("home.theme.presets") }
     static var homeThemeCustom: String { t("home.theme.custom") }
     static var homeThemeReset: String { t("home.theme.reset") }
+    static var homeThemeBackground: String { t("home.theme.background") }
+    static var homeThemeBackgroundReset: String { t("home.theme.backgroundReset") }
+    static var homeBackgroundMidnight: String { t("home.background.midnight") }
+    static var homeBackgroundCharcoal: String { t("home.background.charcoal") }
+    static var homeBackgroundGraphite: String { t("home.background.graphite") }
+    static var homeBackgroundSlate: String { t("home.background.slate") }
+    static var homeBackgroundOnyx: String { t("home.background.onyx") }
     static var homeThemeWordmark: String { t("home.theme.wordmark") }
     static var homeThemeWordmarkPlaceholder: String { t("home.theme.wordmarkPlaceholder") }
     static var homeThemeWordmarkHint: String { t("home.theme.wordmarkHint") }

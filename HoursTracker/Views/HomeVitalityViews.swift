@@ -1,10 +1,13 @@
 import SwiftUI
 
 /// Shared neon palette for the Home screen design.
+///
+/// The screen background deliberately isn't here any more: it's user-customizable and
+/// lives in `AppBackgroundTheme.shared.background`, whose default is the exact color this
+/// enum used to hold. Keeping a second copy would let the two drift apart.
 enum HomeNeon {
     static let accent = Color(red: 0.15, green: 0.95, blue: 0.45)
     static let accentDeep = Color(red: 0.05, green: 0.55, blue: 0.28)
-    static let bg = Color(red: 0.04, green: 0.05, blue: 0.06)
     static let card = Color(red: 0.09, green: 0.10, blue: 0.12)
     static let coral = Color(red: 0.95, green: 0.28, blue: 0.35)
     static let coralDeep = Color(red: 0.72, green: 0.12, blue: 0.22)

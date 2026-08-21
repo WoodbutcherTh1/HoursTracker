@@ -20,6 +20,7 @@ struct PayslipLibraryView: View {
     @ObservedObject var viewModel: PayslipLibraryViewModel
     @ObservedObject var appViewModel: AppViewModel
     @ObservedObject private var theme = HomeAccentTheme.shared
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
 
     /// Set by a long-press on a grid card — deletes directly from the grid without
     /// requiring a trip into `PayslipDetailView` first.
@@ -38,7 +39,7 @@ struct PayslipLibraryView: View {
 
     var body: some View {
         ZStack {
-            HomeNeon.bg.ignoresSafeArea()
+            appBackground.background.ignoresSafeArea()
 
             if viewModel.payslips.isEmpty {
                 emptyState
@@ -48,7 +49,7 @@ struct PayslipLibraryView: View {
         }
         .navigationTitle(L10n.payslipLibraryTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(HomeNeon.bg, for: .navigationBar)
+        .toolbarBackground(appBackground.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .toolbar {
@@ -191,7 +192,7 @@ struct PayslipLibraryView: View {
             } label: {
                 Label(L10n.payslipUploadAction, systemImage: "plus.circle.fill")
                     .font(.subheadline.weight(.bold))
-                    .foregroundStyle(HomeNeon.bg)
+                    .foregroundStyle(appBackground.background)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 14)
                     .background(theme.accent, in: Capsule())

@@ -4,6 +4,7 @@ import SwiftUI
 struct ForgotClockInSheet: View {
     @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var theme = HomeAccentTheme.shared
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @Environment(\.dismiss) private var dismiss
 
     enum Step {
@@ -39,13 +40,13 @@ struct ForgotClockInSheet: View {
                     confirmContent
                 }
             }
-            .background(HomeNeon.bg.ignoresSafeArea())
+            .background(appBackground.background.ignoresSafeArea())
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n.editCancel) { dismiss() }
                 }
             }
-            .toolbarBackground(HomeNeon.bg, for: .navigationBar)
+            .toolbarBackground(appBackground.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
         }

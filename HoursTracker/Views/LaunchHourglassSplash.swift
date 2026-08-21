@@ -4,12 +4,13 @@ import SwiftUI
 struct LaunchHourglassSplash: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @ObservedObject private var theme = HomeAccentTheme.shared
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @State private var flipped = false
     @State private var pulse = false
 
     var body: some View {
         ZStack {
-            HomeNeon.bg.ignoresSafeArea()
+            appBackground.background.ignoresSafeArea()
 
             VStack(spacing: 18) {
                 Spacer(minLength: 0)

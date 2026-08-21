@@ -40,6 +40,13 @@ struct HoursTrackerApp: App {
             .animation(.easeInOut(duration: 0.45), value: showLaunchSplash)
             .environment(\.locale, appLanguage.locale)
             .environment(\.layoutDirection, appLanguage.layoutDirection)
+            // HoursTracker is a dark app: Home, the payslip screens, the lock screen and
+            // the splash have always painted their own dark surface regardless of the
+            // device appearance. History, Export and Settings used to follow the system
+            // instead, so a phone in light mode got a half-light app. Pinning the scheme
+            // makes the whole thing consistent and lets AppBackgroundTheme's color show
+            // through on every screen, which is the point of the background picker.
+            .preferredColorScheme(.dark)
             .environmentObject(appLock)
             .environmentObject(appLanguage)
             .onAppear {

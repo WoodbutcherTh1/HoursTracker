@@ -1,6 +1,8 @@
 import SwiftUI
 
 struct PrivacyPolicyView: View {
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
@@ -22,7 +24,7 @@ struct PrivacyPolicyView: View {
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .background(Color(.systemGroupedBackground))
+        .background(appBackground.background.ignoresSafeArea())
         .navigationTitle(L10n.privacyTitle)
         .navigationBarTitleDisplayMode(.inline)
     }

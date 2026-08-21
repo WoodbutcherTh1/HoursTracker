@@ -1,12 +1,16 @@
 import SwiftUI
 
-/// Compact sheet for customizing the app's accent color and Home card layout —
-/// presets plus a full picker for anything else. Changes apply live and app-wide
-/// since `theme.accent` is `@Published`.
+/// Compact sheet for customizing the app's accent color, background color, Home title
+/// and Home card layout — presets plus a full picker for anything else.
+///
+/// Every control here previews itself: the values are `@Published` on shared theme
+/// objects, so picking a background repaints this sheet along with the rest of the app,
+/// and the wordmark row is the real `HomeBrandTitle`. There is nothing to confirm.
 struct HomeThemePickerSheet: View {
     @ObservedObject var theme: HomeAccentTheme
     @ObservedObject private var statsLayout = HomeStatsLayout.shared
     @ObservedObject private var wordmark = HomeWordmark.shared
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @Environment(\.dismiss) private var dismiss
 
     private let columns = [
@@ -19,7 +23,7 @@ struct HomeThemePickerSheet: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                HomeNeon.bg.ignoresSafeArea()
+                appBackground.background.ignoresSafeArea()
 
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
@@ -46,6 +50,30 @@ struct HomeThemePickerSheet: View {
                                 .labelsHidden()
                                 .padding(12)
                                 .background(HomeNeon.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
+
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(L10n.homeThemeBackground)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.7))
+
+                            LazyVGrid(columns: columns, spacing: 12) {
+                                ForEach(AppBackgroundTheme.presets, id: \.hex) { preset in
+                                    backgroundSwatch(
+                                        hex: preset.hex,
+                                        name: AppBackgroundTheme.localizedPresetName(preset.name)
+                                    )
+                                }
+                            }
+
+                            ColorPicker(
+                                L10n.homeThemeBackground,
+                                selection: $appBackground.background,
+                                supportsOpacity: false
+                            )
+                            .labelsHidden()
+                            .padding(12)
+                            .background(HomeNeon.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                         }
 
                         VStack(alignment: .leading, spacing: 12) {
@@ -98,6 +126,20 @@ struct HomeThemePickerSheet: View {
                         }
 
                         Button(role: .destructive) {
+                            withAnimation(.easeInOut(duration: 0.2)) { appBackground.reset() }
+                        } label: {
+                            Text(L10n.homeThemeBackgroundReset)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(HomeNeon.coral)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 12)
+                                .background(
+                                    Capsule(style: .continuous)
+                                        .stroke(HomeNeon.coral.opacity(0.5), lineWidth: 1.2)
+                                )
+                        }
+
+                        Button(role: .destructive) {
                             statsLayout.reset()
                         } label: {
                             Text(L10n.homeStatsResetOrder)
@@ -116,7 +158,7 @@ struct HomeThemePickerSheet: View {
             }
             .navigationTitle(L10n.homeThemeTitle)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(HomeNeon.bg, for: .navigationBar)
+            .toolbarBackground(appBackground.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
@@ -186,6 +228,50 @@ struct HomeThemePickerSheet: View {
             .padding(12)
             .background(HomeNeon.card, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
+    }
+
+    /// Background swatches carry a hairline ring rather than relying on the fill alone —
+    /// several of these colors are near-black and would otherwise be indistinguishable
+    /// from the sheet they sit on.
+    private func backgroundSwatch(hex: String, name: String) -> some View {
+        let color = Color(hex: hex)
+        let isSelected = appBackground.background.hexString == hex
+
+        return Button {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                appBackground.background = color
+            }
+        } label: {
+            VStack(spacing: 6) {
+                RoundedRectangle(cornerRadius: 10, style: .continuous)
+                    .fill(color)
+                    .frame(width: 44, height: 40)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10, style: .continuous)
+                            .stroke(
+                                isSelected ? theme.accent : Color.white.opacity(0.18),
+                                lineWidth: isSelected ? 2.5 : 1
+                            )
+                    )
+                    .overlay(
+                        // A miniature card, so the swatch shows how much contrast the
+                        // app's surfaces will actually have on this background.
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(HomeNeon.card)
+                            .frame(width: 22, height: 14)
+                    )
+                    .shadow(color: theme.accent.opacity(isSelected ? 0.45 : 0), radius: 8)
+
+                Text(name)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.6))
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(name)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     private func swatch(hex: String, name: String) -> some View {

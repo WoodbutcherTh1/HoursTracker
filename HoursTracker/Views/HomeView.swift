@@ -36,6 +36,7 @@ struct HomeView: View {
     @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
     @ObservedObject private var homeStatsLayout = HomeStatsLayout.shared
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @AppStorage("homeStatsReorderHintDismissed") private var didReorderStats = false
     /// Gross/net choice for the live pay counter. Its own key rather than History's
     /// `historyPayDisplayMode`, so switching one screen doesn't silently change the
@@ -57,7 +58,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                HomeNeon.bg.ignoresSafeArea()
+                appBackground.background.ignoresSafeArea()
 
                 // Ambient neon wash
                 Circle()
@@ -127,7 +128,7 @@ struct HomeView: View {
                     .accessibilityLabel(L10n.guideTitle)
                 }
             }
-            .toolbarBackground(HomeNeon.bg, for: .navigationBar)
+            .toolbarBackground(appBackground.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .sheet(isPresented: $viewModel.showDaySummary, onDismiss: {

@@ -18,6 +18,7 @@ import SwiftUI
 /// to "1:1 with the real app," not more.
 struct UserGuideSheet: View {
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -44,7 +45,7 @@ struct UserGuideSheet: View {
 
             footer
         }
-        .background(HomeNeon.bg.ignoresSafeArea())
+        .background(appBackground.background.ignoresSafeArea())
     }
 
     private func slide<Content: View>(

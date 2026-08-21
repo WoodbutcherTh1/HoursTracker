@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct HistoryView: View {
     @ObservedObject var viewModel: AppViewModel
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
 
     /// Anchor month for the payroll cycle label / chevron navigation.
     @State private var periodAnchor: Date = Date()
@@ -61,7 +62,7 @@ struct HistoryView: View {
                 sessionsContent
                 stickySummaryBar
             }
-            .background(Color(.systemGroupedBackground))
+            .background(appBackground.background.ignoresSafeArea())
             .navigationTitle(L10n.historyTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -280,7 +281,7 @@ struct HistoryView: View {
         .padding(.horizontal, 12)
         .padding(.top, 8)
         .padding(.bottom, 12)
-        .background(Color(.systemGroupedBackground))
+        .background(appBackground.background)
     }
 
     private func weekPage(_ week: PayrollWeek) -> some View {
@@ -521,6 +522,12 @@ struct HistoryView: View {
             }
             .background(Color(.systemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            // Hairline edge so the table stays defined against any chosen background,
+            // including pure-black Onyx where it would otherwise merge into the page.
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.white.opacity(0.07), lineWidth: 1)
+            )
             .padding(.horizontal, 12)
             .padding(.top, 4)
             .padding(.bottom, 10)
