@@ -151,7 +151,7 @@ struct HomeView: View {
                     .presentationDetents([.medium, .large])
             }
             .sheet(isPresented: $showUserGuide) {
-                UserGuideSheet()
+                UserGuideSheet(workerName: viewModel.settings.workerFullName)
                     .presentationDetents([.medium, .large])
             }
         }

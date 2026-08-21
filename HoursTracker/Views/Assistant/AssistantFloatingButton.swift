@@ -25,6 +25,29 @@ struct AssistantFloatingButton: View {
     }
 }
 
+/// Just the button's look, with no positioning or gestures. Split out so the User Guide
+/// can show the genuine article inline instead of a drawing of it.
+struct AssistantButtonIcon: View {
+    var style: AssistantIconStyle = .spark
+    var accent: Color = HomeNeon.accent
+    var diameter: CGFloat = 52
+    var glowRadius: CGFloat = 11
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(HomeNeon.card)
+                .overlay(Circle().stroke(accent.opacity(0.55), lineWidth: 1.5))
+                .shadow(color: accent.opacity(0.35), radius: glowRadius, y: 4)
+
+            Image(systemName: style.systemImage)
+                .font(.system(size: diameter * 0.4, weight: .semibold))
+                .foregroundStyle(accent)
+        }
+        .frame(width: diameter, height: diameter)
+    }
+}
+
 private struct PositionedAssistantButton: View {
     let containerSize: CGSize
     let onOpen: () -> Void
@@ -57,17 +80,12 @@ private struct PositionedAssistantButton: View {
     }
 
     private var icon: some View {
-        ZStack {
-            Circle()
-                .fill(HomeNeon.card)
-                .overlay(Circle().stroke(theme.accent.opacity(0.55), lineWidth: 1.5))
-                .shadow(color: theme.accent.opacity(0.35), radius: isDragging ? 18 : 11, y: 4)
-
-            Image(systemName: appearance.style.systemImage)
-                .font(.system(size: 21, weight: .semibold))
-                .foregroundStyle(theme.accent)
-        }
-        .frame(width: Self.diameter, height: Self.diameter)
+        AssistantButtonIcon(
+            style: appearance.style,
+            accent: theme.accent,
+            diameter: Self.diameter,
+            glowRadius: isDragging ? 18 : 11
+        )
         .scaleEffect(isDragging ? 1.08 : 1)
         .overlay(alignment: .topTrailing) {
             if showsHideControl {
