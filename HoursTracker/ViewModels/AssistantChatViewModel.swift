@@ -65,10 +65,11 @@ final class AssistantChatViewModel: ObservableObject {
         }
 
         isThinking = true
-        let engine = AssistantEngine(
-            settings: viewModel.settings,
-            sessions: viewModel.sessions
-        )
+        // Snapshot the data now, on the main actor, so the answer describes the state the
+        // question was asked about even if a shift is clocked out while the call is in
+        // flight. The engine itself is built after the await, not carried across it.
+        let settings = viewModel.settings
+        let sessions = viewModel.sessions
         let context = AssistantPlannerContext.current()
         let router = self.router
 
@@ -76,8 +77,8 @@ final class AssistantChatViewModel: ObservableObject {
             do {
                 let plan = try await router.plan(question: question, context: context)
                 guard !Task.isCancelled else { return }
-                let answer = engine.resolve(plan: plan)
-                self?.append(answer)
+                let engine = AssistantEngine(settings: settings, sessions: sessions)
+                self?.append(engine.resolve(plan: plan))
             } catch let error as ScannerLLMError {
                 guard !Task.isCancelled else { return }
                 self?.appendFailure(AssistantFailure(error))

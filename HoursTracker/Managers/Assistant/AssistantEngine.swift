@@ -56,9 +56,18 @@ struct AssistantEngine {
             ),
             scope: selection.description,
             rows: [
-                .init(label: L10n.summaryRegular, value: HistoryPeriodHelper.formatHoursClock(totals.regularHours)),
-                .init(label: L10n.summaryOT125, value: HistoryPeriodHelper.formatHoursClock(totals.ot125Hours)),
-                .init(label: L10n.summaryOT150, value: HistoryPeriodHelper.formatHoursClock(totals.ot150Hours))
+                AssistantAnswer.Row(
+                    label: L10n.summaryRegular,
+                    value: HistoryPeriodHelper.formatHoursClock(totals.regularHours)
+                ),
+                AssistantAnswer.Row(
+                    label: L10n.summaryOT125,
+                    value: HistoryPeriodHelper.formatHoursClock(totals.ot125Hours)
+                ),
+                AssistantAnswer.Row(
+                    label: L10n.summaryOT150,
+                    value: HistoryPeriodHelper.formatHoursClock(totals.ot150Hours)
+                )
             ]
         )
     }
@@ -76,9 +85,12 @@ struct AssistantEngine {
                 : L10n.assistantPayGrossHeadline(totals.formattedGrossPay),
             scope: selection.description,
             rows: [
-                .init(label: L10n.historyPayGross, value: totals.formattedGrossPay),
-                .init(label: L10n.historyPayNet, value: totals.formattedNetPay),
-                .init(label: L10n.historyTotalHours, value: HistoryPeriodHelper.formatHoursClock(totals.totalHours))
+                AssistantAnswer.Row(label: L10n.historyPayGross, value: totals.formattedGrossPay),
+                AssistantAnswer.Row(label: L10n.historyPayNet, value: totals.formattedNetPay),
+                AssistantAnswer.Row(
+                    label: L10n.historyTotalHours,
+                    value: HistoryPeriodHelper.formatHoursClock(totals.totalHours)
+                )
             ],
             note: L10n.assistantPayEstimateNote
         )
@@ -134,7 +146,7 @@ struct AssistantEngine {
         return AssistantAnswer(
             headline: L10n.assistantDaysOffHeadline(days.count),
             scope: monthName,
-            rows: shown.map { .init(label: dayLabel($0), value: weekdayLabel($0)) },
+            rows: shown.map { AssistantAnswer.Row(label: dayLabel($0), value: weekdayLabel($0)) },
             note: days.count > shown.count ? L10n.assistantMoreRows(days.count - shown.count) : nil
         )
     }
@@ -165,9 +177,11 @@ struct AssistantEngine {
                 headline: L10n.assistantDocumentReady,
                 scope: selection.description,
                 rows: [
-                    .init(label: L10n.historyTotalHours,
-                          value: HistoryPeriodHelper.formatHoursClock(report.totals.totalHours)),
-                    .init(label: L10n.historyPayNet, value: report.totals.formattedNetPay)
+                    AssistantAnswer.Row(
+                        label: L10n.historyTotalHours,
+                        value: HistoryPeriodHelper.formatHoursClock(report.totals.totalHours)
+                    ),
+                    AssistantAnswer.Row(label: L10n.historyPayNet, value: report.totals.formattedNetPay)
                 ],
                 attachment: .document(url: url, fileName: url.lastPathComponent)
             )
@@ -179,7 +193,7 @@ struct AssistantEngine {
     /// Retrieval only. If `PayslipStore` has nothing for the period, that is the answer —
     /// there is no path here that produces payslip figures the user never uploaded.
     private func findPayslip(period: String?) -> AssistantAnswer {
-        let month = period.flatMap(Self.parseMonth) ?? now
+        let month = period.flatMap(parseMonth) ?? now
         let monthName = HistoryPeriodHelper.monthTitle(for: month)
 
         let records = (try? payslipStore.listPayslips()) ?? []
@@ -197,10 +211,10 @@ struct AssistantEngine {
 
         var rows: [AssistantAnswer.Row] = []
         if let gross = match.effectiveGrossPay {
-            rows.append(.init(label: L10n.payslipGross, value: formatDecimal(gross, record: match)))
+            rows.append(AssistantAnswer.Row(label: L10n.payslipGross, value: formatDecimal(gross, record: match)))
         }
         if let net = match.effectiveNetPay {
-            rows.append(.init(label: L10n.payslipNet, value: formatDecimal(net, record: match)))
+            rows.append(AssistantAnswer.Row(label: L10n.payslipNet, value: formatDecimal(net, record: match)))
         }
 
         return AssistantAnswer(
@@ -278,8 +292,8 @@ struct AssistantEngine {
 
     /// The date window a set of filters describes, or nil for "everything on record".
     func resolvedInterval(from filters: AssistantFilters) -> DateInterval? {
-        if let start = filters.startDate.flatMap(Self.parseDay),
-           let end = filters.endDate.flatMap(Self.parseDay) {
+        if let start = filters.startDate.flatMap(parseDay),
+           let end = filters.endDate.flatMap(parseDay) {
             return DateInterval(start: min(start, end), end: max(start, end))
         }
         if let month = resolvedMonth(from: filters) {
@@ -289,10 +303,10 @@ struct AssistantEngine {
             }
         }
         // A single open-ended bound still narrows things usefully: "since March 1st".
-        if let start = filters.startDate.flatMap(Self.parseDay) {
+        if let start = filters.startDate.flatMap(parseDay) {
             return DateInterval(start: start, end: max(start, now))
         }
-        if let end = filters.endDate.flatMap(Self.parseDay) {
+        if let end = filters.endDate.flatMap(parseDay) {
             let earliest = sessions.map(\.date).min() ?? end
             return DateInterval(start: min(earliest, end), end: end)
         }
@@ -300,36 +314,36 @@ struct AssistantEngine {
     }
 
     func resolvedMonth(from filters: AssistantFilters) -> Date? {
-        filters.month.flatMap(Self.parseMonth)
+        filters.month.flatMap(parseMonth)
     }
 
-    /// `"YYYY-MM-DD"` in the Gregorian calendar. Nil for anything else — a bad date is
-    /// dropped rather than guessed at.
-    static func parseDay(_ text: String) -> Date? {
-        Self.dayFormatter.date(from: text)
+    /// `"YYYY-MM-DD"`, resolved in this engine's own calendar. Nil for anything else — a
+    /// bad date is dropped rather than guessed at.
+    ///
+    /// Built from components rather than a `DateFormatter` deliberately. A formatter
+    /// pinned to a fixed calendar still parses in some time zone, and if that isn't the
+    /// one the filtering calendar uses, "2026-02" lands at 2026-01-31T22:00Z for anyone
+    /// east of UTC — including Israel, where this app is used — and the whole month
+    /// filter quietly shifts to the wrong month.
+    func parseDay(_ text: String) -> Date? {
+        let parts = text.split(separator: "-")
+        guard parts.count == 3,
+              let year = Int(parts[0]), let month = Int(parts[1]), let day = Int(parts[2]),
+              (1900...2999).contains(year), (1...12).contains(month), (1...31).contains(day)
+        else { return nil }
+        return calendar.date(from: DateComponents(year: year, month: month, day: day))
     }
 
     /// `"YYYY-MM"`, tolerating a full date since models sometimes send one.
-    static func parseMonth(_ text: String) -> Date? {
-        if let month = Self.monthFormatter.date(from: text) { return month }
+    func parseMonth(_ text: String) -> Date? {
+        let parts = text.split(separator: "-")
+        if parts.count == 2,
+           let year = Int(parts[0]), let month = Int(parts[1]),
+           (1900...2999).contains(year), (1...12).contains(month) {
+            return calendar.date(from: DateComponents(year: year, month: month, day: 1))
+        }
         return parseDay(text)
     }
-
-    private static let dayFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.dateFormat = "yyyy-MM-dd"
-        return formatter
-    }()
-
-    private static let monthFormatter: DateFormatter = {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.calendar = Calendar(identifier: .gregorian)
-        formatter.dateFormat = "yyyy-MM"
-        return formatter
-    }()
 
     // MARK: - Formatting
 
