@@ -79,7 +79,21 @@ private struct PositionedAssistantButton: View {
             )
     }
 
+    /// The padding is load-bearing, not cosmetic. The X badge is an overlay anchored to
+    /// the top-trailing corner; without room inside the frame it would sit outside both
+    /// the circle's `contentShape` and the parent's bounds, where taps don't land. The
+    /// padding is symmetric, so the circle stays centered on the position math below.
     private var icon: some View {
+        interactiveIcon
+            .padding(9)
+            .overlay(alignment: .topTrailing) {
+                if showsHideControl {
+                    hideControl
+                }
+            }
+    }
+
+    private var interactiveIcon: some View {
         AssistantButtonIcon(
             style: appearance.style,
             accent: theme.accent,
@@ -87,11 +101,6 @@ private struct PositionedAssistantButton: View {
             glowRadius: isDragging ? 18 : 11
         )
         .scaleEffect(isDragging ? 1.08 : 1)
-        .overlay(alignment: .topTrailing) {
-            if showsHideControl {
-                hideControl
-            }
-        }
         .contentShape(Circle())
         .onTapGesture {
             guard !suppressTapAfterLongPress else { return }
@@ -120,7 +129,6 @@ private struct PositionedAssistantButton: View {
                 .shadow(color: .black.opacity(0.4), radius: 3, y: 1)
         }
         .buttonStyle(.plain)
-        .offset(x: 5, y: -5)
         .transition(.scale.combined(with: .opacity))
         .accessibilityLabel(L10n.assistantHideButton)
     }
