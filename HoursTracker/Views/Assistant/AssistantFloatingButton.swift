@@ -100,7 +100,6 @@ private struct PositionedAssistantButton: View {
             diameter: Self.diameter,
             glowRadius: isDragging ? 18 : 11
         )
-        .scaleEffect(isDragging ? 1.08 : 1)
         .contentShape(Circle())
         .onTapGesture {
             guard !suppressTapAfterLongPress else { return }
@@ -115,7 +114,20 @@ private struct PositionedAssistantButton: View {
         .accessibilityAddTraits(.isButton)
         .accessibilityAction { onOpen() }
         .accessibilityAction(named: Text(L10n.assistantHideButton)) { onHide() }
+        // `.scaleEffect` and `.opacity` are last on purpose. Applied earlier in the chain,
+        // a scale that changes mid-gesture (isDragging flips true on the very first pixel
+        // of movement) distorts the local coordinate space `dragGesture` measures its
+        // translation in, so the reported delta stops matching the finger's actual motion
+        // — the button visibly outran or dodged the touch instead of tracking it. Gesture
+        // recognition now happens on the unscaled view; these two are purely cosmetic.
+        .scaleEffect(isDragging ? 1.08 : 1)
+        .opacity(isDragging ? 1 : Self.restingOpacity)
     }
+
+    /// Dimmed at rest so it reads as available without competing with the screen behind
+    /// it; full opacity the moment a finger is on it, so it's unambiguous what's being
+    /// grabbed and dragged.
+    private static let restingOpacity: Double = 0.55
 
     private var hideControl: some View {
         Button {
@@ -155,8 +167,13 @@ private struct PositionedAssistantButton: View {
     private var currentX: CGFloat { restingX + dragTranslation.width }
     private var currentY: CGFloat { restingY + dragTranslation.height }
 
+    /// `.global` rather than the default `.local`: a `DragGesture`'s local coordinate
+    /// space is the gesture-recognizing view's own frame, which the `.scaleEffect` above
+    /// transforms mid-drag. Measuring against the window instead keeps the reported
+    /// translation equal to actual finger movement no matter what the icon's own
+    /// transform is doing.
     private var dragGesture: some Gesture {
-        DragGesture(minimumDistance: 8)
+        DragGesture(minimumDistance: 8, coordinateSpace: .global)
             .onChanged { value in
                 isDragging = true
                 dragTranslation = value.translation

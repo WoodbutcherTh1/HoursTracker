@@ -627,6 +627,23 @@ struct HistoryView: View {
                                 .font(.caption)
                         }
                         .accessibilityLabel(L10n.historyPayBreakdownButton)
+
+                        // A compact accessory at the same visual weight as the info
+                        // button beside it — not a third stat column. It used to be a
+                        // full peer of the pay/hours blocks below, which is what made
+                        // this bar taller and busier than before; folded back into the
+                        // control row, the bar is exactly the size it always was.
+                        HStack(spacing: 3) {
+                            Image(systemName: "calendar")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            WorkedDaysBadge(
+                                dayCount: workedDayCount,
+                                showsPendingDay: hasPendingWorkedDay,
+                                valueFont: .caption.weight(.semibold).monospacedDigit(),
+                                showsTitle: false
+                            )
+                        }
                     }
 
                     Text(String(
@@ -637,11 +654,6 @@ struct HistoryView: View {
                 }
 
                 Spacer(minLength: 8)
-
-                WorkedDaysBadge(
-                    dayCount: workedDayCount,
-                    showsPendingDay: hasPendingWorkedDay
-                )
 
                 VStack(alignment: .trailing, spacing: 3) {
                     Text(L10n.historyTotalHours)
