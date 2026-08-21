@@ -489,19 +489,40 @@ struct HomePrimaryActionButton: View {
     }
 }
 
-/// Brand mark: Hour (white) + Trackers (neon).
+/// Brand mark: Hours (white) + Tracker (neon) — or the user's own replacement text
+/// from the Home color picker, drawn in the accent color.
+///
+/// The two-tone mark is split across two `Text`s, so it is laid out by an `HStack` whose
+/// order flips under an RTL interface language. That rendered the product name backwards
+/// ("TrackerHours") in Hebrew/Arabic, so the stack is pinned `.leftToRight`: a wordmark
+/// is a name, not prose, and must read the same way in every interface language. A custom
+/// wordmark is a single `Text` instead, left to the system's bidi handling so someone can
+/// put their own Hebrew or Arabic name here and have it render correctly.
 struct HomeBrandTitle: View {
     var accent: Color = HomeNeon.accent
+    @ObservedObject private var wordmark = HomeWordmark.shared
 
     var body: some View {
-        HStack(spacing: 0) {
-            Text("Hour")
-                .foregroundStyle(.white)
-            Text("Trackers")
-                .foregroundStyle(accent)
+        Group {
+            if let custom = wordmark.customText {
+                Text(custom)
+                    .foregroundStyle(accent)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .accessibilityLabel(custom)
+            } else {
+                HStack(spacing: 0) {
+                    Text(verbatim: "Hours")
+                        .foregroundStyle(.white)
+                    Text(verbatim: "Tracker")
+                        .foregroundStyle(accent)
+                }
+                .environment(\.layoutDirection, .leftToRight)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(L10n.brandName)
+            }
         }
         .font(.headline.weight(.bold))
-        .accessibilityLabel(L10n.brandName)
     }
 }
 

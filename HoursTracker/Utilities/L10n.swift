@@ -111,6 +111,9 @@ enum L10n {
     static var homeThemePresets: String { t("home.theme.presets") }
     static var homeThemeCustom: String { t("home.theme.custom") }
     static var homeThemeReset: String { t("home.theme.reset") }
+    static var homeThemeWordmark: String { t("home.theme.wordmark") }
+    static var homeThemeWordmarkPlaceholder: String { t("home.theme.wordmarkPlaceholder") }
+    static var homeThemeWordmarkHint: String { t("home.theme.wordmarkHint") }
     static var homeStatsReorderHint: String { t("home.stats.reorderHint") }
     static var homeStatsResetOrder: String { t("home.stats.resetOrder") }
     static var homeStatTodayPay: String { t("home.stat.todayPay") }

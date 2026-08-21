@@ -11169,6 +11169,75 @@
           }
         }
       }
+    },
+    "home.theme.wordmark" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "عنوان الشاشة الرئيسية"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Home title"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "כותרת מסך הבית"
+          }
+        }
+      }
+    },
+    "home.theme.wordmarkPlaceholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HoursTracker"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HoursTracker"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HoursTracker"
+          }
+        }
+      }
+    },
+    "home.theme.wordmarkHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يستبدل العنوان أعلى الشاشة الرئيسية — اتركه فارغًا للإبقاء على HoursTracker. لا يغيّر اسم أيقونة التطبيق على شاشة جهازك."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Replaces the title at the top of Home — leave it empty to keep HoursTracker. It does not rename the app icon on your Home Screen."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מחליף את הכותרת בראש מסך הבית - השאירו ריק כדי לשמור על HoursTracker. אין לכך השפעה על שם הסמל במסך הבית של המכשיר."
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

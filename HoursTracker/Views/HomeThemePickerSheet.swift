@@ -6,6 +6,7 @@ import SwiftUI
 struct HomeThemePickerSheet: View {
     @ObservedObject var theme: HomeAccentTheme
     @ObservedObject private var statsLayout = HomeStatsLayout.shared
+    @ObservedObject private var wordmark = HomeWordmark.shared
     @Environment(\.dismiss) private var dismiss
 
     private let columns = [
@@ -45,6 +46,29 @@ struct HomeThemePickerSheet: View {
                                 .labelsHidden()
                                 .padding(12)
                                 .background(HomeNeon.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                        }
+
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(L10n.homeThemeWordmark)
+                                .font(.subheadline.weight(.semibold))
+                                .foregroundStyle(.white.opacity(0.7))
+
+                            TextField(
+                                L10n.homeThemeWordmarkPlaceholder,
+                                text: $wordmark.text
+                            )
+                            .textInputAutocapitalization(.words)
+                            .autocorrectionDisabled()
+                            .submitLabel(.done)
+                            .foregroundStyle(.white)
+                            .tint(theme.accent)
+                            .padding(12)
+                            .background(HomeNeon.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+                            Text(L10n.homeThemeWordmarkHint)
+                                .font(.caption2)
+                                .foregroundStyle(.white.opacity(0.45))
+                                .fixedSize(horizontal: false, vertical: true)
                         }
 
                         VStack(alignment: .leading, spacing: 12) {
@@ -104,8 +128,11 @@ struct HomeThemePickerSheet: View {
         }
     }
 
+    /// Live preview of everything this sheet changes. The wordmark row is the real
+    /// `HomeBrandTitle` rather than a mock-up, so what you see here is exactly what the
+    /// Home navigation bar will render.
     private var preview: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 14) {
             Circle()
                 .fill(theme.accent.opacity(0.18))
                 .frame(width: 84, height: 84)
@@ -119,6 +146,11 @@ struct HomeThemePickerSheet: View {
                         .foregroundStyle(theme.accent)
                 )
                 .shadow(color: theme.accent.opacity(0.4), radius: 20)
+
+            HomeBrandTitle(accent: theme.accent)
+                .padding(.horizontal, 18)
+                .padding(.vertical, 10)
+                .background(HomeNeon.card, in: Capsule())
         }
         .frame(maxWidth: .infinity)
         .padding(.top, 8)
