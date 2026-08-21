@@ -94,6 +94,7 @@
    - `findDaysWithoutSessions(month)` (لطلب "الليالي يلي ما اشتغلت فيهن")
    - `aggregatePay(sessions, mode: .gross | .net)`
    - `generateDocument(sessions, format: .pdf | .word | .markdown | .txt, groupBy: ...)`
+   - `findPayslip(period)` — **استرجاع** תלוש موجود فعليًا (مش توليد جديد)، راجع 3.5.
    كل الـ tools هاي دوال Swift عادية بتشتغل على `viewModel.sessions` الحقيقية — **صفر
    استدعاء LLM لحساب رقم**. الـ LLM بس بيقرر *أي* دالة وبأي فلاتر، والنتيجة النهائية
    (الملف) تتولد عبر `ExportManager` الموجود.
@@ -131,6 +132,24 @@
 - لما المساعد يرجع ملف (PDF/Word/...): يظهر كبطاقة معاينة داخل المحادثة نفسها مع زر
   حفظ/مشاركة مباشر (نفس Share Sheet المستخدم بـ `ExportView`)، مش مجرد رابط نصي.
 - Loading state واضح أثناء انتظار رد الـ LLM (المساعد بيعتمد على شبكة فعليًا — راجع 3.1).
+
+### 3.5 طلب תלוש معين عبر المساعد
+
+الميزة موجودة أصلاً بالتطبيق (`PayslipStore`, `PayslipRecord`, `PayslipLibraryView`,
+`PayslipDetailView`) — المساعد بس بيوفر طريقة وصول جديدة إلها عبر المحادثة، **مش نبني
+تخزين/عرض תלושים من الصفر**.
+
+- Tool جديد `findPayslip(period)`: يدوّر بـ `PayslipStore` عن سجل (`PayslipRecord`) بمطابقة
+  `effectivePeriodMonth` (أو `periodLabel`) مع الشهر/الفترة يلي طلبها المستخدم بالمحادثة.
+  هاد **استرجاع بيانات موجودة**، مش توليد — لا علاقة له بـ `generateDocument`.
+- لو انلقى: تظهر بطاقة داخل شباك المحادثة فيها thumbnail (استخدم
+  `PayslipThumbnailCache` الموجود) + زرين: **"عرض"** (يفتح `PayslipDetailView` الموجودة
+  أصلاً، sheet فوق شباك المحادثة) و **"تحميل/مشاركة"** (Share Sheet مباشرة على الملف
+  الفعلي بـ `relativeFilePath` — نفس الملف الأصلي يلي رفعه/مسحه المستخدم، PDF أو صورة
+  حسب `sourceKind`، مش export جديد مُولّد).
+- لو ما انلقى תלוש لهاد الفترة (`PayslipStore` رجّع فاضي): رسالة واضحة بالمحادثة إنه مافي
+  תלוש مرفوع لهاد الشهر — **ممنوع الـ LLM يخترع بيانات תלוש مش موجودة فعليًا**، نفس مبدأ
+  منع الهلوسة بـ 3.2.
 
 ---
 
