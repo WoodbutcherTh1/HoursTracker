@@ -42,6 +42,8 @@ enum L10n {
         String(format: t("home.since %@"), time)
     }
     static var homeLiveGrossBasic: String { t("home.liveGrossBasic") }
+    static var homeLivePay: String { t("home.livePay") }
+    static var homeLivePayHint: String { t("home.livePayHint") }
     static var homeWeekLoading: String { t("home.weekLoading") }
     static var homeForgotClockIn: String { t("home.forgotClockIn") }
     static var homeForgotClockInArrivalPrompt: String { t("home.forgotClockIn.arrivalPrompt") }

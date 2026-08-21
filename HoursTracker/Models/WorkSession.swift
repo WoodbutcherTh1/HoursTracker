@@ -99,6 +99,14 @@ struct WorkSession: Codable, Identifiable, Equatable {
         modifiedAt = Date()
     }
 
+    /// Applies the workplace's default unpaid break to a long shift that doesn't already
+    /// carry one. Shared by `AppViewModel.clockOut()` and Home's live pay preview so the
+    /// running figure doesn't drop the instant the shift is actually closed.
+    mutating func applyDefaultBreakIfNeeded(settings: WorkplaceSettings) {
+        guard settings.defaultBreakMinutes > 0, breakMinutes == 0, totalHours >= 6 else { return }
+        breakMinutes = settings.defaultBreakMinutes
+    }
+
     var isOpen: Bool {
         clockOut == nil
     }

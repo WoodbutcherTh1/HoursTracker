@@ -526,6 +526,62 @@ struct HomeBrandTitle: View {
     }
 }
 
+/// The same three Home stats, squeezed into one horizontal strip for the clocked-in
+/// screen. While a shift is running the live timer is the subject and these are context,
+/// so they stay readable but visually step back: one short row instead of three tall
+/// cards, no sparklines, lower contrast.
+struct HomeCompactStatsStrip: View {
+    struct Item: Identifiable {
+        let id: String
+        let title: String
+        let value: String
+    }
+
+    let items: [Item]
+    var accent: Color = HomeNeon.accent
+    var compact: Bool = false
+
+    var body: some View {
+        HStack(spacing: 0) {
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                if index > 0 {
+                    Rectangle()
+                        .fill(Color.white.opacity(0.08))
+                        .frame(width: 1, height: 24)
+                }
+
+                VStack(spacing: 2) {
+                    Text(item.title)
+                        .font(.system(size: compact ? 9 : 10, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.45))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    Text(item.value)
+                        .font(.system(size: compact ? 13 : 15, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(accent.opacity(0.85))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .contentTransition(.numericText())
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 4)
+                .accessibilityElement(children: .combine)
+            }
+        }
+        .padding(.vertical, compact ? 7 : 9)
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(HomeNeon.card.opacity(0.55))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                )
+        )
+    }
+}
+
 enum HomeStatIconKind {
     case calendar
     case chart

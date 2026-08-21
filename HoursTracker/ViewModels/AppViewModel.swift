@@ -260,11 +260,7 @@ final class AppViewModel: ObservableObject {
             clockOut: clockOutDate
         )
         // Long shifts get the configured unpaid break unless one was set already.
-        if settings.defaultBreakMinutes > 0,
-           sessions[index].breakMinutes == 0,
-           sessions[index].totalHours >= 6 {
-            sessions[index].breakMinutes = settings.defaultBreakMinutes
-        }
+        sessions[index].applyDefaultBreakIfNeeded(settings: settings)
         sessions[index].touch()
         // Summarize only the shift just closed (day-aware so same-day OT/gas
         // sharing stays correct, but totals are for this session alone).
