@@ -5,8 +5,8 @@ import XCTest
 /// the model, every figure the user reads has to come from their own sessions or from
 /// `OvertimeCalculator`. These tests pin that down.
 final class AssistantEngineTests: XCTestCase {
-    private var calendar: Calendar!
-    private var settings: WorkplaceSettings!
+    private var calendar = Calendar(identifier: .gregorian)
+    private var settings = WorkplaceSettings.default
 
     override func setUp() {
         super.setUp()

@@ -2,7 +2,7 @@ import XCTest
 @testable import HoursTracker
 
 final class WorkedDaysCounterTests: XCTestCase {
-    private var calendar: Calendar!
+    private var calendar = Calendar(identifier: .gregorian)
 
     override func setUp() {
         super.setUp()

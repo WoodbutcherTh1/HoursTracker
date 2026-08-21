@@ -2,8 +2,8 @@ import XCTest
 @testable import HoursTracker
 
 final class AssistantToolboxTests: XCTestCase {
-    private var calendar: Calendar!
-    private var settings: WorkplaceSettings!
+    private var calendar = Calendar(identifier: .gregorian)
+    private var settings = WorkplaceSettings.default
 
     override func setUp() {
         super.setUp()
