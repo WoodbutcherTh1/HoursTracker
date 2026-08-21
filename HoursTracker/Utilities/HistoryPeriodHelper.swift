@@ -1,6 +1,6 @@
 import Foundation
 
-enum PayDisplayMode: String, CaseIterable, Identifiable {
+enum PayDisplayMode: String, CaseIterable, Identifiable, Codable {
     case net
     case gross
 

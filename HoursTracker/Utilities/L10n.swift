@@ -570,4 +570,78 @@ enum L10n {
 
     // User Guide
     static var guideTitle: String { t("guide.title") }
+
+    // Assistant
+    static var assistantTitle: String { t("assistant.title") }
+    static var assistantInputPlaceholder: String { t("assistant.inputPlaceholder") }
+    static var assistantSend: String { t("assistant.send") }
+    static var assistantThinking: String { t("assistant.thinking") }
+    static var assistantWelcome: String { t("assistant.welcome") }
+    static func assistantWelcomeNamed(_ name: String) -> String {
+        String(format: t("assistant.welcomeNamed %@"), name)
+    }
+    static var assistantWelcomeSubtitle: String { t("assistant.welcomeSubtitle") }
+    static var assistantPrivacyNote: String { t("assistant.privacyNote") }
+    static var assistantSuggestionOvertime: String { t("assistant.suggestion.overtime") }
+    static var assistantSuggestionPayThisMonth: String { t("assistant.suggestion.payThisMonth") }
+    static var assistantSuggestionDaysOff: String { t("assistant.suggestion.daysOff") }
+    static var assistantSuggestionReport: String { t("assistant.suggestion.report") }
+    static var assistantSuggestionPayslip: String { t("assistant.suggestion.payslip") }
+    static var assistantOutOfScope: String { t("assistant.outOfScope") }
+    static var assistantOutOfScopeHint: String { t("assistant.outOfScopeHint") }
+    static var assistantNotConfigured: String { t("assistant.notConfigured") }
+    static var assistantNotConfiguredHint: String { t("assistant.notConfiguredHint") }
+    static var assistantRateLimited: String { t("assistant.rateLimited") }
+    static var assistantNetworkError: String { t("assistant.networkError") }
+    static var assistantUnreadable: String { t("assistant.unreadable") }
+    static var assistantNoData: String { t("assistant.noData") }
+    static var assistantNoDataHint: String { t("assistant.noDataHint") }
+    static func assistantHoursHeadline(_ hours: String, _ days: Int) -> String {
+        String(format: t("assistant.hoursHeadline %@ %lld"), hours, days)
+    }
+    static func assistantPayNetHeadline(_ amount: String) -> String {
+        String(format: t("assistant.payNetHeadline %@"), amount)
+    }
+    static func assistantPayGrossHeadline(_ amount: String) -> String {
+        String(format: t("assistant.payGrossHeadline %@"), amount)
+    }
+    static var assistantPayEstimateNote: String { t("assistant.payEstimateNote") }
+    static func assistantShiftsHeadline(_ count: Int) -> String {
+        String(format: t("assistant.shiftsHeadline %lld"), count)
+    }
+    static func assistantDaysOffHeadline(_ count: Int) -> String {
+        String(format: t("assistant.daysOffHeadline %lld"), count)
+    }
+    static var assistantNoDaysOff: String { t("assistant.noDaysOff") }
+    static func assistantMoreRows(_ count: Int) -> String {
+        String(format: t("assistant.moreRows %lld"), count)
+    }
+    static var assistantDocumentReady: String { t("assistant.documentReady") }
+    static var assistantDocumentFailed: String { t("assistant.documentFailed") }
+    static func assistantPayslipFound(_ period: String) -> String {
+        String(format: t("assistant.payslipFound %@"), period)
+    }
+    static func assistantPayslipMissing(_ period: String) -> String {
+        String(format: t("assistant.payslipMissing %@"), period)
+    }
+    static var assistantPayslipMissingHint: String { t("assistant.payslipMissingHint") }
+    static var assistantView: String { t("assistant.view") }
+    static var assistantScopeAllTime: String { t("assistant.scope.allTime") }
+    static func assistantScopeAfter(_ time: String) -> String {
+        String(format: t("assistant.scope.after %@"), time)
+    }
+    static func assistantScopeBefore(_ time: String) -> String {
+        String(format: t("assistant.scope.before %@"), time)
+    }
+    static var assistantClear: String { t("assistant.clear") }
+    static var assistantSettingsTitle: String { t("assistant.settings.title") }
+    static var assistantSettingsEnabled: String { t("assistant.settings.enabled") }
+    static var assistantSettingsStyle: String { t("assistant.settings.style") }
+    static var assistantSettingsResetPosition: String { t("assistant.settings.resetPosition") }
+    static var assistantHideButton: String { t("assistant.hideButton") }
+    static var assistantHiddenToast: String { t("assistant.hiddenToast") }
+    static var assistantStyleSpark: String { t("assistant.style.spark") }
+    static var assistantStyleChat: String { t("assistant.style.chat") }
+    static var assistantStyleClock: String { t("assistant.style.clock") }
+    static var assistantStyleWand: String { t("assistant.style.wand") }
 }

@@ -11,6 +11,7 @@ struct HomeThemePickerSheet: View {
     @ObservedObject private var statsLayout = HomeStatsLayout.shared
     @ObservedObject private var wordmark = HomeWordmark.shared
     @ObservedObject private var appBackground = AppBackgroundTheme.shared
+    @ObservedObject private var assistant = AssistantAppearance.shared
     @Environment(\.dismiss) private var dismiss
 
     private let columns = [
@@ -28,130 +29,12 @@ struct HomeThemePickerSheet: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
                         preview
-
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text(L10n.homeThemePresets)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.white.opacity(0.7))
-
-                            LazyVGrid(columns: columns, spacing: 12) {
-                                ForEach(HomeAccentTheme.presets, id: \.hex) { preset in
-                                    swatch(hex: preset.hex, name: preset.name)
-                                }
-                            }
-                        }
-
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text(L10n.homeThemeCustom)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.white.opacity(0.7))
-
-                            ColorPicker(L10n.homeThemeCustom, selection: $theme.accent, supportsOpacity: false)
-                                .labelsHidden()
-                                .padding(12)
-                                .background(HomeNeon.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        }
-
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text(L10n.homeThemeBackground)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.white.opacity(0.7))
-
-                            LazyVGrid(columns: columns, spacing: 12) {
-                                ForEach(AppBackgroundTheme.presets, id: \.hex) { preset in
-                                    backgroundSwatch(
-                                        hex: preset.hex,
-                                        name: AppBackgroundTheme.localizedPresetName(preset.name)
-                                    )
-                                }
-                            }
-
-                            ColorPicker(
-                                L10n.homeThemeBackground,
-                                selection: $appBackground.background,
-                                supportsOpacity: false
-                            )
-                            .labelsHidden()
-                            .padding(12)
-                            .background(HomeNeon.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                        }
-
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text(L10n.homeThemeWordmark)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.white.opacity(0.7))
-
-                            TextField(
-                                L10n.homeThemeWordmarkPlaceholder,
-                                text: $wordmark.text
-                            )
-                            .textInputAutocapitalization(.words)
-                            .autocorrectionDisabled()
-                            .submitLabel(.done)
-                            .foregroundStyle(.white)
-                            .tint(theme.accent)
-                            .padding(12)
-                            .background(HomeNeon.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-
-                            Text(L10n.homeThemeWordmarkHint)
-                                .font(.caption2)
-                                .foregroundStyle(.white.opacity(0.45))
-                                .fixedSize(horizontal: false, vertical: true)
-                        }
-
-                        VStack(alignment: .leading, spacing: 12) {
-                            Text(L10n.homeStatsCardsTitle)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(.white.opacity(0.7))
-
-                            VStack(spacing: 8) {
-                                ForEach(Array(statsLayout.order.enumerated()), id: \.offset) { index, metric in
-                                    cardSlotRow(index: index, metric: metric)
-                                }
-                            }
-                        }
-
-                        Button(role: .destructive) {
-                            theme.reset()
-                        } label: {
-                            Text(L10n.homeThemeReset)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(HomeNeon.coral)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(
-                                    Capsule(style: .continuous)
-                                        .stroke(HomeNeon.coral.opacity(0.5), lineWidth: 1.2)
-                                )
-                        }
-
-                        Button(role: .destructive) {
-                            withAnimation(.easeInOut(duration: 0.2)) { appBackground.reset() }
-                        } label: {
-                            Text(L10n.homeThemeBackgroundReset)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(HomeNeon.coral)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(
-                                    Capsule(style: .continuous)
-                                        .stroke(HomeNeon.coral.opacity(0.5), lineWidth: 1.2)
-                                )
-                        }
-
-                        Button(role: .destructive) {
-                            statsLayout.reset()
-                        } label: {
-                            Text(L10n.homeStatsResetOrder)
-                                .font(.subheadline.weight(.semibold))
-                                .foregroundStyle(HomeNeon.coral)
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 12)
-                                .background(
-                                    Capsule(style: .continuous)
-                                        .stroke(HomeNeon.coral.opacity(0.5), lineWidth: 1.2)
-                                )
-                        }
+                        accentSection
+                        backgroundSection
+                        wordmarkSection
+                        assistantSection
+                        cardsSection
+                        resetSection
                     }
                     .padding(20)
                 }
@@ -167,6 +50,144 @@ struct HomeThemePickerSheet: View {
                         .foregroundStyle(theme.accent)
                 }
             }
+        }
+    }
+
+    // MARK: - Sections
+
+    private var accentSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle(L10n.homeThemePresets)
+
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(HomeAccentTheme.presets, id: \.hex) { preset in
+                    swatch(hex: preset.hex, name: preset.name)
+                }
+            }
+
+            sectionTitle(L10n.homeThemeCustom)
+
+            ColorPicker(L10n.homeThemeCustom, selection: $theme.accent, supportsOpacity: false)
+                .labelsHidden()
+                .padding(12)
+                .background(HomeNeon.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+
+    private var backgroundSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle(L10n.homeThemeBackground)
+
+            LazyVGrid(columns: columns, spacing: 12) {
+                ForEach(AppBackgroundTheme.presets, id: \.hex) { preset in
+                    backgroundSwatch(
+                        hex: preset.hex,
+                        name: AppBackgroundTheme.localizedPresetName(preset.name)
+                    )
+                }
+            }
+
+            ColorPicker(
+                L10n.homeThemeBackground,
+                selection: $appBackground.background,
+                supportsOpacity: false
+            )
+            .labelsHidden()
+            .padding(12)
+            .background(HomeNeon.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        }
+    }
+
+    private var wordmarkSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle(L10n.homeThemeWordmark)
+
+            TextField(L10n.homeThemeWordmarkPlaceholder, text: $wordmark.text)
+                .textInputAutocapitalization(.words)
+                .autocorrectionDisabled()
+                .submitLabel(.done)
+                .foregroundStyle(.white)
+                .tint(theme.accent)
+                .padding(12)
+                .background(HomeNeon.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            Text(L10n.homeThemeWordmarkHint)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.45))
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    private var assistantSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle(L10n.assistantSettingsTitle)
+
+            Toggle(L10n.assistantSettingsEnabled, isOn: $assistant.isVisible.animation())
+                .font(.subheadline)
+                .foregroundStyle(.white)
+                .tint(theme.accent)
+                .padding(12)
+                .background(HomeNeon.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+
+            if assistant.isVisible {
+                HStack(spacing: 10) {
+                    ForEach(AssistantIconStyle.allCases) { style in
+                        assistantStyleSwatch(style)
+                    }
+                }
+
+                Button {
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        assistant.resetPosition()
+                    }
+                } label: {
+                    Text(L10n.assistantSettingsResetPosition)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+            }
+        }
+    }
+
+    private var cardsSection: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            sectionTitle(L10n.homeStatsCardsTitle)
+
+            VStack(spacing: 8) {
+                ForEach(Array(statsLayout.order.enumerated()), id: \.offset) { index, metric in
+                    cardSlotRow(index: index, metric: metric)
+                }
+            }
+        }
+    }
+
+    private var resetSection: some View {
+        VStack(spacing: 12) {
+            resetButton(L10n.homeThemeReset) { theme.reset() }
+            resetButton(L10n.homeThemeBackgroundReset) {
+                withAnimation(.easeInOut(duration: 0.2)) { appBackground.reset() }
+            }
+            resetButton(L10n.homeStatsResetOrder) { statsLayout.reset() }
+        }
+    }
+
+    private func sectionTitle(_ text: String) -> some View {
+        Text(text)
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.white.opacity(0.7))
+    }
+
+    private func resetButton(_ title: String, action: @escaping () -> Void) -> some View {
+        Button(role: .destructive, action: action) {
+            Text(title)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(HomeNeon.coral)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 12)
+                .background(
+                    Capsule(style: .continuous)
+                        .stroke(HomeNeon.coral.opacity(0.5), lineWidth: 1.2)
+                )
         }
     }
 
@@ -228,6 +249,37 @@ struct HomeThemePickerSheet: View {
             .padding(12)
             .background(HomeNeon.card, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         }
+    }
+
+    /// Icon choice for the floating assistant button, drawn the way it will actually
+    /// appear — accent-colored on the app's card surface, not as a plain symbol list.
+    private func assistantStyleSwatch(_ style: AssistantIconStyle) -> some View {
+        let isSelected = assistant.style == style
+
+        return Button {
+            withAnimation(.easeInOut(duration: 0.15)) {
+                assistant.style = style
+            }
+        } label: {
+            Image(systemName: style.systemImage)
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(theme.accent)
+                .frame(width: 46, height: 46)
+                .background(
+                    Circle()
+                        .fill(HomeNeon.card)
+                        .overlay(
+                            Circle().stroke(
+                                isSelected ? theme.accent : Color.white.opacity(0.12),
+                                lineWidth: isSelected ? 2 : 1
+                            )
+                        )
+                )
+                .shadow(color: theme.accent.opacity(isSelected ? 0.4 : 0), radius: 8)
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(style.title)
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 
     /// Background swatches carry a hairline ring rather than relying on the fill alone —

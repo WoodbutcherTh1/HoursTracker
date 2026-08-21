@@ -85,6 +85,8 @@ struct MainTabView: View {
     // color and every standard button/toggle/link tint across History, Export, and
     // Settings, not just Home's own neon-styled elements.
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
+    @ObservedObject private var assistantAppearance = AssistantAppearance.shared
+    @State private var showAssistant = false
 
     var body: some View {
         let _ = appLanguage.preference // keep tab labels tied to language changes
@@ -123,6 +125,25 @@ struct MainTabView: View {
                 }
         }
         .tint(homeTheme.accent)
+        // Above every tab rather than inside one, so the assistant is reachable from
+        // Home, History, Export and Settings alike. Below the toast overlay, so a
+        // confirmation banner is never hidden behind it.
+        .overlay {
+            if assistantAppearance.isVisible {
+                AssistantFloatingButton(
+                    onOpen: { showAssistant = true },
+                    onHide: {
+                        assistantAppearance.isVisible = false
+                        viewModel.showSuccessToast(L10n.assistantHiddenToast)
+                    }
+                )
+            }
+        }
+        .sheet(isPresented: $showAssistant) {
+            AssistantChatSheet(viewModel: viewModel)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
         .overlay(alignment: .bottom) {
             if let message = viewModel.successToast {
                 SuccessToastBanner(message: message)
