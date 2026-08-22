@@ -73,10 +73,6 @@ private struct PositionedAssistantButton: View {
     var body: some View {
         icon
             .position(x: currentX, y: currentY)
-            .animation(
-                reduceMotion || isDragging ? nil : .spring(response: 0.35, dampingFraction: 0.75),
-                value: appearance.edge
-            )
     }
 
     /// The padding is load-bearing, not cosmetic. The X badge is an overlay anchored to
@@ -189,9 +185,17 @@ private struct PositionedAssistantButton: View {
                 let bottomAnchor = containerSize.height - Self.bottomInset - Self.diameter / 2
                 let fraction = verticalTravel > 0 ? (bottomAnchor - droppedY) / verticalTravel : 0
 
-                dragTranslation = .zero
-                isDragging = false
+                // All four together, in one transaction: splitting the drag-state reset
+                // from the position change (previously two separate statements, only the
+                // second wrapped in withAnimation) left SwiftUI free to commit them as two
+                // transactions instead of one, which is exactly the kind of ambiguity that
+                // produces an animation that's smooth sometimes and snaps on other drags —
+                // matching "moves no good." One block removes the ambiguity outright, and
+                // as a side effect the opacity/scale release (both keyed off `isDragging`)
+                // now eases back down with the same spring instead of popping instantly.
                 withAnimation(reduceMotion ? nil : .spring(response: 0.35, dampingFraction: 0.75)) {
+                    dragTranslation = .zero
+                    isDragging = false
                     appearance.edge = newEdge
                     appearance.verticalOffset = Double(fraction)
                 }
