@@ -35,8 +35,14 @@ final class AppViewModelTests: XCTestCase {
     func testClockInAtCustomTimePersistsOpenSession() {
         let (viewModel, store) = makeViewModel()
         let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let arrival = calendar.date(bySettingHour: 8, minute: 15, second: 0, of: today)!
+        // A relative offset rather than a fixed wall-clock hour: `clockIn(at:)` clamps to
+        // `min(date, Date())`, so an absolute "08:15 today" is only reliably in the past
+        // when the test happens to run after 08:15 in the runner's time zone — CI running
+        // earlier than that clamps the recorded time to "now" and this test's exact-match
+        // assertion below fails on a totally correct clamp, not a real bug. An hour before
+        // whenever the test actually runs is in the past unconditionally.
+        let arrival = Date().addingTimeInterval(-3600)
+        let today = calendar.startOfDay(for: arrival)
 
         viewModel.clockIn(at: arrival, isManual: true)
 
