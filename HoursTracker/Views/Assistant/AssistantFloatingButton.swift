@@ -69,6 +69,10 @@ private struct PositionedAssistantButton: View {
     private static let bottomInset: CGFloat = 104
     private static let topInset: CGFloat = 28
     private static let hideControlTimeout: TimeInterval = 4
+    private static let hideControlHoldDuration: TimeInterval = 3
+    /// How far a finger may wander during the 3-second hold before it no longer counts
+    /// as "holding still" — see `pressAndDragGesture` for why this needs to be generous.
+    private static let holdMovementTolerance: CGFloat = 24
 
     var body: some View {
         icon
@@ -101,10 +105,7 @@ private struct PositionedAssistantButton: View {
             guard !suppressTapAfterLongPress else { return }
             onOpen()
         }
-        .onLongPressGesture(minimumDuration: 3) {
-            revealHideControl()
-        }
-        .gesture(dragGesture)
+        .gesture(pressAndDragGesture)
         .accessibilityElement(children: .combine)
         .accessibilityLabel(L10n.assistantTitle)
         .accessibilityAddTraits(.isButton)
@@ -163,13 +164,45 @@ private struct PositionedAssistantButton: View {
     private var currentX: CGFloat { restingX + dragTranslation.width }
     private var currentY: CGFloat { restingY + dragTranslation.height }
 
+    /// The long-press-to-reveal-X and the drag-to-reposition used to be two independent
+    /// gesture recognizers attached to the same view, both live from the same touch-down.
+    /// `onLongPressGesture`'s own movement tolerance and the drag's `minimumDistance`
+    /// were evaluated simultaneously and independently, so whichever recognized first
+    /// won — unpredictably, since ordinary hand tremor from holding a finger still for a
+    /// full 3 seconds routinely exceeds an 8pt drag threshold. When the drag won mid
+    /// hold, the button jumped to wherever that stray movement placed it: reported as
+    /// the icon "running away" specifically on a long press, never on an ordinary drag.
+    ///
+    /// `.exclusively(before:)` removes the race by making the two mutually exclusive
+    /// rather than simultaneous: the drag isn't eligible to recognize anything until the
+    /// long press has definitively failed. `holdMovementTolerance` (24pt — well above
+    /// normal tremor) is how much wandering still counts as "holding still"; a genuine
+    /// drag attempt exceeds that almost immediately, which fails the long press and
+    /// hands off to the drag with no perceptible delay.
+    private var pressAndDragGesture: some Gesture {
+        LongPressGesture(
+            minimumDuration: Self.hideControlHoldDuration,
+            maximumDistance: Self.holdMovementTolerance
+        )
+        .onEnded { _ in
+            revealHideControl()
+        }
+        .exclusively(before: dragGesture)
+    }
+
     /// `.global` rather than the default `.local`: a `DragGesture`'s local coordinate
     /// space is the gesture-recognizing view's own frame, which the `.scaleEffect` above
     /// transforms mid-drag. Measuring against the window instead keeps the reported
     /// translation equal to actual finger movement no matter what the icon's own
     /// transform is doing.
+    ///
+    /// `minimumDistance: 0` rather than a threshold of its own: disambiguating "holding
+    /// still" from "starting a drag" is entirely `pressAndDragGesture`'s job now (via
+    /// `holdMovementTolerance`), so this gesture only ever becomes live once that's
+    /// already decided in its favor — it should track from exactly that handoff point,
+    /// not demand yet another threshold stacked on top.
     private var dragGesture: some Gesture {
-        DragGesture(minimumDistance: 8, coordinateSpace: .global)
+        DragGesture(minimumDistance: 0, coordinateSpace: .global)
             .onChanged { value in
                 isDragging = true
                 dragTranslation = value.translation
