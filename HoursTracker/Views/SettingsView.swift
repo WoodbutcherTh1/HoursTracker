@@ -24,6 +24,12 @@ struct SettingsView: View {
     @State private var pendingImportDocument: FullDataExportDocument?
     @State private var showImportConfirm = false
     @State private var importErrorMessage: String?
+    // Manual JSON backup / restore (Tools section).
+    @State private var isBackupWorking = false
+    @State private var backupShareItem: ShareableFile?
+    @State private var showBackupImporter = false
+    @State private var backupRestoreDocument: FullDataExportDocument?
+    @State private var showBackupRestoreConfirm = false
     @State private var showArrivalExplainer = false
     @State private var showDisableSyncConfirm = false
     @State private var isEditingIDNumber = false
@@ -66,11 +72,17 @@ struct SettingsView: View {
             .scrollDismissesKeyboard(.interactively)
             .keyboardDismissible()
             .navigationTitle(L10n.settingsTitle)
+            .toolbarBackground(appBackground.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.settingsSave) {
                         saveSettings()
                     }
+                }
+                ToolbarItem(placement: .topBarTrailing) {
+                    AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
                 }
             }
             .onAppear {
@@ -119,6 +131,41 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showFullDataExport) {
                 FullDataExportSheet(viewModel: viewModel)
+            }
+            // Manual JSON backup share sheet.
+            .sheet(item: $backupShareItem, onDismiss: {
+                viewModel.showSuccessToast(L10n.fullExportSuccess)
+            }) { item in
+                ShareSheet(items: [item.url])
+            }
+            // Manual JSON restore: pick a file, then confirm how it is applied.
+            .fileImporter(
+                isPresented: $showBackupImporter,
+                allowedContentTypes: [.json],
+                allowsMultipleSelection: false
+            ) { result in
+                handleBackupRestorePick(result)
+            }
+            .confirmationDialog(
+                L10n.fullImportConfirmTitle,
+                isPresented: $showBackupRestoreConfirm,
+                titleVisibility: .visible
+            ) {
+                Button(L10n.fullImportReplace, role: .destructive) {
+                    applyBackupRestore(mode: .replace)
+                }
+                Button(L10n.fullImportMerge) {
+                    applyBackupRestore(mode: .merge)
+                }
+                Button(L10n.editCancel, role: .cancel) {
+                    backupRestoreDocument = nil
+                }
+            } message: {
+                if let doc = backupRestoreDocument {
+                    Text(L10n.fullImportConfirmMessage(doc.sessions.count, doc.appVersion))
+                } else {
+                    Text(L10n.fullImportConfirmFallback)
+                }
             }
             .fileImporter(
                 isPresented: $showFullDataImporter,
@@ -181,6 +228,64 @@ struct SettingsView: View {
     private func applyFullDataImport(mode: FullDataImportMode) {
         guard let document = pendingImportDocument else { return }
         pendingImportDocument = nil
+        do {
+            try viewModel.importFullDataExport(document, mode: mode)
+            draft = viewModel.settings
+            viewModel.showSuccessToast(L10n.fullImportSuccess)
+        } catch {
+            importErrorMessage = error.localizedDescription
+        }
+    }
+
+    // MARK: - Manual JSON backup / restore
+
+    /// Builds the JSON backup document and hands it to the share sheet, so the
+    /// user can save it to Files, iCloud Drive, or send it anywhere.
+    private func backupJSON() {
+        guard !isBackupWorking else { return }
+        isBackupWorking = true
+        do {
+            let url = try FullDataExportManager().export(
+                settings: viewModel.settings,
+                sessions: viewModel.sessions,
+                activityLog: ActivityLogStore.shared.entries,
+                format: .json,
+                language: .phone
+            )
+            ActivityLogStore.shared.log(
+                L10n.logEventFullDataExport,
+                level: .success,
+                category: "backup",
+                details: "json"
+            )
+            DispatchQueue.main.async {
+                isBackupWorking = false
+                backupShareItem = ShareableFile(url: url)
+            }
+        } catch {
+            isBackupWorking = false
+            importErrorMessage = error.localizedDescription
+        }
+    }
+
+    private func handleBackupRestorePick(_ result: Result<[URL], Error>) {
+        switch result {
+        case .failure(let error):
+            importErrorMessage = error.localizedDescription
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            do {
+                backupRestoreDocument = try FullDataExportManager().loadJSONDocument(from: url)
+                showBackupRestoreConfirm = true
+            } catch {
+                importErrorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func applyBackupRestore(mode: FullDataImportMode) {
+        guard let document = backupRestoreDocument else { return }
+        backupRestoreDocument = nil
         do {
             try viewModel.importFullDataExport(document, mode: mode)
             draft = viewModel.settings
@@ -716,6 +821,22 @@ struct SettingsView: View {
                 ActivityLogView(viewModel: viewModel)
             } label: {
                 Label(L10n.logTitle, systemImage: "list.bullet.rectangle")
+            }
+
+            // Manual JSON backup: sessions + settings in one portable file,
+            // saved through Files (or any share target) via the share sheet.
+            Button {
+                backupJSON()
+            } label: {
+                Label(L10n.fullExportTitle, systemImage: "externaldrive.badge.timemachine")
+            }
+            .disabled(isBackupWorking)
+
+            // Restore from a JSON backup file with an explicit replace/merge choice.
+            Button {
+                showBackupImporter = true
+            } label: {
+                Label(L10n.fullImportTitle, systemImage: "square.and.arrow.down.on.square")
             }
         }
     }

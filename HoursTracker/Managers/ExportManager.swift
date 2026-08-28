@@ -41,6 +41,16 @@ enum ExportFormat: CaseIterable, Identifiable {
         case .markdown: return "md"
         }
     }
+
+    var mimeType: String {
+        switch self {
+        case .pdf: return "application/pdf"
+        case .csv: return "text/csv"
+        case .txt: return "text/plain"
+        case .docx: return "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        case .markdown: return "text/markdown"
+        }
+    }
 }
 
 enum ExportDateRange: Equatable {
@@ -299,38 +309,50 @@ final class ExportManager {
             }
             y += 8
 
-            // Payroll summary cards (mirrored order in RTL)
+            // Payroll summary cards (mirrored order in RTL).
+            // Aggregate banner: hours, gross, both OT tiers, deductions, net —
+            // everything a payroll clerk checks first, before the daily table.
             drawText(copy.payrollSummary, font: sectionFont, x: margin, width: contentWidth)
             y += 20
 
             let deductions = totals.incomeTax + totals.nationalInsurance + totals.healthTax
+            let netPay = totals.grossPay - deductions
             let cards = ExportLayout.visualOrder([
                 (copy.colSummaryTotalHours, formatHours(totals.totalHours)),
                 (copy.colGrossPay, formatMoney(totals.grossPay, currencyCode: totals.currencyCode)),
+                ("125%", formatMoney(totals.ot125Pay, currencyCode: totals.currencyCode)),
+                ("150%", formatMoney(totals.ot150Pay, currencyCode: totals.currencyCode)),
                 (copy.colDeductions, formatMoney(deductions, currencyCode: totals.currencyCode)),
-                (copy.colNetPay, formatMoney(totals.netPay, currencyCode: totals.currencyCode))
+                (copy.colNetPay, formatMoney(netPay, currencyCode: totals.currencyCode))
             ], isRTL: rtl)
-            let cardGap: CGFloat = 10
-            let cardWidth = (contentWidth - cardGap * 3) / 4
-            let cardHeight: CGFloat = 48
-            for (index, card) in cards.enumerated() {
-                let x = margin + CGFloat(index) * (cardWidth + cardGap)
+            let cardGap: CGFloat = 8
+            let cardsPerRow = 3
+            let rowCount = Int(ceil(Double(cards.count) / Double(cardsPerRow)))
+            let cardWidth = (contentWidth - cardGap * CGFloat(cardsPerRow - 1)) / CGFloat(cardsPerRow)
+            let labelHeight: CGFloat = 12
+            let valueHeight: CGFloat = 18
+            let cardHeight = labelHeight + valueHeight + 12
+            for index in cards.indices {
+                let row = index / cardsPerRow
+                let column = index % cardsPerRow
+                let x = margin + CGFloat(column) * (cardWidth + cardGap)
+                let cardY = y + CGFloat(row) * (cardHeight + cardGap)
                 UIColor(red: 0.94, green: 0.96, blue: 0.98, alpha: 1).setFill()
-                UIRectFill(CGRect(x: x, y: y, width: cardWidth, height: cardHeight))
+                UIRectFill(CGRect(x: x, y: cardY, width: cardWidth, height: cardHeight))
                 UIColor(red: 0.75, green: 0.82, blue: 0.88, alpha: 1).setStroke()
-                let path = UIBezierPath(rect: CGRect(x: x, y: y, width: cardWidth, height: cardHeight))
+                let path = UIBezierPath(rect: CGRect(x: x, y: cardY, width: cardWidth, height: cardHeight))
                 path.lineWidth = 1
                 path.stroke()
-                card.0.draw(
-                    in: CGRect(x: x + 8, y: y + 6, width: cardWidth - 16, height: 14),
+                cards[index].0.draw(
+                    in: CGRect(x: x + 6, y: cardY + 5, width: cardWidth - 12, height: labelHeight),
                     withAttributes: attrs(smallFont, color: UIColor.darkGray)
                 )
-                card.1.draw(
-                    in: CGRect(x: x + 8, y: y + 22, width: cardWidth - 16, height: 18),
+                cards[index].1.draw(
+                    in: CGRect(x: x + 6, y: cardY + 5 + labelHeight, width: cardWidth - 12, height: valueHeight),
                     withAttributes: attrs(headerFont)
                 )
             }
-            y += cardHeight + 14
+            y += CGFloat(rowCount) * (cardHeight + cardGap) + 6
 
             // Hours + pay charts side by side (hours on the right in RTL)
             let chartWidth = (contentWidth - 16) / 2

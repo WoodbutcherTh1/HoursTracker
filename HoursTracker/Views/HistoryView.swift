@@ -79,8 +79,12 @@ struct HistoryView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+                    AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
                 }
             }
+            .toolbarBackground(appBackground.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .sheet(item: $selectedSession) { session in
                 ShiftDetailSheet(
                     session: session,

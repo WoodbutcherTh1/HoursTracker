@@ -135,16 +135,6 @@ struct HomeThemePickerSheet: View {
                         assistantStyleSwatch(style)
                     }
                 }
-
-                Button {
-                    withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                        assistant.resetPosition()
-                    }
-                } label: {
-                    Text(L10n.assistantSettingsResetPosition)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.white.opacity(0.6))
-                }
             }
         }
     }

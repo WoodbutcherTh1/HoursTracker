@@ -100,8 +100,6 @@ struct MainTabView: View {
     // color and every standard button/toggle/link tint across History, Export, and
     // Settings, not just Home's own neon-styled elements.
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
-    @ObservedObject private var assistantAppearance = AssistantAppearance.shared
-    @State private var showAssistant = false
 
     /// A scan that completes while the assistant is already open stays queued rather
     /// than yanking the assistant away mid-conversation: the existing "ready for review"
@@ -112,12 +110,12 @@ struct MainTabView: View {
     private var activeSheetRoute: Binding<MainSheetRoute?> {
         Binding(
             get: {
-                if showAssistant { return .assistant }
+                if viewModel.showAssistant { return .assistant }
                 if viewModel.showPendingScannerReview { return .scannerReview }
                 return nil
             },
             set: { newRoute in
-                showAssistant = (newRoute == .assistant)
+                viewModel.showAssistant = (newRoute == .assistant)
                 viewModel.showPendingScannerReview = (newRoute == .scannerReview)
             }
         )
@@ -160,20 +158,10 @@ struct MainTabView: View {
                 }
         }
         .tint(homeTheme.accent)
-        // Above every tab rather than inside one, so the assistant is reachable from
-        // Home, History, Export and Settings alike. Below the toast overlay, so a
-        // confirmation banner is never hidden behind it.
-        .overlay {
-            if assistantAppearance.isVisible {
-                AssistantFloatingButton(
-                    onOpen: { showAssistant = true },
-                    onHide: {
-                        assistantAppearance.isVisible = false
-                        viewModel.showSuccessToast(L10n.assistantHiddenToast)
-                    }
-                )
-            }
-        }
+        // The assistant lives in each tab root's navigation bar now
+        // (`assistantToolbarEntry`), so there is no floating overlay to cover
+        // screen content. Below the toast, so a confirmation banner is never
+        // hidden behind anything.
         .overlay(alignment: .bottom) {
             if let message = viewModel.successToast {
                 SuccessToastBanner(message: message)

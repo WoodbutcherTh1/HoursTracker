@@ -5,7 +5,7 @@ import SwiftUI
 /// exact swatch visuals from `HomeThemePickerSheet`, the real `DayType` picker and
 /// `L10n.manualHolidayAutoFilled*` strings from `ManualEntryView`, the real
 /// `L10n.scannerCloudEnabled` toggle from `SettingsView`, and the real
-/// `AssistantButtonIcon` / `AssistantWelcomeView` for the assistant — rather than
+/// `AssistantToolbarButton` / `AssistantWelcomeView` for the assistant — rather than
 /// illustrations that could drift from what the app actually does.
 ///
 /// Only the assistant slide got a page of its own in the August 2026 batch. The Home
@@ -517,11 +517,12 @@ private struct GuideShiftDetailPage: View {
     }
 }
 
-// MARK: - Slide 7: Assistant — the real floating icon and the real empty chat state
+// MARK: - Slide 7: Assistant — the real toolbar icon and the real empty chat state
 
-/// Both halves are the shipping views: `AssistantButtonIcon` is what actually floats
-/// over the tabs, and `AssistantWelcomeView` is exactly what the chat sheet opens on,
-/// down to the personalized greeting. Only the taps are disabled — this is a guide, so
+/// Both halves are the shipping views: the assistant now lives in each tab's
+/// navigation bar (same `sparkles` symbol as `AssistantToolbarButton` renders),
+/// and `AssistantWelcomeView` is exactly what the chat sheet opens on, down to
+/// the personalized greeting. Only the taps are disabled — this is a guide, so
 /// selecting a suggestion here shouldn't fire a real API call.
 private struct GuideAssistantPage: View {
     let accent: Color
@@ -530,7 +531,9 @@ private struct GuideAssistantPage: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 18) {
-                AssistantButtonIcon(style: AssistantAppearance.shared.style, accent: accent)
+                Image(systemName: AssistantAppearance.shared.style.systemImage)
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(accent)
 
                 AssistantWelcomeView(
                     accent: accent,

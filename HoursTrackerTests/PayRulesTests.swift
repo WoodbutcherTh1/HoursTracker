@@ -102,6 +102,121 @@ final class PayRulesTests: XCTestCase {
         XCTAssertEqual(restPay, holidayPay, accuracy: 0.001)
     }
 
+    // MARK: - Friday-night → Saturday transitions (Shabbat)
+
+    /// Settings with the Israeli weekend: Saturday primary, Friday second.
+    private func israeliWeekendSettings() -> WorkplaceSettings {
+        var s = TestData.settings()
+        s.restDayWeekday = 7       // Saturday
+        s.secondRestDayWeekday = 6 // Friday
+        return s
+    }
+
+    /// A shift that starts Friday evening and runs into Saturday morning is
+    /// priced by its start day. With the Israeli weekend (Fri + Sat both rest
+    /// days), every hour lands on rest-day rates (150% base) regardless of
+    /// which side of midnight it falls on.
+    func testFridayNightShiftSplitsIntoSaturdayRestDayRates() {
+        let calendar = Calendar.current
+        let friday = TestData.date(2026, 7, 17) // Friday
+        let start = calendar.date(bySettingHour: 20, minute: 0, second: 0, of: friday)!
+        let end = calendar.date(bySettingHour: 8, minute: 0, second: 0, of: TestData.date(2026, 7, 18))! // Sat 08:00
+
+        var session = WorkSession(
+            date: calendar.startOfDay(for: friday),
+            clockIn: start,
+            clockOut: end
+        )
+        session.dayType = .automatic(
+            for: friday,
+            settings: israeliWeekendSettings()
+        )
+        XCTAssertEqual(session.dayType, .restDay)
+
+        // 12h overnight shift: 8.6h base at 150%, 2h at 175%, remainder at 200%.
+        let b = OvertimeCalculator.breakdown(for: session, settings: israeliWeekendSettings())
+
+        XCTAssertEqual(b.totalHours, 12, accuracy: 0.001)
+        XCTAssertEqual(b.regularHours, 8.6, accuracy: 0.001)
+        XCTAssertEqual(b.ot125Hours, 2.0, accuracy: 0.001)
+        XCTAssertEqual(b.ot150Hours, 12 - 8.6 - 2.0, accuracy: 0.001)
+        XCTAssertEqual(b.basePay, 8.6 * 100 * 1.5, accuracy: 0.01)
+        XCTAssertEqual(b.ot125Pay, 2.0 * 100 * 1.75, accuracy: 0.01)
+        XCTAssertEqual(b.ot150Pay, (12 - 8.6 - 2.0) * 100 * 2.0, accuracy: 0.01)
+    }
+
+    /// A long shift fully inside Saturday earns rest-day tiers:
+    /// 8.6h × 150%, then up to 2h × 175%, remainder × 200%.
+    func testSaturdayLongShiftUses175And200Tiers() {
+        var session = TestData.session(year: 2026, month: 7, day: 18, inHour: 6, outHour: 19) // Sat, 13h
+        session.dayType = .automatic(
+            for: TestData.date(2026, 7, 18),
+            settings: israeliWeekendSettings()
+        )
+        XCTAssertEqual(session.dayType, .restDay)
+
+        let b = OvertimeCalculator.breakdown(for: session, settings: israeliWeekendSettings())
+
+        XCTAssertEqual(b.regularHours, 8.6, accuracy: 0.001)
+        XCTAssertEqual(b.ot125Hours, 2.0, accuracy: 0.001)
+        XCTAssertEqual(b.ot150Hours, 13 - 8.6 - 2.0, accuracy: 0.001)
+        XCTAssertEqual(b.basePay, 8.6 * 100 * 1.5, accuracy: 0.01)   // 150%
+        XCTAssertEqual(b.ot125Pay, 2.0 * 100 * 1.75, accuracy: 0.01) // 175%
+        XCTAssertEqual(b.ot150Pay, (13 - 8.6 - 2.0) * 100 * 2.0, accuracy: 0.01) // 200%
+    }
+
+    /// The same hours worked on Friday daytime stay on regular rates —
+    /// only the transition into Saturday picks up rest-day pay.
+    func testFridayDaytimeShiftStaysOnRegularRates() {
+        let friday = TestData.date(2026, 7, 17)
+        var session = TestData.session(year: 2026, month: 7, day: 17, inHour: 8, outHour: 18) // Fri 10h
+        session.dayType = DayType.automatic(for: friday, settings: israeliWeekendSettings())
+        XCTAssertEqual(session.dayType, .restDay) // Friday IS a second rest day here
+
+        // Compare against an identical Thursday shift: identical pay.
+        var thursday = TestData.session(year: 2026, month: 7, day: 16, inHour: 8, outHour: 18)
+        thursday.dayType = .regular
+        let thursdayBreakdown = OvertimeCalculator.breakdown(for: thursday, settings: settings)
+        let fridayBreakdown = OvertimeCalculator.breakdown(for: session, settings: israeliWeekendSettings())
+
+        XCTAssertEqual(fridayBreakdown.regularHours, thursdayBreakdown.regularHours, accuracy: 0.001)
+        // Both are rest/regular tiered identically in hours...
+        XCTAssertEqual(fridayBreakdown.regularHours, 8.6, accuracy: 0.001)
+        XCTAssertEqual(fridayBreakdown.ot125Hours, 1.4, accuracy: 0.001)
+        // ...but Friday pays rest-day multipliers while Thursday pays regular ones.
+        XCTAssertEqual(thursdayBreakdown.basePay, 860, accuracy: 0.01)
+        XCTAssertEqual(fridayBreakdown.basePay, 8.6 * 100 * 1.5, accuracy: 0.01)
+    }
+
+    /// An explicitly marked holiday that spans midnight into a rest-day
+    /// Saturday keeps holiday rates before midnight and gains nothing extra
+    /// after it beyond the rest-day rates already applied there.
+    func testHolidayIntoSaturdayKeepsPremiumRatesBothSides() {
+        let calendar = Calendar.current
+        let holidayEve = TestData.date(2026, 7, 16) // Thursday, marked as holiday
+        let start = calendar.date(bySettingHour: 22, minute: 0, second: 0, of: holidayEve)!
+        let end = calendar.date(bySettingHour: 6, minute: 0, second: 0, of: TestData.date(2026, 7, 17))!
+
+        var eveSession = WorkSession(
+            date: calendar.startOfDay(for: holidayEve),
+            clockIn: start,
+            clockOut: end
+        )
+        eveSession.dayType = .holiday
+
+        var saturday = TestData.session(year: 2026, month: 7, day: 18, inHour: 9, outHour: 14)
+        saturday.dayType = .restDay
+
+        let eveBreakdown = OvertimeCalculator.breakdown(for: eveSession, settings: israeliWeekendSettings())
+        let satBreakdown = OvertimeCalculator.breakdown(for: saturday, settings: israeliWeekendSettings())
+
+        // Holiday side: every hour at ≥150%.
+        XCTAssertEqual(eveBreakdown.totalHours, 8, accuracy: 0.001)
+        XCTAssertGreaterThanOrEqual(eveBreakdown.basePay / eveBreakdown.totalHours / 100, 1.5)
+        // Saturday side: rest-day base rate 150%.
+        XCTAssertEqual(satBreakdown.basePay, 5 * 100 * 1.5, accuracy: 0.01)
+    }
+
     func testRegularDayUnchangedByPhase2Rules() {
         let session = TestData.session(day: 1, inHour: 6, outHour: 18) // 12h regular day
 

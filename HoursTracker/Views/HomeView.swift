@@ -127,6 +127,9 @@ struct HomeView: View {
                     }
                     .accessibilityLabel(L10n.guideTitle)
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
+                }
             }
             .toolbarBackground(appBackground.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)

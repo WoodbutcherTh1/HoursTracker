@@ -135,6 +135,151 @@ final class ExportManagerTests: XCTestCase {
         XCTAssertTrue(lines.last?.contains("Total") == true || lines.last?.contains("total") == true)
     }
 
+    func testCSVExportLandsInProtectedExportsDirectory() throws {
+        let report = manager.buildReport(
+            sessions: [TestData.session(day: 1)],
+            settings: settings,
+            range: .all,
+            language: .english
+        )
+
+        let url = try manager.export(report: report, format: .csv, language: .english)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        XCTAssertTrue(url.path.contains("/tmp/Exports/") || url.path.contains("/T/Exports/"))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: url.path))
+        XCTAssertFalse(try Data(contentsOf: url).isEmpty)
+    }
+
+    func testCSVMimeType() {
+        XCTAssertEqual(ExportFormat.csv.mimeType, "text/csv")
+        XCTAssertEqual(ExportFormat.csv.fileExtension, "csv")
+        XCTAssertEqual(ExportFormat.allCases.count, 5)
+    }
+
+    func testCSVHeadersMatchRequestedLanguage() throws {
+        for (language, dayHeader) in [
+            (ExportLanguage.english, "Day"),
+            (ExportLanguage.hebrew, "יום"),
+            (ExportLanguage.arabic, "اليوم")
+        ] {
+            let report = manager.buildReport(
+                sessions: [TestData.session(day: 1)],
+                settings: settings,
+                range: .all,
+                language: language
+            )
+            let url = try manager.export(report: report, format: .csv, language: language)
+            defer { try? FileManager.default.removeItem(at: url) }
+
+            let contents = String(decoding: try Data(contentsOf: url).dropFirst(3), as: UTF8.self)
+            let header = contents.components(separatedBy: "\n").first ?? ""
+            XCTAssertTrue(header.contains(dayHeader), "\(language) header missing '\(dayHeader)': \(header)")
+        }
+    }
+
+    func testCSVRowFormatsNumbersDatesAndTimesCorrectly() throws {
+        let session = TestData.session(year: 2026, month: 1, day: 5, inHour: 9, outHour: 17, outMinute: 30)
+        let report = manager.buildReport(
+            sessions: [session],
+            settings: TestData.settings(hourlyRate: 100),
+            range: .all,
+            language: .english
+        )
+
+        let url = try manager.export(report: report, format: .csv, language: .english)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let contents = String(decoding: try Data(contentsOf: url).dropFirst(3), as: UTF8.self)
+        let lines = contents.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+        XCTAssertEqual(lines.count, 3) // header + 1 row + totals
+        let dataLine = lines[1]
+        // Date uses the numeric dd.MM.yy format; times are HH:mm.
+        XCTAssertTrue(dataLine.contains("05.01.26"), dataLine)
+        XCTAssertTrue(dataLine.contains("09:00"), dataLine)
+        XCTAssertTrue(dataLine.contains("17:30"), dataLine)
+        // 8.5h total on a regular day → all hours at 100%, formatted "8.5"
+        XCTAssertTrue(dataLine.contains(",8.5,"), dataLine)
+        // Every row has exactly as many cells as the header.
+        let cellCount = { (line: String) -> Int in
+            Self.parseCSVLine(line).count
+        }
+        XCTAssertEqual(cellCount(lines[0]), cellCount(lines[1]))
+        XCTAssertEqual(cellCount(lines[0]), cellCount(lines[2]))
+    }
+
+    func testCSVEscapesFieldsWithCommasQuotesAndNewlines() throws {
+        let hostile = WorkplaceSettings(
+            workplaceName: "Acme, Inc. \"Tel Aviv\"",
+            contractorName: nil,
+            workerFullName: "Line\nBreak Worker",
+            workerIDNumber: "=cmd|' /C calc'!A0",
+            employeeNumber: "+972-50-0000000",
+            hourlyRate: 100,
+            dailyGasAllowance: 35,
+            standardDayHours: 8.6,
+            ot125HoursCap: 2.0,
+            locationLatitude: nil,
+            locationLongitude: nil,
+            locationRadiusMeters: 150,
+            modifiedAt: Date()
+        )
+        let report = manager.buildReport(
+            sessions: [TestData.session(day: 1)],
+            settings: hostile,
+            range: .all,
+            language: .english
+        )
+        // The report itself doesn't carry settings into the table, so exercise
+        // the sanitizer directly for the exact escaping contract too.
+        XCTAssertEqual(ExportSanitizer.csvCell("plain"), "plain")
+        XCTAssertEqual(ExportSanitizer.csvCell("a,b"), "\"a,b\"")
+        XCTAssertEqual(ExportSanitizer.csvCell("say \"hi\""), "\"say \"\"hi\"\"\"")
+        XCTAssertEqual(ExportSanitizer.csvCell("row\nbreak"), "\"row\nbreak\"")
+        XCTAssertEqual(ExportSanitizer.csvCell("=cmd|' /C calc'!A0"), "'=cmd|' /C calc'!A0")
+
+        let url = try manager.export(report: report, format: .csv, language: .english)
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        let contents = String(decoding: try Data(contentsOf: url).dropFirst(3), as: UTF8.self)
+        // All lines must parse to identical cell counts despite embedded commas/newlines.
+        let parsed = contents
+            .components(separatedBy: "\n")
+            .filter { !$0.isEmpty }
+            .map(Self.parseCSVLine)
+        XCTAssertEqual(Set(parsed.map(\.count)).count, 1)
+    }
+
+    /// Minimal RFC-4180 line parser used by the CSV tests above.
+    static func parseCSVLine(_ line: some StringProtocol) -> [String] {
+        var cells: [String] = []
+        var current = ""
+        var insideQuotes = false
+        var iterator = line.makeIterator()
+        while let char = iterator.next() {
+            if insideQuotes {
+                if char == "\"" {
+                    if iterator.next() == "\"" {
+                        current.append("\"")
+                    } else {
+                        insideQuotes = false
+                    }
+                } else {
+                    current.append(char)
+                }
+            } else if char == "\"" && current.isEmpty {
+                insideQuotes = true
+            } else if char == "," {
+                cells.append(current)
+                current = ""
+            } else {
+                current.append(char)
+            }
+        }
+        cells.append(current)
+        return cells
+    }
+
     func testMarkdownExportUsesSelectedLanguage() throws {
         let report = manager.buildReport(
             sessions: [TestData.session(day: 1)],

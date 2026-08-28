@@ -211,6 +211,8 @@ enum L10n {
 
     // Manual
     static var manualTitle: String { t("manual.title") }
+    static var manualErrorZeroDuration: String { t("manual.error.zeroDuration") }
+    static var manualErrorBreakExceedsShift: String { t("manual.error.breakExceedsShift") }
     static var manualDate: String { t("manual.date") }
     static var manualWorkDay: String { t("manual.workDay") }
     static var manualEntryMode: String { t("manual.entryMode") }

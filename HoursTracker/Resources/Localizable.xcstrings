@@ -4561,6 +4561,52 @@
         }
       }
     },
+    "manual.error.zeroDuration" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مدة الوردية يجب أن تكون أكبر من صفر."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Shift duration must be greater than zero."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "משך המשמרת חייב להיות גדול מאפס."
+          }
+        }
+      }
+    },
+    "manual.error.breakExceedsShift" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الاستراحة لا يمكن أن تكون أطول من مدة الوردية."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Break can't be longer than the shift."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ההפסקה לא יכולה להיות ארוכה ממשך המשמרת."
+          }
+        }
+      }
+    },
     "manual.entryMode" : {
       "extractionState" : "stale",
       "localizations" : {
