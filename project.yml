@@ -84,12 +84,10 @@ targets:
   # the widget never writes shared state. Tapping it opens the app via the
   # `hourstracker://clockIn` / `hourstracker://clockOut` URL scheme, which performs the actual clock in/out
   # through the normal AppViewModel path — deliberately not an in-widget AppIntent
-  # mutation, to avoid a second write path onto session data. Inert (shows a neutral
-  # placeholder) until the App Group entitlement in
-  # docs/HoursTracker.entitlements.appgroup.example is actually applied to both this
-  # target and HoursTracker's entitlements — same "compiled/configured out by
-  # default" pattern already used for CloudKit (HTCloudKitEnabled). NOT verified
-  # against a real build.
+  # mutation, to avoid a second write path onto session data. Requires the App Group
+  # entitlement (group.com.hourstracker.app) on both this target and HoursTracker's —
+  # already wired via the entitlements: blocks below and on the HoursTracker target.
+  # NOT verified against a real build.
   HoursTrackerWidget:
     type: app-extension
     platform: iOS
@@ -97,6 +95,7 @@ targets:
       - path: HoursTrackerWidget
         excludes:
           - Info.plist
+          - HoursTrackerWidget.entitlements
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hourstracker.app.widget
@@ -105,6 +104,8 @@ targets:
         DEVELOPMENT_TEAM: FQUC6DU87N
         TARGETED_DEVICE_FAMILY: "1,2"
         SKIP_INSTALL: NO
+    entitlements:
+      path: HoursTrackerWidget/HoursTrackerWidget.entitlements
     info:
       path: HoursTrackerWidget/Info.plist
       properties:

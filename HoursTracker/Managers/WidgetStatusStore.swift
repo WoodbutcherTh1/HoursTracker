@@ -6,11 +6,13 @@ import WidgetKit
 /// session data itself; tapping a clock button opens the app via `hourstracker://clockIn`
 /// or `hourstracker://clockOut`,
 /// which performs the actual clock in/out through the normal `AppViewModel` path (see
-/// the note on the `HoursTrackerWidget` target in project.yml for why). Inert by
-/// default: without the App Group entitlement actually applied
-/// (docs/HoursTracker.entitlements.appgroup.example), `UserDefaults(suiteName:)` still
-/// returns an instance but writes never reach the widget process, so this silently
-/// no-ops rather than failing.
+/// the note on the `HoursTrackerWidget` target in project.yml for why). Requires the
+/// App Group entitlement (`group.com.hourstracker.app`) on both the app and widget
+/// targets — already wired in HoursTracker.entitlements /
+/// HoursTrackerWidget/HoursTrackerWidget.entitlements. If that entitlement is ever
+/// missing or the App Group isn't provisioned on the signing account,
+/// `UserDefaults(suiteName:)` still returns an instance but writes never reach the
+/// widget process, so this silently no-ops rather than failing.
 ///
 /// NOT verified against a real build — written without Xcode or a widget-enabled
 /// simulator available in this environment.
