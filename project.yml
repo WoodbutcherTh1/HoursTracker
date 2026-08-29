@@ -36,6 +36,8 @@ targets:
     dependencies:
       - target: HoursTrackerWatch
         embed: true
+      - target: HoursTrackerWidget
+        embed: true
     scheme:
       testTargets:
         - HoursTrackerTests
@@ -72,6 +74,43 @@ targets:
           - en
           - ar
           - he
+        # Lock Screen widget tap target — see HoursTrackerApp.swift's onOpenURL.
+        CFBundleURLTypes:
+          - CFBundleURLName: com.hourstracker.app
+            CFBundleURLSchemes:
+              - hourstracker
+  # Lock Screen status widget — read-only display (isClockedIn / clockInDate) shared
+  # from the phone via an App Group UserDefaults suite (see WidgetStatusStore.swift);
+  # the widget never writes shared state. Tapping it opens the app via the
+  # `hourstracker://clockToggle` URL scheme, which performs the actual clock in/out
+  # through the normal AppViewModel path — deliberately not an in-widget AppIntent
+  # mutation, to avoid a second write path onto session data. Inert (shows a neutral
+  # placeholder) until the App Group entitlement in
+  # docs/HoursTracker.entitlements.appgroup.example is actually applied to both this
+  # target and HoursTracker's entitlements — same "compiled/configured out by
+  # default" pattern already used for CloudKit (HTCloudKitEnabled). NOT verified
+  # against a real build.
+  HoursTrackerWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: HoursTrackerWidget
+        excludes:
+          - Info.plist
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hourstracker.app.widget
+        INFOPLIST_FILE: HoursTrackerWidget/Info.plist
+        CODE_SIGN_STYLE: Automatic
+        DEVELOPMENT_TEAM: FQUC6DU87N
+        TARGETED_DEVICE_FAMILY: "1,2"
+        SKIP_INSTALL: NO
+    info:
+      path: HoursTrackerWidget/Info.plist
+      properties:
+        CFBundleDisplayName: HoursTracker
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
   HoursTrackerTests:
     type: bundle.unit-test
     platform: iOS

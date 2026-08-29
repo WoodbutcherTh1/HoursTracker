@@ -202,6 +202,7 @@ final class AppViewModel: ObservableObject {
         persist()
         refreshReminders()
         watchBridge.pushStatus(isClockedIn: true, since: clockInDate)
+        WidgetStatusStore.push(isClockedIn: true, since: clockInDate)
         ActivityLogStore.shared.log(
             L10n.logEventClockIn,
             level: .success,
@@ -278,6 +279,7 @@ final class AppViewModel: ObservableObject {
         persist()
         refreshReminders()
         watchBridge.pushStatus(isClockedIn: false, since: nil)
+        WidgetStatusStore.push(isClockedIn: false, since: nil)
         ActivityLogStore.shared.log(
             L10n.logEventClockOut,
             level: .success,

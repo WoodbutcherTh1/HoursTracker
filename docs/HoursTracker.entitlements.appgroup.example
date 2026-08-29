@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  Copy this key into BOTH HoursTracker/HoursTracker.entitlements AND
+  HoursTrackerWidget/HoursTrackerWidget.entitlements to activate the Lock Screen
+  widget's status sharing (WidgetStatusStore.swift). The App Group must also be
+  registered on the Apple Developer account behind DEVELOPMENT_TEAM in project.yml.
+
+  Without this applied to both targets, the widget stays inert (shows "Clocked Out"
+  placeholder) rather than failing — see WidgetStatusStore.swift and
+  ClockStatusProvider.swift for the fallback behavior.
+-->
+<dict>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.hourstracker.app</string>
+	</array>
+</dict>
+</plist>

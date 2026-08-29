@@ -61,6 +61,17 @@ struct HoursTrackerApp: App {
                     showLaunchSplash = false
                 }
             }
+            // Lock Screen widget tap (`hourstracker://clockToggle`). Deliberately routed
+            // through the same clockIn()/clockOut() the phone UI uses, rather than the
+            // widget mutating shared state itself — see WidgetStatusStore.swift.
+            .onOpenURL { url in
+                guard url.host == "clockToggle" else { return }
+                if viewModel.isClockedIn {
+                    viewModel.clockOut()
+                } else {
+                    viewModel.clockIn()
+                }
+            }
             .onChange(of: scenePhase) { _, phase in
                 appLock.handleScenePhase(phase)
                 // Wipe on background only — `.inactive` also fires while the share
