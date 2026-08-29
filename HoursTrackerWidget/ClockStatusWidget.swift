@@ -15,6 +15,13 @@ struct ClockStatusWidget: Widget {
         StaticConfiguration(kind: kind, provider: ClockStatusProvider()) { entry in
             ClockStatusWidgetView(entry: entry)
                 .widgetURL(URL(string: "hourstracker://clockToggle"))
+                // Required on iOS 17+ for every widget, accessory families included —
+                // without it WidgetKit refuses to render the widget at all and shows a
+                // broken "Please adopt containerBackground" placeholder instead (which is
+                // exactly what showed up on the Lock Screen). `.clear` because accessory
+                // widgets should let the system's own Lock Screen vibrancy/blur show
+                // through rather than painting an opaque background.
+                .containerBackground(.clear, for: .widget)
         }
         .configurationDisplayName("Clock Status")
         .description("Shows whether you're clocked in, and opens HoursTracker to toggle it.")
