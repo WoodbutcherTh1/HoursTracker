@@ -152,7 +152,7 @@ struct ExportView: View {
             .background(appBackground.background.ignoresSafeArea())
             .navigationTitle(L10n.exportTitle)
             .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
                 }
             }

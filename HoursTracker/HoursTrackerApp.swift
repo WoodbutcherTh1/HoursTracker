@@ -159,9 +159,9 @@ struct MainTabView: View {
         }
         .tint(homeTheme.accent)
         // The assistant lives in each tab root's navigation bar now
-        // (`assistantToolbarEntry`), so there is no floating overlay to cover
-        // screen content. Below the toast, so a confirmation banner is never
-        // hidden behind anything.
+        // (`AssistantToolbarButton` in the leading slot), so there is no floating
+        // overlay to cover screen content. Below the toast, so a confirmation
+        // banner is never hidden behind anything.
         .overlay(alignment: .bottom) {
             if let message = viewModel.successToast {
                 SuccessToastBanner(message: message)

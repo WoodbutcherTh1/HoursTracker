@@ -56,6 +56,16 @@ The calculator handles the daily 100/125/150 split; Israeli law has more dimensi
 - **TestFlight / App Store submission** — screenshots in all three languages, App Store metadata, review notes for the opt-in Always-location usage.
 - **Cloud sync (parked)** — CloudKit is compiled out behind `HTCloudKitEnabled` because personal-team provisioning cannot carry iCloud entitlements. Revisit (with `CKSyncEngine`) once a paid Apple Developer team is available.
 
+## Phase 5 — Assistant & natural-language retrieval
+
+> **Status:** implemented (v1.3). A chat assistant answers questions about the user's own hours, pay, days off, and payslips, and can generate a report, in ar/he/en. Architecture: the LLM only classifies the question into a structured `AssistantPlan` (tool + filters); `AssistantEngine` computes every figure on-device from the user's real data via `OvertimeCalculator` / `PayslipStore` / `ExportManager`, so the model cannot invent a number and its prose never reaches the screen. Reuses the Smart Scanner cloud toggle + API key; no on-device fallback (reports itself unavailable when cloud is off). See `docs/ARCHITECTURE.md` → **AI Assistant**.
+
+Still open:
+
+- **Broaden the opt-in label.** One toggle ("Smart Scanner cloud extraction") now gates both the scanner and the assistant. Rename it to something like "Cloud AI features" so the consent text matches what it controls, and update `docs/PRIVACY.md` / the App Store questionnaire together.
+- **Assistant App Privacy review.** The question field is free text; confirm whether `NSPrivacyCollectedDataTypeOtherUserContent` should be declared alongside `OtherFinancialInfo` before the next submission (`docs/PRIVACY_MANIFEST.md` tracks this).
+- **More tools.** Trends over time, comparisons between periods, and "what changed vs last month" are natural next actions for the same plan/engine split.
+
 ## Suggested sequencing
 
 | Milestone | Contents | Outcome |
@@ -65,3 +75,4 @@ The calculator handles the daily 100/125/150 split; Israeli law has more dimensi
 | 0.4 | Live Activity, widget, monthly summaries | Daily-driver UX |
 | 0.5 | Multiple workplaces, onboarding | General-audience ready |
 | 1.0 | Phase 4 complete | App Store release |
+| 1.3 | Phase 5 — assistant & payslip library | Natural-language access to own data |

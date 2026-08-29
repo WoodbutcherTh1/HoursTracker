@@ -11697,7 +11697,7 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "أُجيب من مناوباتك وתלושים المسجّلة لديك فقط — لا شيء غير ذلك."
+            "value" : "أُجيب من مناوباتك وقسائم راتبك المسجّلة لديك فقط — لا شيء غير ذلك."
           }
         },
         "en" : {
@@ -12502,19 +12502,19 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "إظهار الزر العائم"
+            "value" : "إظهار زر المساعد"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Show the floating button"
+            "value" : "Show the assistant button"
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "הצגת הכפתור הצף"
+            "value" : "הצגת כפתור העוזר"
           }
         }
       }
@@ -12538,75 +12538,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "סמל"
-          }
-        }
-      }
-    },
-    "assistant.settings.resetPosition" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إعادة تعيين موضع الزر"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset button position"
-          }
-        },
-        "he" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "איפוס מיקום הכפתור"
-          }
-        }
-      }
-    },
-    "assistant.hideButton" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "إخفاء زر المساعد"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hide the assistant button"
-          }
-        },
-        "he" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "הסתרת כפתור העוזר"
-          }
-        }
-      }
-    },
-    "assistant.hiddenToast" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "ar" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "تم الإخفاء — يمكنك إعادته من منتقي الألوان"
-          }
-        },
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hidden — turn it back on in the color picker"
-          }
-        },
-        "he" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "הוסתר - אפשר להחזיר אותו בבורר הצבעים"
           }
         }
       }

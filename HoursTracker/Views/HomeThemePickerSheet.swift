@@ -130,6 +130,10 @@ struct HomeThemePickerSheet: View {
                 .background(HomeNeon.card, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
 
             if assistant.isVisible {
+                Text(L10n.assistantSettingsStyle)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.55))
+
                 HStack(spacing: 10) {
                     ForEach(AssistantIconStyle.allCases) { style in
                         assistantStyleSwatch(style)
@@ -241,8 +245,8 @@ struct HomeThemePickerSheet: View {
         }
     }
 
-    /// Icon choice for the floating assistant button, drawn the way it will actually
-    /// appear — accent-colored on the app's card surface, not as a plain symbol list.
+    /// Icon choice for the assistant's navigation-bar button, drawn the way it will
+    /// actually appear — accent-colored on the app's card surface, not as a plain symbol list.
     private func assistantStyleSwatch(_ style: AssistantIconStyle) -> some View {
         let isSelected = assistant.style == style
 
