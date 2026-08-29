@@ -20,6 +20,8 @@ HoursTracker is an iOS app for a single worker to track daily work hours and see
 
 ## Directory layout
 
+Abridged — the tree below predates the payslip library and the AI assistant and lists only the load-bearing core. `Managers/Scanner/` (LLM + heuristic providers and routers for timesheet/payslip OCR structuring), `Managers/Assistant/` (see the **AI Assistant** subsystem section), `Views/Assistant/`, `Views/Payslip*`, `Managers/PayslipStore.swift`, and several `ViewModels/` / `Utilities/` files also exist.
+
 ```
 HoursTracker/
 ├── HoursTrackerApp.swift        App entry point + MainTabView (Home / History / Export / Settings)
@@ -186,6 +188,19 @@ Date ranges: all / specific month / custom range. Output lands in `tmp/Exports/`
 - **Activity log** — `ActivityLogStore` keeps a persistent on-device log of clock/import/settings/privacy events, browsable in `ActivityLogView` and exportable as TXT/JSON/CSV/Markdown; it is erased by the delete-all-data action.
 - **Privacy & permissions** — Set Location uses When-In-Use only (`LocationCaptureHelper` waits for authorization before `requestLocation`). Arrival reminders stage When-In-Use then Always, plus notification authorization; denial states deep-link to system Settings. Geofencing uses region monitoring (can relaunch a terminated app) and does **not** enable `allowsBackgroundLocationUpdates` or `UIBackgroundModes: location`. The app ships a privacy manifest (`PrivacyInfo.xcprivacy`), an in-app privacy policy (`PrivacyPolicyView`, `docs/PRIVACY.md`), and a delete-all-data action (`AppViewModel.deleteAllUserData`) that clears sessions/settings/activity log/Keychain national ID/export temps/local notifications, tears down geofencing, and purges CloudKit session + settings records when sync is supported (partial cloud failure is surfaced to the user).
 
+### AI Assistant
+
+A chat sheet (`Views/Assistant/`, opened from the nav-bar `AssistantToolbarButton` on every tab root, presented via `MainSheetRoute.assistant` so exactly one instance is ever live) that answers questions about the user's own hours, pay, days off, payslips, and report generation — in Arabic, Hebrew, or English.
+
+The design goal is that **the model never produces a number, a date, or a sentence the user reads**:
+
+- `AssistantLLMRouter` sends the question + today's date to Gemini / an OpenAI-compatible endpoint (`Managers/Assistant/*LLMProvider.swift`, same keys and toggle as Smart Scanner) and asks only for a JSON `AssistantPlan` — one `AssistantAction` plus composable `AssistantFilters`. Any unrecognized or unparseable action decodes to `.outOfScope`.
+- `AssistantEngine` resolves that plan entirely on-device: it filters `viewModel.sessions` via `AssistantToolbox` functions, prices them with `OvertimeCalculator`, retrieves payslips from `PayslipStore`, builds documents through the normal `ExportManager` path, and wraps the results in `L10n` templates. A plan for a month with no data yields "no shifts found", never an invented total.
+- Out-of-scope questions are answered from a fixed string, so the boundary is structural, not a prompt instruction.
+- Conversation state is in-memory only (`AssistantChatViewModel`), cleared when the sheet closes.
+
+Appearance (button visibility + icon style) lives in `AssistantAppearance` (UserDefaults-mirrored, same pattern as `HomeAccentTheme`) and is edited from the Home theme-picker sheet. Tests: `AssistantEngineTests`, `AssistantToolboxTests`, `AssistantPlanTests`, `AssistantLLMRouterTests`.
+
 ### Localization
 
 Two mechanisms coexist:
@@ -210,13 +225,18 @@ open HoursTracker.xcodeproj
 xcodebuild test -scheme HoursTracker -destination 'platform=iOS Simulator,name=iPhone 16'
 ```
 
-The suite covers the overtime engine (`OvertimeCalculatorTests`), CloudKit merge logic (`SyncMergeTests`), export filtering and totals (`ExportManagerTests`), clock-out prediction (`ClockOutEstimationTests`), incremental sync writes (`SyncingPersistenceStoreTests`), and view-model flows against in-memory mocks (`AppViewModelTests`, doubles in `TestDoubles.swift`). CI (`.github/workflows/ci.yml`) regenerates the project and runs the suite on every push and pull request; Actions are SHA-pinned with `permissions: contents: read`, plus SwiftLint (security custom rules) and gitleaks.
+The suite covers the overtime engine (`OvertimeCalculatorTests`), CloudKit merge logic (`SyncMergeTests`), export filtering and totals (`ExportManagerTests`), clock-out prediction (`ClockOutEstimationTests`), incremental sync writes (`SyncingPersistenceStoreTests`), view-model flows against in-memory mocks (`AppViewModelTests`, doubles in `TestDoubles.swift`), the LLM scanner/payslip/assistant routers (`ScannerLLMRouterTests`, `PayslipLLMRouterTests`, `AssistantLLMRouterTests`), and the assistant's plan decoding and on-device resolution (`AssistantPlanTests`, `AssistantToolboxTests`, `AssistantEngineTests`). CI (`.github/workflows/ci.yml`) regenerates the project and runs the suite on every push and pull request; Actions are SHA-pinned with `permissions: contents: read`, plus SwiftLint (security custom rules) and gitleaks.
 
 ## Networking gate (future features)
 
 HoursTracker ships without a general-purpose networking layer for its core data. CloudKit private database (user + build opt-in) remains the only remote store for sessions/settings.
 
-**Current exception — Smart Scanner cloud extraction (opt-in, default off):** when the user enables cloud extraction in Settings and supplies their own API key, `Managers/Scanner/*LLMProvider.swift` sends OCR'd timesheet/payslip text over `URLSession` to Google Gemini (`generativelanguage.googleapis.com`) or an OpenAI-compatible endpoint such as Groq (`api.groq.com`). The request body is text-only (never image/PDF bytes — enforced by `PayslipCloudRequestInspector` and tested); API keys live in Keychain; the router (`PayslipLLMRouter` / `ScannerLLMRouter`) falls back to an on-device heuristic if cloud calls are disabled or fail. No ATS exception domains are needed since both endpoints use standard HTTPS/TLS. See `docs/PRIVACY_MANIFEST.md` for the privacy-manifest reasoning.
+**Current exception — cloud AI features (opt-in, default off):** both are gated by the one **Smart Scanner cloud extraction** toggle (`SmartScannerCloudPreference`, UserDefaults `smartScannerCloudEnabled`) plus a user-supplied API key in Keychain. Both use standard HTTPS/TLS, so no ATS exception domains are needed.
+
+1. **Smart Scanner cloud extraction** — `Managers/Scanner/*LLMProvider.swift` sends OCR'd timesheet/payslip text over `URLSession` to Google Gemini (`generativelanguage.googleapis.com`) or an OpenAI-compatible endpoint such as Groq (`api.groq.com`). The request body is text-only (never image/PDF bytes — enforced by `PayslipCloudRequestInspector` and tested); the router (`PayslipLLMRouter` / `ScannerLLMRouter`) falls back to an on-device heuristic if cloud calls are disabled or fail.
+2. **Assistant** — `Managers/Assistant/*LLMProvider.swift` sends the user's typed question (trimmed, ≤500 chars) plus today's date to the same endpoints. There is deliberately **no** on-device fallback: `AssistantLLMRouter.default()` re-reads `SmartScannerCloudPreference.isEnabled` on every open, and with cloud off (or no key) the chat reports itself as unavailable rather than guessing. See the **AI Assistant** subsystem section for how the response is constrained to a tool name so no model text reaches the screen.
+
+See `docs/PRIVACY_MANIFEST.md` for the privacy-manifest reasoning.
 
 If any **other** feature adds HTTPS / URLSession / network I/O beyond this:
 

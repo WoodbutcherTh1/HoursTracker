@@ -88,7 +88,7 @@ struct SettingsView: View {
                         saveSettings()
                     }
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
                 }
             }
