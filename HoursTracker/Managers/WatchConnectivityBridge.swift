@@ -36,10 +36,12 @@ final class WatchConnectivityBridge: NSObject {
 
 extension WatchConnectivityBridge: WCSessionDelegate {
     func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) {
-        guard let viewModel else { return }
-        let isClockedIn = viewModel.isClockedIn
-        let since = viewModel.activeSession?.clockIn
-        pushStatus(isClockedIn: isClockedIn, since: since)
+        Task { @MainActor [weak self] in
+            guard let self, let viewModel = self.viewModel else { return }
+            let isClockedIn = viewModel.isClockedIn
+            let since = viewModel.activeSession?.clockIn
+            self.pushStatus(isClockedIn: isClockedIn, since: since)
+        }
     }
 
     /// Live tap from the watch while both sides are reachable.
