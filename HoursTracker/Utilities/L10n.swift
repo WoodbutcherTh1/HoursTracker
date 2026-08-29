@@ -11,6 +11,7 @@ enum L10n {
     // Tabs
     static var tabHome: String { t("tab.home") }
     static var tabHistory: String { t("tab.history") }
+    static var tabPayslips: String { t("tab.payslips") }
     static var tabExport: String { t("tab.export") }
     static var tabSettings: String { t("tab.settings") }
 
@@ -502,7 +503,6 @@ enum L10n {
     static var logEventFullDataImport: String { t("log.event.fullDataImport") }
 
     // Payslips (Chunk 4 upload + review)
-    static var payslipSectionTitle: String { t("payslip.sectionTitle") }
     static var payslipUploadAction: String { t("payslip.upload.action") }
     static var payslipUploadEntryFooter: String { t("payslip.upload.entryFooter") }
     static var payslipUploadTitle: String { t("payslip.upload.title") }
@@ -552,7 +552,6 @@ enum L10n {
     static var payslipSortByDate: String { t("payslip.sort.byDate") }
     static var payslipSortByAmount: String { t("payslip.sort.byAmount") }
     static var payslipSortAccessibility: String { t("payslip.sort.accessibility") }
-    static var payslipLibraryEntrySubtitle: String { t("payslip.library.entrySubtitle") }
     static var payslipLibraryEmptyTitle: String { t("payslip.library.emptyTitle") }
     static var payslipLibraryEmptySubtitle: String { t("payslip.library.emptySubtitle") }
     static var payslipNetUnavailable: String { t("payslip.netUnavailable") }

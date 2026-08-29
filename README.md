@@ -15,7 +15,7 @@ iOS app for tracking daily work hours with Israeli overtime law calculations (Re
 - **Manual entry** with edit/delete from History
 - **Geofence reminders** on workplace arrival
 - **Smart clock-out reminders** based on last 5–10 sessions + 23:00 forgot-to-clock-out alert
-- **Export** to PDF, TXT, Word (.docx), Markdown via Share Sheet
+- **Export** to PDF, CSV, TXT, Word (.docx), Markdown via Share Sheet
 - **JSON persistence** in Documents with **CloudKit sync** (iCloud private database)
 - **Full localization** — Arabic, Hebrew, English (String Catalog)
 

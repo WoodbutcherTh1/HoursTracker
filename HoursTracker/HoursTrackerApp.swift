@@ -147,6 +147,11 @@ struct MainTabView: View {
                     Label(L10n.tabHistory, systemImage: "list.bullet.rectangle")
                 }
 
+            PayslipsTabView(viewModel: viewModel)
+                .tabItem {
+                    Label(L10n.tabPayslips, systemImage: "doc.text.viewfinder")
+                }
+
             ExportView(viewModel: viewModel)
                 .tabItem {
                     Label(L10n.tabExport, systemImage: "square.and.arrow.up")

@@ -1,21 +1,13 @@
 import SwiftUI
 import UIKit
 
-/// Grid library of saved payslips — entry point from Export (ייצוא).
+/// Grid library of saved payslips — the root of its own "Payslips" tab (`PayslipsTabView`).
 ///
-/// Relies on the parent `NavigationStack` (ExportView) for push navigation, via its
-/// explicit `exportPath`. Deliberately does **not** declare its own
-/// `.navigationDestination(for: PayslipRecord.self)` here: both this view and
-/// `PayslipDetailView` are pushed onto the *same* `exportPath`, with both destinations
-/// registered once at `ExportView`'s stack root. A destination declared here instead
-/// could end up registered twice as you navigate in and out, which SwiftUI resolves by
-/// honoring only the copy closest to the root — and previously, with two independent
-/// implicit `NavigationLink`s instead of one shared path, that showed up as a tap on a
-/// payslip silently pushing the detail view without repainting the screen (it only
-/// appeared once a later navigation event, like going back, forced a redraw). The
-/// destination lives on `ExportView`'s root `Form`, which is why `viewModel` is injected
-/// rather than owned here — `ExportView` needs the same instance to build
-/// `PayslipDetailView`.
+/// Relies on the parent `NavigationStack` (`PayslipsTabView`) for push navigation.
+/// Deliberately does **not** declare its own `.navigationDestination(for: PayslipRecord.self)`
+/// here: that destination is registered once at `PayslipsTabView`'s stack root instead,
+/// which is why `viewModel` is injected rather than owned here — the parent needs the
+/// same instance to build `PayslipDetailView`.
 struct PayslipLibraryView: View {
     @ObservedObject var viewModel: PayslipLibraryViewModel
     @ObservedObject var appViewModel: AppViewModel

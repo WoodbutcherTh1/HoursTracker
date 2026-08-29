@@ -14,19 +14,6 @@ struct ExportView: View {
     @State private var customTo = Date()
     @State private var shareItem: ShareableFile?
     @State private var errorMessage: String?
-    // Owned here (not inside PayslipLibraryView) so the .navigationDestination(for:)
-    // below — declared at the NavigationStack root — can share the same instance the
-    // grid observes. See the comment on PayslipLibraryView for why.
-    @StateObject private var payslipLibraryViewModel = PayslipLibraryViewModel()
-    @State private var payslipDeleteError: String?
-    // Explicit path (rather than two independent implicit NavigationLinks — one closure-
-    // based to push the library, one value-based to push a payslip from inside it) so
-    // every push is a single, observable mutation SwiftUI is guaranteed to redraw for.
-    // The implicit two-hop setup silently pushed the detail view onto the stack without
-    // repainting the screen — it only became visible once a second navigation event (e.g.
-    // going back) forced SwiftUI to recompute the stack, so the payslip would "appear"
-    // while leaving the library instead of when tapped.
-    @State private var exportPath = NavigationPath()
 
     /// Menu order is intentional: This month → Specific month → This year → Custom range.
     enum RangeMode: CaseIterable, Identifiable {
@@ -55,7 +42,7 @@ struct ExportView: View {
     }
 
     var body: some View {
-        NavigationStack(path: $exportPath) {
+        NavigationStack {
             Form {
                 Section {
                     Picker(L10n.exportRange, selection: $rangeMode) {
@@ -119,27 +106,6 @@ struct ExportView: View {
                     }
                 }
 
-                Section {
-                    NavigationLink(value: PayslipLibraryRoute()) {
-                        HStack(spacing: 14) {
-                            Image(systemName: "doc.text.viewfinder")
-                                .font(.title3)
-                                .frame(width: 36, height: 36)
-                                .background(Color.accentColor.opacity(0.15), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(L10n.payslipLibraryTitle)
-                                    .font(.body.weight(.semibold))
-                                Text(L10n.payslipLibraryEntrySubtitle)
-                                    .font(.caption)
-                                    .foregroundStyle(.secondary)
-                            }
-                        }
-                        .padding(.vertical, 4)
-                    }
-                } header: {
-                    Text(L10n.payslipSectionTitle)
-                }
-
                 if let errorMessage {
                     Section {
                         Text(errorMessage)
@@ -161,35 +127,6 @@ struct ExportView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             .sheet(item: $shareItem) { item in
                 ShareSheet(items: [item.url])
-            }
-            // Both destinations declared once, at the stack root, and pushed onto the
-            // same explicit `exportPath` — see the comment by its declaration above.
-            .navigationDestination(for: PayslipLibraryRoute.self) { _ in
-                PayslipLibraryView(appViewModel: viewModel, viewModel: payslipLibraryViewModel)
-            }
-            .navigationDestination(for: PayslipRecord.self) { record in
-                PayslipDetailView(
-                    record: record,
-                    sourceURL: payslipLibraryViewModel.sourceURL(for: record),
-                    onDelete: {
-                        do {
-                            try payslipLibraryViewModel.delete(record)
-                            viewModel.showSuccessToast(L10n.payslipDeletedToast)
-                            return true
-                        } catch {
-                            payslipDeleteError = error.localizedDescription
-                            return false
-                        }
-                    }
-                )
-            }
-            .alert(L10n.payslipDeleteFailed, isPresented: Binding(
-                get: { payslipDeleteError != nil },
-                set: { if !$0 { payslipDeleteError = nil } }
-            )) {
-                Button(L10n.editCancel, role: .cancel) { payslipDeleteError = nil }
-            } message: {
-                Text(payslipDeleteError ?? "")
             }
         }
     }
@@ -271,10 +208,6 @@ enum ExportDayTypeFilter: CaseIterable, Identifiable {
         }
     }
 }
-
-/// Marker value pushed onto `ExportView`'s `exportPath` to open the payslip library —
-/// paired with `PayslipRecord` as the second type the same explicit path can carry.
-private struct PayslipLibraryRoute: Hashable {}
 
 /// Identifiable file handle for `.sheet(item:)` share presentation.
 struct ShareableFile: Identifiable {
