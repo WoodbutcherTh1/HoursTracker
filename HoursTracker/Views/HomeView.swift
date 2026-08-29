@@ -100,6 +100,13 @@ struct HomeView: View {
                 ToolbarItem(placement: .principal) {
                     HomeBrandTitle(accent: homeTheme.accent)
                 }
+                // App-level entry point, kept on the leading side so it doesn't crowd
+                // the three screen actions (theme / scanner / guide) on the trailing
+                // side or get squeezed against the centered wordmark. SwiftUI mirrors it
+                // to the right edge automatically in Hebrew/Arabic.
+                ToolbarItem(placement: .topBarLeading) {
+                    AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
+                }
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showThemePicker = true
@@ -126,9 +133,6 @@ struct HomeView: View {
                             .foregroundStyle(homeTheme.accent)
                     }
                     .accessibilityLabel(L10n.guideTitle)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
                 }
             }
             .toolbarBackground(appBackground.background, for: .navigationBar)

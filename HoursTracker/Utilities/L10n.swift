@@ -639,9 +639,6 @@ enum L10n {
     static var assistantSettingsTitle: String { t("assistant.settings.title") }
     static var assistantSettingsEnabled: String { t("assistant.settings.enabled") }
     static var assistantSettingsStyle: String { t("assistant.settings.style") }
-    static var assistantSettingsResetPosition: String { t("assistant.settings.resetPosition") }
-    static var assistantHideButton: String { t("assistant.hideButton") }
-    static var assistantHiddenToast: String { t("assistant.hiddenToast") }
     static var assistantStyleSpark: String { t("assistant.style.spark") }
     static var assistantStyleChat: String { t("assistant.style.chat") }
     static var assistantStyleClock: String { t("assistant.style.clock") }

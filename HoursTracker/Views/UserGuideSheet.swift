@@ -317,15 +317,15 @@ private struct GuideCopy {
     static let assistant = GuideCopy(
         en: (
             "Ask your assistant",
-            "Tap the floating icon for hours, overtime, or a payslip — answers use your real data only."
+            "Tap the icon in the navigation bar for hours, overtime, or a payslip — answers use your real data only."
         ),
         he: (
             "שאלו את העוזר שלכם",
-            "הקישו על הסמל הצף לשעות, שעות נוספות או תלוש - התשובות מבוססות רק על הנתונים האמיתיים שלכם."
+            "הקישו על הסמל בסרגל הניווט לשעות, שעות נוספות או תלוש - התשובות מבוססות רק על הנתונים האמיתיים שלכם."
         ),
         ar: (
             "اسأل مساعدك",
-            "اضغط على الأيقونة العائمة للساعات أو الإضافي أو תלוש — الإجابات من بياناتك الحقيقية فقط."
+            "اضغط على الأيقونة في شريط التنقّل للساعات أو الإضافي أو قسيمة الراتب — الإجابات من بياناتك الحقيقية فقط."
         )
     )
 }

@@ -66,6 +66,11 @@ struct HistoryView: View {
             .navigationTitle(L10n.historyTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                // App-level entry point on the leading side, consistent with the other
+                // tab roots and clear of this screen's own actions.
+                ToolbarItem(placement: .topBarLeading) {
+                    AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
+                }
                 ToolbarItemGroup(placement: .primaryAction) {
                     Button {
                         showScanner = true
@@ -79,7 +84,6 @@ struct HistoryView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
-                    AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
                 }
             }
             .toolbarBackground(appBackground.background, for: .navigationBar)

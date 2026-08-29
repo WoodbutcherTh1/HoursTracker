@@ -10,7 +10,7 @@ Definition-of-done for privacy changes: if a PR stores, logs, exports, or transm
 | Field | Storage | Protection | Retention | Deleted by |
 |---|---|---|---|---|
 | `workerIDNumber` (national ID) | **Keychain** only (empty in JSON/CloudKit) | `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` | Until delete / empty save | Keychain delete via settings reset |
-| `geminiAPIKey`, `secondaryAPIKey` (Smart Scanner cloud) | **Keychain** only, user-supplied | `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` | Until delete / empty save | Keychain delete via Settings |
+| `geminiAPIKey`, `secondaryAPIKey` (Smart Scanner cloud + Assistant) | **Keychain** only, user-supplied | `kSecAttrAccessibleWhenUnlockedThisDeviceOnly` | Until delete / empty save | Keychain delete via Settings |
 | `workerFullName` | Documents JSON; CloudKit if sync on | File protection | Until delete | Local + cloud purge |
 | `employeeNumber` | Documents JSON; CloudKit if sync on | File protection | Until delete | Local + cloud purge |
 | `workplaceName`, `contractorName` | Documents JSON; CloudKit if sync on | File protection | Until delete | Local + cloud purge |
@@ -42,7 +42,8 @@ Definition-of-done for privacy changes: if a PR stores, logs, exports, or transm
 |---|---|---|---|---|
 | `iCloudSyncEnabled` | User opt-in for CloudKit (default off) | Standard UserDefaults | Until reset | Not wiped today (preference only; no PII) |
 | `appLockEnabled` | Optional biometric App Lock (default off) | Standard UserDefaults | Until reset | Not wiped today (preference only; no PII) |
-| `smartScannerCloudEnabled` | User opt-in for cloud LLM document extraction (default off) | Standard UserDefaults | Until reset | Not wiped today (preference only; no PII) |
+| `smartScannerCloudEnabled` | User opt-in for cloud LLM document extraction **and** the cloud Assistant (default off) | Standard UserDefaults | Until reset | Not wiped today (preference only; no PII) |
+| `assistantButtonEnabled`, `assistantButtonStyle` | Assistant nav-bar button visibility + icon choice | Standard UserDefaults | Until reset | Not wiped today (preference only; no PII) |
 
 Privacy manifest reason: `CA92.1` (see `PrivacyInfo.xcprivacy`).
 
@@ -56,13 +57,14 @@ Privacy manifest reason: `CA92.1` (see `PrivacyInfo.xcprivacy`).
 
 **Note:** if the app-groups entitlement is absent (personal-team builds), `PayslipStore` falls back to the app's own Documents directory rather than a shared container — confirm this is the intended behavior before relying on any future widget/extension sharing this data.
 
-## Third-party transmission — Smart Scanner cloud extraction (opt-in, default off)
+## Third-party transmission — cloud AI features (opt-in, default off)
 
 | What | Sent to | Trigger | Contains |
 |---|---|---|---|
 | OCR'd timesheet/payslip text (never image/PDF bytes) | Google Gemini API, or an OpenAI-compatible endpoint (e.g. Groq) chosen by the user | Only when `smartScannerCloudEnabled` is on **and** the user supplied an API key | Employer name, employee name, pay figures, dates, hours as recognized from the document |
+| Assistant question text (≤500 chars) + today's date/weekday | Same provider / key as above | Only when `smartScannerCloudEnabled` is on **and** a key is saved **and** the user sends a question (`AssistantLLMRouter`) | Whatever the user types. Never their sessions, pay, name, employer, or payslips — the model only returns the name of a report to run; all figures are computed on-device |
 
-This is the only outbound network traffic in the app besides CloudKit. See `docs/PRIVACY_MANIFEST.md` and `docs/ARCHITECTURE.md` ("Networking gate") for the reasoning and the exception to the no-general-networking rule.
+These are the only outbound network traffic in the app besides CloudKit. Conversation history is in-memory only (not persisted, not synced, cleared on sheet close). See `docs/PRIVACY_MANIFEST.md` and `docs/ARCHITECTURE.md` ("Networking gate") for the reasoning and the exception to the no-general-networking rule.
 
 ## Tombstones (`session_tombstones.json`)
 
@@ -91,4 +93,4 @@ This is the only outbound network traffic in the app besides CloudKit. See `docs
 
 ## Not collected
 
-No analytics, advertising IDs, crash reporters, or developer-operated servers. (Smart Scanner cloud extraction, if the user opts in, sends OCR text to a third-party AI provider the user configures — see the section above — but HoursTracker itself has no backend.) See `PrivacyInfo.xcprivacy` and `docs/PRIVACY_MANIFEST.md`.
+No analytics, advertising IDs, crash reporters, or developer-operated servers. (The opt-in cloud AI features — Smart Scanner extraction and the Assistant — send text to a third-party AI provider the user configures, see the section above, but HoursTracker itself has no backend.) See `PrivacyInfo.xcprivacy` and `docs/PRIVACY_MANIFEST.md`.
