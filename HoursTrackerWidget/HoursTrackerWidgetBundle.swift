@@ -5,5 +5,6 @@ import SwiftUI
 struct HoursTrackerWidgetBundle: WidgetBundle {
     var body: some Widget {
         ClockStatusWidget()
+        HomeStatsWidget()
     }
 }

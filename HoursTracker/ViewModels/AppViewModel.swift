@@ -1,4 +1,5 @@
 import Foundation
+import Combine
 import CoreLocation
 import UserNotifications
 import UIKit
@@ -36,6 +37,7 @@ final class AppViewModel: ObservableObject {
     private let locationCapture = LocationCaptureHelper()
     private let watchBridge = WatchConnectivityBridge()
     private var successToastTask: Task<Void, Never>?
+    private var widgetRefreshCancellable: AnyCancellable?
     private var scannerImportTask: Task<Void, Never>?
 
     /// Set to `true` when `load()` observed that `sessions.json` exists on disk
@@ -155,6 +157,18 @@ final class AppViewModel: ObservableObject {
         refreshReminders()
         refreshLocationPermissionStatuses()
         watchBridge.attach(to: self)
+
+        // Keeps the Home Screen/Lock Screen widgets' shared snapshot current after
+        // ANY change that can move today/week/month figures — not just clock in/out,
+        // since manual entry, edits, deletes, and scanner imports all mutate `sessions`
+        // directly too. Debounced so a burst of edits (e.g. an import) reloads the
+        // widget once, not once per session.
+        widgetRefreshCancellable = $sessions
+            .combineLatest($settings)
+            .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
+            .sink { sessions, settings in
+                WidgetStatusStore.refresh(sessions: sessions, settings: settings)
+            }
     }
 
     // MARK: - Active Session
@@ -202,7 +216,7 @@ final class AppViewModel: ObservableObject {
         persist()
         refreshReminders()
         watchBridge.pushStatus(isClockedIn: true, since: clockInDate)
-        WidgetStatusStore.push(isClockedIn: true, since: clockInDate)
+        WidgetStatusStore.refresh(sessions: sessions, settings: settings)
         ActivityLogStore.shared.log(
             L10n.logEventClockIn,
             level: .success,
@@ -279,7 +293,7 @@ final class AppViewModel: ObservableObject {
         persist()
         refreshReminders()
         watchBridge.pushStatus(isClockedIn: false, since: nil)
-        WidgetStatusStore.push(isClockedIn: false, since: nil)
+        WidgetStatusStore.refresh(sessions: sessions, settings: settings)
         ActivityLogStore.shared.log(
             L10n.logEventClockOut,
             level: .success,
