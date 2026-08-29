@@ -61,15 +61,21 @@ struct HoursTrackerApp: App {
                     showLaunchSplash = false
                 }
             }
-            // Lock Screen widget tap (`hourstracker://clockToggle`). Deliberately routed
-            // through the same clockIn()/clockOut() the phone UI uses, rather than the
-            // widget mutating shared state itself — see WidgetStatusStore.swift.
+            // Widget button taps (`hourstracker://clockIn` / `hourstracker://clockOut`)
+            // — two explicit actions rather than one ambiguous toggle, so a stale
+            // widget snapshot can't flip the wrong way. Deliberately routed through the
+            // same clockIn()/clockOut() the phone UI uses, rather than the widget
+            // mutating shared state itself — see WidgetStatusStore.swift. Each guards
+            // against its own no-op case (already in/out) so a stale widget tap is
+            // simply ignored instead of doing the opposite action.
             .onOpenURL { url in
-                guard url.host == "clockToggle" else { return }
-                if viewModel.isClockedIn {
-                    viewModel.clockOut()
-                } else {
-                    viewModel.clockIn()
+                switch url.host {
+                case "clockIn":
+                    if viewModel.canClockIn { viewModel.clockIn() }
+                case "clockOut":
+                    if viewModel.isClockedIn { viewModel.clockOut() }
+                default:
+                    break
                 }
             }
             .onChange(of: scenePhase) { _, phase in

@@ -4,9 +4,10 @@ import SwiftUI
 /// Home Screen widget — unlike the Lock Screen `ClockStatusWidget`, this one renders in
 /// full color, so it reuses the app's own green brand accent. Mirrors the three Home tab
 /// stat cards (Today / Week / This Month) plus live clock status, since-when, and
-/// today's running pay. The whole widget is one tap target that opens the app via
-/// `hourstracker://clockToggle` — see the note on `HoursTrackerWidget` in project.yml
-/// for why this isn't an in-widget AppIntent mutation.
+/// today's running pay. Two separate buttons — Clock In / Clock Out — each open the app
+/// via `hourstracker://clockIn` / `hourstracker://clockOut` (explicit actions, not a
+/// toggle) — see the note on `HoursTrackerWidget` in project.yml for why this isn't an
+/// in-widget AppIntent mutation.
 ///
 /// NOT verified against a real build — written without Xcode or a widget-enabled
 /// simulator available in this environment.
@@ -16,16 +17,16 @@ struct HomeStatsWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: HomeStatsProvider()) { entry in
             HomeStatsWidgetView(entry: entry)
-                .widgetURL(URL(string: "hourstracker://clockToggle"))
                 .containerBackground(Color(red: 0.09, green: 0.10, blue: 0.12), for: .widget)
         }
         .configurationDisplayName("HoursTracker")
-        .description("Today / week / month at a glance, plus one tap to clock in or out.")
+        .description("Today / week / month at a glance, plus buttons to clock in or out.")
         .supportedFamilies([.systemSmall, .systemMedium])
     }
 }
 
 private let accent = Color(red: 0.15, green: 0.95, blue: 0.45)
+private let coral = Color(red: 0.95, green: 0.28, blue: 0.35)
 
 private struct HomeStatsWidgetView: View {
     @Environment(\.widgetFamily) private var family
@@ -56,8 +57,39 @@ private struct HomeStatsWidgetView: View {
             } else {
                 tile(label: "Today", value: hours(entry.todayHours))
             }
+            clockButtons
         }
         .padding(12)
+    }
+
+    /// Two explicit buttons rather than one toggle — tapping the "wrong" one for the
+    /// current state is simply a no-op in `onOpenURL` (see HoursTrackerApp.swift), so
+    /// there's no way to end up in the wrong state from a stale widget snapshot.
+    private var clockButtons: some View {
+        HStack(spacing: 6) {
+            Link(destination: URL(string: "hourstracker://clockIn")!) {
+                Text("Clock In")
+                    .font(.caption2.weight(.bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .foregroundStyle(entry.isClockedIn ? .white.opacity(0.35) : Color.black)
+                    .background(
+                        entry.isClockedIn ? Color.white.opacity(0.06) : accent,
+                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    )
+            }
+            Link(destination: URL(string: "hourstracker://clockOut")!) {
+                Text("Clock Out")
+                    .font(.caption2.weight(.bold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
+                    .foregroundStyle(entry.isClockedIn ? Color.black : .white.opacity(0.35))
+                    .background(
+                        entry.isClockedIn ? coral : Color.white.opacity(0.06),
+                        in: RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    )
+            }
+        }
     }
 
     private var statusRow: some View {

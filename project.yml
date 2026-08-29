@@ -82,7 +82,7 @@ targets:
   # Lock Screen status widget — read-only display (isClockedIn / clockInDate) shared
   # from the phone via an App Group UserDefaults suite (see WidgetStatusStore.swift);
   # the widget never writes shared state. Tapping it opens the app via the
-  # `hourstracker://clockToggle` URL scheme, which performs the actual clock in/out
+  # `hourstracker://clockIn` / `hourstracker://clockOut` URL scheme, which performs the actual clock in/out
   # through the normal AppViewModel path — deliberately not an in-widget AppIntent
   # mutation, to avoid a second write path onto session data. Inert (shows a neutral
   # placeholder) until the App Group entitlement in

@@ -3,7 +3,8 @@ import WidgetKit
 
 /// Phone-side writer for both widgets' shared snapshot (Lock Screen status +
 /// Home Screen stats). Both widgets only ever read this suite — neither mutates
-/// session data itself; tapping either opens the app via `hourstracker://clockToggle`,
+/// session data itself; tapping a clock button opens the app via `hourstracker://clockIn`
+/// or `hourstracker://clockOut`,
 /// which performs the actual clock in/out through the normal `AppViewModel` path (see
 /// the note on the `HoursTrackerWidget` target in project.yml for why). Inert by
 /// default: without the App Group entitlement actually applied
