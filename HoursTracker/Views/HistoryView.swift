@@ -24,6 +24,7 @@ struct HistoryView: View {
     @State private var exportError: String?
     @State private var copyToastVisible = false
     @State private var showPayBreakdown = false
+    @State private var showMonthlySummary = false
 
     private let calendar = Calendar.current
 
@@ -79,6 +80,14 @@ struct HistoryView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+
+                    Button {
+                        showMonthlySummary = true
+                    } label: {
+                        Image(systemName: "chart.bar.xaxis")
+                    }
+                    .accessibilityLabel(L10n.historyMonthlySummaryTitle)
+
                     AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
                 }
             }
@@ -115,6 +124,9 @@ struct HistoryView: View {
                     workedDayCount: workedDayCount,
                     showsPendingWorkedDay: hasPendingWorkedDay
                 )
+            }
+            .sheet(isPresented: $showMonthlySummary) {
+                MonthlySummaryView(viewModel: viewModel)
             }
             .alert(
                 L10n.editDeleteConfirm,
