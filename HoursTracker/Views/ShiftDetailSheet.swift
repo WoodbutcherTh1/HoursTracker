@@ -6,6 +6,7 @@ struct ShiftDetailSheet: View {
     @ObservedObject var viewModel: AppViewModel
 
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @State private var showEditor = false
     @State private var showDeleteConfirm = false
 
@@ -44,7 +45,7 @@ struct ShiftDetailSheet: View {
                 }
                 .padding()
             }
-            .background(Color(.systemGroupedBackground))
+            .background(appBackground.background.ignoresSafeArea())
             .navigationTitle(AppLocale.tr("shift.detailTitle"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

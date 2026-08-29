@@ -40,6 +40,13 @@ struct HoursTrackerApp: App {
             .animation(.easeInOut(duration: 0.45), value: showLaunchSplash)
             .environment(\.locale, appLanguage.locale)
             .environment(\.layoutDirection, appLanguage.layoutDirection)
+            // HoursTracker is a dark app: Home, the payslip screens, the lock screen and
+            // the splash have always painted their own dark surface regardless of the
+            // device appearance. History, Export and Settings used to follow the system
+            // instead, so a phone in light mode got a half-light app. Pinning the scheme
+            // makes the whole thing consistent and lets AppBackgroundTheme's color show
+            // through on every screen, which is the point of the background picker.
+            .preferredColorScheme(.dark)
             .environmentObject(appLock)
             .environmentObject(appLanguage)
             .onAppear {
@@ -71,6 +78,21 @@ struct HoursTrackerApp: App {
     }
 }
 
+/// The two sheets a `MainTabView` can show at its own level (as opposed to inside a
+/// single tab). Kept as one routed sheet rather than two independent
+/// `.sheet(isPresented:)` modifiers on the same `TabView`: `showPendingScannerReview`
+/// flips `true` from inside a background `Task` the instant a scan finishes, entirely
+/// independent of whatever the user is doing — including with the assistant chat already
+/// open, since both are reachable from every tab. Two simultaneously-live sheets on one
+/// view is a documented SwiftUI conflict (at most one can actually present), so unifying
+/// them here removes the race outright rather than leaving it to be discovered live.
+private enum MainSheetRoute: Identifiable, Hashable {
+    case assistant
+    case scannerReview
+
+    var id: Self { self }
+}
+
 struct MainTabView: View {
     @ObservedObject var viewModel: AppViewModel
     @EnvironmentObject private var appLanguage: AppLanguageController
@@ -78,6 +100,26 @@ struct MainTabView: View {
     // color and every standard button/toggle/link tint across History, Export, and
     // Settings, not just Home's own neon-styled elements.
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
+
+    /// A scan that completes while the assistant is already open stays queued rather
+    /// than yanking the assistant away mid-conversation: the existing "ready for review"
+    /// banner (below) already reappears the moment the assistant closes, since clearing
+    /// the route resets `showPendingScannerReview` back to false and its guard condition
+    /// is keyed on exactly that flag. Nothing is lost — the user just finishes what they
+    /// were doing first.
+    private var activeSheetRoute: Binding<MainSheetRoute?> {
+        Binding(
+            get: {
+                if viewModel.showAssistant { return .assistant }
+                if viewModel.showPendingScannerReview { return .scannerReview }
+                return nil
+            },
+            set: { newRoute in
+                viewModel.showAssistant = (newRoute == .assistant)
+                viewModel.showPendingScannerReview = (newRoute == .scannerReview)
+            }
+        )
+    }
 
     var body: some View {
         let _ = appLanguage.preference // keep tab labels tied to language changes
@@ -116,6 +158,10 @@ struct MainTabView: View {
                 }
         }
         .tint(homeTheme.accent)
+        // The assistant lives in each tab root's navigation bar now
+        // (`assistantToolbarEntry`), so there is no floating overlay to cover
+        // screen content. Below the toast, so a confirmation banner is never
+        // hidden behind anything.
         .overlay(alignment: .bottom) {
             if let message = viewModel.successToast {
                 SuccessToastBanner(message: message)
@@ -125,13 +171,23 @@ struct MainTabView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.successToast)
-        .sheet(isPresented: $viewModel.showPendingScannerReview, onDismiss: {
-            if case .ready = viewModel.scannerImportPhase {
-                // Keep result until import commits or user explicitly clears.
-            }
-        }) {
-            if let result = viewModel.pendingScannerResult {
-                TimesheetScannerView(appViewModel: viewModel, initialResult: result)
+        // A single routed sheet — see `MainSheetRoute` — rather than one
+        // `.sheet(isPresented:)` per case, so the assistant and the scanner-review sheet
+        // (which a background scan can request at any moment) can never both be live at
+        // once and fight over which actually presents.
+        .sheet(item: activeSheetRoute) { route in
+            switch route {
+            case .assistant:
+                AssistantChatSheet(viewModel: viewModel)
+                    .presentationDetents([.medium, .large])
+                    .presentationDragIndicator(.visible)
+            case .scannerReview:
+                // `pendingScannerResult` is deliberately left set after this sheet closes
+                // — Keep result until import commits or user explicitly clears — so the
+                // "ready for review" banner below can still reopen it later.
+                if let result = viewModel.pendingScannerResult {
+                    TimesheetScannerView(appViewModel: viewModel, initialResult: result)
+                }
             }
         }
         .overlay(alignment: .top) {

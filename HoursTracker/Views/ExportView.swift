@@ -3,6 +3,7 @@ import UIKit
 
 struct ExportView: View {
     @ObservedObject var viewModel: AppViewModel
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
 
     @State private var selectedFormat: ExportFormat = .pdf
     @State private var selectedLanguage: ExportLanguage = .phone
@@ -147,7 +148,17 @@ struct ExportView: View {
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(appBackground.background.ignoresSafeArea())
             .navigationTitle(L10n.exportTitle)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
+                }
+            }
+            .toolbarBackground(appBackground.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .sheet(item: $shareItem) { item in
                 ShareSheet(items: [item.url])
             }

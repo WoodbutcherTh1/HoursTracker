@@ -53,17 +53,15 @@ enum AppLocale {
     }
 
     /// Resolve a String Catalog / lproj key for the requested in-app language.
-    /// Tries `String(localized:locale:)` first (reliable for en/he/ar catalogs),
-    /// then matching `*.lproj` bundles, then English, then the main bundle.
+    ///
+    /// The per-language `.lproj` lookup runs FIRST: `String(localized:locale:)`
+    /// only honors the locale for languages the process was actually launched
+    /// with, so under an in-app override (or in a test host running en-only)
+    /// it silently resolves every language to the development language and
+    /// returns English. The compiled `en/he/ar.lproj` bundles are always
+    /// present in the app and always honor the requested language.
     static func localizedString(_ key: String, language: Language) -> String {
         let code = language.localeIdentifier
-        let locale = Locale(identifier: code)
-
-        // String Catalog path — prefer explicit locale so in-app overrides work.
-        let catalogValue = String(localized: String.LocalizationValue(key), locale: locale)
-        if catalogValue != key {
-            return catalogValue
-        }
 
         if let path = Bundle.main.path(forResource: code, ofType: "lproj"),
            let bundle = Bundle(path: path) {
@@ -71,17 +69,22 @@ enum AppLocale {
             if value != key { return value }
         }
 
+        // String Catalog path — prefer explicit locale so in-app overrides work.
+        let catalogValue = String(localized: String.LocalizationValue(key), locale: Locale(identifier: code))
+        if catalogValue != key {
+            return catalogValue
+        }
+
         // Fall back through English catalog + lproj, then the development bundle.
         if language != .english {
-            let enLocale = Locale(identifier: "en")
-            let enCatalog = String(localized: String.LocalizationValue(key), locale: enLocale)
-            if enCatalog != key { return enCatalog }
-
             if let path = Bundle.main.path(forResource: "en", ofType: "lproj"),
                let bundle = Bundle(path: path) {
                 let value = bundle.localizedString(forKey: key, value: nil, table: nil)
                 if value != key { return value }
             }
+
+            let enCatalog = String(localized: String.LocalizationValue(key), locale: Locale(identifier: "en"))
+            if enCatalog != key { return enCatalog }
         }
         return Bundle.main.localizedString(forKey: key, value: key, table: nil)
     }

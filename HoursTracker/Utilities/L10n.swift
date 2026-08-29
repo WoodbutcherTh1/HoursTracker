@@ -42,6 +42,8 @@ enum L10n {
         String(format: t("home.since %@"), time)
     }
     static var homeLiveGrossBasic: String { t("home.liveGrossBasic") }
+    static var homeLivePay: String { t("home.livePay") }
+    static var homeLivePayHint: String { t("home.livePayHint") }
     static var homeWeekLoading: String { t("home.weekLoading") }
     static var homeForgotClockIn: String { t("home.forgotClockIn") }
     static var homeForgotClockInArrivalPrompt: String { t("home.forgotClockIn.arrivalPrompt") }
@@ -82,6 +84,11 @@ enum L10n {
     static var historyPayNet: String { t("history.payNet") }
     static var historyPayGross: String { t("history.payGross") }
     static var historyDayHasShifts: String { t("history.dayHasShifts") }
+    static var historyDaysWorked: String { t("history.daysWorked") }
+    static func historyDaysWorkedAccessibility(_ days: Int) -> String {
+        String(format: t("history.daysWorkedAccessibility %lld"), days)
+    }
+    static var historyDaysWorkedPendingHint: String { t("history.daysWorkedPendingHint") }
     static var historyPayBreakdownButton: String { t("history.payBreakdown.button") }
     static var historyPayBreakdownTitle: String { t("history.payBreakdown.title") }
 
@@ -111,6 +118,16 @@ enum L10n {
     static var homeThemePresets: String { t("home.theme.presets") }
     static var homeThemeCustom: String { t("home.theme.custom") }
     static var homeThemeReset: String { t("home.theme.reset") }
+    static var homeThemeBackground: String { t("home.theme.background") }
+    static var homeThemeBackgroundReset: String { t("home.theme.backgroundReset") }
+    static var homeBackgroundMidnight: String { t("home.background.midnight") }
+    static var homeBackgroundCharcoal: String { t("home.background.charcoal") }
+    static var homeBackgroundGraphite: String { t("home.background.graphite") }
+    static var homeBackgroundSlate: String { t("home.background.slate") }
+    static var homeBackgroundOnyx: String { t("home.background.onyx") }
+    static var homeThemeWordmark: String { t("home.theme.wordmark") }
+    static var homeThemeWordmarkPlaceholder: String { t("home.theme.wordmarkPlaceholder") }
+    static var homeThemeWordmarkHint: String { t("home.theme.wordmarkHint") }
     static var homeStatsReorderHint: String { t("home.stats.reorderHint") }
     static var homeStatsResetOrder: String { t("home.stats.resetOrder") }
     static var homeStatTodayPay: String { t("home.stat.todayPay") }
@@ -194,6 +211,8 @@ enum L10n {
 
     // Manual
     static var manualTitle: String { t("manual.title") }
+    static var manualErrorZeroDuration: String { t("manual.error.zeroDuration") }
+    static var manualErrorBreakExceedsShift: String { t("manual.error.breakExceedsShift") }
     static var manualDate: String { t("manual.date") }
     static var manualWorkDay: String { t("manual.workDay") }
     static var manualEntryMode: String { t("manual.entryMode") }
@@ -553,4 +572,78 @@ enum L10n {
 
     // User Guide
     static var guideTitle: String { t("guide.title") }
+
+    // Assistant
+    static var assistantTitle: String { t("assistant.title") }
+    static var assistantInputPlaceholder: String { t("assistant.inputPlaceholder") }
+    static var assistantSend: String { t("assistant.send") }
+    static var assistantThinking: String { t("assistant.thinking") }
+    static var assistantWelcome: String { t("assistant.welcome") }
+    static func assistantWelcomeNamed(_ name: String) -> String {
+        String(format: t("assistant.welcomeNamed %@"), name)
+    }
+    static var assistantWelcomeSubtitle: String { t("assistant.welcomeSubtitle") }
+    static var assistantPrivacyNote: String { t("assistant.privacyNote") }
+    static var assistantSuggestionOvertime: String { t("assistant.suggestion.overtime") }
+    static var assistantSuggestionPayThisMonth: String { t("assistant.suggestion.payThisMonth") }
+    static var assistantSuggestionDaysOff: String { t("assistant.suggestion.daysOff") }
+    static var assistantSuggestionReport: String { t("assistant.suggestion.report") }
+    static var assistantSuggestionPayslip: String { t("assistant.suggestion.payslip") }
+    static var assistantOutOfScope: String { t("assistant.outOfScope") }
+    static var assistantOutOfScopeHint: String { t("assistant.outOfScopeHint") }
+    static var assistantNotConfigured: String { t("assistant.notConfigured") }
+    static var assistantNotConfiguredHint: String { t("assistant.notConfiguredHint") }
+    static var assistantRateLimited: String { t("assistant.rateLimited") }
+    static var assistantNetworkError: String { t("assistant.networkError") }
+    static var assistantUnreadable: String { t("assistant.unreadable") }
+    static var assistantNoData: String { t("assistant.noData") }
+    static var assistantNoDataHint: String { t("assistant.noDataHint") }
+    static func assistantHoursHeadline(_ hours: String, _ days: Int) -> String {
+        String(format: t("assistant.hoursHeadline %@ %lld"), hours, days)
+    }
+    static func assistantPayNetHeadline(_ amount: String) -> String {
+        String(format: t("assistant.payNetHeadline %@"), amount)
+    }
+    static func assistantPayGrossHeadline(_ amount: String) -> String {
+        String(format: t("assistant.payGrossHeadline %@"), amount)
+    }
+    static var assistantPayEstimateNote: String { t("assistant.payEstimateNote") }
+    static func assistantShiftsHeadline(_ count: Int) -> String {
+        String(format: t("assistant.shiftsHeadline %lld"), count)
+    }
+    static func assistantDaysOffHeadline(_ count: Int) -> String {
+        String(format: t("assistant.daysOffHeadline %lld"), count)
+    }
+    static var assistantNoDaysOff: String { t("assistant.noDaysOff") }
+    static func assistantMoreRows(_ count: Int) -> String {
+        String(format: t("assistant.moreRows %lld"), count)
+    }
+    static var assistantDocumentReady: String { t("assistant.documentReady") }
+    static var assistantDocumentFailed: String { t("assistant.documentFailed") }
+    static func assistantPayslipFound(_ period: String) -> String {
+        String(format: t("assistant.payslipFound %@"), period)
+    }
+    static func assistantPayslipMissing(_ period: String) -> String {
+        String(format: t("assistant.payslipMissing %@"), period)
+    }
+    static var assistantPayslipMissingHint: String { t("assistant.payslipMissingHint") }
+    static var assistantView: String { t("assistant.view") }
+    static var assistantScopeAllTime: String { t("assistant.scope.allTime") }
+    static func assistantScopeAfter(_ time: String) -> String {
+        String(format: t("assistant.scope.after %@"), time)
+    }
+    static func assistantScopeBefore(_ time: String) -> String {
+        String(format: t("assistant.scope.before %@"), time)
+    }
+    static var assistantClear: String { t("assistant.clear") }
+    static var assistantSettingsTitle: String { t("assistant.settings.title") }
+    static var assistantSettingsEnabled: String { t("assistant.settings.enabled") }
+    static var assistantSettingsStyle: String { t("assistant.settings.style") }
+    static var assistantSettingsResetPosition: String { t("assistant.settings.resetPosition") }
+    static var assistantHideButton: String { t("assistant.hideButton") }
+    static var assistantHiddenToast: String { t("assistant.hiddenToast") }
+    static var assistantStyleSpark: String { t("assistant.style.spark") }
+    static var assistantStyleChat: String { t("assistant.style.chat") }
+    static var assistantStyleClock: String { t("assistant.style.clock") }
+    static var assistantStyleWand: String { t("assistant.style.wand") }
 }

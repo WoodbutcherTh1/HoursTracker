@@ -33,7 +33,7 @@ extension Color {
 }
 
 /// User-customizable accent color for the app: drives the tab bar tint, the
-/// HourTrackers wordmark, and every neon-styled element across Home, Payslip
+/// HoursTracker wordmark, and every neon-styled element across Home, Payslip
 /// Library/Detail, and the Forgot Clock In / launch splash screens. Defaults to
 /// the app's original green — nothing changes in appearance until the user opens
 /// the picker and picks something else. The coral "active session" / warning

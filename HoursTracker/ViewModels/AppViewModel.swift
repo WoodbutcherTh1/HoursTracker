@@ -28,6 +28,7 @@ final class AppViewModel: ObservableObject {
     @Published private(set) var scannerImportPhase: ScannerImportPhase = .idle
     @Published private(set) var pendingScannerResult: TimesheetScanResult?
     @Published var showPendingScannerReview = false
+    @Published var showAssistant = false
 
     private let store: SyncingStore
     private let locationManager: LocationReminderManaging
@@ -260,11 +261,7 @@ final class AppViewModel: ObservableObject {
             clockOut: clockOutDate
         )
         // Long shifts get the configured unpaid break unless one was set already.
-        if settings.defaultBreakMinutes > 0,
-           sessions[index].breakMinutes == 0,
-           sessions[index].totalHours >= 6 {
-            sessions[index].breakMinutes = settings.defaultBreakMinutes
-        }
+        sessions[index].applyDefaultBreakIfNeeded(settings: settings)
         sessions[index].touch()
         // Summarize only the shift just closed (day-aware so same-day OT/gas
         // sharing stays correct, but totals are for this session alone).
@@ -393,6 +390,15 @@ final class AppViewModel: ObservableObject {
             let key = day.timeIntervalSince1970
             let existing = sessions.filter { calendar.isDate($0.date, inSameDayAs: day) }
 
+            // An active ongoing shift must NEVER be silently overwritten or
+            // deleted — not even when the user confirmed an overwrite for that
+            // day. Days with an open shift are rejected here so the only path
+            // past them is the explicit ImportConflictPopup flow (which lists
+            // them via `conflictingDays`). This also prevents an imported row
+            // from overlapping the running shift's time interval.
+            if existing.contains(where: \.isOpen) {
+                continue
+            }
             if !existing.isEmpty {
                 guard overwriteKeys.contains(key) else { continue }
                 sessions.removeAll { calendar.isDate($0.date, inSameDayAs: day) }

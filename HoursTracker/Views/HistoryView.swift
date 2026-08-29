@@ -4,6 +4,7 @@ import UniformTypeIdentifiers
 
 struct HistoryView: View {
     @ObservedObject var viewModel: AppViewModel
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
 
     /// Anchor month for the payroll cycle label / chevron navigation.
     @State private var periodAnchor: Date = Date()
@@ -61,7 +62,7 @@ struct HistoryView: View {
                 sessionsContent
                 stickySummaryBar
             }
-            .background(Color(.systemGroupedBackground))
+            .background(appBackground.background.ignoresSafeArea())
             .navigationTitle(L10n.historyTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -78,8 +79,12 @@ struct HistoryView: View {
                     } label: {
                         Image(systemName: "plus")
                     }
+                    AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
                 }
             }
+            .toolbarBackground(appBackground.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .sheet(item: $selectedSession) { session in
                 ShiftDetailSheet(
                     session: session,
@@ -105,7 +110,11 @@ struct HistoryView: View {
                 ShareSheet(items: [item.url])
             }
             .sheet(isPresented: $showPayBreakdown) {
-                HistoryPayBreakdownSheet(breakdown: periodTotals)
+                HistoryPayBreakdownSheet(
+                    breakdown: periodTotals,
+                    workedDayCount: workedDayCount,
+                    showsPendingWorkedDay: hasPendingWorkedDay
+                )
             }
             .alert(
                 L10n.editDeleteConfirm,
@@ -276,7 +285,7 @@ struct HistoryView: View {
         .padding(.horizontal, 12)
         .padding(.top, 8)
         .padding(.bottom, 12)
-        .background(Color(.systemGroupedBackground))
+        .background(appBackground.background)
     }
 
     private func weekPage(_ week: PayrollWeek) -> some View {
@@ -517,6 +526,12 @@ struct HistoryView: View {
             }
             .background(Color(.systemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+            // Hairline edge so the table stays defined against any chosen background,
+            // including pure-black Onyx where it would otherwise merge into the page.
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.white.opacity(0.07), lineWidth: 1)
+            )
             .padding(.horizontal, 12)
             .padding(.top, 4)
             .padding(.bottom, 10)
@@ -616,6 +631,23 @@ struct HistoryView: View {
                                 .font(.caption)
                         }
                         .accessibilityLabel(L10n.historyPayBreakdownButton)
+
+                        // A compact accessory at the same visual weight as the info
+                        // button beside it — not a third stat column. It used to be a
+                        // full peer of the pay/hours blocks below, which is what made
+                        // this bar taller and busier than before; folded back into the
+                        // control row, the bar is exactly the size it always was.
+                        HStack(spacing: 3) {
+                            Image(systemName: "calendar")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            WorkedDaysBadge(
+                                dayCount: workedDayCount,
+                                showsPendingDay: hasPendingWorkedDay,
+                                valueFont: .caption.weight(.semibold).monospacedDigit(),
+                                showsTitle: false
+                            )
+                        }
                     }
 
                     Text(String(
@@ -631,11 +663,15 @@ struct HistoryView: View {
                     Text(L10n.historyTotalHours)
                         .font(.caption2)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                     Text(String(
                         format: AppLocale.tr("history.totalHoursValue %@"),
                         HistoryPeriodHelper.formatHoursClock(totals.totalHours)
                     ))
                     .font(.subheadline.weight(.semibold).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
                 }
             }
             .padding(.horizontal, 14)
@@ -656,6 +692,33 @@ struct HistoryView: View {
         return viewModel.sortedSessions.filter {
             period.contains($0.date, calendar: calendar)
         }
+    }
+
+    /// Distinct calendar days worked — not the number of shifts. Two clock-in/out pairs
+    /// on one day are one day here, which is what "days worked" means to a reader (and
+    /// is why Home's session-counting `monthShiftCount` is deliberately not reused).
+    ///
+    /// Anchored to the calendar month the displayed payroll period is labeled with, so
+    /// paging back to June shows June's days rather than this month's. In the default
+    /// state — History opens on the current period — that is the current calendar month.
+    private var workedDayCount: Int {
+        WorkedDaysCounter.distinctWorkedDays(
+            in: viewModel.sessions,
+            month: activePeriod.labelMonth,
+            calendar: calendar
+        )
+    }
+
+    /// Drives the green "+1?" bubble: a shift is running, and its day has no completed
+    /// session yet, so clocking out will genuinely add a day. Clocking in a second time
+    /// on a day already worked shows nothing — that day is counted either way.
+    private var hasPendingWorkedDay: Bool {
+        WorkedDaysCounter.openShiftWouldAddADay(
+            activeSession: viewModel.activeSession,
+            sessions: viewModel.sessions,
+            month: activePeriod.labelMonth,
+            calendar: calendar
+        )
     }
 
     /// Totals for the full custom payroll window (not a calendar month).

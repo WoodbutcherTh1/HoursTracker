@@ -1,10 +1,13 @@
 import SwiftUI
 
 /// Shared neon palette for the Home screen design.
+///
+/// The screen background deliberately isn't here any more: it's user-customizable and
+/// lives in `AppBackgroundTheme.shared.background`, whose default is the exact color this
+/// enum used to hold. Keeping a second copy would let the two drift apart.
 enum HomeNeon {
     static let accent = Color(red: 0.15, green: 0.95, blue: 0.45)
     static let accentDeep = Color(red: 0.05, green: 0.55, blue: 0.28)
-    static let bg = Color(red: 0.04, green: 0.05, blue: 0.06)
     static let card = Color(red: 0.09, green: 0.10, blue: 0.12)
     static let coral = Color(red: 0.95, green: 0.28, blue: 0.35)
     static let coralDeep = Color(red: 0.72, green: 0.12, blue: 0.22)
@@ -489,19 +492,96 @@ struct HomePrimaryActionButton: View {
     }
 }
 
-/// Brand mark: Hour (white) + Trackers (neon).
+/// Brand mark: Hours (white) + Tracker (neon) — or the user's own replacement text
+/// from the Home color picker, drawn in the accent color.
+///
+/// The two-tone mark is split across two `Text`s, so it is laid out by an `HStack` whose
+/// order flips under an RTL interface language. That rendered the product name backwards
+/// ("TrackerHours") in Hebrew/Arabic, so the stack is pinned `.leftToRight`: a wordmark
+/// is a name, not prose, and must read the same way in every interface language. A custom
+/// wordmark is a single `Text` instead, left to the system's bidi handling so someone can
+/// put their own Hebrew or Arabic name here and have it render correctly.
 struct HomeBrandTitle: View {
     var accent: Color = HomeNeon.accent
+    @ObservedObject private var wordmark = HomeWordmark.shared
+
+    var body: some View {
+        Group {
+            if let custom = wordmark.customText {
+                Text(custom)
+                    .foregroundStyle(accent)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+                    .accessibilityLabel(custom)
+            } else {
+                HStack(spacing: 0) {
+                    Text(verbatim: "Hours")
+                        .foregroundStyle(.white)
+                    Text(verbatim: "Tracker")
+                        .foregroundStyle(accent)
+                }
+                .environment(\.layoutDirection, .leftToRight)
+                .accessibilityElement(children: .ignore)
+                .accessibilityLabel(L10n.brandName)
+            }
+        }
+        .font(.headline.weight(.bold))
+    }
+}
+
+/// The same three Home stats, squeezed into one horizontal strip for the clocked-in
+/// screen. While a shift is running the live timer is the subject and these are context,
+/// so they stay readable but visually step back: one short row instead of three tall
+/// cards, no sparklines, lower contrast.
+struct HomeCompactStatsStrip: View {
+    struct Item: Identifiable {
+        let id: String
+        let title: String
+        let value: String
+    }
+
+    let items: [Item]
+    var accent: Color = HomeNeon.accent
+    var compact: Bool = false
 
     var body: some View {
         HStack(spacing: 0) {
-            Text("Hour")
-                .foregroundStyle(.white)
-            Text("Trackers")
-                .foregroundStyle(accent)
+            ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
+                if index > 0 {
+                    Rectangle()
+                        .fill(Color.white.opacity(0.08))
+                        .frame(width: 1, height: 24)
+                }
+
+                VStack(spacing: 2) {
+                    Text(item.title)
+                        .font(.system(size: compact ? 9 : 10, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.45))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                    Text(item.value)
+                        .font(.system(size: compact ? 13 : 15, weight: .semibold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(accent.opacity(0.85))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .contentTransition(.numericText())
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, 4)
+                .accessibilityElement(children: .combine)
+            }
         }
-        .font(.headline.weight(.bold))
-        .accessibilityLabel(L10n.brandName)
+        .padding(.vertical, compact ? 7 : 9)
+        .padding(.horizontal, 8)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(HomeNeon.card.opacity(0.55))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.white.opacity(0.06), lineWidth: 1)
+                )
+        )
     }
 }
 

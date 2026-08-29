@@ -84,6 +84,14 @@ struct ManualEntryView: View {
                 }
             }
 
+            if let validationMessage {
+                Section {
+                    Label(validationMessage, systemImage: "exclamationmark.triangle.fill")
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.red)
+                }
+            }
+
             Section(L10n.editNotes) {
                 TextField(L10n.editNotesPlaceholder, text: $notes)
             }
@@ -125,17 +133,46 @@ struct ManualEntryView: View {
         useDirectHours = false
     }
 
-    private var isValid: Bool {
-        if dayType == .holiday || dayType == .sick {
-            return true
-        }
+    /// Shift length in minutes as entered, before any break deduction.
+    /// Returns nil when the times are invalid (equal clock in/out).
+    private var enteredShiftMinutes: Int? {
+        if dayType == .holiday || dayType == .sick { return nil }
         if useDirectHours {
-            return directHours > 0
+            return Int(directHours * 60)
         }
         let calendar = Calendar.current
         let inParts = calendar.dateComponents([.hour, .minute], from: clockIn)
         let outParts = calendar.dateComponents([.hour, .minute], from: clockOut)
-        return !(inParts.hour == outParts.hour && inParts.minute == outParts.minute)
+        if inParts.hour == outParts.hour && inParts.minute == outParts.minute {
+            return nil // zero-duration (identical wall-clock times)
+        }
+        var minutes = outParts.hour! * 60 + outParts.minute!
+            - (inParts.hour! * 60 + inParts.minute!)
+        if minutes <= 0 {
+            minutes += 24 * 60 // overnight shift
+        }
+        return minutes
+    }
+
+    /// Inline validation message shown above the save button; nil when valid.
+    private var validationMessage: String? {
+        guard dayType != .holiday, dayType != .sick else { return nil }
+
+        // Zero-duration shift (0 hours, or identical clock-in/out times).
+        guard let shiftMinutes = enteredShiftMinutes, shiftMinutes > 0 else {
+            return L10n.manualErrorZeroDuration
+        }
+
+        // A break that eats the whole shift leaves zero paid time. Negative
+        // breaks are impossible via the stepper but guarded anyway.
+        guard breakMinutes >= 0, breakMinutes < shiftMinutes else {
+            return L10n.manualErrorBreakExceedsShift
+        }
+        return nil
+    }
+
+    private var isValid: Bool {
+        validationMessage == nil
     }
 
     private func syncTimesToDate() {

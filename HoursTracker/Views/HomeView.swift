@@ -36,7 +36,13 @@ struct HomeView: View {
     @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
     @ObservedObject private var homeStatsLayout = HomeStatsLayout.shared
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @AppStorage("homeStatsReorderHintDismissed") private var didReorderStats = false
+    /// Gross/net choice for the live pay counter. Its own key rather than History's
+    /// `historyPayDisplayMode`, so switching one screen doesn't silently change the
+    /// other. Defaults to gross, which is what this counter showed before it had a
+    /// picker at all.
+    @AppStorage("homePayDisplayMode") private var livePayMode: PayDisplayMode = .gross
     @State private var showScanner = false
     @State private var showForgotClockIn = false
     @State private var showThemePicker = false
@@ -52,7 +58,7 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                HomeNeon.bg.ignoresSafeArea()
+                appBackground.background.ignoresSafeArea()
 
                 // Ambient neon wash
                 Circle()
@@ -121,8 +127,11 @@ struct HomeView: View {
                     }
                     .accessibilityLabel(L10n.guideTitle)
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
+                }
             }
-            .toolbarBackground(HomeNeon.bg, for: .navigationBar)
+            .toolbarBackground(appBackground.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
             .sheet(isPresented: $viewModel.showDaySummary, onDismiss: {
@@ -145,7 +154,7 @@ struct HomeView: View {
                     .presentationDetents([.medium, .large])
             }
             .sheet(isPresented: $showUserGuide) {
-                UserGuideSheet()
+                UserGuideSheet(workerName: viewModel.settings.workerFullName)
                     .presentationDetents([.medium, .large])
             }
         }
@@ -273,13 +282,26 @@ struct HomeView: View {
         }
     }
 
+    /// Display value for a stat, in one place so the full cards (clocked out) and the
+    /// compact strip (clocked in) can never show different numbers for the same metric.
+    private func statValue(for kind: HomeStatMetric) -> String {
+        switch kind {
+        case .month: return "\(monthShiftCount)"
+        case .week: return HistoryPeriodHelper.formatHoursClock(weekHours)
+        case .today: return HistoryPeriodHelper.formatHoursClock(todayHours)
+        case .todayPay: return todayPayBreakdown.formattedNetPay
+        case .weekPay: return weekPayBreakdown.formattedNetPay
+        case .monthPay: return monthPayBreakdown.formattedNetPay
+        }
+    }
+
     @ViewBuilder
     private func statCard(for kind: HomeStatMetric, metrics: HomeLayoutMetrics) -> some View {
         switch kind {
         case .month:
             HomeNeonStatCard(
                 title: L10n.homeStatMonth,
-                value: "\(monthShiftCount)",
+                value: statValue(for: kind),
                 icon: .calendar,
                 sparkSeed: 0.4,
                 level: Self.normalizedLevel(monthShiftCount, max: Self.monthShiftLevelMax),
@@ -290,7 +312,7 @@ struct HomeView: View {
         case .week:
             HomeNeonStatCard(
                 title: L10n.homeStatWeek,
-                value: HistoryPeriodHelper.formatHoursClock(weekHours),
+                value: statValue(for: kind),
                 icon: .chart,
                 sparkSeed: 1.3,
                 level: Self.normalizedLevel(weekHours, max: Self.weekHoursLevelMax),
@@ -301,7 +323,7 @@ struct HomeView: View {
         case .today:
             HomeNeonStatCard(
                 title: L10n.homeStatToday,
-                value: HistoryPeriodHelper.formatHoursClock(todayHours),
+                value: statValue(for: kind),
                 icon: .clock,
                 sparkSeed: 2.2,
                 level: Self.normalizedLevel(todayHours, max: Self.todayHoursLevelMax),
@@ -312,7 +334,7 @@ struct HomeView: View {
         case .todayPay:
             HomeNeonStatCard(
                 title: L10n.homeStatTodayPay,
-                value: todayPayBreakdown.formattedNetPay,
+                value: statValue(for: kind),
                 icon: .clock,
                 sparkSeed: 2.7,
                 level: Self.normalizedLevel(todayHours, max: Self.todayHoursLevelMax),
@@ -323,7 +345,7 @@ struct HomeView: View {
         case .weekPay:
             HomeNeonStatCard(
                 title: L10n.homeStatWeekPay,
-                value: weekPayBreakdown.formattedNetPay,
+                value: statValue(for: kind),
                 icon: .chart,
                 sparkSeed: 1.7,
                 level: Self.normalizedLevel(weekHours, max: Self.weekHoursLevelMax),
@@ -334,7 +356,7 @@ struct HomeView: View {
         case .monthPay:
             HomeNeonStatCard(
                 title: L10n.homeStatMonthPay,
-                value: monthPayBreakdown.formattedNetPay,
+                value: statValue(for: kind),
                 icon: .calendar,
                 sparkSeed: 0.9,
                 level: Self.normalizedLevel(monthShiftCount, max: Self.monthShiftLevelMax),
@@ -363,8 +385,7 @@ struct HomeView: View {
     }
 
     private func clockedInView(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {
-        let liveHours = max(0, liveNow.timeIntervalSince(session.clockIn) / 3600)
-        let basicGross = liveHours * viewModel.settings.hourlyRate
+        let live = liveBreakdown(for: session, at: liveNow)
         let timerSize: CGFloat = metrics.isCompact ? 42 : 52
 
         return VStack(spacing: metrics.stackSpacing) {
@@ -399,18 +420,33 @@ struct HomeView: View {
                     liveNow = date
                 }
 
-                VStack(spacing: 2) {
-                    Text(L10n.homeLiveGrossBasic)
-                        .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.45))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.75)
-                    Text(PayFormatter.string(basicGross, currencyCode: viewModel.settings.currencyCode))
+                VStack(spacing: 6) {
+                    Picker("", selection: $livePayMode) {
+                        ForEach(PayDisplayMode.allCases) { mode in
+                            Text(mode == .net ? L10n.historyPayNet : L10n.historyPayGross).tag(mode)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(maxWidth: 150)
+                    // Home is a dark surface whatever the device appearance is, so the
+                    // segmented control has to be told that or it renders light-on-light
+                    // for anyone whose phone is in light mode.
+                    .colorScheme(.dark)
+                    .tint(homeTheme.accent)
+                    .accessibilityLabel(L10n.homeLivePay)
+
+                    Text(livePayMode == .net ? live.formattedNetPay : live.formattedGrossPay)
                         .font(.headline.monospacedDigit())
                         .foregroundStyle(homeTheme.accent)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                         .contentTransition(.numericText())
+
+                    Text(L10n.homeLivePayHint)
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.4))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 }
             }
             .padding(.vertical, metrics.isCompact ? 14 : 18)
@@ -423,6 +459,18 @@ struct HomeView: View {
                         RoundedRectangle(cornerRadius: 18, style: .continuous)
                             .stroke(HomeNeon.coral.opacity(0.25), lineWidth: 1)
                     )
+            )
+
+            HomeCompactStatsStrip(
+                items: homeStatsLayout.order.map {
+                    HomeCompactStatsStrip.Item(
+                        id: $0.rawValue,
+                        title: $0.title,
+                        value: statValue(for: $0)
+                    )
+                },
+                accent: homeTheme.accent,
+                compact: metrics.isCompact
             )
 
             HomeAnimatedDoorButton(
@@ -445,6 +493,27 @@ struct HomeView: View {
                 accent: HomeNeon.coral
             )
         }
+    }
+
+    /// Pay earned so far in the running shift, priced by the same engine as every other
+    /// figure in the app: the open session is closed off at `now` and handed to
+    /// `OvertimeCalculator` in the context of its own day, so the live number already
+    /// includes the 125%/150% tiers, rest-day and holiday rates, the travel allowance,
+    /// and the tax estimate behind net. The previous "live gross (basic)" label was
+    /// hours × hourly rate and quietly under-reported once a shift ran into overtime.
+    ///
+    /// The default unpaid break is applied here too — the same call `clockOut()` makes —
+    /// so the figure doesn't drop the instant the shift is actually closed.
+    private func liveBreakdown(for session: WorkSession, at now: Date) -> DayPayBreakdown {
+        var provisional = session
+        provisional.clockOut = max(session.clockIn, now)
+        provisional.applyDefaultBreakIfNeeded(settings: viewModel.settings)
+        return OvertimeCalculator.breakdown(
+            for: provisional,
+            in: viewModel.sessions,
+            settings: viewModel.settings,
+            calendar: calendar
+        )
     }
 
     // MARK: - Stats

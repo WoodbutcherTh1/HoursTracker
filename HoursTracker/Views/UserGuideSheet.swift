@@ -3,9 +3,15 @@ import SwiftUI
 /// In-app onboarding guide reachable from the Home toolbar. Every slide reuses the
 /// real component/strings it's teaching — `HomeAnimatedDoorButton` for clock-in, the
 /// exact swatch visuals from `HomeThemePickerSheet`, the real `DayType` picker and
-/// `L10n.manualHolidayAutoFilled*` strings from `ManualEntryView`, and the real
-/// `L10n.scannerCloudEnabled` toggle from `SettingsView` — rather than illustrations
-/// that could drift from what the app actually does.
+/// `L10n.manualHolidayAutoFilled*` strings from `ManualEntryView`, the real
+/// `L10n.scannerCloudEnabled` toggle from `SettingsView`, and the real
+/// `AssistantToolbarButton` / `AssistantWelcomeView` for the assistant — rather than
+/// illustrations that could drift from what the app actually does.
+///
+/// Only the assistant slide got a page of its own in the August 2026 batch. The Home
+/// gross/net switch and History's worked-days badge are small enough to teach as an
+/// extra line and an extra real element inside the slides that already cover those
+/// screens; a whole slide each would pad the guide without telling anyone more.
 ///
 /// The language pill lets you preview the guide's own authored captions in
 /// EN/HE/AR independently of the app's language — chrome position is forced
@@ -17,14 +23,20 @@ import SwiftUI
 /// would see in the app's current language — faking that would be less honest
 /// to "1:1 with the real app," not more.
 struct UserGuideSheet: View {
+    /// `WorkplaceSettings.workerFullName`, so the assistant slide previews the same
+    /// personalized greeting the real chat will show rather than a generic stand-in.
+    var workerName: String?
+
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var page = 0
     @State private var guideLanguage: GuideLanguage
 
-    init() {
+    init(workerName: String? = nil) {
+        self.workerName = workerName
         _guideLanguage = State(initialValue: GuideLanguage.matching(AppLanguageController.shared.preference))
     }
 
@@ -39,12 +51,15 @@ struct UserGuideSheet: View {
                 slide(3, copy: GuideCopy.payslips) { GuidePayslipsPage(accent: homeTheme.accent) }
                 slide(4, copy: GuideCopy.shiftDetail) { GuideShiftDetailPage() }
                 slide(5, copy: GuideCopy.settings) { GuideSettingsPage() }
+                slide(6, copy: GuideCopy.assistant) {
+                    GuideAssistantPage(accent: homeTheme.accent, workerName: workerName)
+                }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
 
             footer
         }
-        .background(HomeNeon.bg.ignoresSafeArea())
+        .background(appBackground.background.ignoresSafeArea())
     }
 
     private func slide<Content: View>(
@@ -121,7 +136,7 @@ struct UserGuideSheet: View {
     private var footer: some View {
         HStack {
             HStack(spacing: 6) {
-                ForEach(0..<6, id: \.self) { i in
+                ForEach(0..<Self.slideCount, id: \.self) { i in
                     Circle()
                         .fill(i == page ? homeTheme.accent : Color.white.opacity(0.18))
                         .frame(width: 6, height: 6)
@@ -132,13 +147,13 @@ struct UserGuideSheet: View {
             Spacer()
 
             Button {
-                if page < 5 {
+                if page < Self.lastSlideIndex {
                     withAnimation(reduceMotion ? nil : .easeInOut(duration: 0.25)) { page += 1 }
                 } else {
                     dismiss()
                 }
             } label: {
-                Text(page == 5 ? guideLanguage.done : guideLanguage.next)
+                Text(page == Self.lastSlideIndex ? guideLanguage.done : guideLanguage.next)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(.black)
                     .padding(.horizontal, 18)
@@ -154,6 +169,12 @@ struct UserGuideSheet: View {
             Divider().background(Color.white.opacity(0.08))
         }
     }
+
+    /// Kept as constants because the count is otherwise repeated in three places —
+    /// the TabView tags, the page dots, and the Next/Done switch — and adding a slide
+    /// while missing one of them is an easy and silent mistake.
+    private static let slideCount = 7
+    private static var lastSlideIndex: Int { slideCount - 1 }
 
     private func cycleLanguage() {
         guideLanguage = guideLanguage.cycled
@@ -234,9 +255,21 @@ private struct GuideCopy {
     }
 
     static let home = GuideCopy(
-        en: ("Clock in with one tap", "The door swings open and turns coral — you are clocked in."),
-        he: ("כניסה בלחיצה אחת", "הדלת נפתחת והופכת לאדום-אלמוגי - נרשמה כניסה."),
-        ar: ("تسجيل الدخول بلمسة واحدة", "يُفتح الباب ويتحول إلى اللون المرجاني — تم تسجيل الدخول.")
+        en: (
+            "Clock in with one tap",
+            "The door swings open and turns coral — you are clocked in. "
+                + "Switch the live counter between gross and net while the shift runs."
+        ),
+        he: (
+            "כניסה בלחיצה אחת",
+            "הדלת נפתחת והופכת לאדום-אלמוגי - נרשמה כניסה. "
+                + "אפשר להחליף בין ברוטו לנטו במונה החי במהלך המשמרת."
+        ),
+        ar: (
+            "تسجيل الدخول بلمسة واحدة",
+            "يُفتح الباب ويتحول إلى اللون المرجاني — تم تسجيل الدخول. "
+                + "بدّل العدّاد الحي بين الإجمالي والصافي أثناء المناوبة."
+        )
     )
 
     static let theme = GuideCopy(
@@ -246,9 +279,21 @@ private struct GuideCopy {
     )
 
     static let history = GuideCopy(
-        en: ("Mark a day as Holiday", "Pick Holiday as the day type — hours auto-fill from your typical shift."),
-        he: ("סמנו יום כחג", "בחרו חג כסוג היום - השעות יתמלאו אוטומטית לפי המשמרת הרגילה שלכם."),
-        ar: ("حدد يومًا كعطلة", "اختر عطلة كنوع اليوم — تُملأ الساعات تلقائيًا حسب مناوبتك المعتادة.")
+        en: (
+            "Mark a day as Holiday",
+            "Pick Holiday as the day type — hours auto-fill from your typical shift. "
+                + "Below, History counts the days you worked, and shows +1? while a shift is open."
+        ),
+        he: (
+            "סמנו יום כחג",
+            "בחרו חג כסוג היום - השעות יתמלאו אוטומטית לפי המשמרת הרגילה שלכם. "
+                + "למטה, ההיסטוריה סופרת את ימי העבודה ומציגה ‎+1?‎ כשמשמרת פתוחה."
+        ),
+        ar: (
+            "حدد يومًا كعطلة",
+            "اختر عطلة كنوع اليوم — تُملأ الساعات تلقائيًا حسب مناوبتك المعتادة. "
+                + "بالأسفل، يعدّ السجل أيام عملك ويعرض ‎+1?‎ أثناء مناوبة مفتوحة."
+        )
     )
 
     static let payslips = GuideCopy(
@@ -268,20 +313,48 @@ private struct GuideCopy {
         he: ("המידע שלכם נשאר שלכם", "הסורק פועל במכשיר בלבד, אלא אם מפעילים AI בענן."),
         ar: ("بياناتك تبقى لك", "يعمل الماسح على الجهاز فقط ما لم تُفعّل الذكاء الاصطناعي السحابي.")
     )
+
+    static let assistant = GuideCopy(
+        en: (
+            "Ask your assistant",
+            "Tap the floating icon for hours, overtime, or a payslip — answers use your real data only."
+        ),
+        he: (
+            "שאלו את העוזר שלכם",
+            "הקישו על הסמל הצף לשעות, שעות נוספות או תלוש - התשובות מבוססות רק על הנתונים האמיתיים שלכם."
+        ),
+        ar: (
+            "اسأل مساعدك",
+            "اضغط على الأيقونة العائمة للساعات أو الإضافي أو תלוש — الإجابات من بياناتك الحقيقية فقط."
+        )
+    )
 }
 
 // MARK: - Slide 1: Home / clock in — the real HomeAnimatedDoorButton
 
 private struct GuideHomePage: View {
     let accent: Color
+    /// The real gross/net control from the clocked-in screen, not a picture of one.
+    @State private var payMode: PayDisplayMode = .gross
 
     var body: some View {
-        VStack {
+        VStack(spacing: 18) {
             Spacer()
             HomeAnimatedDoorButton(mode: .clockIn, title: L10n.homeClockIn, accent: accent) {
                 // Guide demo only — no real session is created.
             }
             .frame(height: 140)
+
+            Picker("", selection: $payMode) {
+                ForEach(PayDisplayMode.allCases) { mode in
+                    Text(mode == .net ? L10n.historyPayNet : L10n.historyPayGross).tag(mode)
+                }
+            }
+            .pickerStyle(.segmented)
+            .frame(width: 150)
+            .colorScheme(.dark)
+            .tint(accent)
+
             Spacer()
             Spacer()
         }
@@ -344,27 +417,33 @@ private struct GuideHistoryPage: View {
     @State private var dayType: DayType = .regular
 
     var body: some View {
-        Form {
-            Section(L10n.settingsWorkRules) {
-                Picker(L10n.sessionDayType, selection: $dayType) {
-                    ForEach(DayType.allCases) { type in
-                        Text(type.localizedName).tag(type)
+        VStack(spacing: 0) {
+            Form {
+                Section(L10n.settingsWorkRules) {
+                    Picker(L10n.sessionDayType, selection: $dayType) {
+                        ForEach(DayType.allCases) { type in
+                            Text(type.localizedName).tag(type)
+                        }
+                    }
+                }
+
+                if dayType == .holiday {
+                    Section(L10n.manualHolidayAutoFilledTitle) {
+                        LabeledContent(L10n.editClockIn, value: "08:30")
+                        LabeledContent(L10n.editClockOut, value: "17:00")
+                        Text(L10n.manualHolidayAutoFilledHint)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
                     }
                 }
             }
+            .scrollContentBackground(.hidden)
+            .background(Color.clear)
 
-            if dayType == .holiday {
-                Section(L10n.manualHolidayAutoFilledTitle) {
-                    LabeledContent(L10n.editClockIn, value: "08:30")
-                    LabeledContent(L10n.editClockOut, value: "17:00")
-                    Text(L10n.manualHolidayAutoFilledHint)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            // The real summary-bar badge, in its mid-shift state.
+            WorkedDaysBadge(dayCount: 12, showsPendingDay: true, alignment: .center)
+                .padding(.bottom, 96)
         }
-        .scrollContentBackground(.hidden)
-        .background(Color.clear)
     }
 }
 
@@ -435,6 +514,37 @@ private struct GuideShiftDetailPage: View {
             Text(value).foregroundStyle(.white).fontWeight(.semibold)
         }
         .font(.subheadline)
+    }
+}
+
+// MARK: - Slide 7: Assistant — the real toolbar icon and the real empty chat state
+
+/// Both halves are the shipping views: the assistant now lives in each tab's
+/// navigation bar (same `sparkles` symbol as `AssistantToolbarButton` renders),
+/// and `AssistantWelcomeView` is exactly what the chat sheet opens on, down to
+/// the personalized greeting. Only the taps are disabled — this is a guide, so
+/// selecting a suggestion here shouldn't fire a real API call.
+private struct GuideAssistantPage: View {
+    let accent: Color
+    let workerName: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                Image(systemName: AssistantAppearance.shared.style.systemImage)
+                    .font(.system(size: 34, weight: .semibold))
+                    .foregroundStyle(accent)
+
+                AssistantWelcomeView(
+                    accent: accent,
+                    workerName: workerName,
+                    isInteractive: false
+                )
+            }
+            .padding(.top, 16)
+            .padding(.bottom, 120)
+        }
+        .scrollBounceBehavior(.basedOnSize)
     }
 }
 

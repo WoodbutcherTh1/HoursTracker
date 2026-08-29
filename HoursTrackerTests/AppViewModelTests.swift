@@ -35,8 +35,14 @@ final class AppViewModelTests: XCTestCase {
     func testClockInAtCustomTimePersistsOpenSession() {
         let (viewModel, store) = makeViewModel()
         let calendar = Calendar.current
-        let today = calendar.startOfDay(for: Date())
-        let arrival = calendar.date(bySettingHour: 8, minute: 15, second: 0, of: today)!
+        // A relative offset rather than a fixed wall-clock hour: `clockIn(at:)` clamps to
+        // `min(date, Date())`, so an absolute "08:15 today" is only reliably in the past
+        // when the test happens to run after 08:15 in the runner's time zone — CI running
+        // earlier than that clamps the recorded time to "now" and this test's exact-match
+        // assertion below fails on a totally correct clamp, not a real bug. An hour before
+        // whenever the test actually runs is in the past unconditionally.
+        let arrival = Date().addingTimeInterval(-3600)
+        let today = calendar.startOfDay(for: arrival)
 
         viewModel.clockIn(at: arrival, isManual: true)
 
@@ -467,5 +473,201 @@ final class AppViewModelTests: XCTestCase {
             await Task.yield()
         }
         XCTAssertEqual(viewModel.errorMessage, L10n.privacyDeleteCloudPartialFailure)
+    }
+
+    // MARK: - Concurrency / overlap guards
+
+    /// Regression: an OCR import whose overwrite confirmation includes today
+    /// must never delete or replace the active ongoing shift.
+    func testImportScannedSessions_doesNotOverwriteActiveShift() {
+        let store = InMemoryStore()
+        let calendar = Calendar.current
+        let vm = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+
+        // Clock in to start an active ongoing session.
+        vm.clockIn()
+        let openSession = vm.activeSession
+        XCTAssertNotNil(openSession)
+
+        // Import with overwriteDays containing today's date.
+        let today = calendar.startOfDay(for: Date())
+        let draft = ScannedSessionDraft(
+            date: today,
+            clockIn: calendar.date(bySettingHour: 7, minute: 30, second: 0, of: today)!,
+            clockOut: calendar.date(bySettingHour: 16, minute: 30, second: 0, of: today)!
+        )
+        let imported = vm.importScannedSessions([draft], overwriteDays: [today])
+
+        // The active session remains intact and is still present/open.
+        XCTAssertEqual(imported, 0)
+        XCTAssertEqual(vm.activeSession?.id, openSession?.id)
+        XCTAssertTrue(vm.sessions.contains { $0.id == openSession?.id && $0.isOpen })
+        XCTAssertEqual(vm.sessions.map(\.id), [openSession?.id ?? UUID()])
+        XCTAssertEqual(store.storedSessions.map(\.id), [openSession?.id ?? UUID()])
+    }
+
+    func testRapidDoubleClockInCreatesExactlyOneOpenSession() {
+        let (viewModel, store) = makeViewModel()
+
+        // Simulates a rapid double-tap on the clock-in button: both calls run
+        // back to back on the main actor. The second must be a no-op.
+        viewModel.clockIn()
+        viewModel.clockIn()
+
+        XCTAssertEqual(viewModel.sessions.count, 1, "duplicate clock-in must be blocked")
+        XCTAssertEqual(store.storedSessions.count, 1)
+        XCTAssertTrue(viewModel.sessions[0].isOpen)
+    }
+
+    func testClockOutTwiceDoesNotDuplicateOrCorruptState() {
+        let (viewModel, store) = makeViewModel()
+        viewModel.clockIn()
+
+        viewModel.clockOut()
+        let firstCount = viewModel.sessions.count
+        let firstIDs = Set(viewModel.sessions.map(\.id))
+
+        // Second clock-out: there is no open session anymore, so it's a no-op.
+        viewModel.clockOut()
+
+        XCTAssertEqual(viewModel.sessions.count, firstCount)
+        XCTAssertEqual(Set(viewModel.sessions.map(\.id)), firstIDs)
+        XCTAssertFalse(viewModel.sessions[0].isOpen)
+        XCTAssertEqual(store.storedSessions.count, 1)
+    }
+
+    func testDeleteSessionTwiceIsIdempotent() {
+        let (viewModel, store) = makeViewModel()
+        viewModel.clockIn()
+        let session = viewModel.activeSession!
+
+        viewModel.deleteSession(session)
+        viewModel.deleteSession(session)
+
+        XCTAssertTrue(viewModel.sessions.isEmpty)
+        XCTAssertTrue(store.storedSessions.isEmpty)
+    }
+
+    func testConcurrentManualEntriesAllPersistWithDistinctIDs() {
+        let (viewModel, store) = makeViewModel()
+        let calendar = Calendar.current
+        let day = TestData.date(2026, 3, 10)
+
+        // Multiple completed shifts added in quick succession on the same day
+        // are all allowed and all survive the persist path.
+        for hour in [8, 12, 16] {
+            viewModel.addManualSession(
+                date: day,
+                clockIn: calendar.date(bySettingHour: hour, minute: 0, second: 0, of: day)!,
+                clockOut: calendar.date(bySettingHour: hour + 3, minute: 0, second: 0, of: day)!,
+                notes: nil
+            )
+        }
+
+        XCTAssertEqual(viewModel.sessions.count, 3)
+        XCTAssertEqual(Set(viewModel.sessions.map(\.id)).count, 3)
+        XCTAssertEqual(store.storedSessions.count, 3)
+    }
+
+    func testImportCannotOverwriteDayWithActiveOngoingShift() {
+        let store = InMemoryStore()
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        // An ongoing shift started earlier today — this is the active shift.
+        let openShift = WorkSession(
+            date: today,
+            clockIn: Date().addingTimeInterval(-2 * 3600),
+            clockOut: nil
+        )
+        store.storedSessions = [openShift]
+        store.storedSettings = TestData.settings()
+        let vm = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+
+        XCTAssertTrue(vm.isClockedIn)
+
+        // Even with an explicit overwrite confirmation for that day, the import
+        // must not delete or replace the running shift.
+        let draft = ScannedSessionDraft(
+            date: today,
+            clockIn: calendar.date(bySettingHour: 7, minute: 30, second: 0, of: today)!,
+            clockOut: calendar.date(bySettingHour: 16, minute: 30, second: 0, of: today)!
+        )
+        let imported = vm.importScannedSessions([draft], overwriteDays: [today])
+
+        XCTAssertEqual(imported, 0, "import over a live shift must be rejected")
+        XCTAssertEqual(vm.sessions.map(\.id), [openShift.id], "active shift must be untouched")
+        XCTAssertTrue(vm.isClockedIn)
+        XCTAssertEqual(store.storedSessions.map(\.id), [openShift.id])
+    }
+
+    func testImportSkipsOnlyTheConflictingDayAndImportsCleanDays() {
+        let store = InMemoryStore()
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let openShift = WorkSession(
+            date: today,
+            clockIn: Date().addingTimeInterval(-2 * 3600),
+            clockOut: nil
+        )
+        store.storedSessions = [openShift]
+        store.storedSettings = TestData.settings()
+        let vm = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+
+        let yesterday = calendar.date(byAdding: .day, value: -1, to: today)!
+        let cleanDraft = ScannedSessionDraft(
+            date: yesterday,
+            clockIn: calendar.date(bySettingHour: 8, minute: 0, second: 0, of: yesterday)!,
+            clockOut: calendar.date(bySettingHour: 17, minute: 0, second: 0, of: yesterday)!
+        )
+        let conflictDraft = ScannedSessionDraft(
+            date: today,
+            clockIn: calendar.date(bySettingHour: 7, minute: 30, second: 0, of: today)!,
+            clockOut: calendar.date(bySettingHour: 16, minute: 30, second: 0, of: today)!
+        )
+
+        let imported = vm.importScannedSessions(
+            [cleanDraft, conflictDraft],
+            overwriteDays: [today]
+        )
+
+        XCTAssertEqual(imported, 1)
+        XCTAssertEqual(vm.sessions.count, 2)
+        XCTAssertEqual(vm.sessions.first { $0.id == openShift.id }?.clockOut, nil)
+        XCTAssertEqual(vm.sessions.filter { $0.id != openShift.id }.first?.date,
+                       calendar.startOfDay(for: yesterday))
+        XCTAssertEqual(store.storedSessions.count, 2)
+    }
+
+    func testCloudWriteQueueSerializesInterleavedTasks() async {
+        let queue = CloudWriteQueue()
+        actor Counter {
+            var value = 0
+            var peakConcurrent = 0
+            var current = 0
+            func enter() {
+                current += 1
+                peakConcurrent = max(peakConcurrent, current)
+                value += 1
+            }
+            func exit() { current -= 1 }
+        }
+        let counter = Counter()
+
+        await withTaskGroup(of: Void.self) { group in
+            for _ in 0..<20 {
+                group.addTask {
+                    await queue.enqueue {
+                        await counter.enter()
+                        try? await Task.sleep(for: .milliseconds(5))
+                        await counter.exit()
+                    }
+                }
+            }
+        }
+
+        let value = await counter.value
+        let peak = await counter.peakConcurrent
+        XCTAssertEqual(value, 20)
+        XCTAssertEqual(peak, 1, "CloudWriteQueue tasks must never interleave")
     }
 }

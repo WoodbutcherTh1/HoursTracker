@@ -14,6 +14,7 @@ struct PayslipDetailView: View {
 
     @Environment(\.dismiss) private var dismiss
     @ObservedObject private var theme = HomeAccentTheme.shared
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @State private var showDeleteConfirm = false
     @State private var previewImage: UIImage?
 
@@ -23,7 +24,7 @@ struct PayslipDetailView: View {
 
     var body: some View {
         ZStack {
-            HomeNeon.bg.ignoresSafeArea()
+            appBackground.background.ignoresSafeArea()
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
@@ -67,7 +68,7 @@ struct PayslipDetailView: View {
         }
         .navigationTitle(periodTitle)
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(HomeNeon.bg, for: .navigationBar)
+        .toolbarBackground(appBackground.background, for: .navigationBar)
         .toolbarBackground(.visible, for: .navigationBar)
         .toolbarColorScheme(.dark, for: .navigationBar)
         .confirmationDialog(
