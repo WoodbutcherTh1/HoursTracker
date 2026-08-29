@@ -34,6 +34,7 @@ final class AppViewModel: ObservableObject {
     private let locationManager: LocationReminderManaging
     private let exportManager = ExportManager()
     private let locationCapture = LocationCaptureHelper()
+    private let watchBridge = WatchConnectivityBridge()
     private var successToastTask: Task<Void, Never>?
     private var scannerImportTask: Task<Void, Never>?
 
@@ -153,6 +154,7 @@ final class AppViewModel: ObservableObject {
         load()
         refreshReminders()
         refreshLocationPermissionStatuses()
+        watchBridge.attach(to: self)
     }
 
     // MARK: - Active Session
@@ -199,6 +201,7 @@ final class AppViewModel: ObservableObject {
         sessions.append(session)
         persist()
         refreshReminders()
+        watchBridge.pushStatus(isClockedIn: true, since: clockInDate)
         ActivityLogStore.shared.log(
             L10n.logEventClockIn,
             level: .success,
@@ -274,6 +277,7 @@ final class AppViewModel: ObservableObject {
         showDaySummary = true
         persist()
         refreshReminders()
+        watchBridge.pushStatus(isClockedIn: false, since: nil)
         ActivityLogStore.shared.log(
             L10n.logEventClockOut,
             level: .success,
