@@ -8,12 +8,24 @@ import WatchConnectivity
 ///
 /// NOT verified against a real build — written and reasoned through without Xcode or
 /// a watchOS simulator available in this environment.
+
+/// One completed session, as sent by the phone's `WatchConnectivityBridge.refresh(sessions:settings:)`
+/// (last 20 completed sessions, newest first). Read-only on the watch — no mutation path.
+struct WatchSessionSummary: Identifiable, Hashable {
+    let id = UUID()
+    let date: Date
+    let clockIn: Date
+    let clockOut: Date
+    let totalHours: Double
+}
+
 @MainActor
 final class WatchConnectivityManager: NSObject, ObservableObject {
     @Published private(set) var isClockedIn = false
     @Published private(set) var clockInDate: Date?
     @Published private(set) var isSending = false
     @Published var lastErrorMessage: String?
+    @Published private(set) var recentSessions: [WatchSessionSummary] = []
 
     override init() {
         super.init()
@@ -55,6 +67,22 @@ final class WatchConnectivityManager: NSObject, ObservableObject {
             clockInDate = Date(timeIntervalSince1970: interval)
         } else {
             clockInDate = nil
+        }
+        if let raw = context["recentSessions"] as? [[String: Any]] {
+            recentSessions = raw.compactMap { entry in
+                guard
+                    let date = entry["date"] as? TimeInterval,
+                    let clockIn = entry["clockIn"] as? TimeInterval,
+                    let clockOut = entry["clockOut"] as? TimeInterval,
+                    let totalHours = entry["totalHours"] as? Double
+                else { return nil }
+                return WatchSessionSummary(
+                    date: Date(timeIntervalSince1970: date),
+                    clockIn: Date(timeIntervalSince1970: clockIn),
+                    clockOut: Date(timeIntervalSince1970: clockOut),
+                    totalHours: totalHours
+                )
+            }
         }
     }
 }

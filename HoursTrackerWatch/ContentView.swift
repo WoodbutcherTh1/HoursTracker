@@ -10,33 +10,42 @@ struct ContentView: View {
     @ObservedObject var connectivity: WatchConnectivityManager
 
     var body: some View {
-        VStack(spacing: 10) {
-            Text(connectivity.isClockedIn ? "Clocked In" : "Clocked Out")
-                .font(.headline)
-                .foregroundStyle(connectivity.isClockedIn ? .green : .secondary)
-
-            if connectivity.isClockedIn, let clockInDate = connectivity.clockInDate {
-                Text(clockInDate, style: .timer)
-                    .font(.system(.title2, design: .rounded).monospacedDigit())
-            }
-
-            Button {
-                connectivity.toggleClock()
-            } label: {
-                Text(connectivity.isClockedIn ? "Clock Out" : "Clock In")
+        NavigationStack {
+            VStack(spacing: 10) {
+                Text(connectivity.isClockedIn ? "Clocked In" : "Clocked Out")
                     .font(.headline)
-                    .frame(maxWidth: .infinity)
-            }
-            .tint(connectivity.isClockedIn ? .red : .green)
-            .disabled(connectivity.isSending)
+                    .foregroundStyle(connectivity.isClockedIn ? .green : .secondary)
 
-            if let message = connectivity.lastErrorMessage {
-                Text(message)
-                    .font(.caption2)
-                    .foregroundStyle(.red)
-                    .multilineTextAlignment(.center)
+                if connectivity.isClockedIn, let clockInDate = connectivity.clockInDate {
+                    Text(clockInDate, style: .timer)
+                        .font(.system(.title2, design: .rounded).monospacedDigit())
+                }
+
+                Button {
+                    connectivity.toggleClock()
+                } label: {
+                    Text(connectivity.isClockedIn ? "Clock Out" : "Clock In")
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                }
+                .tint(connectivity.isClockedIn ? .red : .green)
+                .disabled(connectivity.isSending)
+
+                if let message = connectivity.lastErrorMessage {
+                    Text(message)
+                        .font(.caption2)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                }
+
+                NavigationLink {
+                    HistoryView(sessions: connectivity.recentSessions)
+                } label: {
+                    Label("History", systemImage: "clock.arrow.circlepath")
+                        .font(.footnote)
+                }
             }
+            .padding(.horizontal, 4)
         }
-        .padding(.horizontal, 4)
     }
 }
