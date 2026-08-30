@@ -637,6 +637,12 @@ enum L10n {
     static func assistantScopeBefore(_ time: String) -> String {
         String(format: t("assistant.scope.before %@"), time)
     }
+    static func assistantScopeMinHours(_ hours: String) -> String {
+        String(format: t("assistant.scope.minHours %@"), hours)
+    }
+    static func assistantScopeMaxHours(_ hours: String) -> String {
+        String(format: t("assistant.scope.maxHours %@"), hours)
+    }
     static var assistantClear: String { t("assistant.clear") }
     static var assistantSettingsTitle: String { t("assistant.settings.title") }
     static var assistantSettingsEnabled: String { t("assistant.settings.enabled") }

@@ -285,6 +285,22 @@ struct AssistantEngine {
             parts.append(dayType.localizedName)
         }
 
+        if filters.minHours != nil || filters.maxHours != nil {
+            result = AssistantToolbox.filterSessionsByHoursRange(
+                result,
+                minHours: filters.minHours,
+                maxHours: filters.maxHours,
+                settings: settings,
+                calendar: calendar
+            )
+            if let minHours = filters.minHours {
+                parts.append(L10n.assistantScopeMinHours(HistoryPeriodHelper.formatHoursClock(minHours)))
+            }
+            if let maxHours = filters.maxHours {
+                parts.append(L10n.assistantScopeMaxHours(HistoryPeriodHelper.formatHoursClock(maxHours)))
+            }
+        }
+
         return Selection(sessions: result, description: parts.joined(separator: " · "))
     }
 

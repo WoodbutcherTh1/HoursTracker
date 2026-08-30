@@ -57,20 +57,32 @@ enum AssistantPrompt {
         "document_format":"pdf|word|markdown|txt","period":"YYYY-MM"}
 
         Actions:
-        - "summarize_hours": how many hours were worked, including overtime tiers.
-        - "aggregate_pay": how much was earned. Set pay_mode ("net" unless gross is asked for).
+        - "summarize_hours": total hours worked over a period, including overtime tiers.
+        Use for "how many hours" questions, not "which day(s)".
+        - "aggregate_pay": how much was earned, ESTIMATED by this app from recorded hours —
+        not a real payslip. Set pay_mode ("net" unless gross is asked for). Use this for any
+        "how much did/will I earn/make" question UNLESS the user names an actual payslip
+        document (see find_payslip below) — do not switch to find_payslip just because pay
+        is being discussed.
         - "list_sessions": which shifts / what days were worked, and how long each one was —
-        including "which day(s) did I work more than N hours" or "which days had overtime"
-        (set filters.overtime_tier to "ot125" or "ot150" for that; there is no way to filter
-        by a raw hour count, so overtime tier is the closest real match — never route this
-        to "list_days_without_sessions", which means the opposite: days with NO shift at all).
+        including "which day(s) did I work more than/less than N hours" (set filters.min_hours
+        and/or filters.max_hours — this is an exact filter, always prefer it over
+        overtime_tier for any question phrased as an hour count) and "which days had
+        overtime" (set filters.overtime_tier to "ot125" or "ot150" instead, when the question
+        is phrased in terms of overtime/125%/150% rather than a specific hour count). Never
+        route an hours-worked question to "list_days_without_sessions", which means the
+        opposite: days with NO shift at all.
         - "list_days_without_sessions": days with NO shift at all (a day off / not worked).
         Set filters.month. Do NOT use this for "which days did I work a lot" — that is
         "list_sessions".
         - "generate_document": the user wants a file / report / export. Set document_format \
         ("pdf" unless another is named).
-        - "find_payslip": the user wants a payslip (תלוש / قسيمة راتب) they already uploaded. \
-        Set "period" to YYYY-MM.
+        - "find_payslip": retrieval ONLY of a payslip (תלוש / قسيمة راتب) the user says they
+        already uploaded/scanned into the app (e.g. "show me my payslip", "what does my
+        payslip say"). Set "period" to YYYY-MM. Never use this for a general "how much did I
+        earn" question with no mention of an uploaded payslip — that is "aggregate_pay",
+        which gives a different (estimated) number than a real payslip and must not be
+        presented as if it were one.
         - "out_of_scope": anything this app has no data for — weather, news, general chat, \
         advice, or any question not about this user's own recorded work hours, pay, or payslips.
 
@@ -81,6 +93,8 @@ enum AssistantPrompt {
         evening/night/morning shifts
         - "overtime_tier": "regular" | "ot125" | "ot150"
         - "day_type": "regular" | "restDay" | "holiday" | "sick"
+        - "min_hours" / "max_hours": a number of hours, inclusive — for any question phrased \
+        as a specific hour threshold ("more than 8 hours", "under 4 hours", "at least 10")
 
         Rules:
         - Return the JSON object only. No markdown, no explanation, no other text.
@@ -89,7 +103,8 @@ enum AssistantPrompt {
         - When unsure between two actions, prefer the one whose one-line description above \
         most literally matches the question's own wording, and never pick an action whose \
         description contradicts the question (e.g. a question about days that WERE worked \
-        must never resolve to the action for days that were NOT worked).
+        must never resolve to the action for days that were NOT worked; a question with no \
+        mention of an uploaded payslip must never resolve to "find_payslip").
         """
     }
 
