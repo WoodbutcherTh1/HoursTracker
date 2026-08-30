@@ -36,6 +36,7 @@ final class AppViewModel: ObservableObject {
     private let exportManager = ExportManager()
     private let locationCapture = LocationCaptureHelper()
     private let watchBridge = WatchConnectivityBridge()
+    private let liveActivity = LiveActivityController()
     private var successToastTask: Task<Void, Never>?
     private var widgetRefreshCancellable: AnyCancellable?
     private var scannerImportTask: Task<Void, Never>?
@@ -157,6 +158,12 @@ final class AppViewModel: ObservableObject {
         refreshReminders()
         refreshLocationPermissionStatuses()
         watchBridge.attach(to: self)
+        // Reconcile in case the app relaunched (e.g. after a force-quit) while already
+        // clocked in — the Live Activity itself survives app termination, but only if
+        // one was actually running; this is a no-op when it already is.
+        if let clockIn = activeSession?.clockIn {
+            liveActivity.start(clockInDate: clockIn, settings: settings)
+        }
 
         // Keeps the Home Screen/Lock Screen widgets' shared snapshot current after
         // ANY change that can move today/week/month figures — not just clock in/out,
@@ -166,8 +173,10 @@ final class AppViewModel: ObservableObject {
         widgetRefreshCancellable = $sessions
             .combineLatest($settings)
             .debounce(for: .milliseconds(300), scheduler: DispatchQueue.main)
-            .sink { sessions, settings in
+            .sink { [weak self] sessions, settings in
                 WidgetStatusStore.refresh(sessions: sessions, settings: settings)
+                self?.watchBridge.refresh(sessions: sessions, settings: settings)
+                self?.liveActivity.update(sessions: sessions, settings: settings)
             }
     }
 
@@ -215,8 +224,9 @@ final class AppViewModel: ObservableObject {
         sessions.append(session)
         persist()
         refreshReminders()
-        watchBridge.pushStatus(isClockedIn: true, since: clockInDate)
+        watchBridge.refresh(sessions: sessions, settings: settings)
         WidgetStatusStore.refresh(sessions: sessions, settings: settings)
+        liveActivity.start(clockInDate: clockInDate, settings: settings)
         ActivityLogStore.shared.log(
             L10n.logEventClockIn,
             level: .success,
@@ -292,8 +302,9 @@ final class AppViewModel: ObservableObject {
         showDaySummary = true
         persist()
         refreshReminders()
-        watchBridge.pushStatus(isClockedIn: false, since: nil)
+        watchBridge.refresh(sessions: sessions, settings: settings)
         WidgetStatusStore.refresh(sessions: sessions, settings: settings)
+        liveActivity.end()
         ActivityLogStore.shared.log(
             L10n.logEventClockOut,
             level: .success,

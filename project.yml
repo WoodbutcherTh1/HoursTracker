@@ -70,6 +70,7 @@ targets:
         NSPhotoLibraryUsageDescription: "HoursTracker needs photo access only to import a timesheet screenshot or image you choose."
         NSFaceIDUsageDescription: "HoursTracker uses Face ID only to unlock the app when App Lock is enabled."
         ITSAppUsesNonExemptEncryption: false
+        NSSupportsLiveActivities: true
         CFBundleLocalizations:
           - en
           - ar
@@ -96,6 +97,10 @@ targets:
         excludes:
           - Info.plist
           - HoursTrackerWidget.entitlements
+      # Shared ActivityKit attributes struct — lives in the main app's source tree
+      # (compiled into both targets) so LiveActivityController (app) and
+      # ClockLiveActivityWidget (this target) agree on the same type.
+      - path: HoursTracker/Managers/ClockActivityAttributes.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hourstracker.app.widget
