@@ -23,6 +23,7 @@ struct HistoryView: View {
     @State private var shareItem: ShareableFile?
     @State private var exportError: String?
     @State private var copyToastVisible = false
+    @State private var showPayBreakdown = false
     @State private var showMonthlySummary = false
 
     private let calendar = Calendar.current
@@ -60,6 +61,7 @@ struct HistoryView: View {
             VStack(spacing: 0) {
                 historyChrome
                 sessionsContent
+                stickySummaryBar
             }
             .background(appBackground.background.ignoresSafeArea())
             .navigationTitle(L10n.historyTitle)
@@ -115,6 +117,13 @@ struct HistoryView: View {
             }
             .sheet(item: $shareItem) { item in
                 ShareSheet(items: [item.url])
+            }
+            .sheet(isPresented: $showPayBreakdown) {
+                HistoryPayBreakdownSheet(
+                    breakdown: periodTotals,
+                    workedDayCount: workedDayCount,
+                    showsPendingWorkedDay: hasPendingWorkedDay
+                )
             }
             .sheet(isPresented: $showMonthlySummary) {
                 MonthlySummaryView(viewModel: viewModel)
@@ -605,6 +614,84 @@ struct HistoryView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    // MARK: - Sticky Summary
+
+    private var stickySummaryBar: some View {
+        let totals = periodTotals
+
+        return VStack(spacing: 0) {
+            Divider()
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 3) {
+                    HStack(spacing: 8) {
+                        Text(L10n.historyTotalPay)
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+
+                        Picker("", selection: $payMode) {
+                            ForEach(PayDisplayMode.allCases) { mode in
+                                Text(mode == .net ? L10n.historyPayNet : L10n.historyPayGross).tag(mode)
+                            }
+                        }
+                        .pickerStyle(.segmented)
+                        .frame(width: 120)
+
+                        Button {
+                            showPayBreakdown = true
+                        } label: {
+                            Image(systemName: "info.circle")
+                                .font(.caption)
+                        }
+                        .accessibilityLabel(L10n.historyPayBreakdownButton)
+
+                        // A compact accessory at the same visual weight as the info
+                        // button beside it — not a third stat column. It used to be a
+                        // full peer of the pay/hours blocks below, which is what made
+                        // this bar taller and busier than before; folded back into the
+                        // control row, the bar is exactly the size it always was.
+                        HStack(spacing: 3) {
+                            Image(systemName: "calendar")
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                            WorkedDaysBadge(
+                                dayCount: workedDayCount,
+                                showsPendingDay: hasPendingWorkedDay,
+                                valueFont: .caption.weight(.semibold).monospacedDigit(),
+                                showsTitle: false
+                            )
+                        }
+                    }
+
+                    Text(String(
+                        format: AppLocale.tr("history.totalPayValue %@"),
+                        payMode == .net ? totals.formattedNetPay : totals.formattedGrossPay
+                    ))
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                }
+
+                Spacer(minLength: 8)
+
+                VStack(alignment: .trailing, spacing: 3) {
+                    Text(L10n.historyTotalHours)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Text(String(
+                        format: AppLocale.tr("history.totalHoursValue %@"),
+                        HistoryPeriodHelper.formatHoursClock(totals.totalHours)
+                    ))
+                    .font(.subheadline.weight(.semibold).monospacedDigit())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 10)
+            .background(.ultraThinMaterial)
+        }
+    }
+
     // MARK: - Data
 
     private var filteredSessions: [WorkSession] {
@@ -617,6 +704,40 @@ struct HistoryView: View {
         return viewModel.sortedSessions.filter {
             period.contains($0.date, calendar: calendar)
         }
+    }
+
+    /// Distinct calendar days worked — not the number of shifts. Two clock-in/out pairs
+    /// on one day are one day here, which is what "days worked" means to a reader (and
+    /// is why Home's session-counting `monthShiftCount` is deliberately not reused).
+    ///
+    /// Anchored to the calendar month the displayed payroll period is labeled with, so
+    /// paging back to June shows June's days rather than this month's. In the default
+    /// state — History opens on the current period — that is the current calendar month.
+    private var workedDayCount: Int {
+        WorkedDaysCounter.distinctWorkedDays(
+            in: viewModel.sessions,
+            month: activePeriod.labelMonth,
+            calendar: calendar
+        )
+    }
+
+    /// Drives the green "+1?" bubble: a shift is running, and its day has no completed
+    /// session yet, so clocking out will genuinely add a day. Clocking in a second time
+    /// on a day already worked shows nothing — that day is counted either way.
+    private var hasPendingWorkedDay: Bool {
+        WorkedDaysCounter.openShiftWouldAddADay(
+            activeSession: viewModel.activeSession,
+            sessions: viewModel.sessions,
+            month: activePeriod.labelMonth,
+            calendar: calendar
+        )
+    }
+
+    /// Totals for the full custom payroll window (not a calendar month).
+    private var periodTotals: DayPayBreakdown {
+        let period = activePeriod
+        let sessions = viewModel.sortedSessions.filter { period.contains($0.date, calendar: calendar) }
+        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.settings)
     }
 
     private func sessionsForDay(_ day: Date) -> [WorkSession] {
