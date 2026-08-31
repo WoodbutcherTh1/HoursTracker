@@ -51,7 +51,10 @@ targets:
         CFBundleShortVersionString: "1.3"
         # Build 15+: do NOT add UIBackgroundModes: location (Guideline 2.5.4).
         # Arrival reminders use CLCircularRegion monitoring only.
-        CFBundleVersion: "19"
+        # Bumped from 19 -> 20: several commits (watch app, Live Activity, widgets,
+        # History changes) landed after 19 was set, and App Store Connect rejects a
+        # re-upload of a build number already used for this version string.
+        CFBundleVersion: "20"
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations:
@@ -101,6 +104,12 @@ targets:
       # (compiled into both targets) so LiveActivityController (app) and
       # ClockLiveActivityWidget (this target) agree on the same type.
       - path: HoursTracker/Managers/ClockActivityAttributes.swift
+    resources:
+      # Declares this extension's own NSPrivacyAccessedAPICategoryUserDefaults reason
+      # (1C8F.1 — App Group) — HomeStatsProvider.swift / ClockStatusProvider.swift read
+      # UserDefaults(suiteName:) independently of the main app, and each binary in the
+      # bundle needs its own manifest for Apple's binary-validation privacy check.
+      - path: HoursTrackerWidget/PrivacyInfo.xcprivacy
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hourstracker.app.widget
@@ -141,6 +150,12 @@ targets:
       - path: HoursTrackerWatch
         excludes:
           - Info.plist
+    resources:
+      # Single 1024x1024 "watch-marketing" icon (reuses the main app's artwork) —
+      # watchOS auto-derives all Home Screen/notification/short-look badge sizes from
+      # it since watchOS 7. Without this the watch app has no icon at all, which is
+      # flagged/rejected at App Store submission.
+      - path: HoursTrackerWatch/Assets.xcassets
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hourstracker.app.watchkitapp
@@ -150,6 +165,7 @@ targets:
         TARGETED_DEVICE_FAMILY: "4"
         SKIP_INSTALL: NO
         ENABLE_PREVIEWS: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     info:
       path: HoursTrackerWatch/Info.plist
       properties:
