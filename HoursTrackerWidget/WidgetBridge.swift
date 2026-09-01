@@ -1,6 +1,7 @@
 import Foundation
 import CoreFoundation
 import ActivityKit
+import os
 
 // MARK: - Money formatting (self-contained — the widget cannot import the app module)
 
@@ -108,21 +109,35 @@ enum WidgetBridge {
     /// Darwin notification name — works across the app ↔ widget processes.
     static let darwinActionNotification = "com.hourstracker.widget.action" as CFString
 
+    private static let logger = Logger(subsystem: "com.hourstracker.app", category: "widgetBridge")
+
     private static var suite: UserDefaults? {
-        UserDefaults(suiteName: suiteName)
+        let defaults = UserDefaults(suiteName: suiteName)
+        if defaults == nil {
+            logger.error("App Group suite '\(suiteName, privacy: .public)' is unreachable from this process")
+        }
+        return defaults
     }
 
     // MARK: - Write
 
     static func update(settings: WidgetSettings) {
-        guard let data = try? JSONEncoder().encode(settings) else { return }
+        guard let data = try? JSONEncoder().encode(settings) else {
+            logger.error("Failed to encode WidgetSettings for the shared suite")
+            return
+        }
         suite?.set(data, forKey: settingsKey)
+        logger.notice("Wrote settings to shared suite (\(data.count, privacy: .public) bytes)")
     }
 
     static func update(sessions: [WidgetSession]) {
-        guard let data = try? JSONEncoder().encode(sessions) else { return }
+        guard let data = try? JSONEncoder().encode(sessions) else {
+            logger.error("Failed to encode \(sessions.count, privacy: .public) WidgetSessions for the shared suite")
+            return
+        }
         suite?.set(data, forKey: sessionsKey)
         suite?.set(Date(), forKey: lastUpdateKey)
+        logger.notice("Wrote \(sessions.count, privacy: .public) sessions to shared suite (\(data.count, privacy: .public) bytes)")
     }
 
     // NOTE: no `reloadTimelines` here — `WidgetCenter` requires linking WidgetKit
@@ -184,18 +199,27 @@ enum WidgetBridge {
     // MARK: - Read (widget extension)
 
     static func readSettings() -> WidgetSettings {
-        guard let data = suite?.data(forKey: settingsKey),
-              let settings = try? JSONDecoder().decode(WidgetSettings.self, from: data) else {
+        guard let data = suite?.data(forKey: settingsKey) else {
+            logger.notice("readSettings: no data at key '\(settingsKey, privacy: .public)' — returning defaults")
+            return .empty
+        }
+        guard let settings = try? JSONDecoder().decode(WidgetSettings.self, from: data) else {
+            logger.error("readSettings: found \(data.count, privacy: .public) bytes but failed to decode — returning defaults")
             return .empty
         }
         return settings
     }
 
     static func readSessions() -> [WidgetSession] {
-        guard let data = suite?.data(forKey: sessionsKey),
-              let sessions = try? JSONDecoder().decode([WidgetSession].self, from: data) else {
+        guard let data = suite?.data(forKey: sessionsKey) else {
+            logger.notice("readSessions: no data at key '\(sessionsKey, privacy: .public)' — returning empty")
             return []
         }
+        guard let sessions = try? JSONDecoder().decode([WidgetSession].self, from: data) else {
+            logger.error("readSessions: found \(data.count, privacy: .public) bytes but failed to decode — returning empty")
+            return []
+        }
+        logger.notice("readSessions: decoded \(sessions.count, privacy: .public) sessions")
         return sessions
     }
 
