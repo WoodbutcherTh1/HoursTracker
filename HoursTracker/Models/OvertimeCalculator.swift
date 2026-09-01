@@ -305,19 +305,29 @@ enum OvertimeCalculator {
             ?? breakdown(for: session, settings: settings)
     }
 
+    /// Round monetary values to 2 decimal places to avoid floating-point display artefacts.
+    private static func round(_ value: Double) -> Double {
+        (value * 100).rounded() / 100
+    }
+
     static func aggregate(
         sessions: [WorkSession],
-        settings: WorkplaceSettings
+        settings: WorkplaceSettings,
+        calendar: Calendar = .current
     ) -> DayPayBreakdown {
-        let totals = dayAwareBreakdowns(sessions: sessions, settings: settings).map(\.breakdown)
-        let regular = totals.reduce(0) { $0 + $1.regularHours }
-        let ot125 = totals.reduce(0) { $0 + $1.ot125Hours }
-        let ot150 = totals.reduce(0) { $0 + $1.ot150Hours }
+        let completed = sessions.filter(\.clockOut)
+        let totals = dayAwareBreakdowns(
+            sessions: completed,
+            settings: settings
+        ).map(\.breakdown)
+        var regular = totals.reduce(0) { $0 + $1.regularHours }
+        var ot125 = totals.reduce(0) { $0 + $1.ot125Hours }
+        var ot150 = totals.reduce(0) { $0 + $1.ot150Hours }
         let hours = totals.reduce(0) { $0 + $1.totalHours }
         let gas = totals.reduce(0) { $0 + $1.gasAllowance }
-        let basePay = totals.reduce(0) { $0 + $1.basePay }
-        let ot125Pay = totals.reduce(0) { $0 + $1.ot125Pay }
-        let ot150Pay = totals.reduce(0) { $0 + $1.ot150Pay }
+        var basePay = totals.reduce(0) { $0 + $1.basePay }
+        var ot125Pay = totals.reduce(0) { $0 + $1.ot125Pay }
+        var ot150Pay = totals.reduce(0) { $0 + $1.ot150Pay }
         let gross = totals.reduce(0) { $0 + $1.totalPay }
         let net = totals.reduce(0) { $0 + $1.netPay }
         let incomeTax = totals.reduce(0) { $0 + $1.incomeTax }
@@ -326,21 +336,57 @@ enum OvertimeCalculator {
         let credit = totals.reduce(0) { $0 + $1.creditPointsApplied }
         let points = TaxCreditPointsCalculator.creditPoints(for: settings)
 
+        // Weekly overtime adjustment (Israeli Hours of Work and Rest Law):
+        // Standard week = weeklyStandardHours (default 42). Hours above this threshold
+        // that the daily calculator still prices at 100% must be re-priced at 125% (first
+        // 2h of weekly OT) then 150% (beyond), mirroring the daily tier structure.
+        // Hours already at 125%/150% daily count toward the weekly OT cap so they are
+        // not double-charged.
+        let rate = settings.hourlyRate
+        let dailyOT = ot125 + ot150
+
+        let groupedByWeek = Dictionary(grouping: completed) { session in
+            calendar.dateComponents([.yearForWeekOfYear, .weekOfYear], from: session.clockIn)
+        }
+        var weeklyExcessHours = 0.0
+        for (_, weekSessions) in groupedByWeek {
+            let weekTotal = weekSessions.reduce(0) { $0 + $1.effectiveHours }
+            weeklyExcessHours += max(0, weekTotal - settings.weeklyStandardHours)
+        }
+
+        if weeklyExcessHours > dailyOT {
+            let needsWeeklyOT = weeklyExcessHours - dailyOT
+            let weeklyOT125 = min(needsWeeklyOT, settings.weeklyOvertimeCapHours)
+            let weeklyOT150 = max(0, needsWeeklyOT - settings.weeklyOvertimeCapHours)
+            // Move hours from regular bucket to weekly OT buckets:
+            // each hour moves from 100% → 125% = extra 25%, or 100% → 150% = extra 50%.
+            let promoted125 = min(regular, weeklyOT125)
+            let promoted150 = min(regular - promoted125, weeklyOT150)
+            regular -= (promoted125 + promoted150)
+            ot125 += promoted125
+            ot150 += promoted150
+            basePay = round(basePay - (promoted125 + promoted150) * rate)
+            ot125Pay = round(ot125Pay + promoted125 * rate * 1.25)
+            ot150Pay = round(ot150Pay + promoted150 * rate * 1.5)
+        }
+
+        let adjustedGross = basePay + ot125Pay + ot150Pay + gas
+
         return DayPayBreakdown(
             regularHours: regular,
             ot125Hours: ot125,
             ot150Hours: ot150,
             totalHours: hours,
-            gasAllowance: gas,
+            gasAllowance: round(gas),
             basePay: basePay,
             ot125Pay: ot125Pay,
             ot150Pay: ot150Pay,
-            totalPay: gross,
-            netPay: net,
-            incomeTax: incomeTax,
-            nationalInsurance: ni,
-            healthTax: health,
-            creditPointsApplied: credit,
+            totalPay: round(adjustedGross),
+            netPay: round(net),
+            incomeTax: round(incomeTax),
+            nationalInsurance: round(ni),
+            healthTax: round(health),
+            creditPointsApplied: round(credit),
             creditPoints: points,
             currencyCode: settings.currencyCode
         )

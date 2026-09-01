@@ -4,6 +4,7 @@ struct ManualEntryView: View {
     @ObservedObject var viewModel: AppViewModel
     @Environment(\.dismiss) private var dismiss
 
+    @State private var showSickCapAlert = false
     @State private var selectedDate = Date()
     @State private var clockIn = Date()
     @State private var clockOut = Date().addingTimeInterval(8.6 * 3600)
@@ -121,6 +122,11 @@ struct ManualEntryView: View {
         .onChange(of: dayType) { _, _ in
             applyHolidayAutoFillIfNeeded()
         }
+        .alert(L10n.errorTitle, isPresented: $showSickCapAlert) {
+            Button(L10n.errorOK, role: .cancel) {}
+        } message: {
+            Text(L10n.sickDayCapReached)
+        }
     }
 
     /// Holiday hours are never typed in — they're derived from the worker's
@@ -201,8 +207,15 @@ struct ManualEntryView: View {
         let day = calendar.startOfDay(for: selectedDate)
 
         if dayType == .sick {
-            viewModel.addSickDay(date: day, notes: notes.isEmpty ? nil : notes)
-            viewModel.showSuccessToast(L10n.feedbackSessionSaved)
+            let added = viewModel.addSickDay(date: day, notes: notes.isEmpty ? nil : notes)
+            if added {
+                viewModel.showSuccessToast(L10n.feedbackSessionSaved)
+            } else {
+                // Annual cap reached — `errorMessage` was set, but this sheet can
+                // be presented from a tab whose alert isn't visible, so surface
+                // the message right here.
+                showSickCapAlert = true
+            }
             dismiss()
             return
         }

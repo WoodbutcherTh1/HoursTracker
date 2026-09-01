@@ -30,3 +30,9 @@ custom_rules:
     message: "Use privacy: .private for identifiers and error payloads (static category labels may stay unannotated)."
     regex: 'privacy:\s*\.public'
     severity: error
+
+  no_gemini_api_key_in_url:
+    name: "No Gemini API key in URL query"
+    message: "Use x-goog-api-key header instead of ?key= query parameter to avoid leaking the key in logs."
+    regex: 'queryItems\s*=\s*\[URLQueryItem\(name:\s*"key"'
+    severity: error

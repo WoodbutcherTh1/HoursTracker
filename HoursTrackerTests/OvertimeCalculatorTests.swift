@@ -285,3 +285,87 @@ final class BlankTimesheetViewModelTests: XCTestCase {
         XCTAssertEqual(filled.toDraft()?.totalHours ?? 0, 9, accuracy: 0.01)
     }
 }
+
+// MARK: - Weekly overtime cap
+
+final class WeeklyOvertimeCapTests: XCTestCase {
+    private let calendar = Calendar.current
+
+    private func date(_ year: Int, _ month: Int, _ day: Int) -> Date {
+        calendar.date(from: DateComponents(year: year, month: month, day: day))!
+    }
+
+    private func session(
+        day: Int, month: Int = 8, year: Int = 2026,
+        inHour: Int = 8, outHour: Int = 18
+    ) -> WorkSession {
+        let d = date(year, month, day)
+        return WorkSession(
+            date: d,
+            clockIn: calendar.date(bySettingHour: inHour, minute: 0, second: 0, of: d)!,
+            clockOut: calendar.date(bySettingHour: outHour, minute: 0, second: 0, of: d)
+        )
+    }
+
+    private func settings(
+        weeklyStandardHours: Double = 42,
+        weeklyOvertimeCapHours: Double = 12
+    ) -> WorkplaceSettings {
+        var s = WorkplaceSettings.default
+        s.hourlyRate = 100
+        s.standardDayHours = 8.6
+        s.ot125HoursCap = 2
+        s.weeklyStandardHours = weeklyStandardHours
+        s.weeklyOvertimeCapHours = weeklyOvertimeCapHours
+        return s
+    }
+
+    /// 6 days × 10h = 60h total; daily OT = 6 × 1.4h = 8.4h already at OT rates;
+    /// weekly excess = 60 - 42 = 18h, but daily OT already covers 8.4h;
+    /// remaining 9.6h need to move from regular to weekly OT.
+    func testWeeklyOTPromotesRegularHoursAboveThreshold() {
+        let sessions = (3...8).map { session(day: $0, inHour: 8, outHour: 18) }
+        let result = OvertimeCalculator.aggregate(sessions: sessions, settings: settings())
+
+        // Should have some hours moved from regular to weekly OT.
+        let dailyRegularHours = 6 * 8.6 // 51.6h at daily 100%
+        let dailyOTHours = 6 * 1.4 // 8.4h at daily 125%
+        let weeklyExcess = 60.0 - 42.0 // 18h
+        let needsWeeklyOT = weeklyExcess - dailyOTHours // 9.6h
+
+        XCTAssertGreaterThan(result.ot125Hours, dailyOTHours,
+            "weekly OT should add to the OT125 bucket")
+        XCTAssertLessThan(result.regularHours, dailyRegularHours,
+            "regular bucket should shrink when weekly OT applies")
+        XCTAssertEqual(result.totalHours, 60.0, accuracy: 0.01)
+    }
+
+    /// When total weekly hours ≤ standard (42h), no weekly adjustment occurs.
+    func testWeeklyOTDoesNotApplyWhenUnderThreshold() {
+        let sessions = (3...7).map { session(day: $0, inHour: 8, outHour: 17) } // 45h over 5 days
+        // Wait — 5 × 9h = 45h > 42h, that WILL trigger weekly OT.
+        // Use 4 days instead: 4 × 9h = 36h.
+        let sessions4 = (3...6).map { session(day: $0, inHour: 8, outHour: 17) }
+        let result = OvertimeCalculator.aggregate(sessions: sessions4, settings: settings())
+
+        // All daily hours are at 100% since each day < 8.6h.
+        // Weekly total = 36h < 42h, so no OT adjustment.
+        XCTAssertEqual(result.regularHours, 36.0, accuracy: 0.01)
+        XCTAssertEqual(result.ot125Hours, 0, accuracy: 0.01)
+        XCTAssertEqual(result.ot150Hours, 0, accuracy: 0.01)
+    }
+
+    /// Open sessions must be excluded from aggregate.
+    func testAggregateExcludesOpenSessions() {
+        let closed = session(day: 3, inHour: 8, outHour: 17) // 9h
+        let open = WorkSession(
+            date: date(2026, 8, 4),
+            clockIn: calendar.date(bySettingHour: 9, minute: 0, second: 0, of: date(2026, 8, 4))!,
+            clockOut: nil
+        )
+        let result = OvertimeCalculator.aggregate(sessions: [closed, open], settings: settings())
+
+        XCTAssertEqual(result.totalHours, 9.0, accuracy: 0.01,
+            "open session should not count toward aggregate")
+    }
+}

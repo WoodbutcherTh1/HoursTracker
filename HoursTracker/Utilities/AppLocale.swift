@@ -142,6 +142,14 @@ enum AppLocale {
         }
     }
 
+    static func geofenceExitPrompt() -> String {
+        switch current {
+        case .arabic: return " طلعت من الشغل؟ لا تنسى تعمل خروج!"
+        case .hebrew: return "יצאת מהעבודה? אל תשכח להחתים יציאה!"
+        case .english: return "Leaving the workplace? Remember to clock out!"
+        }
+    }
+
     static func manualEntryLabel() -> String {
         switch current {
         case .arabic: return "يدوي"

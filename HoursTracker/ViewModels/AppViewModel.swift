@@ -29,6 +29,9 @@ final class AppViewModel: ObservableObject {
     @Published private(set) var pendingScannerResult: TimesheetScanResult?
     @Published var showPendingScannerReview = false
     @Published var showAssistant = false
+    /// Set by the `hourstracker://action/scan` deep link; MainTabView routes it
+    /// into the same single-sheet mechanism the assistant uses.
+    @Published var showScannerSheet = false
 
     private let store: SyncingStore
     private let locationManager: LocationReminderManaging
@@ -199,6 +202,12 @@ final class AppViewModel: ObservableObject {
         sessions.append(session)
         persist()
         refreshReminders()
+        syncWidget()
+        refreshAppShortcuts()
+        // Start Live Activity for the running shift.
+        if #available(iOS 16.1, *) {
+            LiveActivityManager.start(session: session, settings: settings)
+        }
         ActivityLogStore.shared.log(
             L10n.logEventClockIn,
             level: .success,
@@ -254,6 +263,10 @@ final class AppViewModel: ObservableObject {
 
     func clockOut() {
         guard let index = sessions.firstIndex(where: { $0.id == activeSession?.id }) else { return }
+        // End Live Activity before the session is modified.
+        if #available(iOS 16.1, *) {
+            LiveActivityManager.end(session: sessions[index], settings: settings)
+        }
         let clockOutDate = Date()
         sessions[index].clockOut = clockOutDate
         sessions[index].isNightShift = WorkSession.qualifiesAsNightShift(
@@ -274,6 +287,8 @@ final class AppViewModel: ObservableObject {
         showDaySummary = true
         persist()
         refreshReminders()
+        syncWidget()
+        refreshAppShortcuts()
         ActivityLogStore.shared.log(
             L10n.logEventClockOut,
             level: .success,
@@ -296,6 +311,9 @@ final class AppViewModel: ObservableObject {
             $0.dayType == .holiday && calendar.isDate($0.date, inSameDayAs: date)
         }
         if hasHolidayMarked { return .holiday }
+        // Bundled Israeli holiday calendar — a statutory rest day overrides the
+        // regular rest-day auto-tag (and never downgrades a manual marking).
+        if IsraeliHolidayCalendar.isHoliday(date, calendar: calendar) { return .holiday }
         return DayType.automatic(for: date, settings: settings)
     }
 
@@ -314,8 +332,21 @@ final class AppViewModel: ObservableObject {
     /// is naturally 0, but `clockOut` is non-nil so it's never mistaken for an
     /// open/active session. Pay is computed separately in `OvertimeCalculator`
     /// from the sick-day streak, not from these times.
-    func addSickDay(date: Date, notes: String?) {
-        let day = Calendar.current.startOfDay(for: date)
+    ///
+    /// Returns `false` (and surfaces `L10n.sickDayCapReached`) when adding the
+    /// day would push the worker past the annual sick-day allowance — sick days
+    /// accrue at 1.5 days/month in practice, so 18 per calendar year is the cap.
+    @discardableResult
+    func addSickDay(date: Date, notes: String?) -> Bool {
+        let calendar = Calendar.current
+        let day = calendar.startOfDay(for: date)
+        let alreadySickThatDay = sessions.contains {
+            $0.dayType == .sick && calendar.isDate($0.date, inSameDayAs: day)
+        }
+        guard alreadySickThatDay || sickDaysUsed(inYearOf: day, calendar: calendar) < Self.sickDaysPerYearCap else {
+            errorMessage = L10n.sickDayCapReached
+            return false
+        }
         let session = WorkSession(
             date: day,
             clockIn: day,
@@ -333,6 +364,35 @@ final class AppViewModel: ObservableObject {
             category: "session",
             details: day.formatted(date: .abbreviated, time: .omitted)
         )
+        return true
+    }
+
+    /// Annual sick-day allowance: sick days accrue at ~1.5 days/month in
+    /// practice, i.e. 18 per calendar year.
+    static let sickDaysPerYearCap = 18
+
+    /// Number of sick days recorded in the calendar year of `date`.
+    func sickDaysUsed(inYearOf date: Date, calendar: Calendar = .current) -> Int {
+        let year = calendar.dateComponents([.year], from: date).year
+        return sessions.filter {
+            $0.dayType == .sick && calendar.dateComponents([.year], from: $0.date).year == year
+        }.count
+    }
+
+    /// Applies a widget button tap (Clock In/Out) recorded in the shared
+    /// App Group suite. Safe to call on every launch and every Darwin wake:
+    /// a nil pending action is a no-op.
+    func consumeWidgetActionIfNeeded() {
+        guard let action = WidgetBridge.consumePendingAction() else { return }
+        switch action {
+        case .clockIn: clockIn()
+        case .clockOut: clockOut()
+        }
+    }
+
+    /// Keeps the long-press app-icon shortcuts in sync with the clock state.
+    func refreshAppShortcuts() {
+        AppShortcutManager.refresh(isClockedIn: sessions.contains(where: \.isOpen))
     }
 
     // MARK: - Manual Entry
@@ -780,9 +840,23 @@ final class AppViewModel: ObservableObject {
         } catch {
             errorMessage = L10n.errorSaveFailed
         }
+        WidgetBridge.update(settings: WidgetBridge.snapshot(from: settings))
+        WidgetBridge.reloadTimelines()
+        refreshAppShortcuts()
     }
 
     private func refreshReminders() {
         locationManager.configure(settings: settings, sessions: sessions)
+    }
+
+    /// Push current sessions and settings to the WidgetKit extension
+    /// and update the Live Activity (if one is running).
+    private func syncWidget() {
+        WidgetBridge.pushUpdate(settings: settings, sessions: sessions)
+        if #available(iOS 16.1, *) {
+            if let open = sessions.first(where: { $0.isOpen }) {
+                LiveActivityManager.update(session: open, settings: settings)
+            }
+        }
     }
 }

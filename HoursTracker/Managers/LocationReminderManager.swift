@@ -33,6 +33,7 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
     private let workplaceRegionID = "workplace-geofence"
     private let clockOutReminderID = "clock-out-reminder"
     private let forgotClockOutID = "forgot-clock-out"
+    private let geofenceExitID = "geofence-exit"
 
     private override init() {
         authorizationStatus = locationManager.authorizationStatus
@@ -185,7 +186,7 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
 
     private func cancelAllReminderNotifications() {
         notificationCenter.removePendingNotificationRequests(
-            withIdentifiers: [clockOutReminderID, forgotClockOutID]
+            withIdentifiers: [clockOutReminderID, forgotClockOutID, geofenceExitID]
         )
     }
 
@@ -223,6 +224,23 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
         content.sound = .default
         let request = UNNotificationRequest(
             identifier: "clock-in-\(UUID().uuidString)",
+            content: content,
+            trigger: nil
+        )
+        notificationCenter.add(request)
+    }
+
+    /// Fires when the user leaves the workplace region while a session is still open.
+    private func sendGeofenceExitNotification() {
+        guard settings.arrivalRemindersEnabled else { return }
+        guard hasOpenSession() else { return }
+
+        let content = UNMutableNotificationContent()
+        content.title = Self.notificationTitle()
+        content.body = AppLocale.geofenceExitPrompt()
+        content.sound = .default
+        let request = UNNotificationRequest(
+            identifier: geofenceExitID,
             content: content,
             trigger: nil
         )
@@ -318,7 +336,8 @@ extension LocationReminderManager: CLLocationManagerDelegate {
     func locationManager(_ manager: CLLocationManager, didExitRegion region: CLRegion) {
         guard region.identifier == workplaceRegionID else { return }
         isInsideWorkplace = false
-        // Away from the workplace → never remind (cancel any pending clock-out nags).
+        // Leaving the workplace: prompt to clock out if a session is still open.
+        sendGeofenceExitNotification()
         cancelAllReminderNotifications()
     }
 

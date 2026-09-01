@@ -59,6 +59,12 @@ struct HistoryView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 historyChrome
+                if !filteredSessions.isEmpty {
+                    // Six-month trend: hours per month + average monthly pay.
+                    MonthlyTrendCard(viewModel: viewModel)
+                        .padding(.horizontal, 14)
+                        .padding(.bottom, 10)
+                }
                 sessionsContent
                 stickySummaryBar
             }

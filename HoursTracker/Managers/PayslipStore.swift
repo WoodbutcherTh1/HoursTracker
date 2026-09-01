@@ -140,6 +140,24 @@ final class PayslipStore {
         shared.removeAllStoredData()
     }
 
+    /// Deletes files in `payslips/files/` that are not referenced by `index.json`.
+    /// These can accumulate when a staged file is not committed (e.g. app killed mid-flow).
+    func sweepOrphanedFiles() {
+        guard let records = try? listPayslips() else { return }
+        let referenced = Set(records.map(\.relativeFilePath))
+        guard let contents = try? fileManager.contentsOfDirectory(
+            at: filesDirectory,
+            includingPropertiesForKeys: nil,
+            options: .skipsHiddenFiles
+        ) else { return }
+        for fileURL in contents {
+            let relative = "payslips/files/\(fileURL.lastPathComponent)"
+            if !referenced.contains(relative) {
+                try? fileManager.removeItem(at: fileURL)
+            }
+        }
+    }
+
     func loadRecordsResult() -> PersistenceLoadResult<[PayslipRecord]> {
         loadIndex()
     }

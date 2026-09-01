@@ -2,6 +2,7 @@ import SwiftUI
 
 @main
 struct HoursTrackerApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @StateObject private var viewModel = AppViewModel()
     @StateObject private var appLock = AppLockController()
     @ObservedObject private var appLanguage = AppLanguageController.shared
@@ -51,8 +52,14 @@ struct HoursTrackerApp: App {
             .environmentObject(appLanguage)
             .onAppear {
                 ExportTempFileStore.wipeAll()
+                PayslipStore.shared.sweepOrphanedFiles()
                 viewModel.syncNow()
                 KeyboardTapDismissInstaller.shared.installIfNeeded()
+                // Widget button taps that happened while the app was closed
+                // are consumed here (the Darwin observer handles the warm path).
+                WidgetActionBroadcaster.shared.installIfNeeded()
+                viewModel.consumeWidgetActionIfNeeded()
+                viewModel.refreshAppShortcuts()
                 if appLock.isEnabled {
                     Task { await appLock.unlock() }
                 }
@@ -89,13 +96,26 @@ struct HoursTrackerApp: App {
 private enum MainSheetRoute: Identifiable, Hashable {
     case assistant
     case scannerReview
+    case scanner
 
     var id: Self { self }
+}
+
+/// Destinations reachable from the `hourstracker://` deep-link scheme
+/// (widget taps, widgetURL areas, and home-screen quick actions).
+private enum AppTab: String {
+    case home
+    case history
+    case export
+    case settings
 }
 
 struct MainTabView: View {
     @ObservedObject var viewModel: AppViewModel
     @EnvironmentObject private var appLanguage: AppLanguageController
+    // Deep links (widget taps / quick actions) switch tabs by name.
+    @State private var selectedTab: AppTab = .home
+    @AppStorage("hasSeenOnboarding.v1") private var hasSeenOnboarding = false
     // The Home screen's color picker is app-wide: this drives the tab bar's selected
     // color and every standard button/toggle/link tint across History, Export, and
     // Settings, not just Home's own neon-styled elements.
@@ -110,6 +130,7 @@ struct MainTabView: View {
     private var activeSheetRoute: Binding<MainSheetRoute?> {
         Binding(
             get: {
+                if viewModel.showScannerSheet { return .scanner }
                 if viewModel.showAssistant { return .assistant }
                 if viewModel.showPendingScannerReview { return .scannerReview }
                 return nil
@@ -117,17 +138,19 @@ struct MainTabView: View {
             set: { newRoute in
                 viewModel.showAssistant = (newRoute == .assistant)
                 viewModel.showPendingScannerReview = (newRoute == .scannerReview)
+                viewModel.showScannerSheet = (newRoute == .scanner)
             }
         )
     }
 
     var body: some View {
         let _ = appLanguage.preference // keep tab labels tied to language changes
-        TabView {
+        TabView(selection: $selectedTab) {
             HomeView(viewModel: viewModel)
                 .tabItem {
                     Label(L10n.tabHome, systemImage: "clock.fill")
                 }
+                .tag(AppTab.home)
                 .alert(
                     L10n.errorTitle,
                     isPresented: Binding(
@@ -146,16 +169,19 @@ struct MainTabView: View {
                 .tabItem {
                     Label(L10n.tabHistory, systemImage: "list.bullet.rectangle")
                 }
+                .tag(AppTab.history)
 
             ExportView(viewModel: viewModel)
                 .tabItem {
                     Label(L10n.tabExport, systemImage: "square.and.arrow.up")
                 }
+                .tag(AppTab.export)
 
             SettingsView(viewModel: viewModel)
                 .tabItem {
                     Label(L10n.tabSettings, systemImage: "gearshape.fill")
                 }
+                .tag(AppTab.settings)
         }
         .tint(homeTheme.accent)
         // The assistant lives in each tab root's navigation bar now
@@ -188,6 +214,10 @@ struct MainTabView: View {
                 if let result = viewModel.pendingScannerResult {
                     TimesheetScannerView(appViewModel: viewModel, initialResult: result)
                 }
+            case .scanner:
+                // Deep-linked (widget / quick action) scanner — no pending result
+                // yet, so TimesheetScannerView runs its own capture/import flow.
+                TimesheetScannerView(appViewModel: viewModel)
             }
         }
         .overlay(alignment: .top) {
@@ -215,6 +245,59 @@ struct MainTabView: View {
                 .buttonStyle(.borderedProminent)
                 .padding(.top, 8)
             }
+        }
+        // Deep links: widget button areas, widgetURL taps, and home-screen
+        // quick actions (via `AppShortcutRouting`).
+        .onOpenURL(perform: handleDeepLink)
+        .onAppear {
+            // Cold-start paths: a widget button tapped while the app was dead,
+            // or a quick action that fired before this view mounted.
+            viewModel.consumeWidgetActionIfNeeded()
+            if let url = AppShortcutRouting.consumePendingURL() {
+                handleDeepLink(url)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: AppShortcutRouting.didRoute)) { note in
+            if let url = note.object as? URL {
+                handleDeepLink(url)
+            }
+        }
+        .onReceive(NotificationCenter.default.publisher(for: WidgetActionBroadcaster.didReceiveAction)) { _ in
+            viewModel.consumeWidgetActionIfNeeded()
+        }
+        // First-launch onboarding — dismissed permanently once completed.
+        .fullScreenCover(
+            isPresented: Binding(
+                get: { !hasSeenOnboarding },
+                set: { if !$0 { hasSeenOnboarding = true } }
+            )
+        ) {
+            OnboardingView()
+        }
+    }
+
+    // MARK: - Deep links
+
+    private func handleDeepLink(_ url: URL) {
+        guard url.scheme == "hourstracker" else { return }
+        switch url.host {
+        case "tab":
+            if let tab = AppTab(rawValue: url.lastPathComponent) {
+                selectedTab = tab
+            }
+        case "action":
+            switch url.lastPathComponent {
+            case "clockIn":
+                viewModel.clockIn()
+            case "clockOut":
+                viewModel.clockOut()
+            case "scan":
+                viewModel.showScannerSheet = true
+            default:
+                break
+            }
+        default:
+            break
         }
     }
 }

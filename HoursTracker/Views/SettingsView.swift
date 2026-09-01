@@ -59,6 +59,7 @@ struct SettingsView: View {
                 taxSection
                 locationSection
                 securitySection
+                widgetPrivacySection
                 smartScannerSection
                 if viewModel.isCloudSyncSupported {
                     syncSection
@@ -441,6 +442,36 @@ struct SettingsView: View {
         }
     }
 
+    /// Home-screen widgets and the Live Activity (Dynamic Island / Lock Screen)
+    /// show money by default — this lets users mask it everywhere outside the app.
+    /// The flag lives in the shared App Group suite so the widget extension reads
+    /// it without needing the app's settings file.
+    private var widgetPrivacySection: some View {
+        Section {
+            Toggle(
+                L10n.settingsHideWidgetPay,
+                isOn: Binding(
+                    get: { WidgetBridge.hidePay },
+                    set: { newValue in
+                        WidgetBridge.hidePay = newValue
+                        WidgetBridge.reloadTimelines()
+                        // Live Activity updates push fresh (masked) content.
+                        if let open = viewModel.sessions.first(where: \.isOpen) {
+                            if #available(iOS 16.1, *) {
+                                LiveActivityManager.update(session: open, settings: viewModel.settings)
+                            }
+                        }
+                    }
+                )
+            )
+            Text(L10n.settingsHideWidgetPayHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } header: {
+            Text(L10n.settingsHideWidgetPaySection)
+        }
+    }
+
     private var workplaceSection: some View {
         Section(L10n.settingsWorkplace) {
             TextField(L10n.settingsWorkplaceName, text: $draft.workplaceName)
@@ -483,6 +514,22 @@ struct SettingsView: View {
                 Text(L10n.settingsOTCap)
                 Spacer()
                 TextField("2.0", value: $draft.ot125HoursCap, format: .number)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 100)
+            }
+            HStack {
+                Text("Weekly Standard Hours")
+                Spacer()
+                TextField("42", value: $draft.weeklyStandardHours, format: .number)
+                    .keyboardType(.decimalPad)
+                    .multilineTextAlignment(.trailing)
+                    .frame(width: 100)
+            }
+            HStack {
+                Text("Weekly OT Cap Hours")
+                Spacer()
+                TextField("12", value: $draft.weeklyOvertimeCapHours, format: .number)
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)

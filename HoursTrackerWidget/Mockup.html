@@ -1,0 +1,656 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HoursTracker Widget Mockup</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, 'SF Pro Rounded', 'SF Pro Display', system-ui, sans-serif;
+    background: #0a0a0a;
+    color: #eafffb;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 40px 20px;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    background: linear-gradient(135deg, #2dd4bf, #22d3ee);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .subtitle {
+    color: rgba(255,255,255,0.4);
+    font-size: 14px;
+    margin-bottom: 40px;
+  }
+  .section {
+    margin-bottom: 50px;
+    width: 100%;
+    max-width: 700px;
+  }
+  .section-title {
+    font-size: 18px;
+    font-weight: 700;
+    color: #5eead4;
+    margin-bottom: 20px;
+    padding-left: 4px;
+  }
+  .section-subtitle {
+    font-size: 12px;
+    color: rgba(255,255,255,0.35);
+    margin-top: -16px;
+    margin-bottom: 20px;
+    padding-left: 4px;
+  }
+  .row {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  /* ─── Widget Card ─── */
+  .widget {
+    border-radius: 22px;
+    overflow: hidden;
+    position: relative;
+    flex-shrink: 0;
+  }
+  .widget::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 22px;
+    padding: 1px;
+    background: linear-gradient(135deg, rgba(45,212,191,0.15), rgba(34,211,238,0.08), transparent);
+    -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+  }
+
+  /* Small widget */
+  .widget-small {
+    width: 155px;
+    height: 155px;
+    padding: 14px 14px 12px;
+    background: linear-gradient(145deg, #07242a 0%, #071a1f 60%, #03282b 100%);
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Medium widget */
+  .widget-medium {
+    width: 329px;
+    height: 155px;
+    padding: 14px 16px;
+    background: linear-gradient(145deg, #07242a 0%, #071a1f 60%, #03282b 100%);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 14px;
+  }
+
+  /* ─── Status Bar ─── */
+  .status-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+  .status-bar.compact { margin-bottom: 0; }
+  .pulse-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    position: relative;
+  }
+  .pulse-dot::after {
+    content: '';
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    opacity: 0.25;
+  }
+  .pulse-dot.green {
+    background: #5eead4;
+    box-shadow: 0 0 8px rgba(94,234,212,0.5);
+  }
+  .pulse-dot.green::after { background: #5eead4; }
+  .pulse-dot.teal {
+    background: #2dd4bf;
+    box-shadow: 0 0 8px rgba(45,212,191,0.4);
+  }
+  .pulse-dot.teal::after { background: #2dd4bf; }
+  .status-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+  .status-label.green { color: #5eead4; }
+  .status-label.teal { color: #2dd4bf; }
+  .status-time {
+    font-size: 9px;
+    color: rgba(255,255,255,0.3);
+    margin-left: auto;
+    font-weight: 500;
+  }
+
+  /* ─── Progress Ring ─── */
+  .ring-container {
+    position: relative;
+    width: 64px;
+    height: 64px;
+  }
+  .ring-container.large { width: 80px; height: 80px; }
+  .ring-bg {
+    fill: none;
+    stroke: rgba(45,212,191,0.1);
+    stroke-width: 5;
+  }
+  .ring-progress {
+    fill: none;
+    stroke-width: 5;
+    stroke-linecap: round;
+    transition: stroke-dashoffset 0.5s ease;
+  }
+  .ring-progress.teal { stroke: #2dd4bf; }
+  .ring-progress.cyan { stroke: #22d3ee; }
+  .ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+  .ring-value {
+    font-size: 16px;
+    font-weight: 700;
+    color: #eafffb;
+    line-height: 1;
+  }
+  .ring-label {
+    font-size: 9px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.45);
+  }
+  .ring-icon {
+    font-size: 14px;
+    font-weight: 700;
+  }
+
+  /* ─── Pay Display ─── */
+  .pay-amount {
+    font-size: 22px;
+    font-weight: 700;
+    background: linear-gradient(90deg, #4ade80, #5eead4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    line-height: 1.1;
+  }
+  .pay-amount.large { font-size: 20px; }
+  .pay-label {
+    font-size: 9px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+
+  /* ─── Medium Widget Layout ─── */
+  .medium-left {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .medium-divider {
+    width: 1px;
+    align-self: stretch;
+    background: rgba(255,255,255,0.06);
+    border-radius: 1px;
+    margin: 4px 0;
+  }
+  .medium-right {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-width: 0;
+  }
+  .stat-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .stat-icon {
+    font-size: 10px;
+    width: 14px;
+    text-align: center;
+  }
+  .stat-icon.green { color: #4ade80; }
+  .stat-icon.teal { color: #2dd4bf; }
+  .stat-label {
+    font-size: 8px;
+    font-weight: 700;
+    color: rgba(255,255,255,0.3);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .stat-value {
+    font-size: 18px;
+    font-weight: 700;
+    line-height: 1;
+    margin-left: auto;
+  }
+  .stat-value.green {
+    background: linear-gradient(90deg, #4ade80, #5eead4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .stat-value.teal { color: #5eead4; }
+  .stat-divider {
+    height: 1px;
+    background: rgba(255,255,255,0.06);
+    margin: 0;
+  }
+  .stat-info {
+    font-size: 9px;
+    color: rgba(255,255,255,0.3);
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .stat-info svg { width: 8px; height: 8px; fill: rgba(255,255,255,0.3); }
+
+  /* ─── Empty State ─── */
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    gap: 8px;
+  }
+  .empty-icon {
+    font-size: 32px;
+    background: linear-gradient(135deg, #2dd4bf, #22d3ee);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .empty-text {
+    font-size: 14px;
+    font-weight: 600;
+    color: #eafffb;
+  }
+  .empty-sub {
+    font-size: 11px;
+    color: rgba(255,255,255,0.35);
+  }
+
+  /* ─── Dynamic Island ─── */
+  .dynamic-island {
+    width: 126px;
+    height: 36px;
+    background: #000;
+    border-radius: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 14px;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .di-bolt {
+    font-size: 11px;
+    font-weight: 700;
+    color: #2dd4bf;
+  }
+  .di-time {
+    font-size: 12px;
+    font-weight: 700;
+    color: #eafffb;
+    font-variant-numeric: tabular-nums;
+  }
+  .di-pay {
+    font-size: 12px;
+    font-weight: 700;
+    color: #4ade80;
+  }
+
+  /* ─── Lock Screen ─── */
+  .lock-screen {
+    width: 375px;
+    background: linear-gradient(180deg, #111 0%, #000 100%);
+    border-radius: 20px;
+    padding: 60px 20px 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .lock-screen::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 126px;
+    height: 34px;
+    background: #000;
+    border-radius: 0 0 20px 20px;
+  }
+  .lock-time {
+    font-size: 72px;
+    font-weight: 200;
+    text-align: center;
+    color: #fff;
+    letter-spacing: -2px;
+    margin-bottom: 4px;
+  }
+  .lock-date {
+    font-size: 18px;
+    font-weight: 400;
+    text-align: center;
+    color: rgba(255,255,255,0.7);
+    margin-bottom: 30px;
+  }
+  .la-card {
+    background: linear-gradient(145deg, #07242a, #071a1f);
+    border-radius: 16px;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    border: 1px solid rgba(45,212,191,0.1);
+  }
+  .la-ring {
+    position: relative;
+    width: 44px;
+    height: 44px;
+    flex-shrink: 0;
+  }
+  .la-ring-bg {
+    fill: none;
+    stroke: rgba(45,212,191,0.15);
+    stroke-width: 5;
+  }
+  .la-ring-progress {
+    fill: none;
+    stroke: #2dd4bf;
+    stroke-width: 5;
+    stroke-linecap: round;
+  }
+  .la-ring-center {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 700;
+    color: #5eead4;
+  }
+  .la-stats { flex: 1; min-width: 0; }
+  .la-hours {
+    display: flex;
+    align-items: baseline;
+    gap: 2px;
+    margin-bottom: 2px;
+  }
+  .la-hours-val {
+    font-size: 16px;
+    font-weight: 700;
+    color: #eafffb;
+  }
+  .la-hours-unit {
+    font-size: 11px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.45);
+  }
+  .la-pay {
+    font-size: 18px;
+    font-weight: 700;
+    background: linear-gradient(90deg, #4ade80, #5eead4);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+  .la-time {
+    text-align: right;
+    flex-shrink: 0;
+  }
+  .la-time-val {
+    font-size: 13px;
+    font-weight: 700;
+    color: #eafffb;
+    font-variant-numeric: tabular-nums;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    justify-content: flex-end;
+  }
+  .la-time-val svg { width: 10px; height: 10px; fill: #2dd4bf; }
+  .la-time-since {
+    font-size: 9px;
+    color: rgba(255,255,255,0.25);
+    margin-top: 2px;
+  }
+
+  .label-badge {
+    display: inline-block;
+    font-size: 10px;
+    font-weight: 600;
+    color: rgba(255,255,255,0.35);
+    background: rgba(255,255,255,0.06);
+    padding: 3px 10px;
+    border-radius: 8px;
+    margin-bottom: 12px;
+    letter-spacing: 0.3px;
+  }
+</style>
+</head>
+<body>
+
+<h1>⚡ HoursTracker Widget</h1>
+<p class="subtitle">Dark teal neon theme · Live hours + earnings</p>
+
+<!-- ─── HOME SCREEN WIDGETS ─── -->
+<div class="section">
+  <div class="section-title">📱 Home Screen Widgets</div>
+
+  <div class="row">
+    <!-- Small: Working -->
+    <div class="widget widget-small">
+      <div class="status-bar">
+        <div class="pulse-dot green"></div>
+        <span class="status-label green">Working</span>
+        <span class="status-time">08:00</span>
+      </div>
+      <div class="ring-container" style="margin-bottom:8px">
+        <svg viewBox="0 0 64 64" width="64" height="64">
+          <circle class="ring-bg" cx="32" cy="32" r="27"/>
+          <circle class="ring-progress teal" cx="32" cy="32" r="27"
+            stroke-dasharray="169.6" stroke-dashoffset="50"/>
+        </svg>
+        <div class="ring-center">
+          <span class="ring-value">9.2</span>
+          <span class="ring-label">h</span>
+        </div>
+      </div>
+      <div class="pay-amount">₪1,247</div>
+      <div class="pay-label">estimated gross</div>
+    </div>
+
+    <!-- Small: Done -->
+    <div class="widget widget-small">
+      <div class="status-bar">
+        <div class="pulse-dot teal"></div>
+        <span class="status-label teal">Done</span>
+      </div>
+      <div class="ring-container" style="margin-bottom:8px">
+        <svg viewBox="0 0 64 64" width="64" height="64">
+          <circle class="ring-bg" cx="32" cy="32" r="27"/>
+          <circle class="ring-progress cyan" cx="32" cy="32" r="27"
+            stroke-dasharray="169.6" stroke-dashoffset="0"/>
+        </svg>
+        <div class="ring-center">
+          <span class="ring-value">8.6</span>
+          <span class="ring-label">h</span>
+        </div>
+      </div>
+      <div class="pay-amount">₪1,105</div>
+      <div class="pay-label">gross earnings</div>
+    </div>
+
+    <!-- Small: Empty -->
+    <div class="widget widget-small">
+      <div class="empty-state">
+        <div class="empty-icon">⚡</div>
+        <div class="empty-text">Tap to clock in</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── MEDIUM WIDGETS ─── -->
+<div class="section">
+  <div class="section-title">📊 Medium Widget</div>
+
+  <div class="row" style="flex-direction:column; align-items:center;">
+    <!-- Medium: Working -->
+    <span class="label-badge">Working</span>
+    <div class="widget widget-medium">
+      <div class="medium-left">
+        <div class="ring-container large">
+          <svg viewBox="0 0 80 80" width="80" height="80">
+            <circle class="ring-bg" cx="40" cy="40" r="34" stroke-width="5"/>
+            <circle class="ring-progress teal" cx="40" cy="40" r="34"
+              stroke-width="5" stroke-dasharray="213.6" stroke-dashoffset="64"/>
+          </svg>
+          <div class="ring-center">
+            <span class="ring-value" style="font-size:18px">9.2</span>
+            <span class="ring-label">h</span>
+          </div>
+        </div>
+        <div class="status-bar compact">
+          <div class="pulse-dot green" style="width:5px;height:5px;"></div>
+          <span class="status-label green" style="font-size:9px">Working</span>
+        </div>
+      </div>
+      <div class="medium-divider"></div>
+      <div class="medium-right">
+        <div class="stat-row">
+          <span class="stat-icon green">💰</span>
+          <span class="stat-label">Earnings</span>
+          <span class="stat-value green">₪1,247</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-row">
+          <span class="stat-icon teal">⏱</span>
+          <span class="stat-label">Elapsed</span>
+          <span class="stat-value teal">9.2h</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-info">
+          <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 4v4.5l3 1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          ILS ₪55.00/h
+        </div>
+      </div>
+    </div>
+
+    <!-- Medium: Done -->
+    <span class="label-badge" style="margin-top:16px">Done</span>
+    <div class="widget widget-medium">
+      <div class="medium-left">
+        <div class="ring-container large">
+          <svg viewBox="0 0 80 80" width="80" height="80">
+            <circle class="ring-bg" cx="40" cy="40" r="34" stroke-width="5"/>
+            <circle class="ring-progress cyan" cx="40" cy="40" r="34"
+              stroke-width="5" stroke-dasharray="213.6" stroke-dashoffset="0"/>
+          </svg>
+          <div class="ring-center">
+            <span class="ring-value" style="font-size:18px">8.6</span>
+            <span class="ring-label">h</span>
+          </div>
+        </div>
+        <div class="status-bar compact">
+          <div class="pulse-dot teal" style="width:5px;height:5px;"></div>
+          <span class="status-label teal" style="font-size:9px">Done</span>
+        </div>
+      </div>
+      <div class="medium-divider"></div>
+      <div class="medium-right">
+        <div class="stat-row">
+          <span class="stat-icon green">💰</span>
+          <span class="stat-label">Earnings</span>
+          <span class="stat-value green">₪1,105</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-row">
+          <span class="stat-icon teal">⏱</span>
+          <span class="stat-label">Hours</span>
+          <span class="stat-value teal">8.6h</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-info">
+          ✅ Shift complete
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ─── DYNAMIC ISLAND ─── -->
+<div class="section">
+  <div class="section-title">📱 Dynamic Island</div>
+  <div class="row">
+    <div class="dynamic-island">
+      <span class="di-bolt">⚡</span>
+      <span class="di-time">9:14</span>
+      <span class="di-pay">₪1,247</span>
+    </div>
+  </div>
+</div>
+
+<!-- ─── LOCK SCREEN ─── -->
+<div class="section">
+  <div class="section-title">🔒 Lock Screen</div>
+  <div class="lock-screen">
+    <div class="lock-time">9:14</div>
+    <div class="lock-date">Monday, September 1</div>
+    <div class="la-card">
+      <div class="la-ring">
+        <svg viewBox="0 0 44 44" width="44" height="44">
+          <circle class="la-ring-bg" cx="22" cy="22" r="18"/>
+          <circle class="la-ring-progress" cx="22" cy="22" r="18"
+            stroke-dasharray="113.1" stroke-dashoffset="34"/>
+        </svg>
+        <div class="la-ring-center">⚡</div>
+      </div>
+      <div class="la-stats">
+        <div class="la-hours">
+          <span class="la-hours-val">9.2</span>
+          <span class="la-hours-unit">h</span>
+        </div>
+        <div class="la-pay">₪1,247</div>
+      </div>
+      <div class="la-time">
+        <div class="la-time-val">
+          <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="7" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 4v4l2.5 1.5" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg>
+          9:14
+        </div>
+        <div class="la-time-since">since 08:00</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

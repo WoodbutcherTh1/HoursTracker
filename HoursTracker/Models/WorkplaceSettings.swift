@@ -32,6 +32,10 @@ struct WorkplaceSettings: Codable, Equatable {
     var defaultBreakMinutes: Int
     /// Standard day for night shifts before overtime starts (Hours of Work and Rest Law).
     var nightStandardDayHours: Double
+    /// Standard work-week hours before weekly overtime kicks in (Israeli law: 42h).
+    var weeklyStandardHours: Double
+    /// Maximum overtime hours allowed per week. Hours beyond this pay at 150%.
+    var weeklyOvertimeCapHours: Double
     /// ISO 4217 currency code used for all pay display.
     var currencyCode: String
     /// User opted into workplace arrival reminders (requires Always location).
@@ -66,6 +70,8 @@ struct WorkplaceSettings: Codable, Equatable {
         secondRestDayWeekday: nil,
         defaultBreakMinutes: 0,
         nightStandardDayHours: 7.0,
+        weeklyStandardHours: 42.0,
+        weeklyOvertimeCapHours: 12.0,
         currencyCode: "ILS",
         arrivalRemindersEnabled: false,
         expectedShiftStartHour: 8,
@@ -117,7 +123,8 @@ struct WorkplaceSettings: Codable, Equatable {
         case hourlyRate, dailyGasAllowance, standardDayHours, ot125HoursCap
         case locationLatitude, locationLongitude, locationRadiusMeters
         case maritalStatus, hasChildren, numberOfChildren, spouseEmployed, birthDate, payrollStartDay
-        case restDayWeekday, secondRestDayWeekday, defaultBreakMinutes, nightStandardDayHours, currencyCode
+        case restDayWeekday, secondRestDayWeekday, defaultBreakMinutes, nightStandardDayHours
+        case weeklyStandardHours, weeklyOvertimeCapHours, currencyCode
         case arrivalRemindersEnabled
         case expectedShiftStartHour, expectedShiftStartMinute
         case modifiedAt
@@ -146,6 +153,8 @@ struct WorkplaceSettings: Codable, Equatable {
         secondRestDayWeekday: Int? = nil,
         defaultBreakMinutes: Int = 0,
         nightStandardDayHours: Double = 7.0,
+        weeklyStandardHours: Double = 42.0,
+        weeklyOvertimeCapHours: Double = 12.0,
         currencyCode: String = "ILS",
         arrivalRemindersEnabled: Bool = false,
         expectedShiftStartHour: Int = 8,
@@ -174,6 +183,8 @@ struct WorkplaceSettings: Codable, Equatable {
         self.secondRestDayWeekday = secondRestDayWeekday
         self.defaultBreakMinutes = defaultBreakMinutes
         self.nightStandardDayHours = nightStandardDayHours
+        self.weeklyStandardHours = weeklyStandardHours
+        self.weeklyOvertimeCapHours = weeklyOvertimeCapHours
         self.currencyCode = currencyCode
         self.arrivalRemindersEnabled = arrivalRemindersEnabled
         self.expectedShiftStartHour = expectedShiftStartHour
@@ -206,6 +217,8 @@ struct WorkplaceSettings: Codable, Equatable {
         secondRestDayWeekday = try c.decodeIfPresent(Int.self, forKey: .secondRestDayWeekday)
         defaultBreakMinutes = try c.decodeIfPresent(Int.self, forKey: .defaultBreakMinutes) ?? 0
         nightStandardDayHours = try c.decodeIfPresent(Double.self, forKey: .nightStandardDayHours) ?? 7.0
+        weeklyStandardHours = try c.decodeIfPresent(Double.self, forKey: .weeklyStandardHours) ?? 42.0
+        weeklyOvertimeCapHours = try c.decodeIfPresent(Double.self, forKey: .weeklyOvertimeCapHours) ?? 12.0
         currencyCode = try c.decodeIfPresent(String.self, forKey: .currencyCode) ?? "ILS"
         arrivalRemindersEnabled = try c.decodeIfPresent(Bool.self, forKey: .arrivalRemindersEnabled) ?? false
         expectedShiftStartHour = try c.decodeIfPresent(Int.self, forKey: .expectedShiftStartHour) ?? 8
@@ -232,6 +245,8 @@ struct WorkplaceSettings: Codable, Equatable {
         }
         defaultBreakMinutes = max(0, defaultBreakMinutes)
         nightStandardDayHours = min(24, max(0.1, nightStandardDayHours))
+        weeklyStandardHours = min(60, max(1, weeklyStandardHours))
+        weeklyOvertimeCapHours = min(24, max(0, weeklyOvertimeCapHours))
         expectedShiftStartHour = min(max(expectedShiftStartHour, 0), 23)
         expectedShiftStartMinute = min(max(expectedShiftStartMinute, 0), 59)
     }

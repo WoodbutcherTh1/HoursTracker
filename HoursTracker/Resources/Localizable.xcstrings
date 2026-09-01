@@ -12702,6 +12702,444 @@
           }
         }
       }
+    },
+
+    "history.monthlyTrend" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الملخص الشهري"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Monthly trend"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מגמה חודשית"
+          }
+        }
+      }
+    },
+    "history.trendHours" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ساعات / شهر"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hours / month"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שעות / חודש"
+          }
+        }
+      }
+    },
+    "history.trendThisMonth" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "هذا الشهر"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This month"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "החודש"
+          }
+        }
+      }
+    },
+    "onboarding.next" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "التالي"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Next"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הבא"
+          }
+        }
+      }
+    },
+    "onboarding.start" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ابدأ التتبع"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start Tracking"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "להתחיל לעקוב"
+          }
+        }
+      }
+    },
+    "onboarding.step1Title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ضغطة واحدة لكل دوام"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One tap, every shift"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לחיצה אחת לכל משמרת"
+          }
+        }
+      }
+    },
+    "onboarding.step1Body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سجّل الدخول والخروج من التطبيق أو الويدجت أو ديناميك آيلاند — الاستراحات والدوامات الليلية ودرجات العمل الإضافي تُحسب تلقائياً."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clock in and out from the app, the home-screen widget, or the Dynamic Island — breaks, night shifts and overtime tiers are handled automatically."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "התחל וסיים משמרות מהאפליקציה, מהווידג'ט או מהאי הדינמי — הפסקות, משמרות לילה ומדרגות שעות נוספות מחושבות אוטומטית."
+          }
+        }
+      }
+    },
+    "onboarding.step2Title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اعرف راتبك"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Know your pay"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "דע את השכר שלך"
+          }
+        }
+      }
+    },
+    "onboarding.step2Body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "قوانين العمل الإسرائيلية مدمجة: الحدود اليومية والأسبوعية للعمل الإضافي، أيام الراحة، الأعياد وسلاسل أيام المرض — مع تقديرات إجمالي وصافي لكل دوام."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Israeli labor rules built in: daily and weekly overtime caps, rest days, holidays and sick-day streaks — with gross and net estimates for every shift."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "חוקי העבודה בישראל מובנים בתוך האפליקציה: מכסות שעות נוספות יומיות ושבועיות, ימי מנוחה, חגים ורצפי ימי מחלה — עם הערכות ברוטו ונטו לכל משמרת."
+          }
+        }
+      }
+    },
+    "onboarding.step3Title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "خصوصية بالتصميم"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Private by design"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "פרטיות מהתכנון"
+          }
+        }
+      }
+    },
+    "onboarding.step3Body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "معرفك الشخصي يبقى في Keychain، وبياناتك على جهازك، وميزات السحابة اختيارية فقط. يمكنك إخفاء الأجر من الشاشة المقفلة متى شئت."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your ID stays in the Keychain, data stays on your device, and cloud features are opt-in only. Hide pay from the Lock Screen whenever you want."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "תעודת הזהות נשארת ב-Keychain, הנתונים נשמרים במכשיר, ותכונות הענן הן בהסכמה בלבד. ניתן להסתיר את השכר ממסך הנעילה בכל עת."
+          }
+        }
+      }
+    },
+    "settings.hideWidgetPay" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إخفاء المبالغ المالية"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hide pay amounts"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הסתרת סכומי שכר"
+          }
+        }
+      }
+    },
+    "settings.hideWidgetPayHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يخفي الأرباح من ويدجت الشاشة الرئيسية وديناميك آيلاند والشاشة المقفلة. يبقى راتبك مرئياً فقط داخل التطبيق."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Masks earnings on home-screen widgets, the Dynamic Island and the Lock Screen. Your income stays visible only inside the app."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מסתיר את השכר בווידג'טים של מסך הבית, באי הדינמי ובמסך הנעילה. ההכנסות נשארות גלויות רק בתוך האפליקציה."
+          }
+        }
+      }
+    },
+    "settings.hideWidgetPaySection" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الويدجت والشاشة المقفلة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Widgets & Lock Screen"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ווידג'טים ומסך הנעילה"
+          }
+        }
+      }
+    },
+    "shortcut.addHours" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إضافة ساعات"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add Hours"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הוספת שעות"
+          }
+        }
+      }
+    },
+    "shortcut.clockIn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تسجيل دخول"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clock In"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "התחלת משמרת"
+          }
+        }
+      }
+    },
+    "shortcut.clockOut" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تسجيل خروج"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clock Out"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "סיום משמרת"
+          }
+        }
+      }
+    },
+    "shortcut.scanTimesheet" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مسح جدول دوام"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Scan Timesheet"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "סריקת טבלת שעות"
+          }
+        }
+      }
+    },
+    "sickDay.capReached" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "وصلت إلى الحد السنوي لأيام المرض (18 يوم). تحقق من صاحب العمل قبل تسجيل المزيد هذا العام."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Annual sick-day allowance reached (18 days). Check with your employer before recording more sick days this year."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הגעת למכסת ימי המחלה השנתית (18 ימים). בדוק עם המעסיק לפני רישום ימי מחלה נוספים השנה."
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

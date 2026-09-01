@@ -25,7 +25,7 @@ The app's job is to be a trustworthy record of hours and pay, so silent data los
 
 The calculator handles the daily 100/125/150 split; Israeli law has more dimensions that a worker relying on this app will eventually hit.
 
-> **Status:** implemented — unpaid breaks (per-session, with an auto-applied default for 6h+ shifts), rest-day/holiday rates (150%/175%/200%, auto-tagged from the configured weekly rest day), night shifts (7h standard day, auto-detected at ≥ 2h between 22:00–06:00), multiple sessions per day now share one daily overtime/gas allowance, and pay display uses a configurable currency. Separately delivered by the payroll/OCR branch: net-pay estimation with credit points and custom payroll months. Still open: weekly overtime caps, a bundled holiday calendar (holidays are a manual per-session flag today), and rest-day auto-tagging that accounts for the worker's religion-specific rest day beyond a single weekday setting.
+> **Status:** implemented — unpaid breaks (per-session, with an auto-applied default for 6h+ shifts), rest-day/holiday rates (150%/175%/200%, auto-tagged from the configured weekly rest day), night shifts (7h standard day, auto-detected at ≥ 2h between 22:00–06:00), multiple sessions per day now share one daily overtime/gas allowance, and pay display uses a configurable currency. Separately delivered by the payroll/OCR branch: net-pay estimation with credit points and custom payroll months. **Weekly overtime cap** now implemented: `weeklyStandardHours` (default 42h) and `weeklyOvertimeCapHours` (default 12h) in `WorkplaceSettings`; `aggregate()` promotes daily-100% hours above the weekly threshold to 125%/150% tiers. **Home-screen widget** now shows live pay estimates using the same daily OT split logic. **Bundled holiday calendar** now implemented: `IsraeliHolidayCalendar` computes the main statutory rest days (Rosh Hashanah, Yom Kippur, Sukkot I, Shemini Atzeret, Pesach I/II/VII/VIII, Shavuot) from the Hebrew calendar and auto-tags them as holidays. **Sick-day annual cap** now enforced: 18 days/year (`AppViewModel.sickDaysPerYearCap`), matching the 1.5 days/month accrual practice. Still open: rest-day auto-tagging that accounts for the worker's religion-specific rest day beyond a single weekday setting.
 
 - **Break/rest deduction** — support an unpaid break duration per session (or per settings default) subtracted before the overtime split.
 - **Weekly overtime and rest-day rates** — work on the weekly rest day (Shabbat/Friday depending on the worker) pays 150% from the first hour, with its own overtime tiers. Requires tagging sessions or settings with the worker's rest day.
@@ -36,14 +36,15 @@ The calculator handles the daily 100/125/150 split; Israeli law has more dimensi
 
 ## Phase 3 — UX & platform features
 
-> **Status (partial):** permission handling landed ahead of schedule — Always-location and notifications are now requested only when the user opts into arrival reminders in Settings, replacing the launch-time request this phase originally called out. A full onboarding flow is still open.
+> **Status (mostly done):** permission handling landed ahead of schedule — Always-location and notifications are now requested only when the user opts into arrival reminders in Settings, replacing the launch-time request this phase originally called out. **Geofence exit detection** now implemented: exiting the workplace region while a session is open sends a "leaving work? clock out!" notification. **Live Activity / Dynamic Island** and **home-screen widget** now implemented: the Lock Screen banner and Dynamic Island show a live elapsed-time + estimated-pay counter while a shift is running; the home-screen widget shows today's hours and earnings (small, medium and large sizes). Widgets are now **interactive** (Clock In / Clock Out AppIntent buttons), deep-link into the right tab, respect a **hide-pay privacy toggle**, and work in StandBy (iOS 17) as-is. **Monthly summary view** now shipped: History shows a six-month hours bar chart plus average monthly pay (Swift Charts). **Onboarding flow** now shipped: a three-page first-launch explainer presented once (AppLock/location copy is opt-in as before). Still open: multiple workplaces.
 
-- **Live Activity / Dynamic Island** for the running session — the live timer currently exists only inside the app; a Live Activity makes clock-out one glance away and reduces forgotten sessions (which the 23:00 alert only patches).
-- **Home-screen widget** showing today's status and the week's hours.
-- **Monthly summary view** — History is a flat list; add per-month totals (hours, overtime split, pay) with simple charts (Swift Charts) so exports aren't the only way to see aggregates.
+- ~~Live Activity / Dynamic Island~~ — done. Lock Screen banner + Dynamic Island show elapsed time + estimated pay during an active shift (masked when the hide-pay toggle is on).
+- ~~Home-screen widget~~ — done. Small / medium / large widgets show today's and this week's hours and earnings, with status indicators (Working / Done / Off) and Clock In / Clock Out buttons (iOS 17 AppIntents).
+- ~~Monthly summary view~~ — done. Six-month hours chart + average monthly pay in History.
 - **Multiple workplaces** — settings, rates, and geofences are singletons today (`WorkplaceSettings`, one `workplace-geofence` region). Support a workplace list, each with its own rates and geofence, and tag sessions with a workplace.
-- **Onboarding flow** — permissions (Always-location, notifications) are requested at first launch from `AppViewModel.init` with no explanation; a short onboarding explaining why, plus guided workplace/rate setup, will improve grant rates.
-- **Geofence exit detection** — the region only fires on entry (`notifyOnExit = false`); an exit event while clocked in could prompt "leaving work — clock out?", which is more accurate than the averaged-time reminder.
+- ~~Onboarding flow~~ — done. Three-page first-launch explainer (one-tap tracking, Israeli pay rules, privacy-first) presented once via `MainTabView`.
+- ~~Geofence exit detection~~ — done. `didExitRegion` sends a "leaving work?" notification when a session is open.
+- ~~Quick actions + deep links~~ — done. Long-press the app icon to clock in/out, add hours, or scan; widget areas deep-link to the correct tab (`hourstracker://`).
 
 ## Phase 4 — Distribution & polish
 
@@ -54,7 +55,7 @@ The calculator handles the daily 100/125/150 split; Israeli law has more dimensi
 - **Unify localization** — now three mechanisms: the String Catalog, `AppLocale`'s hardcoded notification strings, and `ExportCopy`'s per-language report table. Each exists for a reason (background language selection; report language independent of UI locale), but string changes touch up to three places — consolidate behind one lookup that takes an explicit locale.
 - **Data export/import safety** — a full JSON backup/restore (the persistence format is already JSON) protects users who lose the device, especially now that cloud sync is off by default.
 - **TestFlight / App Store submission** — screenshots in all three languages, App Store metadata, review notes for the opt-in Always-location usage.
-- **Cloud sync (parked)** — CloudKit is compiled out behind `HTCloudKitEnabled` because personal-team provisioning cannot carry iCloud entitlements. Revisit (with `CKSyncEngine`) once a paid Apple Developer team is available.
+- **Cloud sync (parked)** — CloudKit is compiled out behind `HTCloudKitEnabled` because personal-team provisioning cannot carry iCloud entitlements. Revisit (with `CKSyncEngine`) once a paid Apple Developer team is available — see `docs/CKSYNCENGINE.md` for the feasibility assessment (deferred: push delivery needs the paid entitlements).
 
 ## Suggested sequencing
 
@@ -62,6 +63,6 @@ The calculator handles the daily 100/125/150 split; Israeli law has more dimensi
 |---|---|---|
 | 0.2 | Phase 1 complete | Trustworthy storage/sync, CI, real test suite |
 | 0.3 | Breaks, rest-day/holiday rates, currency setting | Legally accurate pay for common cases |
-| 0.4 | Live Activity, widget, monthly summaries | Daily-driver UX |
-| 0.5 | Multiple workplaces, onboarding | General-audience ready |
+| 0.4 | Live Activity, widget, monthly summaries, onboarding, quick actions | Daily-driver UX |
+| 0.5 | Multiple workplaces | General-audience ready |
 | 1.0 | Phase 4 complete | App Store release |

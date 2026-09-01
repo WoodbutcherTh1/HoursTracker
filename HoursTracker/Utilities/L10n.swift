@@ -646,4 +646,33 @@ enum L10n {
     static var assistantStyleChat: String { t("assistant.style.chat") }
     static var assistantStyleClock: String { t("assistant.style.clock") }
     static var assistantStyleWand: String { t("assistant.style.wand") }
+
+    // Widgets / Live Activity privacy
+    static var settingsHideWidgetPaySection: String { t("settings.hideWidgetPaySection") }
+    static var settingsHideWidgetPay: String { t("settings.hideWidgetPay") }
+    static var settingsHideWidgetPayHint: String { t("settings.hideWidgetPayHint") }
+
+    // Home-screen quick actions (long-press app icon)
+    static var homeClockInShortcut: String { t("shortcut.clockIn") }
+    static var homeClockOutShortcut: String { t("shortcut.clockOut") }
+    static var quickAddHours: String { t("shortcut.addHours") }
+    static var quickScanTimesheet: String { t("shortcut.scanTimesheet") }
+
+    // Sick-day annual cap
+    static var sickDayCapReached: String { t("sickDay.capReached") }
+
+    // Onboarding
+    static var onboardingNext: String { t("onboarding.next") }
+    static var onboardingStart: String { t("onboarding.start") }
+    static var onboardingStep1Title: String { t("onboarding.step1Title") }
+    static var onboardingStep1Body: String { t("onboarding.step1Body") }
+    static var onboardingStep2Title: String { t("onboarding.step2Title") }
+    static var onboardingStep2Body: String { t("onboarding.step2Body") }
+    static var onboardingStep3Title: String { t("onboarding.step3Title") }
+    static var onboardingStep3Body: String { t("onboarding.step3Body") }
+
+    // Monthly trend (History)
+    static var historyMonthlyTrend: String { t("history.monthlyTrend") }
+    static var historyTrendHours: String { t("history.trendHours") }
+    static var historyTrendThisMonth: String { t("history.trendThisMonth") }
 }
