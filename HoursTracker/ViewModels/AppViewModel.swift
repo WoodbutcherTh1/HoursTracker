@@ -783,6 +783,22 @@ final class AppViewModel: ObservableObject {
         return url
     }
 
+    /// Re-attempts a load that previously came back `.temporarilyUnavailable`
+    /// (e.g. the app process was woken by a Lock Screen widget / Live Activity
+    /// tap while the device's Data Protection keys were still locked, so the
+    /// very first `load()` in `init()` raced and lost).
+    ///
+    /// Without this, `sessionsLoadUnavailable`/`settingsLoadUnavailable` stay
+    /// `true` for the rest of the process's life — the UI shows an empty
+    /// history and every `persist()` is silently refused (by design, to avoid
+    /// overwriting the intact on-disk file) — until the user force-quits and
+    /// relaunches. Calling this whenever the app becomes active (device is
+    /// now certainly unlocked) recovers automatically instead.
+    func retryLoadIfNeeded() {
+        guard sessionsLoadUnavailable || settingsLoadUnavailable else { return }
+        load()
+    }
+
     // MARK: - Private
 
     private func load() {

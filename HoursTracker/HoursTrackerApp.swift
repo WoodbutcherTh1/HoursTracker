@@ -53,6 +53,7 @@ struct HoursTrackerApp: App {
             .onAppear {
                 ExportTempFileStore.wipeAll()
                 PayslipStore.shared.sweepOrphanedFiles()
+                viewModel.retryLoadIfNeeded()
                 viewModel.syncNow()
                 KeyboardTapDismissInstaller.shared.installIfNeeded()
                 // Widget button taps that happened while the app was closed
@@ -73,6 +74,7 @@ struct HoursTrackerApp: App {
                 // Wipe on background only — `.inactive` also fires while the share
                 // sheet is presented and would delete the file mid-share.
                 if phase == .active {
+                    viewModel.retryLoadIfNeeded()
                     viewModel.syncNow()
                     if appLock.isEnabled && appLock.isLocked {
                         Task { await appLock.unlock() }

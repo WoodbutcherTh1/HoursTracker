@@ -419,6 +419,56 @@ final class AppViewModelTests: XCTestCase {
         )
     }
 
+    /// `retryLoadIfNeeded()` is the recovery half of the guarantee above: once
+    /// the transient failure clears (e.g. the device actually unlocks), the
+    /// app must pick up the real on-disk data again on its own — without
+    /// this, the UI would show an empty history for the rest of the process's
+    /// life even though the file was never touched.
+    func testRetryLoadIfNeededRecoversAfterTransientFailureClears() {
+        let real = TestData.session(day: 12, inHour: 8, outHour: 16)
+        let store = InMemoryStore()
+        store.storedSessions = [real]
+        store.sessionsLoadResultOverride = .temporarilyUnavailable
+
+        let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+        XCTAssertTrue(viewModel.sessions.isEmpty, "load should not fabricate an empty store while unavailable")
+
+        // The underlying condition clears (e.g. Data Protection released the
+        // class key after the user actually unlocked the device).
+        store.sessionsLoadResultOverride = nil
+        viewModel.retryLoadIfNeeded()
+
+        XCTAssertEqual(
+            viewModel.sessions.map(\.id),
+            [real.id],
+            "recovering from a transient failure must reload the real sessions, not leave the UI stuck empty"
+        )
+
+        // And normal persistence is unblocked again.
+        viewModel.clockIn()
+        XCTAssertEqual(store.storedSessions.count, 2)
+    }
+
+    /// A call to `retryLoadIfNeeded()` when nothing is wrong must be a no-op
+    /// (it must not re-read the store and risk clobbering in-memory state).
+    func testRetryLoadIfNeededIsNoOpWhenLoadWasFine() {
+        let real = TestData.session(day: 13, inHour: 8, outHour: 16)
+        let store = InMemoryStore()
+        store.storedSessions = [real]
+        let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
+
+        // Simulate an in-memory-only change that hasn't been reflected back
+        // into `store.storedSessions` the way a real save would.
+        store.storedSessions = []
+        viewModel.retryLoadIfNeeded()
+
+        XCTAssertEqual(
+            viewModel.sessions.map(\.id),
+            [real.id],
+            "retryLoadIfNeeded must not re-read the store when the prior load was not flagged unavailable"
+        )
+    }
+
     /// Settings save must be blocked on the same principle.
     func testTransientSettingsLoadFailureDoesNotWipeSettings() {
         let real = TestData.settings(hourlyRate: 250)
