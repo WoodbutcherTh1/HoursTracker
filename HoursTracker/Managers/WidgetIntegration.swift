@@ -80,15 +80,17 @@ final class WidgetActionBroadcaster {
         guard !installed else { return }
         installed = true
 
-        let handler: CFNotificationCenterCallback = { _, _, _, _, _ in
-            DispatchQueue.main.async {
-                NotificationCenter.default.post(name: Self.didReceiveAction, object: nil)
-            }
-        }
+        // The callback closure is passed inline — its type is inferred from the
+        // `CFNotificationCenterAddObserver` parameter (the named typealias is not
+        // always visible in this module's import set).
         CFNotificationCenterAddObserver(
             CFNotificationCenterGetDarwinNotifyCenter(),
             Unmanaged.passUnretained(self).toOpaque(),
-            handler,
+            { _, _, _, _, _ in
+                DispatchQueue.main.async {
+                    NotificationCenter.default.post(name: Self.didReceiveAction, object: nil)
+                }
+            },
             WidgetBridge.darwinActionNotification,
             nil,
             .deliverImmediately
