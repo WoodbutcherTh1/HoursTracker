@@ -472,6 +472,8 @@ enum L10n {
     static var logEventExport: String { t("log.event.export") }
     static var logEventFullDataExport: String { t("log.event.fullDataExport") }
     static var logEventLogExported: String { t("log.event.logExported") }
+    static var logEventStoreUnavailable: String { t("log.event.storeUnavailable") }
+    static var logEventStoreRecovered: String { t("log.event.storeRecovered") }
 
     // Full data export (Settings)
     static var fullExportTitle: String { t("fullExport.title") }

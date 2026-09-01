@@ -796,7 +796,25 @@ final class AppViewModel: ObservableObject {
     /// now certainly unlocked) recovers automatically instead.
     func retryLoadIfNeeded() {
         guard sessionsLoadUnavailable || settingsLoadUnavailable else { return }
+        let sessionsWereUnavailable = sessionsLoadUnavailable
+        let settingsWereUnavailable = settingsLoadUnavailable
         load()
+        if sessionsWereUnavailable, !sessionsLoadUnavailable {
+            ActivityLogStore.shared.log(
+                L10n.logEventStoreRecovered,
+                level: .success,
+                category: "persistence",
+                details: "sessions"
+            )
+        }
+        if settingsWereUnavailable, !settingsLoadUnavailable {
+            ActivityLogStore.shared.log(
+                L10n.logEventStoreRecovered,
+                level: .success,
+                category: "persistence",
+                details: "settings"
+            )
+        }
     }
 
     // MARK: - Private
@@ -814,6 +832,12 @@ final class AppViewModel: ObservableObject {
             // so `persist()` will NOT overwrite the intact-but-unreadable file.
             sessionsLoadUnavailable = true
             errorMessage = L10n.errorSaveFailed
+            ActivityLogStore.shared.log(
+                L10n.logEventStoreUnavailable,
+                level: .error,
+                category: "persistence",
+                details: "sessions"
+            )
         }
 
         switch store.loadSettingsResult() {
@@ -826,6 +850,12 @@ final class AppViewModel: ObservableObject {
         case .temporarilyUnavailable:
             settingsLoadUnavailable = true
             errorMessage = L10n.errorSaveFailed
+            ActivityLogStore.shared.log(
+                L10n.logEventStoreUnavailable,
+                level: .error,
+                category: "persistence",
+                details: "settings"
+            )
         }
     }
 

@@ -4327,6 +4327,52 @@
         }
       }
     },
+    "log.event.storeRecovered" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أُعيد تحميل البيانات المحلية بنجاح"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local data reloaded successfully"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הנתונים המקומיים נטענו מחדש בהצלחה"
+          }
+        }
+      }
+    },
+    "log.event.storeUnavailable" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تعذّرت قراءة البيانات المحلية مؤقتًا"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local data was temporarily unreadable"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לא ניתן היה לקרוא את הנתונים המקומיים באופן זמני"
+          }
+        }
+      }
+    },
     "log.export" : {
       "extractionState" : "stale",
       "localizations" : {
