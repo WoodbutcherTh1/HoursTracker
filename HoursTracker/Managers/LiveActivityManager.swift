@@ -49,7 +49,12 @@ enum LiveActivityManager {
         guard let activity else { return }
         let state = makeState(session: session, settings: settings)
         Task {
-            await activity.end(.init(state: state, staleDate: nil), dismissalPolicy: .after(.seconds(30)))
+            // `ActivityDismissalPolicy.after` takes a Date (the dismissal time),
+            // not a Duration — keep the live banner on screen for 30s.
+            await activity.end(
+                .init(state: state, staleDate: nil),
+                dismissalPolicy: .after(Date().addingTimeInterval(30))
+            )
         }
         self.activity = nil
     }
