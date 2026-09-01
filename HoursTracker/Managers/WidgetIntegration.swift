@@ -2,6 +2,7 @@ import ActivityKit
 import CoreFoundation
 import Foundation
 import UIKit
+import WidgetKit
 
 // MARK: - App → widget bridge (uses app-only types that the widget cannot see)
 
@@ -32,7 +33,18 @@ extension WidgetBridge {
     static func pushUpdate(settings: WorkplaceSettings, sessions: [WorkSession]) {
         update(settings: snapshot(from: settings))
         update(sessions: sessions.map(snapshot(from:)))
-        reloadTimelines()
+        reloadWidgetTimelines()
+    }
+}
+
+// MARK: - Widget timeline refresh (app-only — WidgetKit lives in this target)
+
+extension WidgetBridge {
+    /// Rebuilds every widget timeline. Kept OUT of the shared bridge file so
+    /// `WidgetCenter` (and the WidgetKit framework) never leaks into targets
+    /// that only compile the snapshot types (app tests, for example).
+    static func reloadWidgetTimelines() {
+        WidgetCenter.shared.reloadAllTimelines()
     }
 }
 

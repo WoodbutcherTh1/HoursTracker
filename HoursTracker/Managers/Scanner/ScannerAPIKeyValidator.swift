@@ -15,18 +15,21 @@ enum APIKeyCheckResult: Equatable {
 /// instead of the user only finding out a key doesn't work after uploading a document and
 /// watching the review screen come back empty.
 enum ScannerAPIKeyValidator {
-    /// GET https://generativelanguage.googleapis.com/v1beta/models?key=...
+    /// GET https://generativelanguage.googleapis.com/v1beta/models
+    /// Key travels in the `x-goog-api-key` header (never the URL query) so it
+    /// can't leak into proxy/log lines — same rule as the extraction calls.
     static func checkGeminiKey(_ apiKey: String, session: URLSession = .shared) async -> APIKeyCheckResult {
         let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return .invalid }
 
-        var components = URLComponents(string: "https://generativelanguage.googleapis.com/v1beta/models")
-        components?.queryItems = [URLQueryItem(name: "key", value: trimmed)]
-        guard let url = components?.url else { return .invalid }
+        guard let url = URL(string: "https://generativelanguage.googleapis.com/v1beta/models") else {
+            return .invalid
+        }
 
         var request = URLRequest(url: url)
         request.httpMethod = "GET"
         request.timeoutInterval = 15
+        request.setValue(trimmed, forHTTPHeaderField: "x-goog-api-key")
 
         do {
             let (_, response) = try await session.data(for: request)

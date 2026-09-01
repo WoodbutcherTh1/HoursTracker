@@ -124,11 +124,9 @@ enum WidgetBridge {
         suite?.set(Date(), forKey: lastUpdateKey)
     }
 
-    static func reloadTimelines() {
-        #if canImport(WidgetKit)
-        WidgetCenter.shared.reloadAllTimelines()
-        #endif
-    }
+    // NOTE: no `reloadTimelines` here — `WidgetCenter` requires linking WidgetKit
+    // into every target that compiles this shared file (app, widget, tests). The
+    // app-only bridge (`WidgetIntegration.swift`) owns `reloadWidgetTimelines()`.
 
     // MARK: - Privacy: hide pay amounts
 

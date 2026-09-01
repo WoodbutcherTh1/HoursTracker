@@ -101,7 +101,7 @@ final class PayslipThumbnailCache {
             }
 
             if let image, let data = image.jpegData(compressionQuality: 0.82) {
-                try? data.write(to: diskURL, options: .atomic)
+                try? ProtectedFileWriter.shared.write(data, to: diskURL)
                 self.memoryCache.setObject(image, forKey: id.uuidString as NSString)
             }
 

@@ -841,7 +841,7 @@ final class AppViewModel: ObservableObject {
             errorMessage = L10n.errorSaveFailed
         }
         WidgetBridge.update(settings: WidgetBridge.snapshot(from: settings))
-        WidgetBridge.reloadTimelines()
+        WidgetBridge.reloadWidgetTimelines()
         refreshAppShortcuts()
     }
 

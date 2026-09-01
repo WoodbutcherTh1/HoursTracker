@@ -454,7 +454,7 @@ struct SettingsView: View {
                     get: { WidgetBridge.hidePay },
                     set: { newValue in
                         WidgetBridge.hidePay = newValue
-                        WidgetBridge.reloadTimelines()
+                        WidgetBridge.reloadWidgetTimelines()
                         // Live Activity updates push fresh (masked) content.
                         if let open = viewModel.sessions.first(where: \.isOpen) {
                             if #available(iOS 16.1, *) {

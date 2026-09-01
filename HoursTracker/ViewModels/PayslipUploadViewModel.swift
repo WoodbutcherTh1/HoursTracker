@@ -448,7 +448,7 @@ final class PayslipUploadViewModel: ObservableObject {
             if contentType.conforms(to: .pdf) {
                 let temp = FileManager.default.temporaryDirectory
                     .appendingPathComponent("payslip-ocr-\(stagedFile.id.uuidString).pdf")
-                try fileData.write(to: temp, options: .atomic)
+                try ProtectedFileWriter.shared.write(fileData, to: temp)
                 defer { try? FileManager.default.removeItem(at: temp) }
                 ocrText = try await scanner.extractOCRText(fromFileURL: temp)
             } else if let image = UIImage(data: fileData) {
