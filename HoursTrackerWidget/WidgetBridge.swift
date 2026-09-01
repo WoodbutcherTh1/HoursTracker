@@ -103,6 +103,7 @@ enum WidgetBridge {
     static let lastUpdateKey = "widget_last_update"
     static let hidePayKey = "widget_hide_pay"
     static let pendingActionKey = "widget_pending_action"
+    static let selectedWeekOffsetKey = "widget_selected_week_offset"
 
     /// Darwin notification name — works across the app ↔ widget processes.
     static let darwinActionNotification = "com.hourstracker.widget.action" as CFString
@@ -139,6 +140,19 @@ enum WidgetBridge {
     /// Formats a pay amount, masking it entirely when privacy hiding is on.
     static func format(amount: Double, currencyCode: String) -> String {
         hidePay ? "••••" : WidgetPayFormatter.string(amount, currencyCode: currencyCode)
+    }
+
+    // MARK: - Week navigation (Home Screen widget only)
+
+    /// Which week the large Home Screen widget is currently showing: 0 = this
+    /// week, negative = past weeks. Persisted in the shared suite so the
+    /// timeline provider (a fresh process on every reload) can read it back.
+    /// The app resets this to 0 whenever it pushes fresh data (see
+    /// `pushUpdate`), so a stale "browsing last week" selection never lingers
+    /// once real activity happens.
+    static var selectedWeekOffset: Int {
+        get { suite?.integer(forKey: selectedWeekOffsetKey) ?? 0 }
+        set { suite?.set(newValue, forKey: selectedWeekOffsetKey) }
     }
 
     // MARK: - Pending action (widget button → app)
@@ -196,13 +210,21 @@ enum WidgetBridge {
         }
     }
 
-    /// All sessions (open or completed) whose clock-in falls in the current week.
+    /// All sessions (open or completed) whose clock-in falls in the week `offset`
+    /// weeks from the current one (0 = this week, -1 = last week, ...).
     static func weekSessions(
         from sessions: [WidgetSession],
+        offset: Int = 0,
         calendar: Calendar = .current
     ) -> [WidgetSession] {
-        guard let interval = calendar.dateInterval(of: .weekOfYear, for: Date()) else { return [] }
+        guard let interval = weekInterval(offset: offset, calendar: calendar) else { return [] }
         return sessions.filter { $0.clockIn >= interval.start && $0.clockIn < interval.end }
+    }
+
+    /// The `DateInterval` for the week `offset` weeks from the current one.
+    static func weekInterval(offset: Int, calendar: Calendar = .current) -> DateInterval? {
+        guard let day = calendar.date(byAdding: .weekOfYear, value: offset, to: Date()) else { return nil }
+        return calendar.dateInterval(of: .weekOfYear, for: day)
     }
 
     /// All sessions (open or completed) whose clock-in falls in the current month.

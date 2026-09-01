@@ -33,6 +33,9 @@ extension WidgetBridge {
     static func pushUpdate(settings: WorkplaceSettings, sessions: [WorkSession]) {
         update(settings: snapshot(from: settings))
         update(sessions: sessions.map(snapshot(from:)))
+        // Fresh real activity means any "browsing an old week" state on the
+        // widget is stale — snap back to the current week.
+        selectedWeekOffset = 0
         reloadWidgetTimelines()
     }
 }

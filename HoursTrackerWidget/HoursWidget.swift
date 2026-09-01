@@ -139,33 +139,124 @@ private struct HoursRing: View {
     }
 }
 
-/// Rounded interactive button used across widget sizes.
+/// Rounded interactive button used across widget sizes. Disabled (dimmed,
+/// non-interactive) buttons still render so the Clock In / Clock Out pair
+/// stays visually present at all times — only the state-appropriate one
+/// is actually tappable. The real double-clock-in/out guard lives in
+/// `AppViewModel.clockIn()`/`clockOut()`, not here — this is just UX polish
+/// so a stray tap on the wrong button is a visible no-op, not a surprise.
 private struct WidgetActionButton: View {
     let title: String
     let systemImage: String
     let tint: Color
     let intent: any AppIntent
+    var isEnabled: Bool = true
+    /// Icon-only, no text label — used where space is very tight (small
+    /// widget, Lock Screen accessory).
+    var iconOnly: Bool = false
 
     @ViewBuilder
     var body: some View {
-        if let clockIn = intent as? ClockInIntent {
-            Button(intent: clockIn) { label }
-        } else if let clockOut = intent as? ClockOutIntent {
-            Button(intent: clockOut) { label }
-        } else {
-            label
+        Group {
+            if let clockIn = intent as? ClockInIntent {
+                Button(intent: clockIn) { label }
+            } else if let clockOut = intent as? ClockOutIntent {
+                Button(intent: clockOut) { label }
+            } else {
+                label
+            }
         }
+        .disabled(!isEnabled)
     }
 
-    private var label: some View {
-        Label(title, systemImage: systemImage)
-            .font(.system(size: 11, weight: .bold, design: .rounded))
-            .foregroundStyle(WidgetTheme.textPrimary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(tint.opacity(0.18), in: Capsule())
-            .overlay(Capsule().stroke(tint.opacity(0.35), lineWidth: 1))
+    private var effectiveTint: Color {
+        isEnabled ? tint : WidgetTheme.textTertiary
     }
+
+    @ViewBuilder
+    private var label: some View {
+        if iconOnly {
+            Image(systemName: systemImage)
+                .font(.system(size: 12, weight: .bold))
+                .foregroundStyle(isEnabled ? WidgetTheme.textPrimary : WidgetTheme.textTertiary)
+                .frame(width: 26, height: 26)
+                .background(effectiveTint.opacity(0.18), in: Circle())
+                .overlay(Circle().stroke(effectiveTint.opacity(0.35), lineWidth: 1))
+        } else {
+            Label(title, systemImage: systemImage)
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(isEnabled ? WidgetTheme.textPrimary : WidgetTheme.textTertiary)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(effectiveTint.opacity(0.18), in: Capsule())
+                .overlay(Capsule().stroke(effectiveTint.opacity(0.35), lineWidth: 1))
+        }
+    }
+}
+
+/// Always-visible Clock In (green) / Clock Out (red) pair. The button that
+/// doesn't match the current state is shown dimmed and disabled rather than
+/// hidden, so the control's layout never shifts and it's always clear which
+/// action is available.
+private struct ClockControlRow: View {
+    let isOpen: Bool
+    var iconOnly: Bool = false
+
+    var body: some View {
+        HStack(spacing: 8) {
+            WidgetActionButton(
+                title: "Clock In",
+                systemImage: "play.fill",
+                tint: WidgetTheme.moneyGreen,
+                intent: ClockInIntent(),
+                isEnabled: !isOpen,
+                iconOnly: iconOnly
+            )
+            WidgetActionButton(
+                title: "Clock Out",
+                systemImage: "stop.fill",
+                tint: Color(red: 0.94, green: 0.35, blue: 0.35),
+                intent: ClockOutIntent(),
+                isEnabled: isOpen,
+                iconOnly: iconOnly
+            )
+        }
+    }
+}
+
+/// Small chevron button for the large widget's week navigation.
+private struct WeekNavButton: View {
+    let systemImage: String
+    let isEnabled: Bool
+    let intent: any AppIntent
+
+    @ViewBuilder
+    var body: some View {
+        Group {
+            if let previous = intent as? PreviousWeekIntent {
+                Button(intent: previous) { icon }
+            } else if let next = intent as? NextWeekIntent {
+                Button(intent: next) { icon }
+            } else {
+                icon
+            }
+        }
+        .disabled(!isEnabled)
+    }
+
+    private var icon: some View {
+        Image(systemName: systemImage)
+            .font(.system(size: 10, weight: .bold))
+            .foregroundStyle(isEnabled ? WidgetTheme.textSecondary : WidgetTheme.textTertiary.opacity(0.4))
+            .frame(width: 18, height: 18)
+    }
+}
+
+/// Compact "Tue, Sep 1" label shown on every widget state.
+private func dayDateLabel(for date: Date) -> String {
+    let formatter = DateFormatter()
+    formatter.setLocalizedDateFormatFromTemplate("EEEd MMM")
+    return formatter.string(from: date)
 }
 
 // MARK: - Timeline Entry
@@ -191,6 +282,12 @@ struct HoursEntry: TimelineEntry {
     let monthPay: Double
     let weekBars: [DayBar]
     let settings: WidgetSettings
+    /// Weeks from the current one that `weekBars`/`weeklyHours`/`weeklyPay`
+    /// describe: 0 = this week, negative = a past week the user navigated to.
+    let weekOffset: Int
+    /// Human-readable label for the week described above, e.g. "This week"
+    /// or "Aug 25 – Aug 31".
+    let weekRangeLabel: String
 }
 
 // MARK: - Timeline Provider
@@ -212,7 +309,9 @@ struct HoursTimelineProvider: TimelineProvider {
             monthHours: 148,
             monthPay: 16200,
             weekBars: sampleBars,
-            settings: .empty
+            settings: .empty,
+            weekOffset: 0,
+            weekRangeLabel: "This week"
         )
     }
 
@@ -245,11 +344,13 @@ struct HoursTimelineProvider: TimelineProvider {
             $0 + WidgetBridge.estimatePay(elapsedHours: $1.effectiveHours, settings: settings)
         }
 
-        let weekSessions = WidgetBridge.weekSessions(from: sessions, calendar: calendar)
+        let weekOffset = WidgetBridge.selectedWeekOffset
+        let weekSessions = WidgetBridge.weekSessions(from: sessions, offset: weekOffset, calendar: calendar)
         let weeklyHours = weekSessions.reduce(0) { $0 + $1.effectiveHours }
         let weeklyPay = weekSessions.reduce(0) {
             $0 + WidgetBridge.estimatePay(elapsedHours: $1.effectiveHours, settings: settings)
         }
+        let weekLabel = weekRangeLabel(offset: weekOffset, calendar: calendar)
 
         let monthSessions = WidgetBridge.monthSessions(from: sessions, calendar: calendar)
         let monthHours = monthSessions.reduce(0) { $0 + $1.effectiveHours }
@@ -257,7 +358,7 @@ struct HoursTimelineProvider: TimelineProvider {
             $0 + WidgetBridge.estimatePay(elapsedHours: $1.effectiveHours, settings: settings)
         }
 
-        let bars = weekBars(from: sessions, calendar: calendar)
+        let bars = weekBars(from: sessions, offset: weekOffset, calendar: calendar)
 
         if let open = WidgetBridge.openSession(from: sessions) {
             let elapsed = open.effectiveHours
@@ -268,7 +369,8 @@ struct HoursTimelineProvider: TimelineProvider {
                 todayCompletedHours: completedHours, todayCompletedPay: completedPay,
                 weeklyHours: weeklyHours, weeklyPay: weeklyPay,
                 monthHours: monthHours, monthPay: monthPay,
-                weekBars: bars, settings: settings
+                weekBars: bars, settings: settings,
+                weekOffset: weekOffset, weekRangeLabel: weekLabel
             )
         } else {
             return HoursEntry(
@@ -277,14 +379,15 @@ struct HoursTimelineProvider: TimelineProvider {
                 todayCompletedHours: completedHours, todayCompletedPay: completedPay,
                 weeklyHours: weeklyHours, weeklyPay: weeklyPay,
                 monthHours: monthHours, monthPay: monthPay,
-                weekBars: bars, settings: settings
+                weekBars: bars, settings: settings,
+                weekOffset: weekOffset, weekRangeLabel: weekLabel
             )
         }
     }
 
-    private func weekBars(from sessions: [WidgetSession], calendar: Calendar) -> [DayBar] {
-        let today = calendar.startOfDay(for: Date())
-        let startOfWeek = calendar.dateInterval(of: .weekOfYear, for: today)?.start ?? today
+    private func weekBars(from sessions: [WidgetSession], offset: Int, calendar: Calendar) -> [DayBar] {
+        let startOfWeek = WidgetBridge.weekInterval(offset: offset, calendar: calendar)?.start
+            ?? calendar.startOfDay(for: Date())
         let weekDays = (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: startOfWeek) }
         return weekDays.enumerated().map { index, day in
             let hours = sessions
@@ -293,6 +396,18 @@ struct HoursTimelineProvider: TimelineProvider {
             let label = String(calendar.shortWeekdaySymbols[calendar.component(.weekday, from: day) - 1].prefix(1))
             return DayBar(id: index, label: label, hours: hours)
         }
+    }
+
+    /// "This week" for the current week, otherwise a "Aug 25 – Aug 31" range.
+    private func weekRangeLabel(offset: Int, calendar: Calendar) -> String {
+        guard offset != 0 else { return "This week" }
+        guard let interval = WidgetBridge.weekInterval(offset: offset, calendar: calendar) else {
+            return "This week"
+        }
+        let end = calendar.date(byAdding: .day, value: -1, to: interval.end) ?? interval.end
+        let formatter = DateFormatter()
+        formatter.setLocalizedDateFormatFromTemplate("MMMd")
+        return "\(formatter.string(from: interval.start)) – \(formatter.string(from: end))"
     }
 }
 
@@ -342,7 +457,7 @@ struct HoursSmallWidgetView: View {
     // MARK: Active State
 
     private func activeView(session: WidgetSession) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             // Status bar
             HStack(spacing: 5) {
                 PulseDot(color: WidgetTheme.workingDot, size: 5)
@@ -354,6 +469,9 @@ struct HoursSmallWidgetView: View {
                     .font(.system(size: 9, weight: .medium, design: .rounded))
                     .foregroundStyle(WidgetTheme.textTertiary)
             }
+            Text(dayDateLabel(for: entry.date))
+                .font(.system(size: 8, weight: .medium, design: .rounded))
+                .foregroundStyle(WidgetTheme.textTertiary)
 
             // Hours ring + pay
             HStack(spacing: 10) {
@@ -374,14 +492,9 @@ struct HoursSmallWidgetView: View {
                 }
             }
 
-            // Clock out — the whole point: one tap from the home screen.
-            WidgetActionButton(
-                title: "Clock Out",
-                systemImage: "stop.fill",
-                tint: WidgetTheme.accent,
-                intent: ClockOutIntent()
-            )
-            .frame(maxWidth: .infinity)
+            // Clock In / Clock Out — always both, only one enabled.
+            ClockControlRow(isOpen: entry.isOpen)
+                .frame(maxWidth: .infinity)
         }
         .padding(12)
     }
@@ -389,7 +502,7 @@ struct HoursSmallWidgetView: View {
     // MARK: Completed State
 
     private var completedView: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 6) {
             // Status bar
             HStack(spacing: 5) {
                 PulseDot(color: WidgetTheme.doneDot, size: 5)
@@ -402,6 +515,9 @@ struct HoursSmallWidgetView: View {
                     .foregroundStyle(WidgetTheme.textTertiary)
                     .monospacedDigit()
             }
+            Text(dayDateLabel(for: entry.date))
+                .font(.system(size: 8, weight: .medium, design: .rounded))
+                .foregroundStyle(WidgetTheme.textTertiary)
 
             // Ring + pay
             HStack(spacing: 10) {
@@ -422,20 +538,10 @@ struct HoursSmallWidgetView: View {
                 }
             }
 
-            Spacer(minLength: 0)
-
-            HStack(spacing: 6) {
-                Image(systemName: "checkmark.seal.fill")
-                    .font(.system(size: 10))
-                    .foregroundStyle(WidgetTheme.moneyGreen)
-                Text("Shift complete")
-                    .font(.system(size: 9, weight: .semibold, design: .rounded))
-                    .foregroundStyle(WidgetTheme.textSecondary)
-                Spacer()
-                Image(systemName: "list.bullet.rectangle")
-                    .font(.system(size: 10))
-                    .foregroundStyle(WidgetTheme.textTertiary)
-            }
+            // Clock In / Clock Out — a second shift today is allowed, so
+            // Clock In stays reachable even after finishing one.
+            ClockControlRow(isOpen: entry.isOpen)
+                .frame(maxWidth: .infinity)
         }
         .padding(12)
     }
@@ -443,7 +549,7 @@ struct HoursSmallWidgetView: View {
     // MARK: Empty State
 
     private var emptyView: some View {
-        VStack(spacing: 9) {
+        VStack(spacing: 8) {
             Spacer()
             Image(systemName: "bolt.circle.fill")
                 .font(.system(size: 26))
@@ -451,12 +557,10 @@ struct HoursSmallWidgetView: View {
             Text("Start your shift")
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundStyle(WidgetTheme.textPrimary)
-            WidgetActionButton(
-                title: "Clock In",
-                systemImage: "play.fill",
-                tint: WidgetTheme.moneyGreen,
-                intent: ClockInIntent()
-            )
+            Text(dayDateLabel(for: entry.date))
+                .font(.system(size: 8, weight: .medium, design: .rounded))
+                .foregroundStyle(WidgetTheme.textTertiary)
+            ClockControlRow(isOpen: entry.isOpen)
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -524,6 +628,9 @@ struct HoursHomeWidgetView: View {
                         .font(.system(size: 9, weight: .bold, design: .rounded))
                         .foregroundStyle(WidgetTheme.accentLight)
                 }
+                Text(dayDateLabel(for: entry.date))
+                    .font(.system(size: 8, weight: .medium, design: .rounded))
+                    .foregroundStyle(WidgetTheme.textTertiary)
             }
 
             RoundedRectangle(cornerRadius: 0.5)
@@ -546,12 +653,7 @@ struct HoursHomeWidgetView: View {
                     valueColor: WidgetTheme.accentLight,
                     iconColor: WidgetTheme.accent
                 )
-                WidgetActionButton(
-                    title: "Clock Out",
-                    systemImage: "stop.fill",
-                    tint: WidgetTheme.accent,
-                    intent: ClockOutIntent()
-                )
+                ClockControlRow(isOpen: entry.isOpen)
             }
         }
         .padding(14)
@@ -571,6 +673,9 @@ struct HoursHomeWidgetView: View {
                         .font(.system(size: 9, weight: .bold, design: .rounded))
                         .foregroundStyle(WidgetTheme.accent)
                 }
+                Text(dayDateLabel(for: entry.date))
+                    .font(.system(size: 8, weight: .medium, design: .rounded))
+                    .foregroundStyle(WidgetTheme.textTertiary)
             }
 
             RoundedRectangle(cornerRadius: 0.5)
@@ -592,14 +697,7 @@ struct HoursHomeWidgetView: View {
                     valueColor: WidgetTheme.accentLight,
                     iconColor: WidgetTheme.accent
                 )
-                HStack(spacing: 4) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 8))
-                        .foregroundStyle(WidgetTheme.moneyGreen)
-                    Text("This week \(formattedElapsed(entry.weeklyHours)) · tap for history")
-                        .font(.system(size: 9, weight: .medium, design: .rounded))
-                        .foregroundStyle(WidgetTheme.textTertiary)
-                }
+                ClockControlRow(isOpen: entry.isOpen)
             }
         }
         .padding(14)
@@ -617,18 +715,13 @@ struct HoursHomeWidgetView: View {
                     Text("Ready to work?")
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(WidgetTheme.textPrimary)
-                    Text("One tap starts today's shift")
+                    Text(dayDateLabel(for: entry.date))
                         .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundStyle(WidgetTheme.textTertiary)
                 }
             }
             Spacer()
-            WidgetActionButton(
-                title: "Clock In",
-                systemImage: "play.fill",
-                tint: WidgetTheme.moneyGreen,
-                intent: ClockInIntent()
-            )
+            ClockControlRow(isOpen: entry.isOpen)
         }
         .padding(16)
     }
@@ -636,14 +729,25 @@ struct HoursHomeWidgetView: View {
     // MARK: Large — week overview (home screen + StandBy)
 
     private var largeView: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 6) {
                 PulseDot(color: entry.isOpen ? WidgetTheme.workingDot : WidgetTheme.doneDot, size: 5)
-                Text(entry.isOpen ? "Working — this week" : "This week")
-                    .font(.system(size: 13, weight: .bold, design: .rounded))
+                Text(entry.isOpen && entry.weekOffset == 0 ? "Working" : dayDateLabel(for: entry.date))
+                    .font(.system(size: 12, weight: .bold, design: .rounded))
                     .foregroundStyle(
                         entry.isOpen ? WidgetTheme.accentLight : WidgetTheme.accent
                     )
+                Spacer()
+                ClockControlRow(isOpen: entry.isOpen, iconOnly: true)
+            }
+
+            // Week navigation
+            HStack(spacing: 6) {
+                WeekNavButton(systemImage: "chevron.left", isEnabled: true, intent: PreviousWeekIntent())
+                Text(entry.weekRangeLabel)
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                    .foregroundStyle(WidgetTheme.textSecondary)
+                WeekNavButton(systemImage: "chevron.right", isEnabled: entry.weekOffset < 0, intent: NextWeekIntent())
                 Spacer()
                 Text("\(formattedElapsed(entry.weeklyHours)) / \(formattedElapsed(entry.settings.weeklyStandardHours))")
                     .font(.system(size: 12, weight: .bold, design: .rounded))
@@ -681,20 +785,17 @@ struct HoursHomeWidgetView: View {
 
             // Week + month totals
             HStack(spacing: 10) {
-                largeStat(label: "This week", value: payText(entry.weeklyPay), color: WidgetTheme.moneyGreen, icon: "banknote.fill")
+                largeStat(
+                    label: entry.weekOffset == 0 ? "This week" : "Selected week",
+                    value: payText(entry.weeklyPay),
+                    color: WidgetTheme.moneyGreen,
+                    icon: "banknote.fill"
+                )
                 RoundedRectangle(cornerRadius: 0.5)
                     .fill(WidgetTheme.cardBorder)
                     .frame(width: 1)
                 largeStat(label: "This month", value: payText(entry.monthPay), color: WidgetTheme.accentLight, icon: "calendar")
                 Spacer(minLength: 0)
-                if entry.isOpen {
-                    WidgetActionButton(
-                        title: "Out",
-                        systemImage: "stop.fill",
-                        tint: WidgetTheme.accent,
-                        intent: ClockOutIntent()
-                    )
-                }
             }
         }
         .padding(14)
@@ -735,6 +836,81 @@ struct HoursHomeWidgetView: View {
     }
 }
 
+// MARK: - Lock Screen Widget
+
+/// Minimal Lock Screen widget: day + date, a live hours counter, and the
+/// same Clock In / Clock Out pair as the Home Screen widgets. Lock Screen
+/// accessory widgets are rendered by the system in a single tint/vibrancy
+/// treatment, so — deliberately, unlike the Home Screen widgets — this view
+/// sets no explicit colors and no decorative backgrounds; the OS controls
+/// how it actually appears.
+struct HoursLockScreenWidget: Widget {
+    let kind: String = "HoursLockScreenWidget"
+
+    var body: some WidgetConfiguration {
+        StaticConfiguration(kind: kind, provider: HoursTimelineProvider()) { entry in
+            HoursLockScreenWidgetView(entry: entry)
+                .containerBackground(for: .widget) {
+                    Color.clear
+                }
+        }
+        .configurationDisplayName("Hours Tracker")
+        .description("Day, hours, and Clock In / Clock Out on your Lock Screen.")
+        .supportedFamilies([.accessoryRectangular])
+    }
+}
+
+struct HoursLockScreenWidgetView: View {
+    let entry: HoursEntry
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack {
+                Text(dayDateLabel(for: entry.date))
+                    .font(.system(size: 11, weight: .semibold, design: .rounded))
+                Spacer(minLength: 4)
+                hoursText
+                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .monospacedDigit()
+            }
+            HStack(spacing: 10) {
+                lockScreenClockButton(title: "In", systemImage: "play.fill", isEnabled: !entry.isOpen, isClockIn: true)
+                lockScreenClockButton(title: "Out", systemImage: "stop.fill", isEnabled: entry.isOpen, isClockIn: false)
+                Spacer(minLength: 0)
+            }
+        }
+        .widgetURL(URL(string: WidgetBridge.deepLinkHome))
+    }
+
+    @ViewBuilder
+    private var hoursText: some View {
+        if entry.isOpen, let session = entry.session {
+            Text(session.clockIn, style: .timer)
+        } else {
+            Text(String(format: "%.1fh", entry.todayCompletedHours))
+        }
+    }
+
+    @ViewBuilder
+    private func lockScreenClockButton(title: String, systemImage: String, isEnabled: Bool, isClockIn: Bool) -> some View {
+        Group {
+            if isClockIn {
+                Button(intent: ClockInIntent()) {
+                    Label(title, systemImage: systemImage)
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                }
+            } else {
+                Button(intent: ClockOutIntent()) {
+                    Label(title, systemImage: systemImage)
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                }
+            }
+        }
+        .disabled(!isEnabled)
+        .opacity(isEnabled ? 1 : 0.35)
+    }
+}
+
 // MARK: - Widget Bundle
 
 @main
@@ -742,6 +918,7 @@ struct HoursWidgetBundle: WidgetBundle {
     var body: some Widget {
         HoursSmallWidget()
         HoursMediumWidget()
+        HoursLockScreenWidget()
         HoursLiveActivity()
     }
 }
