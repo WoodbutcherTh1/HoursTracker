@@ -403,15 +403,24 @@ actor TimesheetScannerManager {
         let normalized = Self.normalize(text)
         let calendar = Calendar.current
 
-        // 1) Prefer per-line rows that already contain date + 2 times.
-        var drafts = parseLineRows(normalized, calendar: calendar)
+        // 1) Prefer a pasted CSV/spreadsheet export: date and clock-in/out
+        // pinned to adjacent comma-separated columns. Tried first because
+        // it's immune to the false-positive time matches a comma row's
+        // other numeric columns can trigger in the looser whole-line scan
+        // below (e.g. a "651.11" pay total misread as the time "01:11").
+        var drafts = parseCSVColumnRows(normalized, calendar: calendar)
 
-        // 2) Global pattern pairing across the whole document.
+        // 2) Per-line rows that contain date + 2 times anywhere on the line.
+        if drafts.isEmpty {
+            drafts = parseLineRows(normalized, calendar: calendar)
+        }
+
+        // 3) Global pattern pairing across the whole document.
         if drafts.isEmpty {
             drafts = parseGlobalDateTimePairs(normalized, calendar: calendar)
         }
 
-        // 3) Sliding window over adjacent lines (tables often split cells).
+        // 4) Sliding window over adjacent lines (tables often split cells).
         if drafts.isEmpty {
             drafts = parseAdjacentLineWindows(normalized, calendar: calendar)
         }
@@ -463,6 +472,35 @@ actor TimesheetScannerManager {
     /// which would otherwise miss Arabic-Indic digits and OCR separator noise).
     nonisolated static func normalizedOCRText(_ text: String) -> String {
         normalize(text)
+    }
+
+    /// Matches a comma-separated row (this app's own CSV export, or a similar
+    /// spreadsheet paste) by walking adjacent column windows for the first
+    /// (date, time, time) triple, rather than scanning the whole line for
+    /// "any two time-shaped tokens" the way `parseLineRows` does. That
+    /// distinction matters: a CSV row here can carry several more numeric
+    /// columns after the real clock-in/out (break hours, overtime tiers, a
+    /// pay total like "651.11"), and the loose whole-line time regex can
+    /// misread the ".11" in a pay total as a valid time. Pinning to the
+    /// first successful adjacent-column triple avoids that: real columns
+    /// come first in every export this app produces, so they win before any
+    /// later column is even considered.
+    nonisolated private func parseCSVColumnRows(_ text: String, calendar: Calendar) -> [ScannedSessionDraft] {
+        text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .compactMap { line -> ScannedSessionDraft? in
+                let fields = line.components(separatedBy: ",").map { $0.trimmingCharacters(in: .whitespaces) }
+                guard fields.count >= 3 else { return nil }
+                for start in 0...(fields.count - 3) {
+                    guard let date = firstDate(in: fields[start], calendar: calendar),
+                          let inTime = parseTime(fields[start + 1]),
+                          let outTime = parseTime(fields[start + 2])
+                    else { continue }
+                    return makeDraft(date: date, inTime: inTime, outTime: outTime, calendar: calendar, confidence: 0.95)
+                }
+                return nil
+            }
     }
 
     nonisolated private func parseLineRows(_ text: String, calendar: Calendar) -> [ScannedSessionDraft] {
