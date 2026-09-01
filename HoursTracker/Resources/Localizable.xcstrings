@@ -10127,6 +10127,52 @@
         }
       }
     },
+    "settings.weeklyOvertimeCapHours" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حد العمل الإضافي الأسبوعي"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weekly OT Cap Hours"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "תקרת שעות נוספות שבועית"
+          }
+        }
+      }
+    },
+    "settings.weeklyStandardHours" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الساعات القياسية الأسبوعية"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weekly Standard Hours"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שעות רגילות שבועיות"
+          }
+        }
+      }
+    },
     "settings.workerInfo" : {
       "extractionState" : "stale",
       "localizations" : {

@@ -264,6 +264,8 @@ enum L10n {
     static var settingsGasAllowance: String { t("settings.gasAllowance") }
     static var settingsStandardHours: String { t("settings.standardHours") }
     static var settingsOTCap: String { t("settings.otCap") }
+    static var settingsWeeklyStandardHours: String { t("settings.weeklyStandardHours") }
+    static var settingsWeeklyOTCapHours: String { t("settings.weeklyOvertimeCapHours") }
     static var settingsLocationReminders: String { t("settings.locationReminders") }
     static var settingsGeofenceRadius: String { t("settings.geofenceRadius") }
     static var settingsNoLocation: String { t("settings.noLocation") }

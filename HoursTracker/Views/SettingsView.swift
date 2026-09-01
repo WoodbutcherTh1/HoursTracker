@@ -519,7 +519,7 @@ struct SettingsView: View {
                     .frame(width: 100)
             }
             HStack {
-                Text("Weekly Standard Hours")
+                Text(L10n.settingsWeeklyStandardHours)
                 Spacer()
                 TextField("42", value: $draft.weeklyStandardHours, format: .number)
                     .keyboardType(.decimalPad)
@@ -527,7 +527,7 @@ struct SettingsView: View {
                     .frame(width: 100)
             }
             HStack {
-                Text("Weekly OT Cap Hours")
+                Text(L10n.settingsWeeklyOTCapHours)
                 Spacer()
                 TextField("12", value: $draft.weeklyOvertimeCapHours, format: .number)
                     .keyboardType(.decimalPad)
