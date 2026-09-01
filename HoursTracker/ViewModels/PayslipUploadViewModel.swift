@@ -474,7 +474,12 @@ final class PayslipUploadViewModel: ObservableObject {
                 return
             }
 
-            let result = await router.extractPayslip(ocrText: ocrText)
+            // Same OCR-text cleanup the timesheet pipeline uses: converts
+            // Arabic-Indic/Persian digits and separator noise before the parser
+            // (local heuristic or cloud LLM) sees the text.
+            let result = await router.extractPayslip(
+                ocrText: TimesheetScannerManager.normalizedOCRText(ocrText)
+            )
 
             if Task.isCancelled {
                 store.discardStaged(stagedFile)

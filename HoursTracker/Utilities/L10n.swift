@@ -675,4 +675,12 @@ enum L10n {
     static var historyMonthlyTrend: String { t("history.monthlyTrend") }
     static var historyTrendHours: String { t("history.trendHours") }
     static var historyTrendThisMonth: String { t("history.trendThisMonth") }
+
+    // Export live preview
+    static var exportPreviewTitle: String { t("export.previewTitle") }
+    static var exportPreviewDays: String { t("export.previewDays") }
+    static var exportPreviewHours: String { t("export.previewHours") }
+    static var exportPreviewGross: String { t("export.previewGross") }
+    static var exportPreviewNet: String { t("export.previewNet") }
+    static var exportPreviewEmpty: String { t("export.previewEmpty") }
 }

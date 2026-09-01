@@ -99,14 +99,22 @@ struct LocalHeuristicPayslipLLMProvider: PayslipLLMProviding {
 
     private static let netKeywords = [
         "נטו לתשלום", "סך נטו", "סה\"כ נטו", "סהכ נטו", "לתשלום", "נטו",
-        "صافي", "net pay", "take home", "net salary"
+        "סכום לתשלום", "שולם", "לתשלום נטו",
+        "صافي", "المبلغ الصافي", "net pay", "take home", "net salary"
     ]
     private static let grossKeywords = [
         "שכר ברוטו", "סה\"כ ברוטו", "סהכ ברוטו", "ברוטו", "משכורת",
-        "إجمالي", "gross pay", "gross salary", "gross"
+        "שכר כולל", "שכר בסיס", "שכר בסיסי", "שכר רגיל", "bruto", "gross",
+        "إجمالي", "الراتب الأساسي", "gross pay", "gross salary"
     ]
-    private static let employerLabels = ["מעסיק", "שם המעסיק", "מקום עבודה", "employer", "شركة"]
-    private static let employeeLabels = ["עובד", "שם העובד", "שם פרטי", "employee", "عامل"]
+    private static let employerLabels = [
+        "מעסיק", "שם המעסיק", "מקום עבודה", "מעביד", "שם חברה",
+        "employer", "company name", "شركة", "جهة العمل"
+    ]
+    private static let employeeLabels = [
+        "עובד", "שם העובד", "שם פרטי", "שם מלא", "עובד/ת",
+        "employee", "عامل", "اسم الموظف"
+    ]
 
     private static func isNetLine(_ line: String, lower: String) -> Bool {
         if line.contains("נטו") { return true }

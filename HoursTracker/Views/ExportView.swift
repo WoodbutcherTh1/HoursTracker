@@ -111,6 +111,35 @@ struct ExportView: View {
                     }
                 }
 
+                // Live preview of exactly what the current options would export
+                // (same range filtering + pay engine as the report itself).
+                Section {
+                    if let summary = previewSummary {
+                        HStack(spacing: 12) {
+                            previewStat(value: "\(summary.dayCount)", label: L10n.exportPreviewDays)
+                            previewStat(
+                                value: String(format: "%.1f", summary.totalHours),
+                                label: L10n.exportPreviewHours
+                            )
+                            previewStat(
+                                value: PayFormatter.string(summary.gross, currencyCode: viewModel.settings.currencyCode),
+                                label: L10n.exportPreviewGross
+                            )
+                            previewStat(
+                                value: PayFormatter.string(summary.net, currencyCode: viewModel.settings.currencyCode),
+                                label: L10n.exportPreviewNet
+                            )
+                        }
+                        .frame(maxWidth: .infinity)
+                    } else {
+                        Label(L10n.exportPreviewEmpty, systemImage: "calendar.badge.exclamationmark")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } header: {
+                    Text(L10n.exportPreviewTitle)
+                }
+
                 Section {
                     Button {
                         export()
@@ -192,6 +221,57 @@ struct ExportView: View {
                 Text(payslipDeleteError ?? "")
             }
         }
+    }
+
+    // MARK: - Live preview
+
+    /// What the current range + day-type filters would produce, computed with
+    /// the same pay engine as the actual report.
+    private var previewSummary: (dayCount: Int, totalHours: Double, gross: Double, net: Double)? {
+        let range = buildRange()
+        let calendar = Calendar.current
+        var sessions = viewModel.sessions.filter { $0.clockOut != nil }
+
+        switch range {
+        case .all:
+            break
+        case .month(let year, let month):
+            sessions = sessions.filter {
+                let c = calendar.dateComponents([.year, .month], from: $0.date)
+                return c.year == year && c.month == month
+            }
+        case .year(let year):
+            sessions = sessions.filter { calendar.component(.year, from: $0.date) == year }
+        case .custom(let from, let to):
+            let start = calendar.startOfDay(for: from)
+            let end = calendar.startOfDay(for: to).addingTimeInterval(86400 - 1)
+            sessions = sessions.filter { $0.date >= start && $0.date <= end }
+        }
+        if let dayTypes = dayTypeFilter.dayTypes {
+            sessions = sessions.filter { dayTypes.contains($0.dayType) }
+        }
+        guard !sessions.isEmpty else { return nil }
+
+        let breakdown = OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.settings)
+        let dayCount = Set(sessions.map { calendar.startOfDay(for: $0.date) }).count
+        return (dayCount, breakdown.totalHours, breakdown.totalPay, breakdown.netPay)
+    }
+
+    private func previewStat(value: String, label: String) -> some View {
+        VStack(spacing: 3) {
+            Text(value)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundStyle(.primary)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            Text(label.uppercased())
+                .font(.system(size: 8, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private func label(for language: ExportLanguage) -> String {

@@ -299,10 +299,14 @@ actor TimesheetScannerManager {
             }
             request.recognitionLevel = .accurate
             request.usesLanguageCorrection = true
-            request.recognitionLanguages = ["he-IL", "en-US"]
+            // Hebrew is the primary language for Israeli payslips/timesheets, but
+            // Arabic-speaking users photograph Arabic tables too, so recognize all
+            // three (Vision picks the best per region).
+            request.recognitionLanguages = ["he-IL", "ar-SA", "en-US"]
             request.customWords = [
                 "כניסה", "יציאה", "תאריך", "שעות", "נוכחות", "משמרת", "סה\"כ",
-                "Date", "In", "Out", "Hours", "Clock", "Total"
+                "Date", "In", "Out", "Hours", "Clock", "Total",
+                "ساعات", "دخول", "خروج", "تاريخ", "إجمالي", "صافي"
             ]
 
             do {
@@ -396,7 +400,7 @@ actor TimesheetScannerManager {
     }
 
     nonisolated func parseSessions(from text: String) -> [ScannedSessionDraft] {
-        let normalized = normalize(text)
+        let normalized = Self.normalize(text)
         let calendar = Calendar.current
 
         // 1) Prefer per-line rows that already contain date + 2 times.
@@ -423,15 +427,42 @@ actor TimesheetScannerManager {
         return unique
     }
 
-    nonisolated private func normalize(_ text: String) -> String {
-        text
+    nonisolated private static func normalize(_ text: String) -> String {
+        var normalized = text
+            // Bidi marks Vision inserts around Hebrew/Arabic runs.
             .replacingOccurrences(of: "\u{200f}", with: "")
             .replacingOccurrences(of: "\u{200e}", with: "")
+            // Dashes and separators OCR renders inconsistently.
             .replacingOccurrences(of: "—", with: "-")
             .replacingOccurrences(of: "–", with: "-")
-            .replacingOccurrences(of: "٫", with: ".")
+            .replacingOccurrences(of: "·", with: ".")
             .replacingOccurrences(of: "：", with: ":")
-            .replacingOccurrences(of: "٫", with: ":")
+            .replacingOccurrences(of: "،", with: ",")
+            // Arabic decimal separator → plain dot (times use colons later).
+            .replacingOccurrences(of: "٫", with: ".")
+
+        // Arabic-Indic (٠-٩) and Persian (۰-۹) digits appear in OCR of Arabic
+        // and some Hebrew documents — convert them to Western digits so the
+        // date/time regexes can match.
+        let arabicIndic = ["٠", "١", "٢", "٣", "٤", "٥", "٦", "٧", "٨", "٩"]
+        let persian = ["۰", "۱", "۲", "۳", "۴", "۵", "۶", "۷", "۸", "۹"]
+        for (index, digit) in arabicIndic.enumerated() {
+            normalized = normalized.replacingOccurrences(of: digit, with: String(index))
+        }
+        for (index, digit) in persian.enumerated() {
+            normalized = normalized.replacingOccurrences(of: digit, with: String(index))
+        }
+        // Narrow/regular no-break spaces Vision inserts inside numbers.
+        return normalized
+            .replacingOccurrences(of: "\u{202f}", with: "")
+            .replacingOccurrences(of: "\u{00a0}", with: " ")
+    }
+
+    /// Shared OCR-text cleanup for consumers outside the timesheet pipeline
+    /// (the payslip import path feeds raw Vision text straight into its parser,
+    /// which would otherwise miss Arabic-Indic digits and OCR separator noise).
+    nonisolated static func normalizedOCRText(_ text: String) -> String {
+        normalize(text)
     }
 
     nonisolated private func parseLineRows(_ text: String, calendar: Calendar) -> [ScannedSessionDraft] {
@@ -622,8 +653,30 @@ actor TimesheetScannerManager {
     }
 
     nonisolated private func allTimes(in text: String) -> [(Int, Int)] {
-        matches(in: text, pattern: #"\b([01]?\d|2[0-3])[:.]([0-5]\d)(?:[:.][0-5]\d)?\b"#)
+        var times = matches(in: text, pattern: #"\b([01]?\d|2[0-3])[:.]([0-5]\d)(?:[:.][0-5]\d)?\b"#)
             .compactMap(parseTime)
+
+        // OCR often drops the colon entirely ("08:00-16:00" → "0800-1600");
+        // try the compact form when the standard form found nothing useful.
+        // Only trusted as a PAIR, because a lone 4-digit token is far more
+        // likely to be a date or an ID than a time.
+        if times.count < 2 {
+            times += compactTimes(in: text)
+        }
+        return times
+    }
+
+    /// Extracts "0800" → (8, 0) style tokens, rejecting anything that looks like
+    /// a year (19xx / 20xx) and only accepting hour-plausible values.
+    nonisolated private func compactTimes(in text: String) -> [(Int, Int)] {
+        let tokens = matches(in: text, pattern: #"(?<!\d)([01]\d|2[0-3])([0-5]\d)(?!\d)"#)
+        let parsed = tokens.compactMap { token -> (Int, Int)? in
+            guard let value = Int(token), token.count == 4 else { return nil }
+            // "0800" parses to 800 — years are the dangerous 4-digit collisions.
+            guard !(1900...2099).contains(value) else { return nil }
+            return (value / 100, value % 100)
+        }
+        return parsed.count >= 2 ? parsed : []
     }
 
     nonisolated private func parseTime(_ text: String) -> (Int, Int)? {
