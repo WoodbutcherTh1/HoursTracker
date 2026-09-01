@@ -596,7 +596,7 @@ struct HoursHomeWidgetView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 8))
                         .foregroundStyle(WidgetTheme.moneyGreen)
-                    Text("This week \\(formattedElapsed(entry.weeklyHours)) · tap for history")
+                    Text("This week \(formattedElapsed(entry.weeklyHours)) · tap for history")
                         .font(.system(size: 9, weight: .medium, design: .rounded))
                         .foregroundStyle(WidgetTheme.textTertiary)
                 }
@@ -645,7 +645,7 @@ struct HoursHomeWidgetView: View {
                         entry.isOpen ? WidgetTheme.accentLight : WidgetTheme.accent
                     )
                 Spacer()
-                Text("\\(formattedElapsed(entry.weeklyHours)) / \\(formattedElapsed(entry.settings.weeklyStandardHours))")
+                Text("\(formattedElapsed(entry.weeklyHours)) / \(formattedElapsed(entry.settings.weeklyStandardHours))")
                     .font(.system(size: 12, weight: .bold, design: .rounded))
                     .foregroundStyle(WidgetTheme.textPrimary)
                     .monospacedDigit()
