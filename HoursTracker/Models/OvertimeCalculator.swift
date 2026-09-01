@@ -315,7 +315,7 @@ enum OvertimeCalculator {
         settings: WorkplaceSettings,
         calendar: Calendar = .current
     ) -> DayPayBreakdown {
-        let completed = sessions.filter(\.clockOut)
+        let completed = sessions.filter { $0.clockOut != nil }
         let totals = dayAwareBreakdowns(
             sessions: completed,
             settings: settings
