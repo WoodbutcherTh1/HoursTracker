@@ -102,3 +102,35 @@ final class EqualTimeOvernightGuardTests: XCTestCase {
         XCTAssertFalse(ScannerRowValidator.isNear24HourSpan(16))
     }
 }
+
+/// Regression coverage for pasting this app's own CSV export (day name,
+/// date, clock-in, clock-out, then several more numeric/currency columns)
+/// into the free-text importer. Before `parseCSVColumnRows`, the trailing
+/// pay-total column (e.g. "651.11") could be misread by the whole-line time
+/// scanner as a bogus clock time.
+final class CSVColumnPasteTests: XCTestCase {
+    func testCSVRowWithTrailingPayTotalExtractsCorrectTimes() {
+        let text = "יום ראשון,02.08.26,06:57,19:16,0.0,12.3,8.6,2.0,1.7,35.00 ₪,651.11 ₪"
+        let drafts = TimesheetScannerManager.shared.parseSessions(from: text)
+
+        XCTAssertEqual(drafts.count, 1)
+        guard let draft = drafts.first else { return }
+        let calendar = Calendar.current
+        XCTAssertEqual(calendar.component(.hour, from: draft.clockIn), 6)
+        XCTAssertEqual(calendar.component(.minute, from: draft.clockIn), 57)
+        XCTAssertEqual(calendar.component(.hour, from: draft.clockOut), 19)
+        XCTAssertEqual(calendar.component(.minute, from: draft.clockOut), 16)
+    }
+
+    func testMultiRowCSVExportIgnoresHeaderAndTotalsRows() {
+        let text = """
+        יום,תאריך,כניסה,יציאה,הפסקה,סה״כ,100%,125%,150%,נסיעות,שכר יומי
+        יום ראשון,02.08.26,06:57,19:16,0.0,12.3,8.6,2.0,1.7,35.00 ₪,651.11 ₪
+        יום שני,03.08.26,06:54,17:03,0.0,10.1,8.6,1.5,0.0,35.00 ₪,508.84 ₪
+        סה״כ,,,,,250.4,189.2,41.4,19.8,770.00 ₪,"12,950.46 ₪"
+        """
+        let drafts = TimesheetScannerManager.shared.parseSessions(from: text)
+
+        XCTAssertEqual(drafts.count, 2, "header and totals rows must not produce phantom sessions")
+    }
+}
