@@ -166,7 +166,8 @@ struct HoursLiveActivityExpanded: View {
                         .foregroundStyle(LATheme.textPrimary)
 
                     Text("elapsed")
-                        .font(.system(size: 10, weight: .semibold, design: .rounded).tracking(0.5))
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .tracking(0.5)
                         .foregroundStyle(LATheme.textTertiary)
                         .textCase(.uppercase)
                 }
@@ -185,7 +186,8 @@ struct HoursLiveActivityExpanded: View {
                         )
 
                     Text("estimated gross")
-                        .font(.system(size: 10, weight: .semibold, design: .rounded).tracking(0.5))
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .tracking(0.5)
                         .foregroundStyle(LATheme.textTertiary)
                         .textCase(.uppercase)
                 }
