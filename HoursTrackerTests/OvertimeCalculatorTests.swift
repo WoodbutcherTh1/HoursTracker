@@ -342,15 +342,13 @@ final class WeeklyOvertimeCapTests: XCTestCase {
 
     /// When total weekly hours ≤ standard (42h), no weekly adjustment occurs.
     func testWeeklyOTDoesNotApplyWhenUnderThreshold() {
-        let sessions = (3...7).map { session(day: $0, inHour: 8, outHour: 17) } // 45h over 5 days
-        // Wait — 5 × 9h = 45h > 42h, that WILL trigger weekly OT.
-        // Use 4 days instead: 4 × 9h = 36h.
-        let sessions4 = (3...6).map { session(day: $0, inHour: 8, outHour: 17) }
+        // 4 × 8h days = 32h/week: each day is under the 8.6h daily standard
+        // (so no DAILY OT either) and the week is under 42h, so nothing should
+        // move out of the regular bucket — weekly or otherwise.
+        let sessions4 = (3...6).map { session(day: $0, inHour: 8, outHour: 16) }
         let result = OvertimeCalculator.aggregate(sessions: sessions4, settings: settings())
 
-        // All daily hours are at 100% since each day < 8.6h.
-        // Weekly total = 36h < 42h, so no OT adjustment.
-        XCTAssertEqual(result.regularHours, 36.0, accuracy: 0.01)
+        XCTAssertEqual(result.regularHours, 32.0, accuracy: 0.01)
         XCTAssertEqual(result.ot125Hours, 0, accuracy: 0.01)
         XCTAssertEqual(result.ot150Hours, 0, accuracy: 0.01)
     }
