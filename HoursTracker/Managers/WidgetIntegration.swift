@@ -88,7 +88,12 @@ final class WidgetActionBroadcaster {
             Unmanaged.passUnretained(self).toOpaque(),
             { _, _, _, _, _ in
                 DispatchQueue.main.async {
-                    NotificationCenter.default.post(name: Self.didReceiveAction, object: nil)
+                    // Explicit type name (not `Self`) so the closure captures
+                    // nothing and can form a C function pointer.
+                    NotificationCenter.default.post(
+                        name: WidgetActionBroadcaster.didReceiveAction,
+                        object: nil
+                    )
                 }
             },
             WidgetBridge.darwinActionNotification,
