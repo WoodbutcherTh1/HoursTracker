@@ -281,7 +281,7 @@ struct BlankTimesheetEntryView: View {
             } label: {
                 Image(systemName: "chevron.backward")
                     .font(.body.weight(.semibold))
-                    .frame(width: 36, height: 36)
+                    .frame(width: 44, height: 44)
             }
 
             VStack(spacing: 2) {
@@ -298,7 +298,7 @@ struct BlankTimesheetEntryView: View {
             } label: {
                 Image(systemName: "chevron.forward")
                     .font(.body.weight(.semibold))
-                    .frame(width: 36, height: 36)
+                    .frame(width: 44, height: 44)
             }
         }
         .padding(.horizontal, 12)

@@ -205,6 +205,8 @@ struct AssistantChatSheet: View {
                         .background(
                             Circle().fill(chat.canSend ? theme.accent : HomeNeon.card)
                         )
+                        .padding(3)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(ScalePressButtonStyle())
                 .disabled(!chat.canSend)
@@ -329,6 +331,8 @@ struct AssistantDocumentCard: View {
                     .foregroundStyle(.black)
                     .frame(width: 32, height: 32)
                     .background(Circle().fill(accent))
+                    .padding(6)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(ScalePressButtonStyle())
             .accessibilityLabel(AppLocale.tr("history.exportShift"))
