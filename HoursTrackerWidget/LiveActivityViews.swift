@@ -49,7 +49,7 @@ struct HoursLiveActivityView: View {
                     Text(state.elapsedHours, format: .number.precision(.fractionLength(1)))
                         .font(.system(size: 16, weight: .bold, design: .rounded))
                         .foregroundStyle(LATheme.textPrimary)
-                    + Text("h")
+                    + Text(WidgetL10n.hourSuffix)
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
                         .foregroundStyle(LATheme.textSecondary)
                 }
@@ -79,7 +79,7 @@ struct HoursLiveActivityView: View {
                 }
 
                 HStack(spacing: 3) {
-                    Text("since")
+                    Text(WidgetL10n.since)
                     Text(attributes.clockInTime, style: .time)
                 }
                 .font(.system(size: 9, weight: .medium, design: .rounded))
@@ -151,13 +151,13 @@ struct HoursLiveActivityExpanded: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                    Text("Clocked In")
+                    Text(WidgetL10n.clockedIn)
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundStyle(LATheme.textPrimary)
                 }
                 Spacer()
                 HStack(spacing: 3) {
-                    Text("since")
+                    Text(WidgetL10n.since)
                     Text(attributes.clockInTime, style: .time)
                 }
                 .font(.system(size: 11, weight: .medium, design: .rounded))
@@ -171,7 +171,7 @@ struct HoursLiveActivityExpanded: View {
                         .font(.system(size: 44, weight: .black, design: .rounded).monospacedDigit())
                         .foregroundStyle(LATheme.textPrimary)
 
-                    Text("elapsed")
+                    Text(WidgetL10n.elapsed.lowercased())
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
                         .tracking(0.5)
                         .foregroundStyle(LATheme.textTertiary)
@@ -191,7 +191,7 @@ struct HoursLiveActivityExpanded: View {
                             )
                         )
 
-                    Text("estimated gross")
+                    Text(WidgetL10n.estimatedGross)
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
                         .tracking(0.5)
                         .foregroundStyle(LATheme.textTertiary)

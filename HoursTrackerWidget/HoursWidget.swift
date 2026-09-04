@@ -2,6 +2,178 @@ import AppIntents
 import SwiftUI
 import WidgetKit
 
+// MARK: - Widget-local localization (catalog-independent, always reliable)
+
+/// Hardcoded per-language strings for the widget's own literal text, the
+/// same pattern `AppLocale.swift` already uses for its own hardcoded
+/// strings (`clockInPrompt()`, `manualEntryLabel()`, etc.) — deliberately
+/// NOT routed through the shared Localizable.xcstrings catalog, which
+/// depends on Xcode's String Catalog compilation actually including this
+/// extension target's entries and proved unreliable in practice. Reads
+/// `Locale.current` directly, which does correctly follow the device
+/// language here (confirmed by the date/day column already rendering
+/// correctly via the system calendar).
+enum WidgetL10n {
+    private static var languageCode: String {
+        Locale.current.language.languageCode?.identifier ?? "en"
+    }
+
+    static var working: String {
+        switch languageCode {
+        case "he": return "בעבודה"
+        case "ar": return "قيد العمل"
+        default: return "Working"
+        }
+    }
+
+    static var done: String {
+        switch languageCode {
+        case "he": return "הושלם"
+        case "ar": return "منتهي"
+        default: return "Done"
+        }
+    }
+
+    static var today: String {
+        switch languageCode {
+        case "he": return "היום"
+        case "ar": return "اليوم"
+        default: return "today"
+        }
+    }
+
+    static var gross: String {
+        switch languageCode {
+        case "he": return "ברוטו"
+        case "ar": return "إجمالي"
+        default: return "gross"
+        }
+    }
+
+    static var startYourShift: String {
+        switch languageCode {
+        case "he": return "התחל משמרת"
+        case "ar": return "ابدأ نوبتك"
+        default: return "Start your shift"
+        }
+    }
+
+    static var readyToWork: String {
+        switch languageCode {
+        case "he": return "מוכן לעבודה?"
+        case "ar": return "جاهز للعمل؟"
+        default: return "Ready to work?"
+        }
+    }
+
+    static var thisWeek: String {
+        switch languageCode {
+        case "he": return "השבוע"
+        case "ar": return "هذا الأسبوع"
+        default: return "This week"
+        }
+    }
+
+    static var selectedWeek: String {
+        switch languageCode {
+        case "he": return "השבוע שנבחר"
+        case "ar": return "الأسبوع المحدد"
+        default: return "Selected week"
+        }
+    }
+
+    static var thisMonth: String {
+        switch languageCode {
+        case "he": return "החודש"
+        case "ar": return "هذا الشهر"
+        default: return "This month"
+        }
+    }
+
+    static var clockIn: String {
+        switch languageCode {
+        case "he": return "כניסה"
+        case "ar": return "دخول"
+        default: return "Clock In"
+        }
+    }
+
+    static var clockOut: String {
+        switch languageCode {
+        case "he": return "יציאה"
+        case "ar": return "خروج"
+        default: return "Clock Out"
+        }
+    }
+
+    static var earnings: String {
+        switch languageCode {
+        case "he": return "הכנסות"
+        case "ar": return "الأرباح"
+        default: return "Earnings"
+        }
+    }
+
+    static var elapsed: String {
+        switch languageCode {
+        case "he": return "חלף"
+        case "ar": return "منقضي"
+        default: return "Elapsed"
+        }
+    }
+
+    static var hours: String {
+        switch languageCode {
+        case "he": return "שעות"
+        case "ar": return "الساعات"
+        default: return "Hours"
+        }
+    }
+
+    static var hourSuffix: String {
+        switch languageCode {
+        case "he": return "ש"
+        case "ar": return "س"
+        default: return "h"
+        }
+    }
+
+    static var since: String {
+        switch languageCode {
+        case "he": return "מאז"
+        case "ar": return "منذ"
+        default: return "since"
+        }
+    }
+
+    static var clockedIn: String {
+        switch languageCode {
+        case "he": return "בעבודה"
+        case "ar": return "قيد العمل"
+        default: return "Clocked In"
+        }
+    }
+
+    static var estimatedGross: String {
+        switch languageCode {
+        case "he": return "ברוטו משוער"
+        case "ar": return "إجمالي تقديري"
+        default: return "estimated gross"
+        }
+    }
+
+    /// Extra-compact variants for the tiny Lock Screen accessory widget.
+    /// Hebrew/Arabic already have no shorter form than "Clock In"/"Clock
+    /// Out", so those two just reuse `clockIn`/`clockOut`.
+    static var inShort: String {
+        languageCode == "en" ? "In" : clockIn
+    }
+
+    static var outShort: String {
+        languageCode == "en" ? "Out" : clockOut
+    }
+}
+
 // MARK: - Theme
 
 /// Widget color palette matching the main app's dark teal neon theme.
@@ -163,7 +335,7 @@ private struct HoursRing: View {
                     .font(.system(size: 16, weight: .bold, design: .rounded))
                     .foregroundStyle(WidgetTheme.textPrimary)
                     .monospacedDigit()
-                Text("h")
+                Text(WidgetL10n.hourSuffix)
                     .font(.system(size: 9, weight: .semibold, design: .rounded))
                     .foregroundStyle(WidgetTheme.textSecondary)
             }
@@ -237,7 +409,7 @@ private struct ClockControlRow: View {
     var body: some View {
         HStack(spacing: 8) {
             WidgetActionButton(
-                title: "Clock In",
+                title: WidgetL10n.clockIn,
                 systemImage: "play.fill",
                 tint: WidgetTheme.moneyGreen,
                 intent: ClockInIntent(),
@@ -245,7 +417,7 @@ private struct ClockControlRow: View {
                 iconOnly: iconOnly
             )
             WidgetActionButton(
-                title: "Clock Out",
+                title: WidgetL10n.clockOut,
                 systemImage: "stop.fill",
                 tint: Color(red: 0.94, green: 0.35, blue: 0.35),
                 intent: ClockOutIntent(),
@@ -343,7 +515,7 @@ struct HoursTimelineProvider: TimelineProvider {
             weekBars: sampleBars,
             settings: .empty,
             weekOffset: 0,
-            weekRangeLabel: "This week"
+            weekRangeLabel: WidgetL10n.thisWeek
         )
     }
 
@@ -448,9 +620,9 @@ struct HoursTimelineProvider: TimelineProvider {
 
     /// "This week" for the current week, otherwise a "Aug 25 – Aug 31" range.
     private func weekRangeLabel(offset: Int, calendar: Calendar) -> String {
-        guard offset != 0 else { return "This week" }
+        guard offset != 0 else { return WidgetL10n.thisWeek }
         guard let interval = WidgetBridge.weekInterval(offset: offset, calendar: calendar) else {
-            return "This week"
+            return WidgetL10n.thisWeek
         }
         let end = calendar.date(byAdding: .day, value: -1, to: interval.end) ?? interval.end
         let formatter = DateFormatter()
@@ -509,7 +681,7 @@ struct HoursSmallWidgetView: View {
             // Status bar
             HStack(spacing: 5) {
                 PulseDot(color: WidgetTheme.workingDot, size: 5)
-                Text("Working")
+                Text(WidgetL10n.working)
                     .font(.system(size: 10, weight: .bold, design: .rounded))
                     .foregroundStyle(WidgetTheme.accentLight)
                 Spacer()
@@ -533,7 +705,7 @@ struct HoursSmallWidgetView: View {
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.55)
-                    Text("today")
+                    Text(WidgetL10n.today)
                         .font(.system(size: 8, weight: .semibold, design: .rounded))
                         .foregroundStyle(WidgetTheme.textTertiary)
                         .textCase(.uppercase)
@@ -554,7 +726,7 @@ struct HoursSmallWidgetView: View {
             // Status bar
             HStack(spacing: 5) {
                 PulseDot(color: WidgetTheme.doneDot, size: 5)
-                Text("Done")
+                Text(WidgetL10n.done)
                     .font(.system(size: 10, weight: .bold, design: .rounded))
                     .foregroundStyle(WidgetTheme.accent)
                 Spacer()
@@ -579,7 +751,7 @@ struct HoursSmallWidgetView: View {
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.55)
-                    Text("gross")
+                    Text(WidgetL10n.gross)
                         .font(.system(size: 8, weight: .semibold, design: .rounded))
                         .foregroundStyle(WidgetTheme.textTertiary)
                         .textCase(.uppercase)
@@ -602,7 +774,7 @@ struct HoursSmallWidgetView: View {
             Image(systemName: "bolt.circle.fill")
                 .font(.system(size: 26))
                 .foregroundStyle(WidgetTheme.iconGradient)
-            Text("Start your shift")
+            Text(WidgetL10n.startYourShift)
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundStyle(WidgetTheme.textPrimary)
             Text(dayDateLabel(for: entry.date))
@@ -672,7 +844,7 @@ struct HoursHomeWidgetView: View {
 
                 HStack(spacing: 5) {
                     PulseDot(color: WidgetTheme.workingDot, size: 4)
-                    Text("Working")
+                    Text(WidgetL10n.working)
                         .font(.system(size: 9, weight: .bold, design: .rounded))
                         .foregroundStyle(WidgetTheme.accentLight)
                 }
@@ -690,7 +862,7 @@ struct HoursHomeWidgetView: View {
                 StatCard(
                     icon: "banknote.fill",
                     value: payText(entry.estimatedPay),
-                    label: "Earnings",
+                    label: WidgetL10n.earnings,
                     valueColor: WidgetTheme.moneyGreen,
                     iconColor: WidgetTheme.moneyGreen
                 )
@@ -698,7 +870,7 @@ struct HoursHomeWidgetView: View {
                     LiveElapsedStatCard(
                         icon: "clock.fill",
                         since: session.clockIn,
-                        label: "Elapsed",
+                        label: WidgetL10n.elapsed,
                         valueColor: WidgetTheme.accentLight,
                         iconColor: WidgetTheme.accent
                     )
@@ -706,7 +878,7 @@ struct HoursHomeWidgetView: View {
                     StatCard(
                         icon: "clock.fill",
                         value: formattedElapsed(entry.elapsedHours),
-                        label: "Elapsed",
+                        label: WidgetL10n.elapsed,
                         valueColor: WidgetTheme.accentLight,
                         iconColor: WidgetTheme.accent
                     )
@@ -727,7 +899,7 @@ struct HoursHomeWidgetView: View {
 
                 HStack(spacing: 5) {
                     PulseDot(color: WidgetTheme.doneDot, size: 4)
-                    Text("Done")
+                    Text(WidgetL10n.done)
                         .font(.system(size: 9, weight: .bold, design: .rounded))
                         .foregroundStyle(WidgetTheme.accent)
                 }
@@ -744,14 +916,14 @@ struct HoursHomeWidgetView: View {
                 StatCard(
                     icon: "banknote.fill",
                     value: payText(entry.todayCompletedPay),
-                    label: "Earnings",
+                    label: WidgetL10n.earnings,
                     valueColor: WidgetTheme.moneyGreen,
                     iconColor: WidgetTheme.moneyGreen
                 )
                 StatCard(
                     icon: "clock.fill",
                     value: formattedElapsed(entry.todayCompletedHours),
-                    label: "Hours",
+                    label: WidgetL10n.hours,
                     valueColor: WidgetTheme.accentLight,
                     iconColor: WidgetTheme.accent
                 )
@@ -770,7 +942,7 @@ struct HoursHomeWidgetView: View {
                     .font(.system(size: 30))
                     .foregroundStyle(WidgetTheme.iconGradient)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Ready to work?")
+                    Text(WidgetL10n.readyToWork)
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(WidgetTheme.textPrimary)
                     Text(dayDateLabel(for: entry.date))
@@ -850,7 +1022,7 @@ struct HoursHomeWidgetView: View {
             // Week + month totals
             HStack(spacing: 10) {
                 largeStat(
-                    label: entry.weekOffset == 0 ? "This week" : "Selected week",
+                    label: entry.weekOffset == 0 ? WidgetL10n.thisWeek : WidgetL10n.selectedWeek,
                     value: payText(entry.weeklyPay),
                     color: WidgetTheme.moneyGreen,
                     icon: "banknote.fill"
@@ -858,7 +1030,7 @@ struct HoursHomeWidgetView: View {
                 RoundedRectangle(cornerRadius: 0.5)
                     .fill(WidgetTheme.cardBorder)
                     .frame(width: 1)
-                largeStat(label: "This month", value: payText(entry.monthPay), color: WidgetTheme.accentLight, icon: "calendar")
+                largeStat(label: WidgetL10n.thisMonth, value: payText(entry.monthPay), color: WidgetTheme.accentLight, icon: "calendar")
                 Spacer(minLength: 0)
             }
         }
@@ -938,8 +1110,8 @@ struct HoursLockScreenWidgetView: View {
                     .monospacedDigit()
             }
             HStack(spacing: 10) {
-                lockScreenClockButton(title: "In", systemImage: "play.fill", isEnabled: !entry.isOpen, isClockIn: true)
-                lockScreenClockButton(title: "Out", systemImage: "stop.fill", isEnabled: entry.isOpen, isClockIn: false)
+                lockScreenClockButton(title: WidgetL10n.inShort, systemImage: "play.fill", isEnabled: !entry.isOpen, isClockIn: true)
+                lockScreenClockButton(title: WidgetL10n.outShort, systemImage: "stop.fill", isEnabled: entry.isOpen, isClockIn: false)
                 Spacer(minLength: 0)
             }
         }
