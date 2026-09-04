@@ -145,7 +145,7 @@ final class BlankTimesheetViewModel: ObservableObject {
         analyzeNotice = nil
         defer { isAnalyzing = false }
 
-        let result = await TimesheetScannerManager.shared.parseResult(from: trimmed)
+        let result = TimesheetScannerManager.shared.parseResult(from: trimmed)
         guard !result.usedManualFallback, !result.drafts.isEmpty else {
             analyzeError = L10n.gridAnalyzeFailed
             return

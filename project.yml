@@ -49,10 +49,13 @@ targets:
         # 1.2 was already approved on the App Store — that pre-release train is
         # permanently closed to new TestFlight builds, so any new submission needs
         # a higher marketing version even if it's otherwise a minor update.
-        CFBundleShortVersionString: "1.3"
+        CFBundleShortVersionString: "1.4"
         # Build 15+: do NOT add UIBackgroundModes: location (Guideline 2.5.4).
         # Arrival reminders use CLCircularRegion monitoring only.
-        CFBundleVersion: "19"
+        # Must match HoursTrackerWidget/Info.plist's CFBundleVersion exactly —
+        # Xcode refuses to embed an extension whose build number differs from
+        # its containing app's.
+        CFBundleVersion: "20"
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations:

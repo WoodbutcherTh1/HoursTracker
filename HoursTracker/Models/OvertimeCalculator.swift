@@ -328,7 +328,6 @@ enum OvertimeCalculator {
         var basePay = totals.reduce(0) { $0 + $1.basePay }
         var ot125Pay = totals.reduce(0) { $0 + $1.ot125Pay }
         var ot150Pay = totals.reduce(0) { $0 + $1.ot150Pay }
-        let gross = totals.reduce(0) { $0 + $1.totalPay }
         let net = totals.reduce(0) { $0 + $1.netPay }
         let incomeTax = totals.reduce(0) { $0 + $1.incomeTax }
         let ni = totals.reduce(0) { $0 + $1.nationalInsurance }
