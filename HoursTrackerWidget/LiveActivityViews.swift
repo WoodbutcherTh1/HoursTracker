@@ -78,9 +78,12 @@ struct HoursLiveActivityView: View {
                         .foregroundStyle(LATheme.textPrimary)
                 }
 
-                Text("since \(attributes.clockInTime, style: .time)")
-                    .font(.system(size: 9, weight: .medium, design: .rounded))
-                    .foregroundStyle(LATheme.textTertiary)
+                HStack(spacing: 3) {
+                    Text("since")
+                    Text(attributes.clockInTime, style: .time)
+                }
+                .font(.system(size: 9, weight: .medium, design: .rounded))
+                .foregroundStyle(LATheme.textTertiary)
             }
         }
         .padding(.horizontal, 16)
@@ -153,9 +156,12 @@ struct HoursLiveActivityExpanded: View {
                         .foregroundStyle(LATheme.textPrimary)
                 }
                 Spacer()
-                Text("since \(attributes.clockInTime, style: .time)")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(LATheme.textSecondary)
+                HStack(spacing: 3) {
+                    Text("since")
+                    Text(attributes.clockInTime, style: .time)
+                }
+                .font(.system(size: 11, weight: .medium, design: .rounded))
+                .foregroundStyle(LATheme.textSecondary)
             }
 
             // Timer + Pay — main stats

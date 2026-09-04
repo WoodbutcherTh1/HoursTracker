@@ -103,6 +103,12 @@ targets:
         excludes:
           # Design mockup for the widget UI — not part of the extension.
           - Mockup.html
+    resources:
+      # Same catalog the app uses — gives the widget process actual en/ar/he
+      # localization resources so its literal Text("Working")-style strings
+      # resolve correctly, and so Locale.current in the extension follows
+      # the device language instead of falling back to the dev region.
+      - path: HoursTracker/Resources/Localizable.xcstrings
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hourstracker.app.widget
