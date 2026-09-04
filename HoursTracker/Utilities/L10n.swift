@@ -75,6 +75,7 @@ enum L10n {
     static var historyEmptyPeriodHint: String { t("history.emptyPeriodHint") }
     static var historyShowAllDays: String { t("history.showAllDays") }
     static var historyColDate: String { t("history.col.date") }
+    static var historyColDay: String { t("history.col.day") }
     static var historyColIn: String { t("history.col.in") }
     static var historyColOut: String { t("history.col.out") }
     static var historyColHours: String { t("history.col.hours") }

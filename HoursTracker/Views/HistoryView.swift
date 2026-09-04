@@ -14,6 +14,7 @@ struct HistoryView: View {
     /// Page index into `periodWeeks` for the Health-style week strip.
     @State private var selectedWeekIndex: Int = 0
     @AppStorage("historyPayDisplayMode") private var payMode: PayDisplayMode = .net
+    @AppStorage("historyShowDayOfWeek") private var showDayOfWeek: Bool = false
     @State private var selectedSession: WorkSession?
     @State private var editingSession: WorkSession?
     @State private var sessionPendingDelete: WorkSession?
@@ -403,13 +404,22 @@ struct HistoryView: View {
 
     private var tableHeader: some View {
         historyColumns(
-            date: L10n.historyColDate,
+            date: showDayOfWeek ? L10n.historyColDay : L10n.historyColDate,
             clockIn: L10n.historyColIn,
             clockOut: L10n.historyColOut,
             hours: L10n.historyColHours,
-            amount: L10n.historyColAmount,
-            amountColor: .secondary,
-            isHeader: true
+            amount: payMode == .net ? L10n.historyPayNet : L10n.historyPayGross,
+            dateColor: showDayOfWeek ? .accentColor : nil,
+            amountColor: payMode == .net ? .green : .secondary,
+            isHeader: true,
+            onDateTap: {
+                withAnimation(.easeInOut(duration: 0.15)) { showDayOfWeek.toggle() }
+            },
+            onAmountTap: {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    payMode = payMode == .net ? .gross : .net
+                }
+            }
         )
         .foregroundStyle(.secondary)
         .padding(.horizontal, historyTableInsets.leading)
@@ -417,18 +427,24 @@ struct HistoryView: View {
         .background(Color(.secondarySystemGroupedBackground))
     }
 
-    /// One shared column geometry for headers and data rows.
+    /// One shared column geometry for headers and data rows. The date and
+    /// amount cells can carry a tap handler (header only — tapping "Date"/
+    /// "Day" or "Net"/"Gross" toggles that column's display mode for the
+    /// whole table) and an override color that reflects the active mode.
     private func historyColumns(
         date: String,
         clockIn: String,
         clockOut: String,
         hours: String,
         amount: String,
+        dateColor: Color? = nil,
         amountColor: Color = .primary,
-        isHeader: Bool = false
+        isHeader: Bool = false,
+        onDateTap: (() -> Void)? = nil,
+        onAmountTap: (() -> Void)? = nil
     ) -> some View {
         HStack(spacing: 0) {
-            Text(date)
+            dateCell(date, color: dateColor, onTap: onDateTap)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text(clockIn)
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -436,12 +452,45 @@ struct HistoryView: View {
                 .frame(maxWidth: .infinity, alignment: .center)
             Text(hours)
                 .frame(maxWidth: .infinity, alignment: .center)
-            Text(amount)
-                .font(isHeader ? .caption2.weight(.semibold) : .caption.weight(.semibold).monospacedDigit())
-                .foregroundStyle(amountColor)
-                .frame(maxWidth: .infinity, alignment: .trailing)
+            amountCell(
+                amount,
+                font: isHeader ? .caption2.weight(.semibold) : .caption.weight(.semibold).monospacedDigit(),
+                color: amountColor,
+                onTap: onAmountTap
+            )
+            .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .font(isHeader ? .caption2.weight(.semibold) : .caption.monospacedDigit())
+    }
+
+    @ViewBuilder
+    private func dateCell(_ text: String, color: Color?, onTap: (() -> Void)?) -> some View {
+        let label = Group {
+            if let color {
+                Text(text).foregroundStyle(color)
+            } else {
+                Text(text)
+            }
+        }
+        if let onTap {
+            Button(action: onTap) { label }
+                .buttonStyle(.plain)
+        } else {
+            label
+        }
+    }
+
+    @ViewBuilder
+    private func amountCell(_ text: String, font: Font, color: Color, onTap: (() -> Void)?) -> some View {
+        let label = Text(text)
+            .font(font)
+            .foregroundStyle(color)
+        if let onTap {
+            Button(action: onTap) { label }
+                .buttonStyle(.plain)
+        } else {
+            label
+        }
     }
 
     @ViewBuilder
@@ -549,11 +598,12 @@ struct HistoryView: View {
         let amount = payMode == .net ? breakdown.netPay : breakdown.grossPay
 
         return historyColumns(
-            date: shortDate(session.date),
+            date: showDayOfWeek ? dayOfWeek(session.date) : shortDate(session.date),
             clockIn: timeFormatter.string(from: session.clockIn),
             clockOut: session.clockOut.map { timeFormatter.string(from: $0) } ?? "—",
             hours: HistoryPeriodHelper.formatHoursClock(breakdown.totalHours),
             amount: breakdown.formatted(amount),
+            dateColor: showDayOfWeek ? .accentColor : nil,
             amountColor: payMode == .net ? .green : .primary
         )
         .padding(.horizontal, historyTableInsets.leading)
@@ -740,6 +790,10 @@ struct HistoryView: View {
 
     private func shortDate(_ date: Date) -> String {
         AppLocale.makeDateFormatter(template: "dd/MM").string(from: date)
+    }
+
+    private func dayOfWeek(_ date: Date) -> String {
+        AppLocale.makeDateFormatter(template: "EEE").string(from: date)
     }
 
     private func alignToCurrentPayrollPeriod() {

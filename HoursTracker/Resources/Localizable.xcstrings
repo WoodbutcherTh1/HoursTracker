@@ -3036,6 +3036,29 @@
         }
       }
     },
+    "history.col.day" : {
+      "comment" : "History table column header, alternate mode showing weekday instead of calendar date.",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اليوم"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "יום"
+          }
+        }
+      }
+    },
     "history.col.hours" : {
       "extractionState" : "stale",
       "localizations" : {
