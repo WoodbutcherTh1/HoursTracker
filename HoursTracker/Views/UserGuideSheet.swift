@@ -45,12 +45,12 @@ struct UserGuideSheet: View {
             header
 
             TabView(selection: $page) {
-                slide(0, copy: GuideCopy.home) { GuideHomePage(accent: homeTheme.accent) }
+                slide(0, copy: GuideCopy.home) { GuideHomePage(accent: homeTheme.accent, guideLanguage: guideLanguage) }
                 slide(1, copy: GuideCopy.theme) { GuideThemePage() }
-                slide(2, copy: GuideCopy.history) { GuideHistoryPage() }
-                slide(3, copy: GuideCopy.payslips) { GuidePayslipsPage(accent: homeTheme.accent) }
-                slide(4, copy: GuideCopy.shiftDetail) { GuideShiftDetailPage() }
-                slide(5, copy: GuideCopy.settings) { GuideSettingsPage() }
+                slide(2, copy: GuideCopy.history) { GuideHistoryPage(guideLanguage: guideLanguage) }
+                slide(3, copy: GuideCopy.payslips) { GuidePayslipsPage(accent: homeTheme.accent, guideLanguage: guideLanguage) }
+                slide(4, copy: GuideCopy.shiftDetail) { GuideShiftDetailPage(guideLanguage: guideLanguage) }
+                slide(5, copy: GuideCopy.settings) { GuideSettingsPage(guideLanguage: guideLanguage) }
                 slide(6, copy: GuideCopy.assistant) {
                     GuideAssistantPage(accent: homeTheme.accent, workerName: workerName)
                 }
@@ -214,6 +214,18 @@ private enum GuideLanguage: CaseIterable, Equatable {
         }
     }
 
+    /// Maps to `AppLocale`'s language type so guide mockups can resolve
+    /// L10n-driven text in the guide's own selected language, instead of
+    /// the app's actual current language (which is what every `L10n.xxx`
+    /// call reads by default).
+    var appLocaleLanguage: AppLocale.Language {
+        switch self {
+        case .en: return .english
+        case .he: return .hebrew
+        case .ar: return .arabic
+        }
+    }
+
     var title: String {
         switch self {
         case .en: return "User Guide"
@@ -334,20 +346,25 @@ private struct GuideCopy {
 
 private struct GuideHomePage: View {
     let accent: Color
+    let guideLanguage: GuideLanguage
     /// The real gross/net control from the clocked-in screen, not a picture of one.
     @State private var payMode: PayDisplayMode = .gross
+
+    private func t(_ key: String) -> String {
+        AppLocale.localizedString(key, language: guideLanguage.appLocaleLanguage)
+    }
 
     var body: some View {
         VStack(spacing: 18) {
             Spacer()
-            HomeAnimatedDoorButton(mode: .clockIn, title: L10n.homeClockIn, accent: accent) {
+            HomeAnimatedDoorButton(mode: .clockIn, title: t("home.clockIn"), accent: accent) {
                 // Guide demo only — no real session is created.
             }
             .frame(height: 140)
 
             Picker("", selection: $payMode) {
                 ForEach(PayDisplayMode.allCases) { mode in
-                    Text(mode == .net ? L10n.historyPayNet : L10n.historyPayGross).tag(mode)
+                    Text(mode == .net ? t("history.payNet") : t("history.payGross")).tag(mode)
                 }
             }
             .pickerStyle(.segmented)
@@ -414,24 +431,38 @@ private struct GuideThemePage: View {
 // MARK: - Slide 3: History / Holiday — the real DayType picker + auto-fill section
 
 private struct GuideHistoryPage: View {
+    let guideLanguage: GuideLanguage
     @State private var dayType: DayType = .regular
+
+    private func t(_ key: String) -> String {
+        AppLocale.localizedString(key, language: guideLanguage.appLocaleLanguage)
+    }
+
+    private func dayTypeName(_ type: DayType) -> String {
+        switch type {
+        case .regular: return t("dayType.regular")
+        case .restDay: return t("dayType.restDay")
+        case .holiday: return t("dayType.holiday")
+        case .sick: return t("dayType.sick")
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                Section(L10n.settingsWorkRules) {
-                    Picker(L10n.sessionDayType, selection: $dayType) {
+                Section(t("settings.workRules")) {
+                    Picker(t("session.dayType"), selection: $dayType) {
                         ForEach(DayType.allCases) { type in
-                            Text(type.localizedName).tag(type)
+                            Text(dayTypeName(type)).tag(type)
                         }
                     }
                 }
 
                 if dayType == .holiday {
-                    Section(L10n.manualHolidayAutoFilledTitle) {
-                        LabeledContent(L10n.editClockIn, value: "08:30")
-                        LabeledContent(L10n.editClockOut, value: "17:00")
-                        Text(L10n.manualHolidayAutoFilledHint)
+                    Section(t("manual.holidayAutoFilledTitle")) {
+                        LabeledContent(t("edit.clockIn"), value: "08:30")
+                        LabeledContent(t("edit.clockOut"), value: "17:00")
+                        Text(t("manual.holidayAutoFilledHint"))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -451,12 +482,28 @@ private struct GuideHistoryPage: View {
 
 private struct GuidePayslipsPage: View {
     let accent: Color
+    let guideLanguage: GuideLanguage
     @State private var selected: String = ""
 
-    private let sample: [(month: String, amount: String, hex: String)] = [
-        ("July 2026", "₪14,810.00", "6b4a7a"),
-        ("June 2026", "₪15,940.25", "2f4f77")
-    ]
+    /// Sample month labels, generated in the guide's own selected language
+    /// rather than hardcoded English — these are fake demo dates, but the
+    /// month name still needs to match whatever language the guide shows.
+    private var sample: [(month: String, amount: String, hex: String)] {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: guideLanguage.appLocaleLanguage.localeIdentifier)
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.setLocalizedDateFormatFromTemplate("MMMM yyyy")
+        let calendar = Calendar(identifier: .gregorian)
+        var components = DateComponents(year: 2026, day: 1)
+        components.month = 7
+        let july = calendar.date(from: components) ?? Date()
+        components.month = 6
+        let june = calendar.date(from: components) ?? Date()
+        return [
+            (formatter.string(from: july), "₪14,810.00", "6b4a7a"),
+            (formatter.string(from: june), "₪15,940.25", "2f4f77")
+        ]
+    }
 
     var body: some View {
         VStack {
@@ -495,11 +542,17 @@ private struct GuidePayslipsPage: View {
 // MARK: - Slide 5: Shift detail — static breakdown, no interaction
 
 private struct GuideShiftDetailPage: View {
+    let guideLanguage: GuideLanguage
+
+    private func t(_ key: String) -> String {
+        AppLocale.localizedString(key, language: guideLanguage.appLocaleLanguage)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            row(L10n.payslipHoursRegular, "62.10")
-            row(L10n.payslipHoursOT, "2.00")
-            row(L10n.payslipGross, "₪3,450.25")
+            row(t("payslip.hoursRegular"), "62.10")
+            row(t("payslip.hoursOT"), "2.00")
+            row(t("payslip.gross"), "₪3,450.25")
         }
         .padding(20)
         .background(HomeNeon.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -551,13 +604,18 @@ private struct GuideAssistantPage: View {
 // MARK: - Slide 6: Settings — the real cloud-AI toggle and privacy copy
 
 private struct GuideSettingsPage: View {
+    let guideLanguage: GuideLanguage
     @State private var cloudEnabled = false
+
+    private func t(_ key: String) -> String {
+        AppLocale.localizedString(key, language: guideLanguage.appLocaleLanguage)
+    }
 
     var body: some View {
         Form {
             Section {
-                Toggle(L10n.scannerCloudEnabled, isOn: $cloudEnabled.animation())
-                Text(L10n.scannerCloudPrivacyNotice)
+                Toggle(t("scanner.cloudEnabled"), isOn: $cloudEnabled.animation())
+                Text(t("scanner.cloudPrivacyNotice"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
