@@ -98,6 +98,38 @@ private struct StatCard: View {
     }
 }
 
+/// Like `StatCard`, but the value is a live elapsed-time counter driven by
+/// the system clock — it ticks every second with no widget reload needed,
+/// unlike the rest of the widget's numbers which only update when the
+/// timeline rebuilds.
+private struct LiveElapsedStatCard: View {
+    let icon: String
+    let since: Date
+    let label: String
+    let valueColor: Color
+    var iconColor: Color = WidgetTheme.accent
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 4) {
+                Image(systemName: icon)
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(iconColor)
+                Text(label.uppercased())
+                    .font(.system(size: 8, weight: .bold, design: .rounded))
+                    .foregroundStyle(WidgetTheme.textTertiary)
+                    .tracking(0.5)
+            }
+            Text(since, style: .timer)
+                .font(.system(size: 20, weight: .bold, design: .rounded))
+                .foregroundStyle(valueColor)
+                .monospacedDigit()
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+        }
+    }
+}
+
 /// Progress ring showing hours worked toward standard day.
 private struct HoursRing: View {
     let elapsed: Double
@@ -316,15 +348,31 @@ struct HoursTimelineProvider: TimelineProvider {
     }
 
     func getSnapshot(in context: Context, completion: @escaping (HoursEntry) -> Void) {
-        completion(buildEntry())
+        completion(buildEntry(asOf: Date()))
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<HoursEntry>) -> Void) {
-        let entry = buildEntry()
-        let refreshInterval: TimeInterval = entry.isOpen ? 180 : 900
-        let nextUpdate = Date().addingTimeInterval(refreshInterval)
-        let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
-        completion(timeline)
+        let now = Date()
+        let baseline = buildEntry(asOf: now)
+
+        guard baseline.isOpen else {
+            let nextUpdate = now.addingTimeInterval(900)
+            completion(Timeline(entries: [baseline], policy: .after(nextUpdate)))
+            return
+        }
+
+        // While clocked in, pre-compute a short run of future snapshots (one
+        // per minute) instead of a single static entry. WidgetKit switches
+        // between them by wall clock with no further work on our side, so
+        // elapsed time and earnings visibly climb instead of freezing at
+        // whatever instant this reload happened to fire.
+        let stepSeconds: TimeInterval = 60
+        let stepCount = 20
+        let entries = (0..<stepCount).map { index in
+            buildEntry(asOf: now.addingTimeInterval(Double(index) * stepSeconds))
+        }
+        let nextUpdate = now.addingTimeInterval(Double(stepCount) * stepSeconds)
+        completion(Timeline(entries: entries, policy: .after(nextUpdate)))
     }
 
     private var sampleBars: [DayBar] {
@@ -333,38 +381,38 @@ struct HoursTimelineProvider: TimelineProvider {
         return labels.enumerated().map { DayBar(id: $0.offset, label: $0.element, hours: hours[$0.offset]) }
     }
 
-    private func buildEntry() -> HoursEntry {
+    private func buildEntry(asOf referenceDate: Date) -> HoursEntry {
         let settings = WidgetBridge.readSettings()
         let sessions = WidgetBridge.readSessions()
         let calendar = Calendar.current
 
         let todayCompleted = WidgetBridge.todayCompletedSessions(from: sessions, calendar: calendar)
-        let completedHours = todayCompleted.reduce(0) { $0 + $1.effectiveHours }
+        let completedHours = todayCompleted.reduce(0) { $0 + $1.effectiveHours(asOf: referenceDate) }
         let completedPay = todayCompleted.reduce(0) {
-            $0 + WidgetBridge.estimatePay(elapsedHours: $1.effectiveHours, settings: settings)
+            $0 + WidgetBridge.estimatePay(elapsedHours: $1.effectiveHours(asOf: referenceDate), settings: settings)
         }
 
         let weekOffset = WidgetBridge.selectedWeekOffset
         let weekSessions = WidgetBridge.weekSessions(from: sessions, offset: weekOffset, calendar: calendar)
-        let weeklyHours = weekSessions.reduce(0) { $0 + $1.effectiveHours }
+        let weeklyHours = weekSessions.reduce(0) { $0 + $1.effectiveHours(asOf: referenceDate) }
         let weeklyPay = weekSessions.reduce(0) {
-            $0 + WidgetBridge.estimatePay(elapsedHours: $1.effectiveHours, settings: settings)
+            $0 + WidgetBridge.estimatePay(elapsedHours: $1.effectiveHours(asOf: referenceDate), settings: settings)
         }
         let weekLabel = weekRangeLabel(offset: weekOffset, calendar: calendar)
 
         let monthSessions = WidgetBridge.monthSessions(from: sessions, calendar: calendar)
-        let monthHours = monthSessions.reduce(0) { $0 + $1.effectiveHours }
+        let monthHours = monthSessions.reduce(0) { $0 + $1.effectiveHours(asOf: referenceDate) }
         let monthPay = monthSessions.reduce(0) {
-            $0 + WidgetBridge.estimatePay(elapsedHours: $1.effectiveHours, settings: settings)
+            $0 + WidgetBridge.estimatePay(elapsedHours: $1.effectiveHours(asOf: referenceDate), settings: settings)
         }
 
-        let bars = weekBars(from: sessions, offset: weekOffset, calendar: calendar)
+        let bars = weekBars(from: sessions, offset: weekOffset, calendar: calendar, asOf: referenceDate)
 
         if let open = WidgetBridge.openSession(from: sessions) {
-            let elapsed = open.effectiveHours
+            let elapsed = open.effectiveHours(asOf: referenceDate)
             let pay = WidgetBridge.estimatePay(elapsedHours: elapsed, settings: settings)
             return HoursEntry(
-                date: Date(), isOpen: true, session: open,
+                date: referenceDate, isOpen: true, session: open,
                 elapsedHours: elapsed, estimatedPay: pay,
                 todayCompletedHours: completedHours, todayCompletedPay: completedPay,
                 weeklyHours: weeklyHours, weeklyPay: weeklyPay,
@@ -374,7 +422,7 @@ struct HoursTimelineProvider: TimelineProvider {
             )
         } else {
             return HoursEntry(
-                date: Date(), isOpen: false, session: nil,
+                date: referenceDate, isOpen: false, session: nil,
                 elapsedHours: 0, estimatedPay: 0,
                 todayCompletedHours: completedHours, todayCompletedPay: completedPay,
                 weeklyHours: weeklyHours, weeklyPay: weeklyPay,
@@ -385,14 +433,14 @@ struct HoursTimelineProvider: TimelineProvider {
         }
     }
 
-    private func weekBars(from sessions: [WidgetSession], offset: Int, calendar: Calendar) -> [DayBar] {
+    private func weekBars(from sessions: [WidgetSession], offset: Int, calendar: Calendar, asOf referenceDate: Date) -> [DayBar] {
         let startOfWeek = WidgetBridge.weekInterval(offset: offset, calendar: calendar)?.start
-            ?? calendar.startOfDay(for: Date())
+            ?? calendar.startOfDay(for: referenceDate)
         let weekDays = (0..<7).compactMap { calendar.date(byAdding: .day, value: $0, to: startOfWeek) }
         return weekDays.enumerated().map { index, day in
             let hours = sessions
                 .filter { calendar.isDate($0.clockIn, inSameDayAs: day) }
-                .reduce(0) { $0 + $1.effectiveHours }
+                .reduce(0) { $0 + $1.effectiveHours(asOf: referenceDate) }
             let label = String(calendar.shortWeekdaySymbols[calendar.component(.weekday, from: day) - 1].prefix(1))
             return DayBar(id: index, label: label, hours: hours)
         }
@@ -646,13 +694,23 @@ struct HoursHomeWidgetView: View {
                     valueColor: WidgetTheme.moneyGreen,
                     iconColor: WidgetTheme.moneyGreen
                 )
-                StatCard(
-                    icon: "clock.fill",
-                    value: formattedElapsed(entry.elapsedHours),
-                    label: "Elapsed",
-                    valueColor: WidgetTheme.accentLight,
-                    iconColor: WidgetTheme.accent
-                )
+                if let session = entry.session {
+                    LiveElapsedStatCard(
+                        icon: "clock.fill",
+                        since: session.clockIn,
+                        label: "Elapsed",
+                        valueColor: WidgetTheme.accentLight,
+                        iconColor: WidgetTheme.accent
+                    )
+                } else {
+                    StatCard(
+                        icon: "clock.fill",
+                        value: formattedElapsed(entry.elapsedHours),
+                        label: "Elapsed",
+                        valueColor: WidgetTheme.accentLight,
+                        iconColor: WidgetTheme.accent
+                    )
+                }
                 ClockControlRow(isOpen: entry.isOpen)
             }
         }
@@ -737,6 +795,12 @@ struct HoursHomeWidgetView: View {
                     .foregroundStyle(
                         entry.isOpen ? WidgetTheme.accentLight : WidgetTheme.accent
                     )
+                if entry.isOpen, let session = entry.session {
+                    Text(session.clockIn, style: .timer)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(WidgetTheme.accentLight)
+                }
                 Spacer()
                 ClockControlRow(isOpen: entry.isOpen, iconOnly: true)
             }

@@ -57,9 +57,16 @@ struct WidgetSession: Codable, Equatable {
 
     var isOpen: Bool { clockOut == nil }
 
-    /// Paid elapsed hours (total minus unpaid break).
-    var effectiveHours: Double {
-        let end = clockOut ?? Date()
+    /// Paid elapsed hours (total minus unpaid break), as of right now.
+    var effectiveHours: Double { effectiveHours(asOf: Date()) }
+
+    /// Paid elapsed hours as of an arbitrary reference date, for an open
+    /// session. Lets the widget's timeline provider pre-compute a short run
+    /// of future snapshots (see `HoursTimelineProvider`) so elapsed time and
+    /// earnings visibly progress instead of freezing at whatever moment the
+    /// timeline last happened to rebuild.
+    func effectiveHours(asOf referenceDate: Date) -> Double {
+        let end = clockOut ?? referenceDate
         let raw = max(0, end.timeIntervalSince(clockIn) / 3600)
         return max(0, raw - Double(breakMinutes) / 60)
     }
