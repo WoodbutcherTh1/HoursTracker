@@ -650,8 +650,19 @@ struct GrossNetBadge: View {
 
 struct DaySummarySheet: View {
     @ObservedObject var viewModel: AppViewModel
-    let breakdown: DayPayBreakdown
+    @State private var breakdown: DayPayBreakdown
     @State private var showDeleteConfirm = false
+    @State private var showEditor = false
+
+    init(viewModel: AppViewModel, breakdown: DayPayBreakdown) {
+        self.viewModel = viewModel
+        _breakdown = State(initialValue: breakdown)
+    }
+
+    private var completedSession: WorkSession? {
+        guard let id = viewModel.lastCompletedSessionID else { return nil }
+        return viewModel.sessions.first { $0.id == id }
+    }
 
     var body: some View {
         NavigationStack {
@@ -696,11 +707,33 @@ struct DaySummarySheet: View {
             }
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
+                ToolbarItem(placement: .topBarLeading) {
+                    Button {
+                        showEditor = true
+                    } label: {
+                        Image(systemName: "pencil")
+                    }
+                    .accessibilityLabel(L10n.editTitle)
+                    .disabled(completedSession == nil)
+                }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.summaryDone) {
                         viewModel.dismissDaySummary()
                     }
                 }
+            }
+            .sheet(isPresented: $showEditor) {
+                if let session = completedSession {
+                    EditSessionView(viewModel: viewModel, session: session)
+                }
+            }
+            // The editor mutates `viewModel.sessions` directly (save or
+            // delete) rather than calling back into this sheet, so refresh
+            // from that instead of a completion closure — this also covers
+            // deleting the shift from inside the editor, which otherwise
+            // would leave a breakdown on screen for a session that's gone.
+            .onChange(of: viewModel.sessions) { _, _ in
+                refreshBreakdown()
             }
             .alert(
                 L10n.editDeleteConfirm,
@@ -712,6 +745,14 @@ struct DaySummarySheet: View {
                 Button(L10n.editCancel, role: .cancel) {}
             }
         }
+    }
+
+    private func refreshBreakdown() {
+        guard let session = completedSession else {
+            viewModel.dismissDaySummary()
+            return
+        }
+        breakdown = OvertimeCalculator.breakdown(for: session, in: viewModel.sessions, settings: viewModel.settings)
     }
 
     private func deleteJustCompletedShift() {
