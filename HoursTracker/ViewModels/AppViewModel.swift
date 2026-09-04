@@ -358,6 +358,7 @@ final class AppViewModel: ObservableObject {
         sessions.append(session)
         persist()
         refreshReminders()
+        syncWidget()
         ActivityLogStore.shared.log(
             L10n.logEventManualEntry,
             level: .success,
@@ -424,6 +425,7 @@ final class AppViewModel: ObservableObject {
         sessions.append(session)
         persist()
         refreshReminders()
+        syncWidget()
         ActivityLogStore.shared.log(
             L10n.logEventManualEntry,
             level: .success,
@@ -481,6 +483,7 @@ final class AppViewModel: ObservableObject {
 
         persist()
         refreshReminders()
+        syncWidget()
         ActivityLogStore.shared.log(
             L10n.logEventImport(importedCount),
             level: .success,
@@ -551,6 +554,7 @@ final class AppViewModel: ObservableObject {
         sessions[index].touch()
         persist()
         refreshReminders()
+        syncWidget()
         ActivityLogStore.shared.log(
             L10n.logEventSessionUpdated,
             level: .info,
@@ -562,6 +566,7 @@ final class AppViewModel: ObservableObject {
         sessions.removeAll { $0.id == session.id }
         persist()
         refreshReminders()
+        syncWidget()
         ActivityLogStore.shared.log(
             L10n.logEventSessionDeleted,
             level: .warning,
@@ -723,6 +728,7 @@ final class AppViewModel: ObservableObject {
                     sessionsLoadUnavailable = false
                     settingsLoadUnavailable = false
                     refreshReminders()
+                    syncWidget()
                 }
                 syncState = store.syncState
             } catch {
@@ -857,6 +863,13 @@ final class AppViewModel: ObservableObject {
                 details: "settings"
             )
         }
+
+        // Push whatever we just loaded (or the empty/default fallback) to the
+        // widget's shared App Group storage immediately. Without this, a
+        // freshly launched app only reflects in its own UI — the widget stays
+        // on whatever it last saw from an explicit clock-in/out and never
+        // learns about sessions that already existed on disk/iCloud.
+        syncWidget()
     }
 
     private func persist() {

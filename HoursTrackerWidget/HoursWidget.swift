@@ -15,7 +15,7 @@ private enum WidgetTheme {
     static let moneyGreen = Color(red: 0.345, green: 0.851, blue: 0.471) // #4ade80
     static let textPrimary = Color(red: 0.918, green: 1.0, blue: 0.984) // #eafffb
     static let textSecondary = Color.white.opacity(0.5)
-    static let textTertiary = Color.white.opacity(0.3)
+    static let textTertiary = Color.white.opacity(0.5)
     static let workingDot = Color(red: 0.369, green: 0.918, blue: 0.831) // #5eead4
     static let doneDot = Color(red: 0.180, green: 0.831, blue: 0.769) // #2dd4bf
 
