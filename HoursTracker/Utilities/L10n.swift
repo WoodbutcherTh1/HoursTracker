@@ -667,6 +667,11 @@ enum L10n {
 
     // Onboarding
     static var onboardingNext: String { t("onboarding.next") }
+    /// VoiceOver label for the page-dot indicator, e.g. "Page 1 of 3" — the
+    /// dots convey this via color and size alone otherwise.
+    static func onboardingPageIndicator(_ page: Int, _ total: Int) -> String {
+        String(format: t("onboarding.pageIndicator %lld %lld"), page, total)
+    }
     static var onboardingStart: String { t("onboarding.start") }
     static var onboardingStep1Title: String { t("onboarding.step1Title") }
     static var onboardingStep1Body: String { t("onboarding.step1Body") }

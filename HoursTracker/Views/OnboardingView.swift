@@ -39,7 +39,8 @@ struct OnboardingView: View {
             .tabViewStyle(.page(indexDisplayMode: .never))
             .animation(.easeInOut(duration: 0.25), value: page)
 
-            // Page dots
+            // Page dots — conveys progress via size/color alone, so VoiceOver
+            // needs an explicit label; otherwise it reads nothing at all.
             HStack(spacing: 8) {
                 ForEach(0..<totalPages, id: \.self) { index in
                     Capsule()
@@ -49,6 +50,8 @@ struct OnboardingView: View {
                 }
             }
             .padding(.top, 28)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(L10n.onboardingPageIndicator(page + 1, totalPages))
 
             // Continue / Start
             Button {
@@ -103,6 +106,11 @@ struct OnboardingView: View {
                     )
             }
             .padding(.bottom, 8)
+            // Purely decorative — the title/body right below say the same
+            // thing in words. Without this, VoiceOver reads the raw SF
+            // Symbol name (e.g. "clock badge checkmark") as extra noise
+            // before every page's actual content.
+            .accessibilityHidden(true)
 
             VStack(spacing: 12) {
                 Text(title)

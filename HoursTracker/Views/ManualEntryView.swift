@@ -61,6 +61,11 @@ struct ManualEntryView: View {
                             Text(L10n.manualHoursFormat(directHours))
                                 .monospacedDigit()
                         }
+                        // VoiceOver's default label for a custom-content Stepper
+                        // can read confusingly (label and value smashed
+                        // together, or announced twice) — be explicit instead.
+                        .accessibilityLabel(L10n.manualHours)
+                        .accessibilityValue(L10n.manualHoursFormat(directHours))
                     }
                 } else {
                     Section(L10n.editTimes) {
@@ -82,6 +87,8 @@ struct ManualEntryView: View {
                                 .foregroundStyle(.secondary)
                         }
                     }
+                    .accessibilityLabel(L10n.sessionBreakMinutes)
+                    .accessibilityValue("\(breakMinutes)")
                 }
             }
 

@@ -12888,6 +12888,29 @@
         }
       }
     },
+    "onboarding.pageIndicator %lld %lld" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الصفحة %lld من %lld"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Page %lld of %lld"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "עמוד %lld מתוך %lld"
+          }
+        }
+      }
+    },
     "onboarding.start" : {
       "extractionState" : "manual",
       "localizations" : {
