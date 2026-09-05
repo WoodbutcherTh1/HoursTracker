@@ -67,6 +67,7 @@ final class BlankTimesheetViewModel: ObservableObject {
     @Published var mode: TimesheetImportMode = .form
     @Published var rows: [TimesheetGridRow] = []
     @Published var periodAnchor: Date = Date()
+    @Published private(set) var periodEnd: Date = Date()
     @Published var freeText: String = ""
     @Published var isAnalyzing = false
     @Published var analyzeError: String?
@@ -81,6 +82,7 @@ final class BlankTimesheetViewModel: ObservableObject {
             calendar: calendar
         )
         periodAnchor = period.labelMonth
+        periodEnd = period.end
         rows = period.days.map { TimesheetGridRow(date: $0) }
     }
 
@@ -91,6 +93,7 @@ final class BlankTimesheetViewModel: ObservableObject {
             startDay: startDay,
             calendar: calendar
         )
+        periodEnd = period.end
         rows = period.days.map { day in
             if let existing = rows.first(where: { calendar.isDate($0.date, inSameDayAs: day) }) {
                 return TimesheetGridRow(
@@ -112,8 +115,14 @@ final class BlankTimesheetViewModel: ObservableObject {
         rows.compactMap { $0.toDraft(calendar: calendar) }
     }
 
+    /// True when there is at least one more day in the period that can be added.
+    var canAddRow: Bool {
+        guard let last = rows.last else { return false }
+        return calendar.startOfDay(for: last.date) < calendar.startOfDay(for: periodEnd)
+    }
+
     func addRow() {
-        let last = rows.last?.date ?? Date()
+        guard canAddRow, let last = rows.last?.date else { return }
         let next = calendar.date(byAdding: .day, value: 1, to: last) ?? last
         rows.append(TimesheetGridRow(date: next))
     }
@@ -165,6 +174,7 @@ final class BlankTimesheetViewModel: ObservableObject {
                 calendar: calendar
             )
             periodAnchor = period.labelMonth
+            periodEnd = period.end
             var nextRows = period.days.map { TimesheetGridRow(date: $0) }
             for draft in sorted {
                 if let index = nextRows.firstIndex(where: { calendar.isDate($0.date, inSameDayAs: draft.date) }) {
@@ -529,6 +539,7 @@ struct BlankTimesheetEntryView: View {
                     .padding(.vertical, 12)
             }
             .buttonStyle(.plain)
+            .disabled(!gridVM.canAddRow)
         }
     }
 
