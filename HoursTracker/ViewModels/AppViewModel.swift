@@ -64,10 +64,15 @@ final class AppViewModel: ObservableObject {
         locationManager.refreshPermissionStatuses()
         areLocationNotificationsDenied = locationManager.areNotificationsDenied
         // Notification settings arrive asynchronously; re-read shortly after.
+        // withAnimation(.none) prevents the deferred @Published updates from
+        // inserting/removing conditional location rows inside the tab-transition
+        // animation context (~300 ms), which would cause a visible height jump.
         Task { @MainActor in
             try? await Task.sleep(for: .milliseconds(300))
-            areLocationNotificationsDenied = locationManager.areNotificationsDenied
-            locationAuthorizationStatus = locationManager.authorizationStatus
+            withAnimation(.none) {
+                areLocationNotificationsDenied = locationManager.areNotificationsDenied
+                locationAuthorizationStatus = locationManager.authorizationStatus
+            }
         }
     }
 
