@@ -13,6 +13,7 @@ enum KeyCheckUIState: Equatable {
 struct SettingsView: View {
     @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var appBackground = AppBackgroundTheme.shared
+    @ObservedObject private var homeTheme = HomeAccentTheme.shared
     @EnvironmentObject private var appLock: AppLockController
     @EnvironmentObject private var appLanguage: AppLanguageController
 
@@ -68,6 +69,11 @@ struct SettingsView: View {
                 languageSection
                 aboutSection
             }
+            // Forces the List to fully rebuild whenever the app-wide accent color
+            // changes, instead of leaving already-rendered rows (Export/Import/
+            // Contact Support icons, etc.) stuck showing the previous tint until
+            // something else invalidates them.
+            .id(homeTheme.accent.hexString)
             .scrollContentBackground(.hidden)
             .background(appBackground.background.ignoresSafeArea())
             .scrollDismissesKeyboard(.interactively)
