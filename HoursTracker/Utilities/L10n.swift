@@ -91,6 +91,8 @@ enum L10n {
     static var historyDaysWorkedPendingHint: String { t("history.daysWorkedPendingHint") }
     static var historyPayBreakdownButton: String { t("history.payBreakdown.button") }
     static var historyPayBreakdownTitle: String { t("history.payBreakdown.title") }
+    static var historyExpandCalendarHint: String { t("history.expandCalendarHint") }
+    static var historyCollapseCalendarHint: String { t("history.collapseCalendarHint") }
 
     // Timesheet scanner
     static var scannerTitle: String { t("scanner.title") }

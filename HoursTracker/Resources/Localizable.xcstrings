@@ -2737,6 +2737,29 @@
         }
       }
     },
+    "history.collapseCalendarHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اسحب للأعلى للرجوع"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swipe up to go back"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "החליקו למעלה לחזרה"
+          }
+        }
+      }
+    },
     "history.empty" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -2825,6 +2848,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "בחרו יום אחר או הוסיפו משמרת."
+          }
+        }
+      }
+    },
+    "history.expandCalendarHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اسحب للأسفل لعرض التقويم الكامل"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swipe down for the full calendar"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "החליקו למטה ללוח השנה המלא"
           }
         }
       }

@@ -13,6 +13,9 @@ struct HistoryView: View {
     @State private var selectedDay: Date? = nil
     /// Page index into `periodWeeks` for the Health-style week strip.
     @State private var selectedWeekIndex: Int = 0
+    /// Skyscanner-style expand: swipe the week strip down to see every week in the
+    /// period at once (with each day's pay total), swipe up to collapse back.
+    @State private var isCalendarExpanded: Bool = false
     @AppStorage("historyPayDisplayMode") private var payMode: PayDisplayMode = .net
     @State private var selectedSession: WorkSession?
     @State private var editingSession: WorkSession?
@@ -265,14 +268,23 @@ struct HistoryView: View {
                 .buttonStyle(.plain)
             }
 
-            TabView(selection: pageBinding) {
-                ForEach(Array(weeks.enumerated()), id: \.element.id) { index, week in
-                    weekPage(week)
-                        .tag(index)
+            VStack(spacing: 6) {
+                if isCalendarExpanded {
+                    expandedCalendarGrid
+                } else {
+                    TabView(selection: pageBinding) {
+                        ForEach(Array(weeks.enumerated()), id: \.element.id) { index, week in
+                            weekPage(week)
+                                .tag(index)
+                        }
+                    }
+                    .tabViewStyle(.page(indexDisplayMode: .never))
+                    .frame(height: 68)
                 }
+
+                calendarToggleHint
             }
-            .tabViewStyle(.page(indexDisplayMode: .never))
-            .frame(height: 68)
+            .simultaneousGesture(calendarDragGesture)
 
             if selectedDay != nil {
                 Button {
@@ -366,6 +378,142 @@ struct HistoryView: View {
         if isSelected { return .white }
         if isToday { return .accentColor }
         return .primary
+    }
+
+    // MARK: - Expanded calendar (Skyscanner-style swipe-down)
+
+    private var calendarToggleHint: some View {
+        Button {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                isCalendarExpanded.toggle()
+            }
+        } label: {
+            HStack(spacing: 4) {
+                Text(isCalendarExpanded ? L10n.historyCollapseCalendarHint : L10n.historyExpandCalendarHint)
+                    .font(.caption2.weight(.medium))
+                Image(systemName: isCalendarExpanded ? "chevron.up" : "chevron.down")
+                    .font(.caption2.weight(.semibold))
+            }
+            .foregroundStyle(.secondary)
+            .frame(maxWidth: .infinity)
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityIdentifier("phone.history.calendarToggleHint")
+    }
+
+    /// A vertical swipe on the strip/grid area toggles expanded state; a mostly-horizontal
+    /// drag is left alone so it doesn't fight the week strip's own page swipe.
+    private var calendarDragGesture: some Gesture {
+        DragGesture(minimumDistance: 16)
+            .onEnded { value in
+                let translation = value.translation
+                guard abs(translation.height) > abs(translation.width) else { return }
+                withAnimation(.easeInOut(duration: 0.25)) {
+                    if translation.height > 24 {
+                        isCalendarExpanded = true
+                    } else if translation.height < -24 {
+                        isCalendarExpanded = false
+                    }
+                }
+            }
+    }
+
+    /// Every week of the active payroll period, stacked, with each day's pay total
+    /// underneath its number — the "full calendar" swiped down into.
+    private var expandedCalendarGrid: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 0) {
+                ForEach(weekdayHeaderLetters.indices, id: \.self) { index in
+                    Text(weekdayHeaderLetters[index])
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity)
+                }
+            }
+
+            ForEach(periodWeeks) { week in
+                HStack(spacing: 0) {
+                    ForEach(week.days) { day in
+                        calendarDayCell(day)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+            }
+        }
+    }
+
+    private func calendarDayCell(_ day: PayrollWeekDay) -> some View {
+        let isSelected = day.isInPeriod
+            && selectedDay.map { calendar.isDate(day.date, inSameDayAs: $0) } == true
+        let isToday = calendar.isDateInToday(day.date)
+        let number = dayNumberFormatter.string(from: day.date)
+        let amount = day.isInPeriod ? dailyPayTotal(for: day.date) : nil
+
+        return Button {
+            guard day.isInPeriod else { return }
+            let tapped = calendar.startOfDay(for: day.date)
+            withAnimation(.easeInOut(duration: 0.2)) {
+                // Tap again to clear day filter → full period list.
+                if let current = selectedDay, calendar.isDate(current, inSameDayAs: tapped) {
+                    selectedDay = nil
+                } else {
+                    selectedDay = tapped
+                }
+            }
+            // So the week strip lands on the right page once the user swipes back up.
+            syncWeekPage(to: tapped, animated: false)
+        } label: {
+            VStack(spacing: 3) {
+                Text(number)
+                    .font(.subheadline.weight(isSelected ? .bold : .regular).monospacedDigit())
+                    .foregroundStyle(dayNumberColor(
+                        isSelected: isSelected,
+                        isToday: isToday,
+                        isInPeriod: day.isInPeriod
+                    ))
+                    .frame(width: 30, height: 30)
+                    .background {
+                        if isSelected {
+                            Circle().fill(Color.accentColor)
+                        } else if isToday && day.isInPeriod {
+                            Circle().strokeBorder(Color.accentColor.opacity(0.7), lineWidth: 1.25)
+                        }
+                    }
+
+                // Blank (not a placeholder dash) for days without a completed shift,
+                // same as the week strip's plain dot today.
+                Text(amount.map(formattedDailyAmount) ?? " ")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 4)
+            .contentShape(Rectangle())
+            .opacity(day.isInPeriod ? 1 : 0.28)
+        }
+        .buttonStyle(.plain)
+        .disabled(!day.isInPeriod)
+        .accessibilityLabel(dayAccessibilityLabel(day.date, hasSession: amount != nil))
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
+        .accessibilityHidden(!day.isInPeriod)
+    }
+
+    /// Sum of this day's session pay (net or gross per the existing `payMode` toggle),
+    /// `nil` when nothing was worked so the cell renders blank.
+    private func dailyPayTotal(for day: Date) -> Double? {
+        let sessions = sessionsForDay(day)
+        guard !sessions.isEmpty else { return nil }
+        return sessions.reduce(0.0) { partial, session in
+            let breakdown = viewModel.breakdown(for: session)
+            return partial + (payMode == .net ? breakdown.netPay : breakdown.grossPay)
+        }
+    }
+
+    private func formattedDailyAmount(_ amount: Double) -> String {
+        PayFormatter.string(amount, currencyCode: viewModel.settings.currencyCode)
     }
 
     /// Shared insets so column headers and session rows stay locked together.
