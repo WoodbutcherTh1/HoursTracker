@@ -4,26 +4,32 @@ import WidgetKit
 
 // MARK: - Theme
 
-/// Widget color palette matching the main app's dark teal neon theme.
+/// Widget color palette — "Aurora": a near-black surface with a green → cyan →
+/// purple gradient ring/button, chosen from a set of style mockups the user
+/// picked between.
 private enum WidgetTheme {
-    /// Deep teal background — matches AppBackgroundTheme.teal.
-    static let background = Color(red: 0.027, green: 0.102, blue: 0.122) // #071a1f
-    static let surface = Color(red: 0.016, green: 0.086, blue: 0.102) // #03282b
-    static let accent = Color(red: 0.180, green: 0.831, blue: 0.769) // #2dd4bf
-    static let accentLight = Color(red: 0.369, green: 0.918, blue: 0.831) // #5eead4
-    static let cyan = Color(red: 0.133, green: 0.827, blue: 0.933) // #22d3ee
-    static let moneyGreen = Color(red: 0.345, green: 0.851, blue: 0.471) // #4ade80
-    static let textPrimary = Color(red: 0.918, green: 1.0, blue: 0.984) // #eafffb
+    /// Near-black background.
+    static let background = Color(red: 0.020, green: 0.027, blue: 0.039) // #05070A
+    static let surface = Color(red: 0.043, green: 0.059, blue: 0.078) // #0B0F14
+    static let accent = Color(red: 0.133, green: 0.780, blue: 0.878) // #22C7E0 (aurora cyan)
+    static let accentLight = Color(red: 0.486, green: 0.906, blue: 0.949) // #7CE7F2
+    static let cyan = Color(red: 0.133, green: 0.780, blue: 0.878) // #22C7E0
+    static let purple = Color(red: 0.659, green: 0.333, blue: 0.969) // #A855F7
+    static let moneyGreen = Color(red: 0.173, green: 0.961, blue: 0.596) // #2CF598 (aurora green)
+    /// Warm "stop" color for Clock Out — matches the phone app's fixed coral
+    /// active-session color, kept semantically distinct from the cool aurora gradient.
+    static let coral = Color(red: 1.0, green: 0.420, blue: 0.482) // #FF6B7B
+    static let textPrimary = Color(red: 0.945, green: 0.988, blue: 0.980) // #F1FCFA
     static let textSecondary = Color.white.opacity(0.5)
     static let textTertiary = Color.white.opacity(0.3)
-    static let workingDot = Color(red: 0.369, green: 0.918, blue: 0.831) // #5eead4
-    static let doneDot = Color(red: 0.180, green: 0.831, blue: 0.769) // #2dd4bf
+    static let workingDot = accentLight
+    static let doneDot = moneyGreen
 
     /// Gradient for the active (working) state background.
     static let activeGradient = LinearGradient(
         colors: [
-            Color(red: 0.027, green: 0.141, blue: 0.145), // #07242a
-            Color(red: 0.027, green: 0.102, blue: 0.122), // #071a1f
+            Color(red: 0.055, green: 0.086, blue: 0.078), // faint green cast
+            Color(red: 0.020, green: 0.027, blue: 0.039), // #05070A
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -32,8 +38,8 @@ private enum WidgetTheme {
     /// Subtle border for card elements.
     static let cardBorder = Color.white.opacity(0.06)
 
-    /// Teal glow for active indicators.
-    static let glow = Color(red: 0.180, green: 0.831, blue: 0.769).opacity(0.15)
+    /// Aurora glow for active indicators.
+    static let glow = moneyGreen.opacity(0.18)
 
     /// Accent gradient for pay amounts.
     static let payGradient = LinearGradient(
@@ -47,6 +53,23 @@ private enum WidgetTheme {
         colors: [accent, cyan],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
+    )
+
+    /// The signature Aurora sweep — used on the progress ring and the Clock In button.
+    static let auroraSweep = AngularGradient(
+        colors: [moneyGreen, cyan, purple, moneyGreen],
+        center: .center
+    )
+    static let auroraButtonGradient = LinearGradient(
+        colors: [moneyGreen, cyan, purple],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
+    /// Warm counterpart for Clock Out, same treatment as the aurora gradient.
+    static let stopButtonGradient = LinearGradient(
+        colors: [coral, Color(red: 1.0, green: 0.596, blue: 0.267)],
+        startPoint: .leading,
+        endPoint: .trailing
     )
 }
 
@@ -98,7 +121,9 @@ private struct StatCard: View {
     }
 }
 
-/// Progress ring showing hours worked toward standard day.
+/// Progress ring showing hours worked toward standard day — the Aurora sweep,
+/// a green → cyan → purple gradient with a soft glow, matching Apple's own
+/// multi-color activity rings.
 private struct HoursRing: View {
     let elapsed: Double
     let standard: Double
@@ -108,27 +133,22 @@ private struct HoursRing: View {
         return min(elapsed / standard, 1.0)
     }
 
-    private var ringColor: Color {
-        elapsed >= standard ? WidgetTheme.cyan : WidgetTheme.accent
-    }
-
     var body: some View {
         ZStack {
-            // Background ring
             Circle()
-                .stroke(WidgetTheme.accent.opacity(0.1), lineWidth: 4)
-            // Progress ring
+                .stroke(Color.white.opacity(0.08), lineWidth: 9)
             Circle()
                 .trim(from: 0, to: progress)
                 .stroke(
-                    ringColor,
-                    style: StrokeStyle(lineWidth: 4, lineCap: .round)
+                    WidgetTheme.auroraSweep,
+                    style: StrokeStyle(lineWidth: 9, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
+                .shadow(color: WidgetTheme.moneyGreen.opacity(0.45), radius: 6)
             // Center text
             VStack(spacing: 0) {
                 Text(String(format: "%.1f", elapsed))
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
+                    .font(.system(size: 18, weight: .heavy, design: .rounded))
                     .foregroundStyle(WidgetTheme.textPrimary)
                     .monospacedDigit()
                 Text("h")
@@ -139,12 +159,15 @@ private struct HoursRing: View {
     }
 }
 
-/// Rounded interactive button used across widget sizes.
+/// Rounded interactive button used across widget sizes — a solid Aurora-gradient
+/// capsule (cool green→cyan→purple for Clock In, warm coral→amber for Clock Out)
+/// with dark text for contrast and a soft matching glow.
 private struct WidgetActionButton: View {
     let title: String
     let systemImage: String
-    let tint: Color
     let intent: any AppIntent
+
+    private var isClockIn: Bool { intent is ClockInIntent }
 
     @ViewBuilder
     var body: some View {
@@ -159,12 +182,15 @@ private struct WidgetActionButton: View {
 
     private var label: some View {
         Label(title, systemImage: systemImage)
-            .font(.system(size: 11, weight: .bold, design: .rounded))
-            .foregroundStyle(WidgetTheme.textPrimary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(tint.opacity(0.18), in: Capsule())
-            .overlay(Capsule().stroke(tint.opacity(0.35), lineWidth: 1))
+            .font(.system(size: 12, weight: .heavy, design: .rounded))
+            .foregroundStyle(Color.black.opacity(0.82))
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .background(
+                isClockIn ? WidgetTheme.auroraButtonGradient : WidgetTheme.stopButtonGradient,
+                in: Capsule()
+            )
+            .shadow(color: (isClockIn ? WidgetTheme.moneyGreen : WidgetTheme.coral).opacity(0.4), radius: 8, y: 2)
     }
 }
 
@@ -378,7 +404,6 @@ struct HoursSmallWidgetView: View {
             WidgetActionButton(
                 title: "Clock Out",
                 systemImage: "stop.fill",
-                tint: WidgetTheme.accent,
                 intent: ClockOutIntent()
             )
             .frame(maxWidth: .infinity)
@@ -454,7 +479,6 @@ struct HoursSmallWidgetView: View {
             WidgetActionButton(
                 title: "Clock In",
                 systemImage: "play.fill",
-                tint: WidgetTheme.moneyGreen,
                 intent: ClockInIntent()
             )
             Spacer()
@@ -549,7 +573,6 @@ struct HoursHomeWidgetView: View {
                 WidgetActionButton(
                     title: "Clock Out",
                     systemImage: "stop.fill",
-                    tint: WidgetTheme.accent,
                     intent: ClockOutIntent()
                 )
             }
@@ -626,7 +649,6 @@ struct HoursHomeWidgetView: View {
             WidgetActionButton(
                 title: "Clock In",
                 systemImage: "play.fill",
-                tint: WidgetTheme.moneyGreen,
                 intent: ClockInIntent()
             )
         }
@@ -661,7 +683,7 @@ struct HoursHomeWidgetView: View {
                             RoundedRectangle(cornerRadius: 3)
                                 .fill(
                                     bar.hours >= entry.settings.standardDayHours
-                                        ? AnyShapeStyle(WidgetTheme.cyan)
+                                        ? AnyShapeStyle(WidgetTheme.moneyGreen)
                                         : AnyShapeStyle(WidgetTheme.accent)
                                 )
                                 .frame(height: barHeight(bar.hours))
@@ -691,14 +713,12 @@ struct HoursHomeWidgetView: View {
                     WidgetActionButton(
                         title: "Out",
                         systemImage: "stop.fill",
-                        tint: WidgetTheme.accent,
                         intent: ClockOutIntent()
                     )
                 } else {
                     WidgetActionButton(
                         title: "In",
                         systemImage: "play.fill",
-                        tint: WidgetTheme.moneyGreen,
                         intent: ClockInIntent()
                     )
                 }
