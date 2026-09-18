@@ -72,6 +72,9 @@ struct HistoryView: View {
                         .padding(.horizontal, 14)
                         .padding(.bottom, 10)
                 }
+                if let selectedDay, let holiday = IsraeliHolidayCalendar.holiday(on: selectedDay, calendar: calendar) {
+                    holidayBanner(holiday)
+                }
                 sessionsContent
                 stickySummaryBar
             }
@@ -328,6 +331,7 @@ struct HistoryView: View {
         let hasSession = day.isInPeriod && !sessionsForDay(day.date).isEmpty
         let isToday = calendar.isDateInToday(day.date)
         let number = dayNumberFormatter.string(from: day.date)
+        let holiday = day.isInPeriod ? IsraeliHolidayCalendar.holiday(on: day.date, calendar: calendar) : nil
 
         return Button {
             guard day.isInPeriod else { return }
@@ -359,6 +363,8 @@ struct HistoryView: View {
                             Circle().fill(Color.accentColor)
                         } else if isToday && day.isInPeriod {
                             Circle().strokeBorder(Color.accentColor.opacity(0.7), lineWidth: 1.25)
+                        } else if holiday != nil {
+                            Circle().strokeBorder(Color.yellow.opacity(0.8), lineWidth: 1.25)
                         }
                     }
 
@@ -372,9 +378,26 @@ struct HistoryView: View {
         }
         .buttonStyle(.plain)
         .disabled(!day.isInPeriod)
-        .accessibilityLabel(dayAccessibilityLabel(day.date, hasSession: hasSession))
+        .accessibilityLabel(dayAccessibilityLabel(day.date, hasSession: hasSession, holiday: holiday))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityHidden(!day.isInPeriod)
+    }
+
+    /// "חג <name>" banner shown above the session list when the selected day is
+    /// an Israeli statutory holiday — see `IsraeliHolidayCalendar`.
+    private func holidayBanner(_ holiday: IsraeliHoliday) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "star.fill")
+                .font(.caption)
+                .foregroundStyle(.yellow)
+            Text("חג \(holiday.fullName)")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.yellow)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+        .background(Color.yellow.opacity(0.12))
+        .accessibilityElement(children: .combine)
     }
 
     private func dayNumberColor(isSelected: Bool, isToday: Bool, isInPeriod: Bool) -> Color {
@@ -462,6 +485,7 @@ struct HistoryView: View {
         let isToday = calendar.isDateInToday(day.date)
         let number = dayNumberFormatter.string(from: day.date)
         let amount = day.isInPeriod ? dailyPayTotal(for: day.date) : nil
+        let holiday = day.isInPeriod ? IsraeliHolidayCalendar.holiday(on: day.date, calendar: calendar) : nil
 
         return Button {
             guard day.isInPeriod else { return }
@@ -491,16 +515,20 @@ struct HistoryView: View {
                             Circle().fill(Color.accentColor)
                         } else if isToday && day.isInPeriod {
                             Circle().strokeBorder(Color.accentColor.opacity(0.7), lineWidth: 1.25)
+                        } else if holiday != nil {
+                            Circle().strokeBorder(Color.yellow.opacity(0.8), lineWidth: 1.25)
                         }
                     }
 
-                // Blank (not a placeholder dash) for days without a completed shift,
-                // same as the week strip's plain dot today.
-                Text(amount.map(formattedDailyAmount) ?? " ")
+                // Blank (not a placeholder dash) for days with neither a completed
+                // shift nor a holiday, same as the week strip's plain dot today.
+                // A worked holiday still shows its pay total — the gold ring above
+                // already marks it as a holiday.
+                Text(amount.map(formattedDailyAmount) ?? holiday?.shortName ?? " ")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                    .foregroundStyle(amount == nil && holiday != nil ? .yellow : (isSelected ? Color.accentColor : .secondary))
                     .lineLimit(1)
-                    .minimumScaleFactor(0.6)
+                    .minimumScaleFactor(0.5)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
@@ -509,7 +537,7 @@ struct HistoryView: View {
         }
         .buttonStyle(.plain)
         .disabled(!day.isInPeriod)
-        .accessibilityLabel(dayAccessibilityLabel(day.date, hasSession: amount != nil))
+        .accessibilityLabel(dayAccessibilityLabel(day.date, hasSession: amount != nil, holiday: holiday))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityHidden(!day.isInPeriod)
     }
@@ -534,11 +562,14 @@ struct HistoryView: View {
         EdgeInsets(top: 0, leading: 12, bottom: 0, trailing: 12)
     }
 
-    private func dayAccessibilityLabel(_ day: Date, hasSession: Bool) -> String {
+    private func dayAccessibilityLabel(_ day: Date, hasSession: Bool, holiday: IsraeliHoliday? = nil) -> String {
         let formatter = AppLocale.makeDateFormatter(dateStyle: .full)
         var label = formatter.string(from: day)
         if hasSession {
             label += ", " + L10n.historyDayHasShifts
+        }
+        if let holiday {
+            label += ", " + holiday.fullName
         }
         return label
     }
