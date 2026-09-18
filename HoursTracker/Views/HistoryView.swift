@@ -406,19 +406,28 @@ struct HistoryView: View {
         .accessibilityIdentifier("phone.history.calendarToggleHint")
     }
 
-    /// A vertical swipe on the strip/grid area toggles expanded state; a mostly-horizontal
-    /// drag is left alone so it doesn't fight the week strip's own page swipe.
+    /// A vertical swipe on the strip/grid area toggles expanded state. A horizontal
+    /// swipe moves to the previous/next payroll period — but only once it's clearly
+    /// wider than a normal week-to-week page swipe on the collapsed strip's own
+    /// TabView, so the two don't fight each other (both gestures see the same touch;
+    /// this one only acts past that width).
     private var calendarDragGesture: some Gesture {
         DragGesture(minimumDistance: 16)
             .onEnded { value in
                 let translation = value.translation
-                guard abs(translation.height) > abs(translation.width) else { return }
-                withAnimation(.easeInOut(duration: 0.25)) {
-                    if translation.height > 24 {
-                        isCalendarExpanded = true
-                    } else if translation.height < -24 {
-                        isCalendarExpanded = false
+                if abs(translation.height) > abs(translation.width) {
+                    withAnimation(.easeInOut(duration: 0.25)) {
+                        if translation.height > 24 {
+                            isCalendarExpanded = true
+                        } else if translation.height < -24 {
+                            isCalendarExpanded = false
+                        }
                     }
+                } else if abs(translation.width) > 100 {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        periodAnchor = HistoryPeriodHelper.shiftPayrollAnchor(periodAnchor, by: translation.width < 0 ? 1 : -1)
+                    }
+                    snapSelectedDayIntoPeriod()
                 }
             }
     }
