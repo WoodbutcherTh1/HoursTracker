@@ -162,35 +162,33 @@ private struct HoursRing: View {
 /// Rounded interactive button used across widget sizes — a solid Aurora-gradient
 /// capsule (cool green→cyan→purple for Clock In, warm coral→amber for Clock Out)
 /// with dark text for contrast and a soft matching glow.
-private struct WidgetActionButton: View {
+///
+/// Generic over a concrete `AppIntent` type rather than `any AppIntent`: WidgetKit's
+/// interactive buttons are wired up by a build-time "AppIntents metadata extraction"
+/// step that statically scans for `Button(intent:)` call sites, and needs the intent
+/// type to be concrete at that call site. Boxing it as `any AppIntent` and recovering
+/// the concrete type at runtime via `as?` (the previous approach here) compiles fine
+/// but defeats that static scan, so the button renders but never actually registers
+/// as interactive — this is why tapping it did nothing.
+private struct WidgetActionButton<Intent: AppIntent>: View {
     let title: String
     let systemImage: String
-    let intent: any AppIntent
+    let intent: Intent
+    let isClockIn: Bool
 
-    private var isClockIn: Bool { intent is ClockInIntent }
-
-    @ViewBuilder
     var body: some View {
-        if let clockIn = intent as? ClockInIntent {
-            Button(intent: clockIn) { label }
-        } else if let clockOut = intent as? ClockOutIntent {
-            Button(intent: clockOut) { label }
-        } else {
-            label
+        Button(intent: intent) {
+            Label(title, systemImage: systemImage)
+                .font(.system(size: 12, weight: .heavy, design: .rounded))
+                .foregroundStyle(Color.black.opacity(0.82))
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    isClockIn ? WidgetTheme.auroraButtonGradient : WidgetTheme.stopButtonGradient,
+                    in: Capsule()
+                )
+                .shadow(color: (isClockIn ? WidgetTheme.moneyGreen : WidgetTheme.coral).opacity(0.4), radius: 8, y: 2)
         }
-    }
-
-    private var label: some View {
-        Label(title, systemImage: systemImage)
-            .font(.system(size: 12, weight: .heavy, design: .rounded))
-            .foregroundStyle(Color.black.opacity(0.82))
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(
-                isClockIn ? WidgetTheme.auroraButtonGradient : WidgetTheme.stopButtonGradient,
-                in: Capsule()
-            )
-            .shadow(color: (isClockIn ? WidgetTheme.moneyGreen : WidgetTheme.coral).opacity(0.4), radius: 8, y: 2)
     }
 }
 
@@ -404,7 +402,8 @@ struct HoursSmallWidgetView: View {
             WidgetActionButton(
                 title: "Clock Out",
                 systemImage: "stop.fill",
-                intent: ClockOutIntent()
+                intent: ClockOutIntent(),
+                isClockIn: false
             )
             .frame(maxWidth: .infinity)
         }
@@ -479,7 +478,8 @@ struct HoursSmallWidgetView: View {
             WidgetActionButton(
                 title: "Clock In",
                 systemImage: "play.fill",
-                intent: ClockInIntent()
+                intent: ClockInIntent(),
+                isClockIn: true
             )
             Spacer()
         }
@@ -573,7 +573,8 @@ struct HoursHomeWidgetView: View {
                 WidgetActionButton(
                     title: "Clock Out",
                     systemImage: "stop.fill",
-                    intent: ClockOutIntent()
+                    intent: ClockOutIntent(),
+                    isClockIn: false
                 )
             }
         }
@@ -649,7 +650,8 @@ struct HoursHomeWidgetView: View {
             WidgetActionButton(
                 title: "Clock In",
                 systemImage: "play.fill",
-                intent: ClockInIntent()
+                intent: ClockInIntent(),
+                isClockIn: true
             )
         }
         .padding(16)
@@ -713,13 +715,15 @@ struct HoursHomeWidgetView: View {
                     WidgetActionButton(
                         title: "Out",
                         systemImage: "stop.fill",
-                        intent: ClockOutIntent()
+                        intent: ClockOutIntent(),
+                        isClockIn: false
                     )
                 } else {
                     WidgetActionButton(
                         title: "In",
                         systemImage: "play.fill",
-                        intent: ClockInIntent()
+                        intent: ClockInIntent(),
+                        isClockIn: true
                     )
                 }
             }
