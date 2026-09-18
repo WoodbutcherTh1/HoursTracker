@@ -53,7 +53,15 @@ struct HoursTrackerApp: App {
             .onAppear {
                 ExportTempFileStore.wipeAll()
                 PayslipStore.shared.sweepOrphanedFiles()
+                #if DEBUG
+                if ProcessInfo.processInfo.arguments.contains("UITEST_SCREENSHOTS") {
+                    viewModel.seedDemoDataForScreenshots()
+                } else {
+                    viewModel.syncNow()
+                }
+                #else
                 viewModel.syncNow()
+                #endif
                 KeyboardTapDismissInstaller.shared.installIfNeeded()
                 // Widget button taps that happened while the app was closed
                 // are consumed here (the Darwin observer handles the warm path).
@@ -149,6 +157,7 @@ struct MainTabView: View {
             HomeView(viewModel: viewModel)
                 .tabItem {
                     Label(L10n.tabHome, systemImage: "clock.fill")
+                        .accessibilityIdentifier("tab.home")
                 }
                 .tag(AppTab.home)
                 .alert(
@@ -168,18 +177,21 @@ struct MainTabView: View {
             HistoryView(viewModel: viewModel)
                 .tabItem {
                     Label(L10n.tabHistory, systemImage: "list.bullet.rectangle")
+                        .accessibilityIdentifier("tab.history")
                 }
                 .tag(AppTab.history)
 
             ExportView(viewModel: viewModel)
                 .tabItem {
                     Label(L10n.tabExport, systemImage: "square.and.arrow.up")
+                        .accessibilityIdentifier("tab.export")
                 }
                 .tag(AppTab.export)
 
             SettingsView(viewModel: viewModel)
                 .tabItem {
                     Label(L10n.tabSettings, systemImage: "gearshape.fill")
+                        .accessibilityIdentifier("tab.settings")
                 }
                 .tag(AppTab.settings)
         }

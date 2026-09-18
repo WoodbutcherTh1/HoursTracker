@@ -48,6 +48,7 @@ targets:
     scheme:
       testTargets:
         - HoursTrackerTests
+        - HoursTrackerUITests
     info:
       path: HoursTracker/Info.plist
       properties:
@@ -102,6 +103,18 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hourstracker.app.tests
         GENERATE_INFOPLIST_FILE: YES
+  HoursTrackerUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - HoursTrackerUITests
+    dependencies:
+      - target: HoursTracker
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.hourstracker.app.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: HoursTracker
   HoursTrackerWidget:
     type: app-extension
     platform: iOS

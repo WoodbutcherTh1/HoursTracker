@@ -11,6 +11,21 @@ import UIKit
 final class AppDelegate: NSObject, UIApplicationDelegate {
     func application(
         _ application: UIApplication,
+        didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+    ) -> Bool {
+        #if DEBUG
+        // Screenshot automation (see HoursTrackerUITests/ScreenshotTests.swift): skip the
+        // first-launch onboarding cover before SwiftUI's `@AppStorage` reads the flag, so
+        // there's no flash of the onboarding screen before the seeded demo data appears.
+        if ProcessInfo.processInfo.arguments.contains("UITEST_SCREENSHOTS") {
+            UserDefaults.standard.set(true, forKey: "hasSeenOnboarding.v1")
+        }
+        #endif
+        return true
+    }
+
+    func application(
+        _ application: UIApplication,
         performActionFor shortcutItem: UIApplicationShortcutItem,
         completionHandler: @escaping (Bool) -> Void
     ) {
