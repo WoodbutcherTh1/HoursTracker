@@ -11,6 +11,11 @@ settings:
     SWIFT_VERSION: "5.9"
     DEVELOPMENT_LANGUAGE: en
     LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+  # Local-only Telegram feedback secrets (see HoursTracker/Config/Secrets.xcconfig) —
+  # committed with empty values since this repo is public.
+  configFiles:
+    Debug: HoursTracker/Config/Secrets.xcconfig
+    Release: HoursTracker/Config/Secrets.xcconfig
 targets:
   HoursTracker:
     type: application
@@ -81,6 +86,10 @@ targets:
           - en
           - ar
           - he
+        # Populated from HoursTracker/Config/Secrets.xcconfig (local-only, gitignored
+        # values) — read at runtime by TelegramFeedbackConfig.swift.
+        TelegramBotToken: "$(TELEGRAM_BOT_TOKEN)"
+        TelegramChatID: "$(TELEGRAM_CHAT_ID)"
   HoursTrackerTests:
     type: bundle.unit-test
     platform: iOS
