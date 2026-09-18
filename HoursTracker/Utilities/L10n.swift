@@ -108,6 +108,8 @@ enum L10n {
     static var contactSupportMessageLabel: String { t("contactSupport.messageLabel") }
     static var contactSupportMessagePlaceholder: String { t("contactSupport.messagePlaceholder") }
     static var contactSupportDeviceInfoHint: String { t("contactSupport.deviceInfoHint") }
+    static var contactSupportAttachLog: String { t("contactSupport.attachLog") }
+    static var contactSupportAttachLogHint: String { t("contactSupport.attachLogHint") }
     static var contactSupportSend: String { t("contactSupport.send") }
     static var contactSupportSending: String { t("contactSupport.sending") }
     static var contactSupportSuccess: String { t("contactSupport.success") }
@@ -312,6 +314,7 @@ enum L10n {
     static var settingsAbout: String { t("settings.about") }
     static var settingsVersion: String { t("settings.version") }
     static var settingsSupport: String { t("settings.support") }
+    static var settingsRateApp: String { t("settings.rateApp") }
     static var settingsAppLanguage: String { t("settings.appLanguage") }
     static var settingsLanguageSystem: String { t("settings.language.system") }
     static var settingsAppLanguageHint: String { t("settings.appLanguage.hint") }

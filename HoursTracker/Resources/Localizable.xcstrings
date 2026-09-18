@@ -2967,6 +2967,52 @@
         }
       }
     },
+    "contactSupport.attachLog" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أرفق سجل النشاطات الأخير"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Attach recent activity log"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "צרפו יומן פעילות אחרון"
+          }
+        }
+      }
+    },
+    "contactSupport.attachLogHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "بساعدنا نفهم المشكلة بشكل أسرع. مافيه أي بيانات شخصية بالسجل."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Helps us diagnose issues faster. No personal data is included."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "עוזר לנו לאתר תקלות מהר יותר. לא כלול בו מידע אישי."
+          }
+        }
+      }
+    },
     "contactSupport.deviceInfoHint" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6632,24 +6678,24 @@
       }
     },
     "privacy.body.contact" : {
-      "extractionState" : "stale",
+      "extractionState" : "manual",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "لأسئلة الخصوصية: support@hourstracker.app"
+            "value" : "لأسئلة الخصوصية، استخدم «التواصل مع الدعم» بالإعدادات."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Questions about privacy: support@hourstracker.app"
+            "value" : "Questions about privacy? Use Contact Support in Settings."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "לשאלות פרטיות: support@hourstracker.app"
+            "value" : "לשאלות פרטיות, השתמשו ב'יצירת קשר עם התמיכה' בהגדרות."
           }
         }
       }
@@ -10491,6 +10537,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "שעות רגילות"
+          }
+        }
+      }
+    },
+    "settings.rateApp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "قيّم HoursTracker"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rate HoursTracker"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "דרגו את HoursTracker"
           }
         }
       }

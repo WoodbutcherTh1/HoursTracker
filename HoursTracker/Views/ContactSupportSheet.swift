@@ -60,6 +60,7 @@ struct ContactSupportSheet: View {
     @State private var name = ""
     @State private var category: FeedbackCategory = .bug
     @State private var message = ""
+    @State private var attachLog = false
     @State private var sendState: SendState = .idle
     @State private var errorMessage: String?
 
@@ -171,6 +172,7 @@ struct ContactSupportSheet: View {
         }
     }
 
+    @ViewBuilder
     private var messageSection: some View {
         Section {
             ZStack(alignment: .topLeading) {
@@ -203,6 +205,16 @@ struct ContactSupportSheet: View {
                     .font(.footnote)
             }
         }
+
+        Section {
+            Toggle(isOn: $attachLog) {
+                Label(L10n.contactSupportAttachLog, systemImage: "doc.text")
+            }
+            .listRowBackground(HomeNeon.card)
+        } footer: {
+            Text(L10n.contactSupportAttachLogHint)
+                .font(.footnote)
+        }
     }
 
     private var sendBarButton: some View {
@@ -229,10 +241,23 @@ struct ContactSupportSheet: View {
         errorMessage = nil
         sendState = .sending
         let text = feedbackText()
+        let shouldAttachLog = attachLog
         Task {
             let result = await TelegramFeedbackSender.send(text)
+            if result == .success, shouldAttachLog {
+                await attachActivityLog()
+            }
             await MainActor.run { handle(result) }
         }
+    }
+
+    /// Best-effort follow-up upload: the main feedback message already went
+    /// through by the time this runs, so a failure here never blocks the user
+    /// or surfaces its own error — it just means the log didn't make it.
+    private func attachActivityLog() async {
+        guard let logURL = try? await MainActor.run(body: { try ActivityLogStore.shared.export(format: .txt) })
+        else { return }
+        _ = await TelegramFeedbackSender.sendDocument(fileURL: logURL, caption: "HoursTracker activity log")
     }
 
     private func handle(_ result: TelegramFeedbackSendResult) {

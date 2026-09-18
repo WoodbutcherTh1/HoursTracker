@@ -813,6 +813,13 @@ struct SettingsView: View {
                 Label(L10n.settingsSupport, systemImage: "envelope")
             }
 
+            if let rateURL = URL(string: "https://apps.apple.com/app/id6790862413?action=write-review") {
+                Link(destination: rateURL) {
+                    Label(L10n.settingsRateApp, systemImage: "star.fill")
+                }
+                .tint(.yellow)
+            }
+
             Button {
                 showFullDataExport = true
             } label: {
