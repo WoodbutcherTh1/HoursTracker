@@ -150,7 +150,7 @@ struct WatchHistoryView: View {
                     Button("Show all") { selectedDay = nil }
                         .font(.system(size: 10))
                         .buttonStyle(.plain)
-                        .foregroundStyle(.accentColor)
+                        .foregroundStyle(Color.accentColor)
                 }
             }
 
