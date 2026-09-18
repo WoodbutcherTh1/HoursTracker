@@ -3,6 +3,9 @@ import UIKit
 
 enum FeedbackCategory: String, CaseIterable, Identifiable {
     case bug
+    case crash
+    case payCalculation
+    case translation
     case feature
     case positive
     case question
@@ -12,6 +15,9 @@ enum FeedbackCategory: String, CaseIterable, Identifiable {
     var title: String {
         switch self {
         case .bug: return L10n.contactSupportCategoryBug
+        case .crash: return L10n.contactSupportCategoryCrash
+        case .payCalculation: return L10n.contactSupportCategoryPayCalculation
+        case .translation: return L10n.contactSupportCategoryTranslation
         case .feature: return L10n.contactSupportCategoryFeature
         case .positive: return L10n.contactSupportCategoryPositive
         case .question: return L10n.contactSupportCategoryQuestion
@@ -21,6 +27,9 @@ enum FeedbackCategory: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .bug: return "ladybug.fill"
+        case .crash: return "exclamationmark.octagon.fill"
+        case .payCalculation: return "banknote.fill"
+        case .translation: return "globe"
         case .feature: return "sparkles"
         case .positive: return "heart.fill"
         case .question: return "questionmark.circle.fill"
@@ -121,30 +130,17 @@ struct ContactSupportSheet: View {
     }
 
     private var categorySection: some View {
-        Section(L10n.contactSupportCategoryHeader) {
-            ForEach(FeedbackCategory.allCases) { option in
-                Button {
-                    UISelectionFeedbackGenerator().selectionChanged()
-                    category = option
-                } label: {
-                    HStack(spacing: 14) {
-                        Image(systemName: option.icon)
-                            .font(.body.weight(.medium))
-                            .foregroundStyle(theme.accent)
-                            .frame(width: 24)
-                        Text(option.title)
-                            .foregroundStyle(.primary)
-                        Spacer()
-                        if category == option {
-                            Image(systemName: "checkmark")
-                                .font(.body.weight(.semibold))
-                                .foregroundStyle(theme.accent)
-                        }
-                    }
-                    .contentShape(Rectangle())
+        Section {
+            Picker(selection: $category) {
+                ForEach(FeedbackCategory.allCases) { option in
+                    Label(option.title, systemImage: option.icon).tag(option)
                 }
-                .buttonStyle(.plain)
-                .accessibilityAddTraits(category == option ? .isSelected : [])
+            } label: {
+                Text(L10n.contactSupportCategoryHeader)
+            }
+            .pickerStyle(.menu)
+            .onChange(of: category) { _, _ in
+                UISelectionFeedbackGenerator().selectionChanged()
             }
         }
     }

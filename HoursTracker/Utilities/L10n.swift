@@ -99,6 +99,9 @@ enum L10n {
     static var contactSupportNamePlaceholder: String { t("contactSupport.namePlaceholder") }
     static var contactSupportCategoryHeader: String { t("contactSupport.categoryHeader") }
     static var contactSupportCategoryBug: String { t("contactSupport.category.bug") }
+    static var contactSupportCategoryCrash: String { t("contactSupport.category.crash") }
+    static var contactSupportCategoryPayCalculation: String { t("contactSupport.category.payCalculation") }
+    static var contactSupportCategoryTranslation: String { t("contactSupport.category.translation") }
     static var contactSupportCategoryFeature: String { t("contactSupport.category.feature") }
     static var contactSupportCategoryPositive: String { t("contactSupport.category.positive") }
     static var contactSupportCategoryQuestion: String { t("contactSupport.category.question") }
