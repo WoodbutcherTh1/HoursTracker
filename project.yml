@@ -25,6 +25,7 @@ targets:
       - path: HoursTracker
         excludes:
           - Info.plist
+          - Config/Secrets.xcconfig
       # Shared widget bridge — compiled into BOTH the app and the widget
       # extension so ActivityKit + App Group data types are identical.
       - path: HoursTrackerWidget/WidgetBridge.swift

@@ -19,6 +19,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         // there's no flash of the onboarding screen before the seeded demo data appears.
         if ProcessInfo.processInfo.arguments.contains("UITEST_SCREENSHOTS") {
             UserDefaults.standard.set(true, forKey: "hasSeenOnboarding.v1")
+            // The app has its own language system (AppLanguageController), which does not
+            // follow the standard `-AppleLanguages` launch argument — it must be forced
+            // directly so screenshots render in English regardless of simulator/device locale.
+            UserDefaults.standard.set(AppLanguageOption.english.rawValue, forKey: AppLanguageOption.storageKey)
         }
         #endif
         return true
