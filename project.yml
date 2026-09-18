@@ -1,4 +1,10 @@
 name: HoursTracker
+# Local-only Telegram feedback secrets (see HoursTracker/Config/Secrets.xcconfig) —
+# committed with empty values since this repo is public. Must be a top-level key,
+# not nested under `settings:` — XcodeGen ignores it silently there.
+configFiles:
+  Debug: HoursTracker/Config/Secrets.xcconfig
+  Release: HoursTracker/Config/Secrets.xcconfig
 options:
   bundleIdPrefix: com.hourstracker
   deploymentTarget:
@@ -11,11 +17,6 @@ settings:
     SWIFT_VERSION: "5.9"
     DEVELOPMENT_LANGUAGE: en
     LOCALIZATION_PREFERS_STRING_CATALOGS: YES
-  # Local-only Telegram feedback secrets (see HoursTracker/Config/Secrets.xcconfig) —
-  # committed with empty values since this repo is public.
-  configFiles:
-    Debug: HoursTracker/Config/Secrets.xcconfig
-    Release: HoursTracker/Config/Secrets.xcconfig
 targets:
   HoursTracker:
     type: application
