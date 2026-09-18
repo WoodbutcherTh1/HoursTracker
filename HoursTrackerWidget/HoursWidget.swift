@@ -694,6 +694,13 @@ struct HoursHomeWidgetView: View {
                         tint: WidgetTheme.accent,
                         intent: ClockOutIntent()
                     )
+                } else {
+                    WidgetActionButton(
+                        title: "In",
+                        systemImage: "play.fill",
+                        tint: WidgetTheme.moneyGreen,
+                        intent: ClockInIntent()
+                    )
                 }
             }
         }
