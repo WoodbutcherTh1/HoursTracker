@@ -53,6 +53,7 @@ struct HoursTrackerApp: App {
             .onAppear {
                 ExportTempFileStore.wipeAll()
                 PayslipStore.shared.sweepOrphanedFiles()
+                WatchConnectivityManager.shared.configure(viewModel: viewModel)
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("UITEST_SCREENSHOTS") {
                     viewModel.seedDemoDataForScreenshots()

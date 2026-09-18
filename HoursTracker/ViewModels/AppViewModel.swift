@@ -723,6 +723,7 @@ final class AppViewModel: ObservableObject {
                     sessionsLoadUnavailable = false
                     settingsLoadUnavailable = false
                     refreshReminders()
+                    WatchConnectivityManager.shared.pushSnapshot()
                 }
                 syncState = store.syncState
             } catch {
@@ -843,6 +844,7 @@ final class AppViewModel: ObservableObject {
         WidgetBridge.update(settings: WidgetBridge.snapshot(from: settings))
         WidgetBridge.reloadWidgetTimelines()
         refreshAppShortcuts()
+        WatchConnectivityManager.shared.pushSnapshot()
     }
 
     private func refreshReminders() {
@@ -853,6 +855,7 @@ final class AppViewModel: ObservableObject {
     /// and update the Live Activity (if one is running).
     private func syncWidget() {
         WidgetBridge.pushUpdate(settings: settings, sessions: sessions)
+        WatchConnectivityManager.shared.pushSnapshot()
         if #available(iOS 16.1, *) {
             if let open = sessions.first(where: { $0.isOpen }) {
                 LiveActivityManager.update(session: open, settings: settings)
