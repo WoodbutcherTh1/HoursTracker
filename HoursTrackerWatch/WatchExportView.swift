@@ -14,11 +14,13 @@ struct WatchExportView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
-                Text("Export")
-                    .font(.system(size: 15, weight: .semibold))
+                Label("Export", systemImage: "square.and.arrow.up.fill")
+                    .font(.system(size: 15, weight: .bold, design: .rounded))
+                    .labelStyle(.titleAndIcon)
+                    .foregroundStyle(Color.accentColor)
 
-                previewCard(title: "This month", preview: snapshot.exportThisMonth, rangeKey: "thisMonth")
-                previewCard(title: "This year", preview: snapshot.exportThisYear, rangeKey: "thisYear")
+                previewCard(title: "This month", icon: "calendar", preview: snapshot.exportThisMonth, rangeKey: "thisMonth")
+                previewCard(title: "This year", icon: "calendar.badge.clock", preview: snapshot.exportThisYear, rangeKey: "thisYear")
 
                 if let confirmation = store.lastExportConfirmation {
                     Text(confirmation)
@@ -44,10 +46,11 @@ struct WatchExportView: View {
         .navigationTitle("Export")
     }
 
-    private func previewCard(title: String, preview: WatchExportPreview, rangeKey: String) -> some View {
+    private func previewCard(title: String, icon: String, preview: WatchExportPreview, rangeKey: String) -> some View {
         VStack(spacing: 6) {
-            Text(title)
-                .font(.system(size: 12, weight: .semibold))
+            Label(title, systemImage: icon)
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .labelStyle(.titleAndIcon)
             Text(preview.rangeLabel)
                 .font(.system(size: 9))
                 .foregroundStyle(.secondary)
@@ -69,14 +72,20 @@ struct WatchExportView: View {
                 store.requestExport(rangeKey: rangeKey)
             } label: {
                 Label("Export", systemImage: "square.and.arrow.up")
-                    .font(.system(size: 11))
+                    .font(.system(size: 11, weight: .semibold))
+                    .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.borderedProminent)
+            .tint(Color.accentColor.opacity(0.85))
             .disabled(!preview.hasData)
         }
         .padding(10)
         .frame(maxWidth: .infinity)
-        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 10))
+        .background(Color.white.opacity(0.06), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.accentColor.opacity(0.18), lineWidth: 1)
+        )
     }
 
     private func previewStat(value: String, label: String) -> some View {

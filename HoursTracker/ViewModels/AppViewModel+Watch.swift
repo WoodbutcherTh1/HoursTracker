@@ -155,6 +155,7 @@ extension AppViewModel {
             settingsSummary: settingsSummary,
             currencyCode: settings.currencyCode,
             workplaceName: settings.workplaceName,
+            accentColorHex: HomeAccentTheme.shared.accent.hexString,
             generatedAt: now
         )
     }

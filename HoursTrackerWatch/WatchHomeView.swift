@@ -10,51 +10,18 @@ struct WatchHomeView: View {
     @State private var isSending = false
 
     private var snapshot: WatchSnapshot { store.snapshot }
+    private var accent: Color { Color(hex: snapshot.accentColorHex) }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 10) {
-                if !snapshot.workplaceName.isEmpty {
-                    Text(snapshot.workplaceName)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
+            VStack(spacing: 12) {
+                header
 
-                Text(greeting)
-                    .font(.system(size: 16, weight: .bold, design: .rounded))
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.7)
-
-                if snapshot.isClockedIn, let clockInTime = snapshot.clockInTime {
-                    Text(clockInTime, style: .timer)
-                        .font(.system(size: 30, weight: .light, design: .rounded))
-                        .monospacedDigit()
-                }
-
-                Button(action: toggleClock) {
-                    VStack(spacing: 4) {
-                        Image(systemName: snapshot.isClockedIn ? "stop.fill" : "play.fill")
-                            .font(.system(size: 22))
-                        Text(snapshot.isClockedIn ? "Clock Out" : "Clock In")
-                            .font(.headline)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 6)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(snapshot.isClockedIn ? .red : .green)
-                .disabled(isSending)
+                clockCard
 
                 statCardsRow
 
-                WatchWeekSparkline(
-                    dailyHours: snapshot.weekDailyHours,
-                    dayLabels: snapshot.weekDayLabels,
-                    todayIndex: snapshot.todayWeekdayIndex
-                )
-                .padding(.top, 2)
+                sparklineCard
 
                 if let error = store.lastErrorMessage {
                     Text(error)
@@ -69,38 +36,121 @@ struct WatchHomeView: View {
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
                 } else {
-                    Button("Refresh") { store.refresh() }
-                        .font(.caption2)
-                        .buttonStyle(.plain)
-                        .foregroundStyle(.secondary)
+                    Button {
+                        store.refresh()
+                    } label: {
+                        Label("Refresh", systemImage: "arrow.clockwise")
+                    }
+                    .font(.system(size: 10))
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal, 4)
+            .padding(.horizontal, 6)
             .padding(.bottom, 8)
         }
         .navigationTitle("HoursTracker")
     }
 
+    private var header: some View {
+        VStack(spacing: 2) {
+            if !snapshot.workplaceName.isEmpty {
+                Text(snapshot.workplaceName.uppercased())
+                    .font(.system(size: 9, weight: .semibold))
+                    .foregroundStyle(accent)
+                    .tracking(0.6)
+                    .lineLimit(1)
+            }
+            Text(greeting)
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .multilineTextAlignment(.center)
+                .lineLimit(2)
+                .minimumScaleFactor(0.7)
+        }
+    }
+
+    private var clockCard: some View {
+        VStack(spacing: 8) {
+            if snapshot.isClockedIn, let clockInTime = snapshot.clockInTime {
+                Text(clockInTime, style: .timer)
+                    .font(.system(size: 32, weight: .light, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(.white)
+            }
+
+            Button(action: toggleClock) {
+                HStack(spacing: 6) {
+                    Image(systemName: snapshot.isClockedIn ? "stop.fill" : "play.fill")
+                        .font(.system(size: 16, weight: .bold))
+                    Text(snapshot.isClockedIn ? "Clock Out" : "Clock In")
+                        .font(.system(size: 15, weight: .bold, design: .rounded))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 8)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(snapshot.isClockedIn ? WatchPalette.coral : accent)
+            .disabled(isSending)
+        }
+        .padding(.vertical, snapshot.isClockedIn ? 10 : 0)
+        .background {
+            if snapshot.isClockedIn {
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(WatchPalette.coral.opacity(0.12))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .stroke(WatchPalette.coral.opacity(0.35), lineWidth: 1)
+                    )
+            }
+        }
+    }
+
     private var statCardsRow: some View {
         HStack(spacing: 6) {
             ForEach(orderedMetrics, id: \.self) { metric in
-                VStack(spacing: 1) {
-                    Text(metric.title)
-                        .font(.system(size: 9, weight: .semibold))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                VStack(spacing: 4) {
+                    ZStack {
+                        Circle()
+                            .fill(accent.opacity(0.16))
+                            .frame(width: 22, height: 22)
+                        Image(systemName: metric.icon)
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundStyle(accent)
+                    }
                     Text(value(for: metric))
                         .font(.system(size: 13, weight: .bold, design: .rounded))
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
+                    Text(metric.title)
+                        .font(.system(size: 8, weight: .semibold))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
                 }
                 .frame(maxWidth: .infinity)
-                .padding(.vertical, 6)
-                .background(Color.white.opacity(0.08), in: RoundedRectangle(cornerRadius: 8))
+                .padding(.vertical, 8)
+                .background(Color.white.opacity(0.07), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
             }
         }
+    }
+
+    private var sparklineCard: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text("THIS WEEK")
+                .font(.system(size: 8, weight: .bold))
+                .foregroundStyle(.secondary)
+                .tracking(0.5)
+            WatchWeekSparkline(
+                dailyHours: snapshot.weekDailyHours,
+                dayLabels: snapshot.weekDayLabels,
+                todayIndex: snapshot.todayWeekdayIndex,
+                accent: accent
+            )
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var orderedMetrics: [WatchHomeMetric] {
@@ -164,11 +214,26 @@ enum WatchHomeMetric: String, CaseIterable {
         case .month: return "Month"
         case .week: return "Week"
         case .today: return "Today"
-        case .todayPay: return "Today's Pay"
-        case .weekPay: return "Week's Pay"
-        case .monthPay: return "Month's Pay"
+        case .todayPay: return "Today $"
+        case .weekPay: return "Week $"
+        case .monthPay: return "Month $"
         }
     }
+
+    var icon: String {
+        switch self {
+        case .month, .monthPay: return "calendar"
+        case .week, .weekPay: return "chart.bar.fill"
+        case .today, .todayPay: return "clock.fill"
+        }
+    }
+}
+
+/// Shared fixed semantic colors, matching the phone's `HomeNeon` palette — the
+/// "clocked in" coral stays constant everywhere since it carries meaning (an
+/// active session), unlike the user-customizable accent color.
+enum WatchPalette {
+    static let coral = Color(hex: "FF6B5B")
 }
 
 /// Compact bar-per-day week view — same data as the phone's `HomeWeekSparkline`,
@@ -177,19 +242,20 @@ struct WatchWeekSparkline: View {
     let dailyHours: [Double]
     let dayLabels: [String]
     let todayIndex: Int?
+    let accent: Color
 
     private var peak: Double { max(dailyHours.max() ?? 0, 1) }
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 4) {
             ForEach(Array(dailyHours.enumerated()), id: \.offset) { index, hours in
-                VStack(spacing: 2) {
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(index == todayIndex ? Color.accentColor : Color.white.opacity(0.35))
+                VStack(spacing: 3) {
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(index == todayIndex ? accent : Color.white.opacity(0.28))
                         .frame(height: max(3, CGFloat(hours / peak) * 28))
                     Text(dayLabels.indices.contains(index) ? dayLabels[index] : "")
-                        .font(.system(size: 8))
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 8, weight: index == todayIndex ? .bold : .regular))
+                        .foregroundStyle(index == todayIndex ? accent : .secondary)
                 }
                 .frame(maxWidth: .infinity)
             }

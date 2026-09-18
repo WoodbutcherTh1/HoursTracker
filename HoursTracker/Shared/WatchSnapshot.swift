@@ -65,6 +65,9 @@ struct WatchSnapshot: Codable, Equatable {
 
     var currencyCode: String
     var workplaceName: String
+    /// The phone's chosen Home accent color ("RRGGBB", no `#`) — see
+    /// `HomeAccentTheme` — so the Watch's tint matches instead of the system default.
+    var accentColorHex: String
     var generatedAt: Date
 
     static let empty = WatchSnapshot(
@@ -98,6 +101,7 @@ struct WatchSnapshot: Codable, Equatable {
         settingsSummary: .empty,
         currencyCode: "ILS",
         workplaceName: "",
+        accentColorHex: "26F273",
         generatedAt: .distantPast
     )
 }

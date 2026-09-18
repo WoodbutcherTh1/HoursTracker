@@ -27,5 +27,14 @@ struct WatchMainTabView: View {
                 .tag(WatchTab.settings)
         }
         .tabViewStyle(.page)
+        .tint(accentColor)
+    }
+
+    /// The phone's chosen Home accent color, synced via `WatchSnapshot` — every
+    /// `Color.accentColor` reference across the Watch views resolves against this
+    /// once it's set as the environment tint here, so the whole app matches the
+    /// phone's theme instead of the watchOS system default.
+    private var accentColor: Color {
+        Color(hex: store.snapshot.accentColorHex)
     }
 }

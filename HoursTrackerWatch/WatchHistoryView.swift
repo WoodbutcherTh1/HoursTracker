@@ -37,21 +37,18 @@ struct WatchHistoryView: View {
     }
 
     private var periodHeader: some View {
-        VStack(spacing: 4) {
+        VStack(spacing: 8) {
             HStack {
-                Button {
+                periodChevron(systemImage: "chevron.backward") {
                     selectedDay = nil
                     store.shiftHistoryPeriod(by: -1)
-                } label: {
-                    Image(systemName: "chevron.backward")
                 }
-                .buttonStyle(.plain)
 
                 Spacer()
 
                 VStack(spacing: 1) {
                     Text(snapshot.historyPeriodTitle)
-                        .font(.system(size: 13, weight: .semibold))
+                        .font(.system(size: 14, weight: .bold, design: .rounded))
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                     Text(snapshot.historyPeriodRangeLabel)
@@ -61,43 +58,46 @@ struct WatchHistoryView: View {
 
                 Spacer()
 
-                Button {
+                periodChevron(systemImage: "chevron.forward") {
                     selectedDay = nil
                     store.shiftHistoryPeriod(by: 1)
-                } label: {
-                    Image(systemName: "chevron.forward")
                 }
-                .buttonStyle(.plain)
             }
 
-            HStack(spacing: 10) {
-                VStack(spacing: 1) {
-                    Text("Hours")
-                        .font(.system(size: 8))
-                        .foregroundStyle(.secondary)
-                    Text(formattedHours(snapshot.historyTotalHours))
-                        .font(.system(size: 12, weight: .semibold))
-                        .monospacedDigit()
-                }
-                VStack(spacing: 1) {
-                    Text("Net pay")
-                        .font(.system(size: 8))
-                        .foregroundStyle(.secondary)
-                    Text(formattedPay(snapshot.historyTotalNetPay))
-                        .font(.system(size: 12, weight: .semibold))
-                        .foregroundStyle(.green)
-                        .monospacedDigit()
-                }
-                VStack(spacing: 1) {
-                    Text("Days")
-                        .font(.system(size: 8))
-                        .foregroundStyle(.secondary)
-                    Text("\(snapshot.historyWorkedDayCount)")
-                        .font(.system(size: 12, weight: .semibold))
-                        .monospacedDigit()
-                }
+            HStack(spacing: 6) {
+                totalStat(icon: "clock.fill", label: "Hours", value: formattedHours(snapshot.historyTotalHours), tint: .accentColor)
+                totalStat(icon: "banknote.fill", label: "Net pay", value: formattedPay(snapshot.historyTotalNetPay), tint: .green)
+                totalStat(icon: "calendar", label: "Days", value: "\(snapshot.historyWorkedDayCount)", tint: .accentColor)
             }
         }
+        .padding(10)
+        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+    }
+
+    private func periodChevron(systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Image(systemName: systemImage)
+                .font(.system(size: 11, weight: .bold))
+                .frame(width: 22, height: 22)
+                .background(Color.white.opacity(0.08), in: Circle())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func totalStat(icon: String, label: String, value: String, tint: Color) -> some View {
+        VStack(spacing: 2) {
+            Image(systemName: icon)
+                .font(.system(size: 9))
+                .foregroundStyle(tint)
+            Text(value)
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(tint == .green ? tint : .primary)
+            Text(label)
+                .font(.system(size: 7))
+                .foregroundStyle(.secondary)
+        }
+        .frame(maxWidth: .infinity)
     }
 
     private var calendarGrid: some View {
@@ -106,6 +106,8 @@ struct WatchHistoryView: View {
                 dayCell(day)
             }
         }
+        .padding(10)
+        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private func dayCell(_ day: WatchHistoryDay) -> some View {
@@ -142,9 +144,13 @@ struct WatchHistoryView: View {
         let sessions = filteredSessions
         return VStack(alignment: .leading, spacing: 6) {
             HStack {
-                Text(selectedDay == nil ? "All shifts" : "Selected day")
-                    .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                Label(
+                    selectedDay == nil ? "All shifts" : "Selected day",
+                    systemImage: "list.bullet.rectangle.fill"
+                )
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .labelStyle(.titleAndIcon)
                 if selectedDay != nil {
                     Spacer()
                     Button("Show all") { selectedDay = nil }
@@ -158,9 +164,12 @@ struct WatchHistoryView: View {
                 Text("No shifts")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
+                    .padding(.vertical, 4)
             } else {
-                ForEach(sessions) { session in
-                    sessionRow(session)
+                VStack(spacing: 4) {
+                    ForEach(sessions) { session in
+                        sessionRow(session)
+                    }
                 }
             }
         }
@@ -194,16 +203,17 @@ struct WatchHistoryView: View {
     }
 
     private var trendCard: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Text("6-MONTH TREND")
+        VStack(alignment: .leading, spacing: 6) {
+            Label("6-MONTH TREND", systemImage: "chart.bar.fill")
                 .font(.system(size: 8, weight: .bold))
                 .foregroundStyle(.secondary)
+                .labelStyle(.titleAndIcon)
 
             let peak = max(snapshot.historyTrend.map(\.hours).max() ?? 0, 1)
             HStack(alignment: .bottom, spacing: 4) {
                 ForEach(snapshot.historyTrend) { point in
                     VStack(spacing: 2) {
-                        RoundedRectangle(cornerRadius: 2)
+                        RoundedRectangle(cornerRadius: 3)
                             .fill(Color.accentColor.opacity(point.hours > 0 ? 0.9 : 0.2))
                             .frame(height: max(3, CGFloat(point.hours / peak) * 34))
                         Text(point.label)
@@ -215,6 +225,8 @@ struct WatchHistoryView: View {
             }
             .frame(height: 46)
         }
+        .padding(10)
+        .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
     }
 
     private var filteredSessions: [WatchHistorySession] {
