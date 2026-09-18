@@ -99,25 +99,37 @@ struct ContactSupportSheet: View {
 
     private var heroSection: some View {
         Section {
-            VStack(spacing: 10) {
-                Circle()
-                    .fill(theme.accent)
-                    .frame(width: 56, height: 56)
-                    .overlay(
-                        Image(systemName: "paperplane.fill")
-                            .font(.system(size: 22, weight: .semibold))
-                            .foregroundStyle(.white)
-                    )
+            VStack(spacing: 12) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [theme.accent, theme.accent.darkened(by: 0.65)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 64, height: 64)
+                        .shadow(color: theme.accent.opacity(0.35), radius: 14, y: 6)
+
+                    Image(systemName: "paperplane.fill")
+                        .font(.system(size: 24, weight: .semibold))
+                        .foregroundStyle(.white)
+                }
 
                 Text(L10n.contactSupportSubtitle)
                     .font(.subheadline)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
             }
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 8)
+            .padding(.vertical, 22)
+            .background(
+                RoundedRectangle(cornerRadius: 20, style: .continuous)
+                    .fill(.ultraThinMaterial)
+            )
             .listRowBackground(Color.clear)
-            .listRowInsets(EdgeInsets())
         }
     }
 
@@ -126,6 +138,8 @@ struct ContactSupportSheet: View {
             TextField(L10n.contactSupportNamePlaceholder, text: $name)
                 .textInputAutocapitalization(.words)
                 .autocorrectionDisabled()
+                .padding(.vertical, 3)
+                .listRowBackground(HomeNeon.card)
         }
     }
 
@@ -136,9 +150,21 @@ struct ContactSupportSheet: View {
                     Label(option.title, systemImage: option.icon).tag(option)
                 }
             } label: {
-                Text(L10n.contactSupportCategoryHeader)
+                HStack(spacing: 10) {
+                    ZStack {
+                        Circle()
+                            .fill(theme.accent.opacity(0.18))
+                            .frame(width: 28, height: 28)
+                        Image(systemName: category.icon)
+                            .font(.footnote.weight(.semibold))
+                            .foregroundStyle(theme.accent)
+                    }
+                    Text(L10n.contactSupportCategoryHeader)
+                }
             }
             .pickerStyle(.menu)
+            .padding(.vertical, 3)
+            .listRowBackground(HomeNeon.card)
             .onChange(of: category) { _, _ in
                 UISelectionFeedbackGenerator().selectionChanged()
             }
@@ -156,8 +182,10 @@ struct ContactSupportSheet: View {
                         .allowsHitTesting(false)
                 }
                 TextEditor(text: $message)
+                    .scrollContentBackground(.hidden)
                     .frame(minHeight: 140)
             }
+            .listRowBackground(HomeNeon.card)
         } header: {
             Text(L10n.contactSupportMessageLabel)
         } footer: {
