@@ -95,13 +95,16 @@ enum L10n {
     static var historyCollapseCalendarHint: String { t("history.collapseCalendarHint") }
 
     // Contact support feedback sheet
+    static var contactSupportSubtitle: String { t("contactSupport.subtitle") }
     static var contactSupportNamePlaceholder: String { t("contactSupport.namePlaceholder") }
     static var contactSupportCategoryHeader: String { t("contactSupport.categoryHeader") }
     static var contactSupportCategoryBug: String { t("contactSupport.category.bug") }
     static var contactSupportCategoryFeature: String { t("contactSupport.category.feature") }
     static var contactSupportCategoryPositive: String { t("contactSupport.category.positive") }
     static var contactSupportCategoryQuestion: String { t("contactSupport.category.question") }
+    static var contactSupportMessageLabel: String { t("contactSupport.messageLabel") }
     static var contactSupportMessagePlaceholder: String { t("contactSupport.messagePlaceholder") }
+    static var contactSupportDeviceInfoHint: String { t("contactSupport.deviceInfoHint") }
     static var contactSupportSend: String { t("contactSupport.send") }
     static var contactSupportSending: String { t("contactSupport.sending") }
     static var contactSupportSuccess: String { t("contactSupport.success") }

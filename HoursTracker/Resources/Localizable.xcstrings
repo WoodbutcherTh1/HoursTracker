@@ -2898,6 +2898,75 @@
         }
       }
     },
+    "contactSupport.deviceInfoHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "بيانات الجهاز ونسخة التطبيق بترفق تلقائيًا."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Device and app version are attached automatically."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "פרטי המכשיר וגרסת האפליקציה מצורפים אוטומטית."
+          }
+        }
+      }
+    },
+    "contactSupport.messageLabel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رسالتك"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your message"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ההודעה שלך"
+          }
+        }
+      }
+    },
+    "contactSupport.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ملاحظتك بترسل مباشرة للفريق."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your feedback goes straight to the team."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "המשוב שלך נשלח ישירות לצוות."
+          }
+        }
+      }
+    },
     "contactSupport.namePlaceholder" : {
       "extractionState" : "manual",
       "localizations" : {
