@@ -191,6 +191,15 @@ struct ExportView: View {
             .sheet(item: $shareItem) { item in
                 ShareSheet(items: [item.url])
             }
+            // The paired Watch cannot present its own share sheet — when it requests
+            // an export, MainTabView switches here and this picks up the file the
+            // phone already generated and presents the same share sheet the Export
+            // button itself uses.
+            .onChange(of: viewModel.pendingWatchExport) { _, newValue in
+                guard let newValue else { return }
+                shareItem = newValue
+                viewModel.pendingWatchExport = nil
+            }
             // Both destinations declared once, at the stack root, and pushed onto the
             // same explicit `exportPath` — see the comment by its declaration above.
             .navigationDestination(for: PayslipLibraryRoute.self) { _ in
@@ -357,7 +366,7 @@ enum ExportDayTypeFilter: CaseIterable, Identifiable {
 private struct PayslipLibraryRoute: Hashable {}
 
 /// Identifiable file handle for `.sheet(item:)` share presentation.
-struct ShareableFile: Identifiable {
+struct ShareableFile: Identifiable, Equatable {
     let id = UUID()
     let url: URL
 }

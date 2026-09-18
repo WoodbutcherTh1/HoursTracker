@@ -32,6 +32,11 @@ final class AppViewModel: ObservableObject {
     /// Set by the `hourstracker://action/scan` deep link; MainTabView routes it
     /// into the same single-sheet mechanism the assistant uses.
     @Published var showScannerSheet = false
+    /// Set when the paired Watch requests an export — the phone generates the file
+    /// (same `ExportManager` pipeline as the Export tab's own button) and Export tab
+    /// presents its share sheet for it the next time the app is open, since the Watch
+    /// itself cannot present a file share sheet. See `WatchConnectivityManager`.
+    @Published var pendingWatchExport: ShareableFile?
 
     private let store: SyncingStore
     private let locationManager: LocationReminderManaging

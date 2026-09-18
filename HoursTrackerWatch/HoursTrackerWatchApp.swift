@@ -6,7 +6,7 @@ struct HoursTrackerWatchApp: App {
 
     var body: some Scene {
         WindowGroup {
-            WatchContentView()
+            WatchMainTabView()
                 .environmentObject(store)
                 .onAppear { store.activate() }
         }

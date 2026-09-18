@@ -53,7 +53,7 @@ struct HoursTrackerApp: App {
             .onAppear {
                 ExportTempFileStore.wipeAll()
                 PayslipStore.shared.sweepOrphanedFiles()
-                WatchConnectivityManager.shared.configure(viewModel: viewModel)
+                WatchConnectivityManager.shared.configure(viewModel: viewModel, appLock: appLock)
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("UITEST_SCREENSHOTS") {
                     viewModel.seedDemoDataForScreenshots()
@@ -277,6 +277,14 @@ struct MainTabView: View {
         }
         .onReceive(NotificationCenter.default.publisher(for: WidgetActionBroadcaster.didReceiveAction)) { _ in
             viewModel.consumeWidgetActionIfNeeded()
+        }
+        // The Watch cannot present a share sheet itself — when it requests an export,
+        // the phone generates the file and switches to Export so its own share sheet
+        // (wired in `ExportView`) can present it.
+        .onChange(of: viewModel.pendingWatchExport) { _, newValue in
+            if newValue != nil {
+                selectedTab = .export
+            }
         }
         // First-launch onboarding — dismissed permanently once completed.
         .fullScreenCover(
