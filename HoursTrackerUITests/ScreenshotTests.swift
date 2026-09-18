@@ -29,21 +29,29 @@ final class ScreenshotTests: XCTestCase {
         // Splash screen + seeded-data reload settle within a couple of seconds.
         Thread.sleep(forTimeInterval: 3)
 
+        // If this fails, the app is stuck on something full-screen (most likely the
+        // onboarding cover) instead of the main tab view — check 01_Home.png first.
+        let tabBar = app.tabBars.firstMatch
+        XCTAssertTrue(tabBar.waitForExistence(timeout: 10), "Tab bar never appeared — see 01_Home.png")
+
         capture(app, "01_Home")
 
-        tapTab(app, "tab.history")
+        // Index-based rather than by accessibility identifier: tabItem's identifier
+        // doesn't reliably propagate to the underlying UITabBarItem on every OS/SwiftUI
+        // combo, but tab order (Home, History, Export, Settings) is fixed in the app.
+        tapTab(app, index: 1)
         capture(app, "02_History")
 
-        tapTab(app, "tab.export")
+        tapTab(app, index: 2)
         capture(app, "03_Export")
 
-        tapTab(app, "tab.settings")
+        tapTab(app, index: 3)
         capture(app, "04_Settings")
     }
 
-    private func tapTab(_ app: XCUIApplication, _ identifier: String) {
-        let button = app.tabBars.buttons[identifier]
-        XCTAssertTrue(button.waitForExistence(timeout: 5), "Tab \(identifier) never appeared")
+    private func tapTab(_ app: XCUIApplication, index: Int) {
+        let button = app.tabBars.firstMatch.buttons.element(boundBy: index)
+        XCTAssertTrue(button.waitForExistence(timeout: 5), "Tab at index \(index) never appeared")
         button.tap()
         Thread.sleep(forTimeInterval: 1)
     }
