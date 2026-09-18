@@ -62,8 +62,12 @@ struct HistoryView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 historyChrome
-                if !filteredSessions.isEmpty {
+                if selectedDay == nil && !filteredSessions.isEmpty {
                     // Six-month trend: hours per month + average monthly pay.
+                    // Hidden once a specific day is picked so that day's own
+                    // shift rows (below) land right under the calendar instead
+                    // of being pushed off-screen by the trend chart — this
+                    // matters most when the full calendar is expanded.
                     MonthlyTrendCard(viewModel: viewModel)
                         .padding(.horizontal, 14)
                         .padding(.bottom, 10)

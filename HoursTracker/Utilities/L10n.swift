@@ -94,6 +94,20 @@ enum L10n {
     static var historyExpandCalendarHint: String { t("history.expandCalendarHint") }
     static var historyCollapseCalendarHint: String { t("history.collapseCalendarHint") }
 
+    // Contact support feedback sheet
+    static var contactSupportNamePlaceholder: String { t("contactSupport.namePlaceholder") }
+    static var contactSupportCategoryHeader: String { t("contactSupport.categoryHeader") }
+    static var contactSupportCategoryBug: String { t("contactSupport.category.bug") }
+    static var contactSupportCategoryFeature: String { t("contactSupport.category.feature") }
+    static var contactSupportCategoryPositive: String { t("contactSupport.category.positive") }
+    static var contactSupportCategoryQuestion: String { t("contactSupport.category.question") }
+    static var contactSupportMessagePlaceholder: String { t("contactSupport.messagePlaceholder") }
+    static var contactSupportSend: String { t("contactSupport.send") }
+    static var contactSupportSending: String { t("contactSupport.sending") }
+    static var contactSupportSuccess: String { t("contactSupport.success") }
+    static var contactSupportError: String { t("contactSupport.error") }
+    static var contactSupportUnavailable: String { t("contactSupport.unavailable") }
+
     // Timesheet scanner
     static var scannerTitle: String { t("scanner.title") }
     static var scannerSubtitle: String { t("scanner.subtitle") }
@@ -266,6 +280,8 @@ enum L10n {
     static var settingsGasAllowance: String { t("settings.gasAllowance") }
     static var settingsStandardHours: String { t("settings.standardHours") }
     static var settingsOTCap: String { t("settings.otCap") }
+    static var settingsWeeklyStandardHours: String { t("settings.weeklyStandardHours") }
+    static var settingsWeeklyOTCap: String { t("settings.weeklyOTCap") }
     static var settingsLocationReminders: String { t("settings.locationReminders") }
     static var settingsGeofenceRadius: String { t("settings.geofenceRadius") }
     static var settingsNoLocation: String { t("settings.noLocation") }
