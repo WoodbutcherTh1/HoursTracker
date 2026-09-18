@@ -390,7 +390,7 @@ struct HistoryView: View {
             Image(systemName: "star.fill")
                 .font(.caption)
                 .foregroundStyle(.yellow)
-            Text("חג \(holiday.fullName)")
+            Text("חג \(holiday.hebrewName)")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.yellow)
         }
@@ -524,7 +524,7 @@ struct HistoryView: View {
                 // shift nor a holiday, same as the week strip's plain dot today.
                 // A worked holiday still shows its pay total — the gold ring above
                 // already marks it as a holiday.
-                Text(amount.map(formattedDailyAmount) ?? holiday?.shortName ?? " ")
+                Text(amount.map(formattedDailyAmount) ?? holiday?.hebrewShortName ?? " ")
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(amount == nil && holiday != nil ? .yellow : (isSelected ? Color.accentColor : .secondary))
                     .lineLimit(1)
@@ -569,7 +569,7 @@ struct HistoryView: View {
             label += ", " + L10n.historyDayHasShifts
         }
         if let holiday {
-            label += ", " + holiday.fullName
+            label += ", " + holiday.hebrewName
         }
         return label
     }
