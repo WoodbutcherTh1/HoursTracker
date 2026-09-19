@@ -29,7 +29,7 @@ struct AccountBackupPayload: Codable {
 /// `currentUserID` from it to scope requests; RLS enforces the same scoping
 /// server-side regardless.
 ///
-/// Dates inside `payload` are round-tripped through `JSONValue` rather than
+/// Dates inside `payload` are round-tripped through `AnyJSON` rather than
 /// relying on the SDK's own default date (en/de)coding strategy for nested
 /// Foundation `Date` values, so this always matches the ISO-8601 strategy
 /// `PersistenceManager` already uses for local storage — no guessing needed
@@ -40,8 +40,13 @@ final class SupabaseAccountSyncManager {
 
     private let auth: SupabaseAuthManager
 
-    init(auth: SupabaseAuthManager = .shared) {
-        self.auth = auth
+    // `auth` can't default to `.shared` directly: a default parameter
+    // expression isn't treated as running on the init's own actor, so
+    // referencing another @MainActor type's `.shared` there is rejected
+    // under Swift 6 strict concurrency. Resolving it inside the
+    // (actor-isolated) init body instead sidesteps that.
+    init(auth: SupabaseAuthManager? = nil) {
+        self.auth = auth ?? SupabaseAuthManager.shared
     }
 
     private static func makeEncoder() -> JSONEncoder {
@@ -69,7 +74,7 @@ final class SupabaseAccountSyncManager {
         do {
             let payload = AccountBackupPayload(settings: settings, sessions: sessions)
             let payloadData = try Self.makeEncoder().encode(payload)
-            let payloadJSON = try JSONDecoder().decode(JSONValue.self, from: payloadData)
+            let payloadJSON = try JSONDecoder().decode(AnyJSON.self, from: payloadData)
 
             let backupRow = BackupUpsertRow(
                 userId: userID,
@@ -116,7 +121,7 @@ final class SupabaseAccountSyncManager {
 /// Row shape for reading `user_backups` — RLS already limits results to the
 /// signed-in user's own row, so no `user_id` filter is needed client-side.
 private struct BackupRow: Decodable {
-    let payload: JSONValue
+    let payload: AnyJSON
 
     enum CodingKeys: String, CodingKey {
         case payload
@@ -125,7 +130,7 @@ private struct BackupRow: Decodable {
 
 private struct BackupUpsertRow: Encodable {
     let userId: UUID
-    let payload: JSONValue
+    let payload: AnyJSON
     let appVersion: String
 
     enum CodingKeys: String, CodingKey {

@@ -90,7 +90,7 @@ final class SupabaseAuthManager: ObservableObject {
         guard Self.isValidEmail(email) else { throw AccountAuthError.invalidEmail }
         guard password.count >= 6 else { throw AccountAuthError.passwordTooShort }
 
-        var metadata: [String: JSONValue] = ["full_name": .string(trimmedName)]
+        var metadata: [String: AnyJSON] = ["full_name": .string(trimmedName)]
         let trimmedFamily = familyName.trimmingCharacters(in: .whitespacesAndNewlines)
         if !trimmedFamily.isEmpty {
             metadata["family_name"] = .string(trimmedFamily)
