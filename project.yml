@@ -18,6 +18,14 @@ settings:
     SWIFT_VERSION: "5.9"
     DEVELOPMENT_LANGUAGE: en
     LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+# Account sign-up / sync backend (see HoursTracker/Managers/SupabaseAuthManager.swift
+# and SupabaseAccountSyncManager.swift). The project URL + publishable key in
+# SupabaseConfig.swift are not secrets — they're meant to ship in the client;
+# access is enforced by Postgres Row Level Security, not by hiding the key.
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: 2.0.0
 targets:
   HoursTracker:
     type: application
@@ -47,6 +55,8 @@ targets:
         embed: true
       - target: HoursTrackerWatch
         embed: true
+      - package: Supabase
+        product: Supabase
     entitlements:
       path: HoursTracker/HoursTracker.entitlements
     scheme:

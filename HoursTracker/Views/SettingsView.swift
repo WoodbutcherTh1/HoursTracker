@@ -14,10 +14,12 @@ struct SettingsView: View {
     @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
+    @ObservedObject private var accountAuth = SupabaseAuthManager.shared
     @EnvironmentObject private var appLock: AppLockController
     @EnvironmentObject private var appLanguage: AppLanguageController
 
     @State private var draft: WorkplaceSettings
+    @State private var showAccountSheet = false
     @State private var locationStatus: String = ""
     @State private var showDeleteAllConfirm = false
     @State private var showFullDataExport = false
@@ -47,6 +49,7 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
+                accountSection
                 workerSection
                 workplaceSection
                 paySection
@@ -136,6 +139,9 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showContactSupport) {
                 ContactSupportSheet(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showAccountSheet) {
+                AccountSheet(viewModel: viewModel)
             }
             .fileImporter(
                 isPresented: $showFullDataImporter,
@@ -305,6 +311,38 @@ struct SettingsView: View {
         case .valid: return L10n.scannerKeyCheckValid
         case .invalid: return L10n.scannerKeyCheckInvalid
         case .networkError: return L10n.scannerKeyCheckNetworkError
+        }
+    }
+
+    private var accountSection: some View {
+        Section {
+            Button {
+                showAccountSheet = true
+            } label: {
+                HStack(spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(homeTheme.accent.opacity(0.15))
+                            .frame(width: 36, height: 36)
+                        Image(systemName: accountAuth.isSignedIn ? "checkmark.seal.fill" : "person.crop.circle")
+                            .foregroundStyle(homeTheme.accent)
+                    }
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L10n.accountSection)
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text(
+                            accountAuth.isSignedIn
+                                ? L10n.accountSignedInAs(accountAuth.currentEmail ?? "")
+                                : L10n.accountSignedOutHint
+                        )
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                    }
+                }
+                .padding(.vertical, 4)
+            }
         }
     }
 
