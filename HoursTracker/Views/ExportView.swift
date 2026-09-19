@@ -145,7 +145,17 @@ struct ExportView: View {
                         export()
                     } label: {
                         Label(L10n.exportReport, systemImage: "square.and.arrow.up")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(HomeNeon.accent)
+                    .foregroundStyle(.black)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 4)
                 }
 
                 Section {

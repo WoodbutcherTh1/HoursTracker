@@ -207,6 +207,10 @@ enum L10n {
     static var gridEmptyTime: String { t("grid.emptyTime") }
     static var gridClearTime: String { t("grid.clearTime") }
     static var gridClearRow: String { t("grid.clearRow") }
+    static var gridPasteFromClipboard: String { t("grid.pasteFromClipboard") }
+    static var gridClearText: String { t("grid.clearText") }
+    static var gridSaveEmptyHint: String { t("grid.saveEmptyHint") }
+    static var settingsWorkRulesNoteTitle: String { t("settings.workRulesNoteTitle") }
     static func gridSave(_ count: Int) -> String {
         String(format: t("grid.save %lld"), count)
     }

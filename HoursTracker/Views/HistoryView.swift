@@ -17,6 +17,8 @@ struct HistoryView: View {
     /// period at once (with each day's pay total), swipe up to collapse back.
     @State private var isCalendarExpanded: Bool = false
     @AppStorage("historyPayDisplayMode") private var payMode: PayDisplayMode = .net
+    /// Tap-to-toggle on the "Date" column header: weekday names instead of dd/MM.
+    @AppStorage("historyShowWeekdayNames") private var showWeekdayNames: Bool = false
     @State private var selectedSession: WorkSession?
     @State private var editingSession: WorkSession?
     @State private var sessionPendingDelete: WorkSession?
@@ -240,7 +242,9 @@ struct HistoryView: View {
         return VStack(spacing: 14) {
             HStack(spacing: 4) {
                 Button {
-                    periodAnchor = HistoryPeriodHelper.shiftPayrollAnchor(periodAnchor, by: -1)
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        periodAnchor = HistoryPeriodHelper.shiftPayrollAnchor(periodAnchor, by: -1)
+                    }
                     snapSelectedDayIntoPeriod()
                 } label: {
                     Image(systemName: "chevron.backward")
@@ -255,16 +259,24 @@ struct HistoryView: View {
                 VStack(spacing: 2) {
                     Text(HistoryPeriodHelper.payrollPeriodTitle(for: activePeriod))
                         .font(.title3.weight(.semibold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.7)
+                        .fixedSize(horizontal: false, vertical: true)
                     Text(HistoryPeriodHelper.shortRangeLabel(for: activePeriod))
                         .font(.caption)
                         .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
                 .accessibilityElement(children: .combine)
+                .transition(.identity)
 
                 Spacer(minLength: 0)
 
                 Button {
-                    periodAnchor = HistoryPeriodHelper.shiftPayrollAnchor(periodAnchor, by: 1)
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        periodAnchor = HistoryPeriodHelper.shiftPayrollAnchor(periodAnchor, by: 1)
+                    }
                     snapSelectedDayIntoPeriod()
                 } label: {
                     Image(systemName: "chevron.forward")
@@ -594,19 +606,64 @@ struct HistoryView: View {
     // MARK: - Table
 
     private var tableHeader: some View {
-        historyColumns(
-            date: L10n.historyColDate,
-            clockIn: L10n.historyColIn,
-            clockOut: L10n.historyColOut,
-            hours: L10n.historyColHours,
-            amount: L10n.historyColAmount,
-            amountColor: .secondary,
-            isHeader: true
-        )
+        HStack(spacing: 0) {
+            Button {
+                toggleDateDisplayMode()
+            } label: {
+                HStack(spacing: 3) {
+                    Text(L10n.historyColDate)
+                    Image(systemName: "arrow.left.arrow.right")
+                        .font(.system(size: 8, weight: .semibold))
+                }
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Text(L10n.historyColIn)
+                .frame(maxWidth: .infinity, alignment: .center)
+            Text(L10n.historyColOut)
+                .frame(maxWidth: .infinity, alignment: .center)
+            Text(L10n.historyColHours)
+                .frame(maxWidth: .infinity, alignment: .center)
+
+            Button {
+                togglePayMode()
+            } label: {
+                HStack(spacing: 3) {
+                    Image(systemName: "arrow.left.arrow.right")
+                        .font(.system(size: 8, weight: .semibold))
+                    Text(L10n.historyColAmount)
+                }
+            }
+            .buttonStyle(.plain)
+            .frame(maxWidth: .infinity, alignment: .trailing)
+        }
+        .font(.caption2.weight(.semibold))
         .foregroundStyle(.secondary)
         .padding(.horizontal, historyTableInsets.leading)
         .padding(.vertical, 8)
         .background(Color(.secondarySystemGroupedBackground))
+        .accessibilityIdentifier("phone.history.tableHeader")
+    }
+
+    /// Tapping the "Date" header swaps every row's date column between dd/MM and
+    /// the weekday name (e.g. "Sun") — a quick way to see which days were worked
+    /// without leaving the period view.
+    private func toggleDateDisplayMode() {
+        UISelectionFeedbackGenerator().selectionChanged()
+        withAnimation(.easeInOut(duration: 0.15)) {
+            showWeekdayNames.toggle()
+        }
+    }
+
+    /// Tapping the "Amount" header flips the same net/gross switch as the segmented
+    /// control in the sticky summary bar below (same `payMode` storage), so either
+    /// control stays in sync with the other.
+    private func togglePayMode() {
+        UISelectionFeedbackGenerator().selectionChanged()
+        withAnimation(.easeInOut(duration: 0.15)) {
+            payMode = payMode == .net ? .gross : .net
+        }
     }
 
     /// One shared column geometry for headers and data rows.
@@ -931,7 +988,8 @@ struct HistoryView: View {
     }
 
     private func shortDate(_ date: Date) -> String {
-        AppLocale.makeDateFormatter(template: "dd/MM").string(from: date)
+        let template = showWeekdayNames ? "EEE" : "dd/MM"
+        return AppLocale.makeDateFormatter(template: template).string(from: date)
     }
 
     private func alignToCurrentPayrollPeriod() {

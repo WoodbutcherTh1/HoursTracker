@@ -496,15 +496,15 @@ struct SettingsView: View {
                 }
             }
 
-            Stepper(value: $draft.defaultBreakMinutes, in: 0...120, step: 5) {
+            VStack(alignment: .leading, spacing: 8) {
                 HStack {
                     Text(L10n.settingsDefaultBreak)
                     Spacer()
-                    Text("\(draft.defaultBreakMinutes)")
-                        .monospacedDigit()
-                        .foregroundStyle(.secondary)
+                    breakMinutesStepper
                 }
+                breakMinutesQuickPicks
             }
+            .padding(.vertical, 2)
 
             DatePicker(
                 L10n.settingsExpectedShiftStart,
@@ -518,9 +518,67 @@ struct SettingsView: View {
                 }
             }
 
-            Text(L10n.settingsWorkRulesNote)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            DisclosureGroup(L10n.settingsWorkRulesNoteTitle) {
+                Text(L10n.settingsWorkRulesNote)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 2)
+            }
+            .font(.caption)
+        }
+    }
+
+    /// Pill-shaped +/- control replacing the plain `Stepper` — a single capsule
+    /// with the value in the middle, matching the "one elegant container" ask
+    /// rather than two separate system stepper buttons.
+    private var breakMinutesStepper: some View {
+        HStack(spacing: 0) {
+            Button {
+                draft.defaultBreakMinutes = max(0, draft.defaultBreakMinutes - 5)
+            } label: {
+                Image(systemName: "minus")
+                    .font(.footnote.weight(.semibold))
+                    .frame(width: 30, height: 30)
+            }
+            .disabled(draft.defaultBreakMinutes <= 0)
+
+            Text("\(draft.defaultBreakMinutes)")
+                .font(.subheadline.weight(.semibold).monospacedDigit())
+                .frame(minWidth: 36)
+
+            Button {
+                draft.defaultBreakMinutes = min(120, draft.defaultBreakMinutes + 5)
+            } label: {
+                Image(systemName: "plus")
+                    .font(.footnote.weight(.semibold))
+                    .frame(width: 30, height: 30)
+            }
+            .disabled(draft.defaultBreakMinutes >= 120)
+        }
+        .buttonStyle(.plain)
+        .background(Capsule(style: .continuous).fill(Color(.tertiarySystemFill)))
+    }
+
+    /// One-tap presets so choosing a common break doesn't mean tapping +/- ten
+    /// times — 0/15/30/45 minutes covers the overwhelming majority of shifts.
+    private var breakMinutesQuickPicks: some View {
+        HStack(spacing: 6) {
+            ForEach([0, 15, 30, 45], id: \.self) { minutes in
+                Button {
+                    draft.defaultBreakMinutes = minutes
+                } label: {
+                    Text("\(minutes)")
+                        .font(.caption.weight(draft.defaultBreakMinutes == minutes ? .bold : .regular).monospacedDigit())
+                        .frame(minWidth: 30)
+                        .padding(.vertical, 5)
+                        .background(
+                            Capsule(style: .continuous)
+                                .fill(draft.defaultBreakMinutes == minutes ? Color.accentColor.opacity(0.18) : Color(.tertiarySystemFill))
+                        )
+                        .foregroundStyle(draft.defaultBreakMinutes == minutes ? Color.accentColor : Color.secondary)
+                }
+                .buttonStyle(.plain)
+            }
         }
     }
 
@@ -530,24 +588,35 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
 
-            LazyVGrid(columns: Array(repeating: GridItem(.flexible(), spacing: 6), count: 7), spacing: 6) {
-                ForEach(1...28, id: \.self) { day in
-                    Button {
-                        draft.payrollStartDay = day
-                    } label: {
-                        Text("\(day)")
-                            .font(.subheadline.weight(draft.payrollStartDay == day ? .bold : .regular).monospacedDigit())
-                            .frame(maxWidth: .infinity, minHeight: 34)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                                    .fill(draft.payrollStartDay == day ? Color.accentColor : Color(.tertiarySystemFill))
-                            )
-                            .foregroundStyle(draft.payrollStartDay == day ? Color.white : Color.primary)
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 8) {
+                        ForEach(1...28, id: \.self) { day in
+                            Button {
+                                withAnimation(.easeInOut(duration: 0.15)) {
+                                    draft.payrollStartDay = day
+                                }
+                            } label: {
+                                Text("\(day)")
+                                    .font(.subheadline.weight(draft.payrollStartDay == day ? .bold : .regular).monospacedDigit())
+                                    .frame(width: 38, height: 38)
+                                    .background(
+                                        Circle()
+                                            .fill(draft.payrollStartDay == day ? Color.accentColor : Color(.tertiarySystemFill))
+                                    )
+                                    .foregroundStyle(draft.payrollStartDay == day ? Color.white : Color.primary)
+                            }
+                            .buttonStyle(.plain)
+                            .id(day)
+                        }
                     }
-                    .buttonStyle(.plain)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 2)
+                }
+                .onAppear {
+                    proxy.scrollTo(draft.payrollStartDay, anchor: .center)
                 }
             }
-            .padding(.vertical, 4)
 
             let preview = HistoryPeriodHelper.payrollPeriod(
                 containing: Date(),

@@ -13278,7 +13278,6 @@
         }
       }
     },
-
     "history.monthlyTrend" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13850,6 +13849,98 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "אין משמרות שהסתיימו תואמות לטווח זה."
+          }
+        }
+      }
+    },
+    "grid.pasteFromClipboard" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paste from Clipboard"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הדבק מהלוח"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لصق من الحافظة"
+          }
+        }
+      }
+    },
+    "grid.clearText" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clear"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "נקה"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مسح"
+          }
+        }
+      }
+    },
+    "grid.saveEmptyHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fill in at least one day to save"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מלאו לפחות יום אחד כדי לשמור"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أدخل يوماً واحداً على الأقل للحفظ"
+          }
+        }
+      }
+    },
+    "settings.workRulesNoteTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About overtime & break rates"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "על תעריפי שעות נוספות והפסקות"
+          }
+        },
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "عن نسب الساعات الإضافية والاستراحة"
           }
         }
       }
