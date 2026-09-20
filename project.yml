@@ -1,10 +1,4 @@
 name: HoursTracker
-# Local-only Telegram feedback secrets (see HoursTracker/Config/Secrets.xcconfig) —
-# committed with empty values since this repo is public. Must be a top-level key,
-# not nested under `settings:` — XcodeGen ignores it silently there.
-configFiles:
-  Debug: HoursTracker/Config/Secrets.xcconfig
-  Release: HoursTracker/Config/Secrets.xcconfig
 options:
   bundleIdPrefix: com.hourstracker
   deploymentTarget:
@@ -26,7 +20,6 @@ targets:
       - path: HoursTracker
         excludes:
           - Info.plist
-          - Config/Secrets.xcconfig
       # Shared widget bridge — compiled into BOTH the app and the widget
       # extension so ActivityKit + App Group data types are identical.
       - path: HoursTrackerWidget/WidgetBridge.swift
@@ -93,10 +86,6 @@ targets:
           - en
           - ar
           - he
-        # Populated from HoursTracker/Config/Secrets.xcconfig (local-only, gitignored
-        # values) — read at runtime by TelegramFeedbackConfig.swift.
-        TelegramBotToken: "$(TELEGRAM_BOT_TOKEN)"
-        TelegramChatID: "$(TELEGRAM_CHAT_ID)"
   HoursTrackerTests:
     type: bundle.unit-test
     platform: iOS
