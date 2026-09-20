@@ -103,6 +103,28 @@ final class WeekDailyHoursTests: XCTestCase {
         XCTAssertEqual(heights, Array(repeating: 0, count: 7))
     }
 
+    func testLiveOpenHeightFractionMatchesBarRange() {
+        let minimum = HomeWeekSparkline.liveOpenHeightFraction(
+            pulseTime: (3 * Double.pi / 2) / 3.4,
+            index: 0,
+            isToday: true
+        )
+        let midpoint = HomeWeekSparkline.liveOpenHeightFraction(
+            pulseTime: 0,
+            index: 0,
+            isToday: true
+        )
+        let maximum = HomeWeekSparkline.liveOpenHeightFraction(
+            pulseTime: (Double.pi / 2) / 3.4,
+            index: 0,
+            isToday: true
+        )
+
+        XCTAssertEqual(minimum, 0.28, accuracy: 0.001)
+        XCTAssertEqual(midpoint, 0.49, accuracy: 0.001)
+        XCTAssertEqual(maximum, 0.70, accuracy: 0.001)
+    }
+
     func testFormatHoursClockMatchesHistory() {
         XCTAssertEqual(HistoryPeriodHelper.formatHoursClock(8.5), "08:30")
         XCTAssertEqual(HistoryPeriodHelper.formatHoursClock(0), "00:00")
