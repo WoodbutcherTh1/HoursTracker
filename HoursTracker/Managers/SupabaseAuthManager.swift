@@ -57,7 +57,7 @@ final class SupabaseAuthManager: ObservableObject {
         authStateTask = Task { [weak self] in
             guard let self else { return }
             for await (event, session) in client.auth.authStateChanges {
-                await self.handle(event: event, session: session)
+                self.handle(event: event, session: session)
             }
         }
     }
