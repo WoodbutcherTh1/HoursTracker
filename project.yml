@@ -1,10 +1,4 @@
 name: HoursTracker
-# Local-only Telegram feedback secrets (see HoursTracker/Config/Secrets.xcconfig) —
-# committed with empty values since this repo is public. Must be a top-level key,
-# not nested under `settings:` — XcodeGen ignores it silently there.
-configFiles:
-  Debug: HoursTracker/Config/Secrets.xcconfig
-  Release: HoursTracker/Config/Secrets.xcconfig
 options:
   bundleIdPrefix: com.hourstracker
   deploymentTarget:
@@ -18,15 +12,29 @@ settings:
     SWIFT_VERSION: "5.9"
     DEVELOPMENT_LANGUAGE: en
     LOCALIZATION_PREFERS_STRING_CATALOGS: YES
+# Account sign-up / sync backend (see HoursTracker/Managers/SupabaseAuthManager.swift
+# and SupabaseAccountSyncManager.swift). The project URL + publishable key in
+# SupabaseConfig.swift are not secrets — they're meant to ship in the client;
+# access is enforced by Postgres Row Level Security, not by hiding the key.
+packages:
+  Supabase:
+    url: https://github.com/supabase/supabase-swift
+    from: 2.0.0
 targets:
   HoursTracker:
     type: application
     platform: iOS
+    # Bound here too (not just at the project level above) so the target's
+    # own build configurations are guaranteed to resolve TELEGRAM_BOT_TOKEN /
+    # TELEGRAM_CHAT_ID / etc. for Info.plist $(VAR) substitution, instead of
+    # depending on inheriting them from the project level.
+    configFiles:
+      Debug: HoursTracker/Config/Secrets.xcconfig
+      Release: HoursTracker/Config/Secrets.xcconfig
     sources:
       - path: HoursTracker
         excludes:
           - Info.plist
-          - Config/Secrets.xcconfig
       # Shared widget bridge — compiled into BOTH the app and the widget
       # extension so ActivityKit + App Group data types are identical.
       - path: HoursTrackerWidget/WidgetBridge.swift
@@ -47,6 +55,8 @@ targets:
         embed: true
       - target: HoursTrackerWatch
         embed: true
+      - package: Supabase
+        product: Supabase
     entitlements:
       path: HoursTracker/HoursTracker.entitlements
     scheme:
@@ -83,6 +93,10 @@ targets:
         NSPhotoLibraryUsageDescription: "HoursTracker needs photo access only to import a timesheet screenshot or image you choose."
         NSFaceIDUsageDescription: "HoursTracker uses Face ID only to unlock the app when App Lock is enabled."
         ITSAppUsesNonExemptEncryption: false
+        # Required for ActivityKit — without it, ActivityAuthorizationInfo().areActivitiesEnabled
+        # is false and LiveActivityManager.start() silently no-ops, so the Lock Screen banner
+        # and Dynamic Island never appear even though the widget extension is otherwise correct.
+        NSSupportsLiveActivities: true
         # Deep links from the widget (interactive buttons + widgetURL) and the
         # home-screen quick actions (long-press icon).
         CFBundleURLTypes:
@@ -93,10 +107,6 @@ targets:
           - en
           - ar
           - he
-        # Populated from HoursTracker/Config/Secrets.xcconfig (local-only, gitignored
-        # values) — read at runtime by TelegramFeedbackConfig.swift.
-        TelegramBotToken: "$(TELEGRAM_BOT_TOKEN)"
-        TelegramChatID: "$(TELEGRAM_CHAT_ID)"
   HoursTrackerTests:
     type: bundle.unit-test
     platform: iOS
@@ -130,8 +140,21 @@ targets:
       # Shared wire format for phone <-> Watch state (see WatchConnectivityManager) —
       # compiled into both the app and the Watch app, same pattern as WidgetBridge.swift.
       - path: HoursTracker/Shared/WatchSnapshot.swift
+      # Shared language stack so the Watch resolves the SAME localized strings as the
+      # phone (AppLocale reads the phone-mirrored language choice; L10n keys come from
+      # the app's String Catalog via the app bundle's lproj resources below) — plus
+      # the shared greeting logic and the HTStateView/htFont UI primitives.
+      - path: HoursTracker/Utilities/AppLocale.swift
+      - path: HoursTracker/Utilities/AppLanguagePreference.swift
+      - path: HoursTracker/Utilities/L10n.swift
+      - path: HoursTracker/Shared/DaypartGreeting.swift
+      - path: HoursTracker/Shared/HTStateView.swift
     resources:
       - path: HoursTrackerWatch/Assets.xcassets
+      # The source String Catalog the Watch's L10n lookups resolve against (en/he/ar).
+      # Listed here so Xcode compiles it into the Watch target's own bundle, same as
+      # it does for the phone app's copy via HoursTracker/Resources below.
+      - path: HoursTracker/Resources/Localizable.xcstrings
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hourstracker.app.watchkitapp

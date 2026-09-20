@@ -24,6 +24,17 @@
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
 	<string>1.6</string>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>com.hourstracker.app</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>hourstracker</string>
+			</array>
+		</dict>
+	</array>
 	<key>CFBundleVersion</key>
 	<string>21</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
@@ -38,6 +49,11 @@
 	<string>HoursTracker uses your location while using the app only to save your workplace when you tap Set Location.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>HoursTracker needs photo access only to import a timesheet screenshot or image you choose.</string>
+	<!-- Required for ActivityKit — without it, ActivityAuthorizationInfo().areActivitiesEnabled
+	     is false and the Live Activity silently never starts. Also set in project.yml so
+	     `xcodegen generate` keeps this file in sync. -->
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

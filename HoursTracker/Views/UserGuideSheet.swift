@@ -13,6 +13,12 @@ import SwiftUI
 /// extra line and an extra real element inside the slides that already cover those
 /// screens; a whole slide each would pad the guide without telling anyone more.
 ///
+/// September 2026 QA pass: slide copy re-verified against the shipping app and two
+/// drifts fixed — the assistant moved from a floating overlay into each tab's
+/// navigation bar (`MainTabView` comment), and the payslips slide no longer promises
+/// share/export, which `PayslipDetailView` does not offer (it is preview/review/delete;
+/// reports live in the Export tab).
+///
 /// The language pill lets you preview the guide's own authored captions in
 /// EN/HE/AR independently of the app's language — chrome position is forced
 /// `.leftToRight` regardless, so the pill, dots, and Next/Done button never move.
@@ -297,9 +303,9 @@ private struct GuideCopy {
     )
 
     static let payslips = GuideCopy(
-        en: ("Every payslip, organized", "Tap a payslip to open it, then share or export the PDF."),
-        he: ("כל תלוש, מסודר", "הקישו על תלוש כדי לפתוח אותו, ואז שתפו או ייצאו כ-PDF."),
-        ar: ("كل قسيمة راتب، منظمة", "اضغط على قسيمة لفتحها، ثم شاركها أو صدّرها كملف PDF.")
+        en: ("Every payslip, organized", "Tap a payslip to open its PDF, review the extracted details, and confirm or delete it. Full reports live in the Export tab."),
+        he: ("כל תלוש, מסודר", "הקישו על תלוש כדי לפתוח את ה-PDF, לבדוק את הפרטים שחולצו, ולאשר או למחוק. דוחות מלאים נמצאים בלשונית ייצוא."),
+        ar: ("كل قسيمة راتب، منظمة", "اضغط على قسيمة لفتح ملف PDF ومراجعة التفاصيل المستخرجة وتأكيدها أو حذفها. التقارير الكاملة في تبويب التصدير.")
     )
 
     static let shiftDetail = GuideCopy(
@@ -317,15 +323,15 @@ private struct GuideCopy {
     static let assistant = GuideCopy(
         en: (
             "Ask your assistant",
-            "Tap the floating icon for hours, overtime, or a payslip — answers use your real data only."
+            "Tap the sparkles icon in the top bar of any tab for hours, overtime, or a payslip — answers use your real data only."
         ),
         he: (
             "שאלו את העוזר שלכם",
-            "הקישו על הסמל הצף לשעות, שעות נוספות או תלוש - התשובות מבוססות רק על הנתונים האמיתיים שלכם."
+            "הקישו על סמל הניצוצות בסרגל העליון בכל לשונית לשעות, שעות נוספות או תלוש - התשובות מבוססות רק על הנתונים האמיתיים שלכם."
         ),
         ar: (
             "اسأل مساعدك",
-            "اضغط على الأيقونة العائمة للساعات أو الإضافي أو תלוש — الإجابات من بياناتك الحقيقية فقط."
+            "اضغط على أيقونة البريق في الشريط العلوي بأي تبويب للساعات أو الإضافي أو قسيمة الراتب — الإجابات من بياناتك الحقيقية فقط."
         )
     )
 }

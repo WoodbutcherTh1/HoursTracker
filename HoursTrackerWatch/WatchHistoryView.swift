@@ -33,7 +33,7 @@ struct WatchHistoryView: View {
             .padding(.horizontal, 4)
             .padding(.bottom, 8)
         }
-        .navigationTitle("History")
+        .navigationTitle(L10n.tabHistory)
     }
 
     private var periodHeader: some View {
@@ -65,9 +65,9 @@ struct WatchHistoryView: View {
             }
 
             HStack(spacing: 6) {
-                totalStat(icon: "clock.fill", label: "Hours", value: formattedHours(snapshot.historyTotalHours), tint: .accentColor)
-                totalStat(icon: "banknote.fill", label: "Net pay", value: formattedPay(snapshot.historyTotalNetPay), tint: .green)
-                totalStat(icon: "calendar", label: "Days", value: "\(snapshot.historyWorkedDayCount)", tint: .accentColor)
+                totalStat(icon: "clock.fill", label: AppLocale.tr("watch.hours"), value: formattedHours(snapshot.historyTotalHours), tint: .accentColor)
+                totalStat(icon: "banknote.fill", label: AppLocale.tr("watch.netPay"), value: formattedPay(snapshot.historyTotalNetPay), tint: .green)
+                totalStat(icon: "calendar", label: AppLocale.tr("watch.days"), value: "\(snapshot.historyWorkedDayCount)", tint: .accentColor)
             }
         }
         .padding(10)
@@ -145,7 +145,7 @@ struct WatchHistoryView: View {
         return VStack(alignment: .leading, spacing: 6) {
             HStack {
                 Label(
-                    selectedDay == nil ? "All shifts" : "Selected day",
+                    selectedDay == nil ? AppLocale.tr("watch.allShifts") : AppLocale.tr("watch.selectedDay"),
                     systemImage: "list.bullet.rectangle.fill"
                 )
                 .font(.system(size: 11, weight: .semibold))
@@ -153,7 +153,7 @@ struct WatchHistoryView: View {
                 .labelStyle(.titleAndIcon)
                 if selectedDay != nil {
                     Spacer()
-                    Button("Show all") { selectedDay = nil }
+                    Button(AppLocale.tr("watch.showAll")) { selectedDay = nil }
                         .font(.system(size: 10))
                         .buttonStyle(.plain)
                         .foregroundStyle(Color.accentColor)
@@ -161,10 +161,10 @@ struct WatchHistoryView: View {
             }
 
             if sessions.isEmpty {
-                Text("No shifts")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-                    .padding(.vertical, 4)
+                HTStateView(kind: .empty(
+                    icon: "list.bullet.rectangle",
+                    title: AppLocale.tr("watch.noShifts")
+                ))
             } else {
                 VStack(spacing: 4) {
                     ForEach(sessions) { session in
@@ -204,7 +204,7 @@ struct WatchHistoryView: View {
 
     private var trendCard: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Label("6-MONTH TREND", systemImage: "chart.bar.fill")
+            Label(AppLocale.tr("watch.trendTitle"), systemImage: "chart.bar.fill")
                 .font(.system(size: 8, weight: .bold))
                 .foregroundStyle(.secondary)
                 .labelStyle(.titleAndIcon)
@@ -235,14 +235,15 @@ struct WatchHistoryView: View {
     }
 
     private func shortDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "d MMM"
+        // AppLocale keeps the date in the phone-mirrored language (month names in
+        // Hebrew/Arabic under RTL, English otherwise) — a fixed format string
+        // would hardcode English month abbreviations.
+        let formatter = AppLocale.makeDateFormatter(template: "dMMM")
         return formatter.string(from: date)
     }
 
     private func timeString(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.timeStyle = .short
+        let formatter = AppLocale.makeDateFormatter(timeStyle: .short)
         return formatter.string(from: date)
     }
 

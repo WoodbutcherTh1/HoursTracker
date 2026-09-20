@@ -20,10 +20,19 @@ final class WatchSessionStore: NSObject, ObservableObject {
     /// Set briefly after a successful export request so the Export tab can show a
     /// confirmation before the message fades.
     @Published var lastExportConfirmation: String?
+    /// The app language the phone last reported (mirrored from
+    /// `WatchSnapshot.settingsSummary.languageOptionRaw`). Drives the Watch's
+    /// layout direction and re-render on change; the same value is persisted so
+    /// `AppLocale`/`L10n` resolve strings in the phone's language even before the
+    /// first sync of a launch.
+    @Published private(set) var language: AppLocale.Language
 
     private let cacheKey = "com.hourstracker.watch.lastSnapshot"
 
     private override init() {
+        // Seed the language from the last phone-reported choice so strings resolve
+        // in the right language from the first frame, before any fresh snapshot.
+        self.language = AppLocale.current
         super.init()
         if let data = UserDefaults.standard.data(forKey: cacheKey),
            let cached = try? JSONDecoder().decode(WatchSnapshot.self, from: data) {
@@ -75,7 +84,7 @@ final class WatchSessionStore: NSObject, ObservableObject {
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
         guard session.isReachable else {
-            lastErrorMessage = "Open HoursTracker on your iPhone nearby to export."
+            lastErrorMessage = AppLocale.tr("watch.exportNeedPhone")
             return
         }
         let request = WatchRequest(kind: .requestExport, stringValue: rangeKey)
@@ -86,9 +95,9 @@ final class WatchSessionStore: NSObject, ObservableObject {
                 Task { @MainActor in
                     if ack.success {
                         self?.lastErrorMessage = nil
-                        self?.lastExportConfirmation = "Sent to iPhone — open HoursTracker to share it."
+                        self?.lastExportConfirmation = AppLocale.tr("watch.exportSent")
                     } else {
-                        self?.lastErrorMessage = ack.message ?? "Export failed."
+                        self?.lastErrorMessage = ack.message ?? AppLocale.tr("watch.exportFailed")
                     }
                 }
             },
@@ -102,7 +111,7 @@ final class WatchSessionStore: NSObject, ObservableObject {
         guard WCSession.isSupported() else { return }
         let session = WCSession.default
         guard session.isReachable else {
-            lastErrorMessage = "Open HoursTracker on your iPhone nearby to sync."
+            lastErrorMessage = AppLocale.tr("watch.syncNeedPhone")
             return
         }
         session.sendMessage(
@@ -121,8 +130,30 @@ final class WatchSessionStore: NSObject, ObservableObject {
     private func apply(_ snapshot: WatchSnapshot) {
         self.snapshot = snapshot
         self.lastErrorMessage = nil
+        mirrorLanguage(from: snapshot)
         if let data = try? JSONEncoder().encode(snapshot) {
             UserDefaults.standard.set(data, forKey: cacheKey)
+        }
+    }
+
+    /// The phone owns the language choice (Watch Settings sends `setLanguage` to
+    /// it, and it applies + echoes the choice back in every snapshot). Persist the
+    /// mirrored raw value under the same key `AppLanguageOption.load` reads, so
+    /// `AppLocale` — and therefore every `L10n` string on the Watch — resolves in
+    /// the phone's language, then publish it so RTL/layoutDirection re-evaluates.
+    private func mirrorLanguage(from snapshot: WatchSnapshot) {
+        let raw = snapshot.settingsSummary.languageOptionRaw
+        guard let option = AppLanguageOption(rawValue: raw) else { return }
+        let defaults = UserDefaults.standard
+        if defaults.string(forKey: AppLanguageOption.storageKey) != option.rawValue {
+            defaults.set(option.rawValue, forKey: AppLanguageOption.storageKey)
+        }
+        let resolved = AppLocale.resolve(
+            preference: option,
+            preferredLanguages: Locale.preferredLanguages
+        )
+        if language != resolved {
+            language = resolved
         }
     }
 }

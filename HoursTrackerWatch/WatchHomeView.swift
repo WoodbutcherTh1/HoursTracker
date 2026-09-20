@@ -5,6 +5,12 @@ import SwiftUI
 /// the small screen (no neon backgrounds, no drag-to-reorder — that lives on the
 /// phone and this just respects whatever order it chose) but structurally the same
 /// screen: same numbers, same order, same actions.
+///
+/// Fully localized (en/he/ar via the phone's String Catalog through `L10n` —
+/// `AppLocale` resolves the phone-mirrored language, and `WatchMainTabView`
+/// supplies the RTL layout direction). The greeting uses the *shared*
+/// `DaypartGreeting` so hour bands can never drift from the phone again.
+/// Sync/error messaging goes through `HTStateView` instead of bare captions.
 struct WatchHomeView: View {
     @EnvironmentObject private var store: WatchSessionStore
     @State private var isSending = false
@@ -24,22 +30,25 @@ struct WatchHomeView: View {
                 sparklineCard
 
                 if let error = store.lastErrorMessage {
-                    Text(error)
-                        .font(.caption2)
-                        .foregroundStyle(.orange)
-                        .multilineTextAlignment(.center)
-                }
-
-                if snapshot.generatedAt == .distantPast {
-                    Text("Open HoursTracker on your iPhone once to sync.")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
+                    HTStateView(
+                        kind: .error(
+                            message: error,
+                            retryTitle: AppLocale.tr("common.retry"),
+                            retry: { store.refresh() }
+                        )
+                    )
+                } else if snapshot.generatedAt == .distantPast {
+                    HTStateView(
+                        kind: .empty(
+                            icon: "iphone.radiowaves.left.and.right",
+                            title: AppLocale.tr("watch.syncHint")
+                        )
+                    )
                 } else {
                     Button {
                         store.refresh()
                     } label: {
-                        Label("Refresh", systemImage: "arrow.clockwise")
+                        Label(AppLocale.tr("common.retry"), systemImage: "arrow.clockwise")
                     }
                     .font(.system(size: 10))
                     .buttonStyle(.plain)
@@ -49,7 +58,7 @@ struct WatchHomeView: View {
             .padding(.horizontal, 6)
             .padding(.bottom, 8)
         }
-        .navigationTitle("HoursTracker")
+        .navigationTitle(L10n.brandName)
     }
 
     private var header: some View {
@@ -82,7 +91,7 @@ struct WatchHomeView: View {
                 HStack(spacing: 6) {
                     Image(systemName: snapshot.isClockedIn ? "stop.fill" : "play.fill")
                         .font(.system(size: 16, weight: .bold))
-                    Text(snapshot.isClockedIn ? "Clock Out" : "Clock In")
+                    Text(snapshot.isClockedIn ? L10n.homeClockOut : L10n.homeClockIn)
                         .font(.system(size: 15, weight: .bold, design: .rounded))
                 }
                 .frame(maxWidth: .infinity)
@@ -91,6 +100,10 @@ struct WatchHomeView: View {
             .buttonStyle(.borderedProminent)
             .tint(snapshot.isClockedIn ? WatchPalette.coral : accent)
             .disabled(isSending)
+            .accessibilityLabel(snapshot.isClockedIn ? L10n.homeClockOut : L10n.homeClockIn)
+            .accessibilityHint(snapshot.isClockedIn
+                ? AppLocale.tr("watch.a11y.clockOutHint")
+                : AppLocale.tr("watch.a11y.clockInHint"))
         }
         .padding(.vertical, snapshot.isClockedIn ? 10 : 0)
         .background {
@@ -137,7 +150,7 @@ struct WatchHomeView: View {
 
     private var sparklineCard: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("THIS WEEK")
+            Text(AppLocale.tr("watch.thisWeek").uppercased())
                 .font(.system(size: 8, weight: .bold))
                 .foregroundStyle(.secondary)
                 .tracking(0.5)
@@ -169,14 +182,11 @@ struct WatchHomeView: View {
         }
     }
 
+    /// Shared with the phone — identical hour bands, localized via the mirrored
+    /// language, and personalized with the worker's first name exactly like Home.
     private var greeting: String {
-        let hour = Calendar.current.component(.hour, from: Date())
-        switch hour {
-        case 5..<12: return "Good morning"
-        case 12..<17: return "Good afternoon"
-        case 17..<22: return "Good evening"
-        default: return "Working late?"
-        }
+        let workerName = snapshot.settingsSummary.workerFullName
+        return DaypartGreeting.current().title(withName: workerName.isEmpty ? nil : workerName)
     }
 
     private func toggleClock() {
@@ -206,17 +216,19 @@ struct WatchHomeView: View {
 
 /// Mirrors the phone's `HomeStatMetric` raw values (kept independent since that
 /// type lives in an iOS-only file not compiled into the Watch target).
+/// Labels come from the shared String Catalog (`home.stat.*` / `watch.stat.*`)
+/// so the Watch speaks the user's language.
 enum WatchHomeMetric: String, CaseIterable {
     case month, week, today, todayPay, weekPay, monthPay
 
     var title: String {
         switch self {
-        case .month: return "Month"
-        case .week: return "Week"
-        case .today: return "Today"
-        case .todayPay: return "Today $"
-        case .weekPay: return "Week $"
-        case .monthPay: return "Month $"
+        case .month: return L10n.homeStatMonth
+        case .week: return L10n.homeStatWeek
+        case .today: return L10n.homeStatToday
+        case .todayPay: return L10n.homeStatTodayPay
+        case .weekPay: return L10n.homeStatWeekPay
+        case .monthPay: return L10n.homeStatMonthPay
         }
     }
 

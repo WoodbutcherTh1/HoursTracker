@@ -186,6 +186,8 @@ final class BlankTimesheetViewModel: ObservableObject {
 struct BlankTimesheetEntryView: View {
     @ObservedObject var appViewModel: AppViewModel
     @StateObject private var gridVM = BlankTimesheetViewModel()
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
+    @ObservedObject private var theme = HomeAccentTheme.shared
     @Environment(\.dismiss) private var dismiss
 
     @State private var showScanner = false
@@ -196,11 +198,7 @@ struct BlankTimesheetEntryView: View {
     @State private var currentConflictDay: Date?
     @State private var pendingImportDrafts: [ScannedSessionDraft] = []
 
-    private let ink = Color.primary
-    private let rule = Color.primary.opacity(0.55)
-    private let headerFill = Color.primary
-    private let paper = Color(.systemBackground)
-    private let altRow = Color(.secondarySystemBackground).opacity(0.55)
+    private var altRow: Color { Color.white.opacity(0.03) }
 
     var body: some View {
         NavigationStack {
@@ -228,7 +226,7 @@ struct BlankTimesheetEntryView: View {
                     freeTextPane
                 }
             }
-            .background(Color(.systemGroupedBackground))
+            .background(appBackground.background.ignoresSafeArea())
             .navigationTitle(L10n.gridTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -240,10 +238,14 @@ struct BlankTimesheetEntryView: View {
                         showScanner = true
                     } label: {
                         Image(systemName: "doc.viewfinder")
+                            .foregroundStyle(theme.accent)
                     }
                     .accessibilityLabel(L10n.gridScan)
                 }
             }
+            .toolbarBackground(appBackground.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
             .onAppear {
                 if gridVM.rows.isEmpty {
                     gridVM.loadPeriod(startDay: appViewModel.settings.payrollStartDay)
@@ -265,9 +267,10 @@ struct BlankTimesheetEntryView: View {
             }
         }
         .pickerStyle(.segmented)
+        .colorScheme(.dark)
+        .tint(theme.accent)
         .padding(.horizontal, 16)
         .padding(.vertical, 10)
-        .background(paper)
     }
 
     private var periodChrome: some View {
@@ -281,15 +284,17 @@ struct BlankTimesheetEntryView: View {
             } label: {
                 Image(systemName: "chevron.backward")
                     .font(.body.weight(.semibold))
+                    .foregroundStyle(.white)
                     .frame(width: 36, height: 36)
             }
 
             VStack(spacing: 2) {
                 Text(HistoryPeriodHelper.payrollPeriodTitle(for: period))
                     .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.white)
                 Text(HistoryPeriodHelper.shortRangeLabel(for: period))
                     .font(.caption.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(.white.opacity(0.55))
             }
             .frame(maxWidth: .infinity)
 
@@ -298,18 +303,18 @@ struct BlankTimesheetEntryView: View {
             } label: {
                 Image(systemName: "chevron.forward")
                     .font(.body.weight(.semibold))
+                    .foregroundStyle(.white)
                     .frame(width: 36, height: 36)
             }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
-        .background(paper)
     }
 
     private var hintBar: some View {
         Text(L10n.gridHint)
             .font(.caption)
-            .foregroundStyle(.secondary)
+            .foregroundStyle(.white.opacity(0.5))
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
@@ -319,21 +324,60 @@ struct BlankTimesheetEntryView: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.gridFreeTextHint)
                 .font(.subheadline)
-                .foregroundStyle(.secondary)
+                .foregroundStyle(.white.opacity(0.6))
                 .padding(.horizontal, 16)
                 .padding(.top, 8)
 
-            TextEditor(text: $gridVM.freeText)
-                .font(.body.monospaced())
-                .padding(10)
-                .frame(maxWidth: .infinity, minHeight: 220)
-                .background(paper)
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .stroke(ink, lineWidth: 2)
+            ZStack(alignment: .topLeading) {
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(HomeNeon.card)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .stroke(theme.accent.opacity(gridVM.freeText.isEmpty ? 0.15 : 0.45), lineWidth: 1.5)
+                    )
+
+                if gridVM.freeText.isEmpty {
+                    Text(L10n.gridFreeTextExample)
+                        .font(.body.monospaced())
+                        .foregroundStyle(.white.opacity(0.32))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 14)
+                        .allowsHitTesting(false)
                 }
-                .padding(.horizontal, 16)
-                .disabled(gridVM.isAnalyzing)
+
+                TextEditor(text: $gridVM.freeText)
+                    .font(.body.monospaced())
+                    .foregroundStyle(.white)
+                    .scrollContentBackground(.hidden)
+                    .padding(8)
+                    .disabled(gridVM.isAnalyzing)
+            }
+            .frame(maxWidth: .infinity, minHeight: 220)
+            .padding(.horizontal, 16)
+
+            HStack(spacing: 10) {
+                Button {
+                    if let clipboardText = UIPasteboard.general.string {
+                        gridVM.freeText = clipboardText
+                    }
+                } label: {
+                    Label(L10n.gridPasteFromClipboard, systemImage: "doc.on.clipboard")
+                        .font(.caption.weight(.semibold))
+                }
+                .buttonStyle(.bordered)
+                .tint(theme.accent)
+
+                if !gridVM.freeText.isEmpty {
+                    Button(role: .destructive) {
+                        gridVM.freeText = ""
+                    } label: {
+                        Label(L10n.gridClearText, systemImage: "xmark.circle")
+                            .font(.caption.weight(.semibold))
+                    }
+                    .buttonStyle(.bordered)
+                }
+            }
+            .padding(.horizontal, 16)
 
             if let error = gridVM.analyzeError {
                 Text(error)
@@ -341,11 +385,6 @@ struct BlankTimesheetEntryView: View {
                     .foregroundStyle(.red)
                     .padding(.horizontal, 16)
             }
-
-            Text(L10n.gridFreeTextExample)
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .padding(.horizontal, 16)
 
             Spacer(minLength: 0)
 
@@ -357,7 +396,7 @@ struct BlankTimesheetEntryView: View {
                 HStack {
                     if gridVM.isAnalyzing {
                         ProgressView()
-                            .tint(.white)
+                            .tint(.black)
                     }
                     Text(L10n.gridAnalyze)
                         .font(.headline)
@@ -366,100 +405,80 @@ struct BlankTimesheetEntryView: View {
                 .padding(.vertical, 14)
             }
             .buttonStyle(.borderedProminent)
+            .tint(theme.accent)
+            .foregroundStyle(.black)
             .disabled(gridVM.isAnalyzing || gridVM.freeText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             .padding(.horizontal, 16)
             .padding(.bottom, 12)
         }
-        .background(Color(.systemGroupedBackground))
     }
 
     private var timesheetCard: some View {
         VStack(spacing: 0) {
-            headerRow
             ForEach(Array(gridVM.rows.enumerated()), id: \.element.id) { index, row in
                 gridRow(row, striped: index % 2 == 1)
                 if index < gridVM.rows.count - 1 {
-                    Rectangle()
-                        .fill(rule)
-                        .frame(height: 1)
+                    Divider().opacity(0.15)
                 }
             }
             addRowButton
         }
-        .background(paper)
-        .overlay {
-            RoundedRectangle(cornerRadius: 4, style: .continuous)
-                .stroke(ink, lineWidth: 2.5)
-        }
-        .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
-        .shadow(color: .black.opacity(0.08), radius: 10, y: 4)
+        .background(HomeNeon.card)
+        .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color.white.opacity(0.06), lineWidth: 1)
+        )
     }
 
-    private var headerRow: some View {
-        HStack(spacing: 0) {
-            headerCell(L10n.gridColDay, width: 44)
-            verticalRule(onHeader: true)
-            headerCell(L10n.gridColDate, flex: true)
-            verticalRule(onHeader: true)
-            headerCell(L10n.gridColIn, flex: true)
-            verticalRule(onHeader: true)
-            headerCell(L10n.gridColOut, flex: true)
-        }
-        .background(headerFill)
-    }
-
-    private func headerCell(_ title: String, width: CGFloat? = nil, flex: Bool = false) -> some View {
-        Text(title)
-            .font(.caption.weight(.bold))
-            .foregroundStyle(Color(.systemBackground))
-            .lineLimit(1)
-            .minimumScaleFactor(0.7)
-            .frame(width: flex ? nil : width, alignment: .center)
-            .frame(maxWidth: flex ? .infinity : nil, alignment: .center)
-            .padding(.vertical, 11)
-            .padding(.horizontal, 4)
-    }
-
+    /// One day: weekday + date on the leading side, in/out as tappable pill
+    /// buttons on the trailing side — no spreadsheet rules, just a card row.
     private func gridRow(_ row: TimesheetGridRow, striped: Bool) -> some View {
-        HStack(spacing: 0) {
-            Text(HistoryPeriodHelper.weekdayLetter(for: row.date))
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(ink)
-                .frame(width: 44)
-                .padding(.vertical, 8)
+        VStack(spacing: 6) {
+            HStack(spacing: 8) {
+                Text(HistoryPeriodHelper.weekdayLetter(for: row.date))
+                    .font(.caption.weight(.bold))
+                    .foregroundStyle(theme.accent)
+                    .frame(width: 22, height: 22)
+                    .background(Circle().fill(theme.accent.opacity(0.15)))
 
-            verticalRule()
+                DatePicker(
+                    "",
+                    selection: bindingDate(for: row),
+                    displayedComponents: .date
+                )
+                .labelsHidden()
+                .datePickerStyle(.compact)
+                .colorScheme(.dark)
 
-            DatePicker(
-                "",
-                selection: bindingDate(for: row),
-                displayedComponents: .date
-            )
-            .labelsHidden()
-            .datePickerStyle(.compact)
-            .frame(maxWidth: .infinity)
-            .padding(.horizontal, 2)
-            .padding(.vertical, 4)
+                Spacer(minLength: 0)
+            }
 
-            verticalRule()
+            HStack(spacing: 10) {
+                timeCell(
+                    label: L10n.gridColIn,
+                    value: row.clockIn,
+                    onFill: { fillDefaults(for: row) },
+                    onSet: { setClockIn(row, $0) },
+                    onClear: { clearClockIn(row) }
+                )
 
-            timeCell(
-                value: row.clockIn,
-                onFill: { fillDefaults(for: row) },
-                onSet: { setClockIn(row, $0) },
-                onClear: { clearClockIn(row) }
-            )
+                Image(systemName: "arrow.right")
+                    .font(.caption2.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.25))
 
-            verticalRule()
-
-            timeCell(
-                value: row.clockOut,
-                onFill: { fillDefaults(for: row) },
-                onSet: { setClockOut(row, $0) },
-                onClear: { clearClockOut(row) }
-            )
+                timeCell(
+                    label: L10n.gridColOut,
+                    value: row.clockOut,
+                    onFill: { fillDefaults(for: row) },
+                    onSet: { setClockOut(row, $0) },
+                    onClear: { clearClockOut(row) }
+                )
+            }
         }
-        .background(striped ? altRow : paper)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(striped ? altRow : Color.clear)
         .contextMenu {
             Button(L10n.gridClearRow, role: .destructive) {
                 clearRow(row)
@@ -472,7 +491,11 @@ struct BlankTimesheetEntryView: View {
         }
     }
 
+    /// A filled time reads as a solid accent pill; empty reads as a dashed
+    /// ghost pill inviting a tap — both clearly buttons, unlike the old plain
+    /// "--:--" text.
     private func timeCell(
+        label: String,
         value: Date?,
         onFill: @escaping () -> Void,
         onSet: @escaping (Date) -> Void,
@@ -490,17 +513,27 @@ struct BlankTimesheetEntryView: View {
                 )
                 .labelsHidden()
                 .datePickerStyle(.compact)
-                .padding(.horizontal, 2)
-                .padding(.vertical, 4)
+                .colorScheme(.dark)
+                .tint(theme.accent)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 6)
+                .background(Capsule(style: .continuous).fill(theme.accent.opacity(0.16)))
+                .overlay(Capsule(style: .continuous).stroke(theme.accent.opacity(0.4), lineWidth: 1))
                 .contextMenu {
                     Button(L10n.gridClearTime, role: .destructive, action: onClear)
                 }
             } else {
                 Button(action: onFill) {
                     Text(L10n.gridEmptyTime)
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(.tertiary)
-                        .frame(maxWidth: .infinity, minHeight: 36)
+                        .font(.subheadline.weight(.semibold).monospacedDigit())
+                        .foregroundStyle(.white.opacity(0.4))
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 6)
+                        .background(
+                            Capsule(style: .continuous)
+                                .strokeBorder(style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
+                                .foregroundStyle(.white.opacity(0.25))
+                        )
                 }
                 .buttonStyle(.plain)
             }
@@ -508,23 +541,15 @@ struct BlankTimesheetEntryView: View {
         .frame(maxWidth: .infinity)
     }
 
-    private func verticalRule(onHeader: Bool = false) -> some View {
-        Rectangle()
-            .fill(onHeader ? Color(.systemBackground).opacity(0.35) : rule)
-            .frame(width: 1)
-            .frame(maxHeight: .infinity)
-    }
-
     private var addRowButton: some View {
         VStack(spacing: 0) {
-            Rectangle()
-                .fill(rule)
-                .frame(height: 1)
+            Divider().opacity(0.15)
             Button {
                 gridVM.addRow()
             } label: {
                 Label(L10n.gridAddRow, systemImage: "plus")
                     .font(.footnote.weight(.semibold))
+                    .foregroundStyle(theme.accent)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 12)
             }
@@ -533,15 +558,7 @@ struct BlankTimesheetEntryView: View {
     }
 
     private var saveBar: some View {
-        VStack(spacing: 10) {
-            Button {
-                showScanner = true
-            } label: {
-                Label(L10n.gridScan, systemImage: "doc.viewfinder")
-                    .font(.footnote.weight(.medium))
-            }
-            .buttonStyle(.bordered)
-
+        VStack(spacing: 6) {
             Button {
                 beginApproveFlow()
             } label: {
@@ -551,12 +568,20 @@ struct BlankTimesheetEntryView: View {
                     .padding(.vertical, 14)
             }
             .buttonStyle(.borderedProminent)
+            .tint(theme.accent)
+            .foregroundStyle(.black)
             .disabled(gridVM.filledCount == 0)
             .padding(.horizontal, 16)
+
+            if gridVM.filledCount == 0 {
+                Text(L10n.gridSaveEmptyHint)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.4))
+            }
         }
-        .padding(.top, 8)
+        .padding(.top, 10)
         .padding(.bottom, 12)
-        .background(.bar)
+        .background(HomeNeon.card.opacity(0.9))
     }
 
     @ViewBuilder

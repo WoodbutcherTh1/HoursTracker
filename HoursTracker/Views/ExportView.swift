@@ -145,7 +145,17 @@ struct ExportView: View {
                         export()
                     } label: {
                         Label(L10n.exportReport, systemImage: "square.and.arrow.up")
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 6)
                     }
+                    .buttonStyle(.borderedProminent)
+                    .tint(HomeNeon.accent)
+                    .foregroundStyle(.black)
+                    .listRowInsets(EdgeInsets())
+                    .listRowBackground(Color.clear)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 4)
                 }
 
                 Section {
@@ -269,13 +279,13 @@ struct ExportView: View {
     private func previewStat(value: String, label: String) -> some View {
         VStack(spacing: 3) {
             Text(value)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .htFont(size: 14, relativeTo: .headline, weight: .bold, design: .rounded)
                 .foregroundStyle(.primary)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
             Text(label.uppercased())
-                .font(.system(size: 8, weight: .semibold, design: .rounded))
+                .htFont(size: 8, relativeTo: .caption2, weight: .semibold, design: .rounded)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)

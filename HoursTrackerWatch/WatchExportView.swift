@@ -14,13 +14,13 @@ struct WatchExportView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
-                Label("Export", systemImage: "square.and.arrow.up.fill")
+                Label(L10n.tabExport, systemImage: "square.and.arrow.up.fill")
                     .font(.system(size: 15, weight: .bold, design: .rounded))
                     .labelStyle(.titleAndIcon)
                     .foregroundStyle(Color.accentColor)
 
-                previewCard(title: "This month", icon: "calendar", preview: snapshot.exportThisMonth, rangeKey: "thisMonth")
-                previewCard(title: "This year", icon: "calendar.badge.clock", preview: snapshot.exportThisYear, rangeKey: "thisYear")
+                previewCard(title: AppLocale.tr("watch.exportThisMonth"), icon: "calendar", preview: snapshot.exportThisMonth, rangeKey: "thisMonth")
+                previewCard(title: AppLocale.tr("watch.exportThisYear"), icon: "calendar.badge.clock", preview: snapshot.exportThisYear, rangeKey: "thisYear")
 
                 if let confirmation = store.lastExportConfirmation {
                     Text(confirmation)
@@ -35,7 +35,7 @@ struct WatchExportView: View {
                         .multilineTextAlignment(.center)
                 }
 
-                Text("PDF, full options, and the payslip library stay on iPhone.")
+                Text(AppLocale.tr("watch.exportPhoneOnly"))
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -43,7 +43,7 @@ struct WatchExportView: View {
             .padding(.horizontal, 4)
             .padding(.bottom, 8)
         }
-        .navigationTitle("Export")
+        .navigationTitle(L10n.tabExport)
     }
 
     private func previewCard(title: String, icon: String, preview: WatchExportPreview, rangeKey: String) -> some View {
@@ -57,21 +57,22 @@ struct WatchExportView: View {
 
             if preview.hasData {
                 HStack(spacing: 10) {
-                    previewStat(value: "\(preview.dayCount)", label: "Days")
-                    previewStat(value: formattedHours(preview.totalHours), label: "Hours")
-                    previewStat(value: formattedPay(preview.net), label: "Net")
+                    previewStat(value: "\(preview.dayCount)", label: AppLocale.tr("watch.days"))
+                    previewStat(value: formattedHours(preview.totalHours), label: AppLocale.tr("watch.hours"))
+                    previewStat(value: formattedPay(preview.net), label: L10n.historyPayNet)
                 }
             } else {
-                Text("No data in this range")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                HTStateView(kind: .empty(
+                    icon: "calendar.badge.exclamationmark",
+                    title: AppLocale.tr("watch.exportNoData")
+                ))
             }
 
             Button {
                 store.lastExportConfirmation = nil
                 store.requestExport(rangeKey: rangeKey)
             } label: {
-                Label("Export", systemImage: "square.and.arrow.up")
+                Label(L10n.tabExport, systemImage: "square.and.arrow.up")
                     .font(.system(size: 11, weight: .semibold))
                     .frame(maxWidth: .infinity)
             }

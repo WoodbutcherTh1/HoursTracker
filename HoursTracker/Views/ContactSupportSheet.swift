@@ -196,10 +196,6 @@ struct ContactSupportSheet: View {
                     Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
                         .font(.footnote)
                         .foregroundStyle(.red)
-                } else if !TelegramFeedbackConfig.isConfigured {
-                    Label(L10n.contactSupportUnavailable, systemImage: "exclamationmark.triangle.fill")
-                        .font(.footnote)
-                        .foregroundStyle(.orange)
                 }
                 Text(L10n.contactSupportDeviceInfoHint)
                     .font(.footnote)
