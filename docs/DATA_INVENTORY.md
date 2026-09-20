@@ -28,6 +28,14 @@ Definition-of-done for privacy changes: if a PR stores, logs, exports, or transm
 | Session id, dates, clock in/out, break, day type, night flag, notes, `modifiedAt`, import flags | Documents JSON; one CloudKit record per session if sync on | File protection | Until delete | Local + cloud purge |
 | Corrupt decode sidecar | `work_sessions.json.corrupt*` | Same directory | Until delete-all or manual | `wipeQuarantinedSidecars` |
 
+## Workplaces (`workplaces.json`)
+
+| Field | Storage | Protection | Retention | Deleted by |
+|---|---|---|---|---|
+| Workplace id, name, hourly rate, currency code, `modifiedAt` | Documents JSON | File protection | Until delete | **Not yet wired into `deleteAllUserData()`** — file exists but nothing reads/writes it yet; must be added when the multi-workplace feature is wired into the UI |
+
+**Note:** storage-only for now (`PersistenceManager.loadWorkplaces()`/`saveWorkplaces()`); not yet part of `PersistableStore`/`SyncingStore`, so it's local-only and not synced to CloudKit until a follow-up PR wires it in.
+
 ## Activity log (`activity_log.json`)
 
 | Field | Storage | Protection | Retention | Deleted by |
