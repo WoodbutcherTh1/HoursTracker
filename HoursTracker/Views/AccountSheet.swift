@@ -495,6 +495,10 @@ private struct VerifyCodeView: View {
                 await MainActor.run {
                     isVerifying = false
                     errorMessage = error.localizedDescription
+                    // Whatever was just rejected can never become valid by
+                    // resubmitting it — clearing it stops a stale code from
+                    // silently being retried after a resend.
+                    code = ""
                 }
             }
         }
@@ -502,10 +506,17 @@ private struct VerifyCodeView: View {
 
     private func resend() {
         errorMessage = nil
+        resendMessage = nil
         Task {
             do {
                 try await SupabaseAuthManager.shared.resendSignUpCode(email: email)
-                await MainActor.run { resendMessage = L10n.accountResendSent }
+                await MainActor.run {
+                    resendMessage = L10n.accountResendSent
+                    // The old code is now invalid the moment a new one is
+                    // issued — force fresh entry instead of leaving the
+                    // stale value sitting there to be resubmitted by mistake.
+                    code = ""
+                }
             } catch {
                 await MainActor.run { errorMessage = error.localizedDescription }
             }
