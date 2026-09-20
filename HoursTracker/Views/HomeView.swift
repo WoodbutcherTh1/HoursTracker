@@ -227,6 +227,10 @@ struct HomeView: View {
                 accent: homeTheme.accent
             )
             .padding(.bottom, 2)
+
+            MonthlyTrendCard(viewModel: viewModel)
+                .padding(.top, 4)
+                .padding(.bottom, 8)
         }
     }
 
@@ -492,6 +496,10 @@ struct HomeView: View {
                 isTodayShiftOpen: hasOpenShiftToday,
                 accent: HomeNeon.coral
             )
+
+            MonthlyTrendCard(viewModel: viewModel)
+                .padding(.top, 4)
+                .padding(.bottom, 8)
         }
     }
 

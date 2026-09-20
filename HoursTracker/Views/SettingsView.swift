@@ -48,6 +48,22 @@ struct SettingsView: View {
         _draft = State(initialValue: viewModel.settings)
     }
 
+    /// Icon-led section header matching the accent-colored, rounded-caps style
+    /// used elsewhere in the app (`MonthlyTrendCard`, Home stat cards). Settings
+    /// previously used stock plain-text `Section` headers, which read flat next
+    /// to the rest of the app's neon design language.
+    private func sectionHeader(_ title: String, icon: String) -> some View {
+        Label {
+            Text(title.uppercased())
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .tracking(0.5)
+        } icon: {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(homeTheme.accent)
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -265,7 +281,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
         } header: {
-            Text(L10n.scannerSection)
+            sectionHeader(L10n.scannerSection, icon: "doc.text.viewfinder")
         }
     }
 
@@ -352,7 +368,7 @@ struct SettingsView: View {
     }
 
     private var workerSection: some View {
-        Section(L10n.settingsWorkerInfo) {
+        Section {
             TextField(L10n.settingsFullName, text: $draft.workerFullName)
             if isEditingIDNumber {
                 TextField(L10n.settingsIDNumber, text: $draft.workerIDNumber)
@@ -382,6 +398,8 @@ struct SettingsView: View {
                 }
             }
             TextField(L10n.settingsEmployeeNumber, text: $draft.employeeNumber)
+        } header: {
+            sectionHeader(L10n.settingsWorkerInfo, icon: "person.text.rectangle.fill")
         }
     }
 
@@ -425,7 +443,7 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } header: {
-            Text(L10n.appLockSection)
+            sectionHeader(L10n.appLockSection, icon: "lock.shield.fill")
         }
     }
 
@@ -459,22 +477,24 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } header: {
-            Text(L10n.settingsHideWidgetPaySection)
+            sectionHeader(L10n.settingsHideWidgetPaySection, icon: "square.grid.2x2.fill")
         }
     }
 
     private var workplaceSection: some View {
-        Section(L10n.settingsWorkplace) {
+        Section {
             TextField(L10n.settingsWorkplaceName, text: $draft.workplaceName)
             TextField(L10n.settingsContractor, text: Binding(
                 get: { draft.contractorName ?? "" },
                 set: { draft.contractorName = $0.isEmpty ? nil : $0 }
             ))
+        } header: {
+            sectionHeader(L10n.settingsWorkplace, icon: "building.2.fill")
         }
     }
 
     private var paySection: some View {
-        Section(L10n.settingsPayHours) {
+        Section {
             HStack {
                 Text(L10n.settingsHourlyRate)
                 Spacer()
@@ -525,6 +545,8 @@ struct SettingsView: View {
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
             }
+        } header: {
+            sectionHeader(L10n.settingsPayHours, icon: "banknote.fill")
         }
     }
 
@@ -549,7 +571,7 @@ struct SettingsView: View {
     }
 
     private var workRulesSection: some View {
-        Section(L10n.settingsWorkRules) {
+        Section {
             Picker(L10n.settingsRestDay, selection: $draft.restDayWeekday) {
                 ForEach(1...7, id: \.self) { weekday in
                     Text(Calendar.current.weekdaySymbols[weekday - 1]).tag(weekday)
@@ -605,6 +627,8 @@ struct SettingsView: View {
                     .padding(.top, 2)
             }
             .font(.caption)
+        } header: {
+            sectionHeader(L10n.settingsWorkRules, icon: "calendar.badge.clock")
         }
     }
 
@@ -709,7 +733,7 @@ struct SettingsView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
         } header: {
-            Text(AppLocale.tr("payroll.section"))
+            sectionHeader(AppLocale.tr("payroll.section"), icon: "calendar")
         }
     }
 
@@ -768,7 +792,7 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } header: {
-            Text(AppLocale.tr("tax.section"))
+            sectionHeader(AppLocale.tr("tax.section"), icon: "percent")
         }
     }
 
@@ -869,7 +893,7 @@ struct SettingsView: View {
                     )
             }
         } header: {
-            Text(L10n.settingsLocationReminders)
+            sectionHeader(L10n.settingsLocationReminders, icon: "location.fill")
         }
     }
 
@@ -918,17 +942,19 @@ struct SettingsView: View {
                 }
             }
         } header: {
-            Text(L10n.syncSection)
+            sectionHeader(L10n.syncSection, icon: "icloud.fill")
         }
     }
 
     private var toolsSection: some View {
-        Section(L10n.settingsTools) {
+        Section {
             NavigationLink {
                 ActivityLogView(viewModel: viewModel)
             } label: {
                 Label(L10n.logTitle, systemImage: "list.bullet.rectangle")
             }
+        } header: {
+            sectionHeader(L10n.settingsTools, icon: "wrench.and.screwdriver.fill")
         }
     }
 
@@ -940,14 +966,14 @@ struct SettingsView: View {
                 }
             }
         } header: {
-            Text(L10n.settingsAppLanguage)
+            sectionHeader(L10n.settingsAppLanguage, icon: "globe")
         } footer: {
             Text(L10n.settingsAppLanguageHint)
         }
     }
 
     private var aboutSection: some View {
-        Section(L10n.settingsAbout) {
+        Section {
             LabeledContent(L10n.settingsVersion, value: appVersionString)
 
             NavigationLink {
@@ -986,6 +1012,8 @@ struct SettingsView: View {
             } label: {
                 Label(L10n.privacyDeleteAll, systemImage: "trash")
             }
+        } header: {
+            sectionHeader(L10n.settingsAbout, icon: "info.circle.fill")
         }
     }
 
