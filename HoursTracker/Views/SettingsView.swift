@@ -88,7 +88,11 @@ struct SettingsView: View {
                 }
             }
             .onAppear {
-                draft = viewModel.settings
+                // withAnimation(.none) prevents conditional rows (tax, location) from
+                // reflowing inside the tab-slide animation context.
+                withAnimation(.none) {
+                    draft = viewModel.settings
+                }
                 viewModel.refreshLocationPermissionStatuses()
                 smartScannerCloudEnabled = UserDefaultsSmartScannerCloudPreference.shared.isEnabled
                 geminiAPIKeyDraft = KeychainStore.string(for: .geminiAPIKey) ?? ""
