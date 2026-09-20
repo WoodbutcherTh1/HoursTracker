@@ -83,6 +83,10 @@ targets:
         NSPhotoLibraryUsageDescription: "HoursTracker needs photo access only to import a timesheet screenshot or image you choose."
         NSFaceIDUsageDescription: "HoursTracker uses Face ID only to unlock the app when App Lock is enabled."
         ITSAppUsesNonExemptEncryption: false
+        # Required for ActivityKit — without it, ActivityAuthorizationInfo().areActivitiesEnabled
+        # is false and LiveActivityManager.start() silently no-ops, so the Lock Screen banner
+        # and Dynamic Island never appear even though the widget extension is otherwise correct.
+        NSSupportsLiveActivities: true
         # Deep links from the widget (interactive buttons + widgetURL) and the
         # home-screen quick actions (long-press icon).
         CFBundleURLTypes:
