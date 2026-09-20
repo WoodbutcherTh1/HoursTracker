@@ -34,6 +34,7 @@ struct AccountSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(L10n.editCancel) { dismiss() }
+                        .tint(.white.opacity(0.8))
                 }
             }
             .toolbarBackground(appBackground.background, for: .navigationBar)
@@ -74,63 +75,188 @@ private struct AccountFlowView: View {
     }
 }
 
+// MARK: - Shared premium components
+
+/// A dark, rounded, icon-led field matching the rest of the app's card
+/// styling instead of a plain system row — the field glows with the accent
+/// color while focused, which is most of what makes a field "feel premium"
+/// without the complexity of a fully animated floating label.
+private struct AccountTextField: View {
+    let icon: String
+    let placeholder: String
+    @Binding var text: String
+    var isSecure: Bool = false
+    var keyboardType: UIKeyboardType = .default
+    var textContentType: UITextContentType?
+    var autocapitalization: TextInputAutocapitalization = .sentences
+
+    @FocusState private var isFocused: Bool
+    @ObservedObject private var theme = HomeAccentTheme.shared
+    @State private var isSecureVisible = false
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 16, weight: .medium))
+                .foregroundStyle(isFocused ? theme.accent : .white.opacity(0.35))
+                .frame(width: 20)
+
+            Group {
+                if isSecure && !isSecureVisible {
+                    SecureField("", text: $text, prompt: placeholderText)
+                } else {
+                    TextField("", text: $text, prompt: placeholderText)
+                }
+            }
+            .focused($isFocused)
+            .foregroundStyle(.white)
+            .tint(theme.accent)
+            .textInputAutocapitalization(autocapitalization)
+            .autocorrectionDisabled()
+            .keyboardType(keyboardType)
+            .textContentType(textContentType)
+
+            if isSecure {
+                Button {
+                    isSecureVisible.toggle()
+                } label: {
+                    Image(systemName: isSecureVisible ? "eye.slash" : "eye")
+                        .font(.system(size: 14))
+                        .foregroundStyle(.white.opacity(0.35))
+                }
+                .buttonStyle(.plain)
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 15)
+        .background(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .fill(Color(red: 0.11, green: 0.11, blue: 0.12))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(isFocused ? theme.accent : Color.white.opacity(0.08), lineWidth: isFocused ? 1.5 : 1)
+        )
+        .shadow(color: isFocused ? theme.accent.opacity(0.18) : .clear, radius: 10, y: 3)
+        .animation(.easeOut(duration: 0.15), value: isFocused)
+    }
+
+    private var placeholderText: Text {
+        Text(placeholder).foregroundStyle(.white.opacity(0.32))
+    }
+}
+
+/// Solid accent fill with real depth (shadow that compresses on press) —
+/// the "this is the one action to take" button.
+private struct PremiumPrimaryButtonStyle: ButtonStyle {
+    var accent: Color
+    var isDisabled: Bool = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundStyle(.black)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    .fill(accent.opacity(isDisabled ? 0.35 : 1))
+            )
+            .shadow(
+                color: isDisabled ? .clear : accent.opacity(configuration.isPressed ? 0.2 : 0.4),
+                radius: configuration.isPressed ? 6 : 14,
+                y: configuration.isPressed ? 2 : 7
+            )
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+/// Transparent, quiet — for the one secondary action next to a primary CTA.
+private struct PremiumSecondaryButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.subheadline.weight(.semibold))
+            .foregroundStyle(.white.opacity(0.85))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 14)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.white.opacity(configuration.isPressed ? 0.1 : 0.06))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .stroke(Color.white.opacity(0.12), lineWidth: 1)
+            )
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+/// A glowing icon badge — the pulsing halo the app already uses behind the
+/// Home clock button, reused here so the "keep your data safe" moment reads
+/// as premium rather than a plain SF Symbol in a circle.
+private struct GlowIconBadge: View {
+    let systemName: String
+    var accent: Color = HomeNeon.accent
+    var size: CGFloat = 76
+
+    var body: some View {
+        ZStack {
+            HomePulseRings(color: accent, size: size - 10)
+
+            Circle()
+                .fill(
+                    LinearGradient(
+                        colors: [accent, accent.darkened(by: 0.65)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .frame(width: size, height: size)
+                .shadow(color: accent.opacity(0.45), radius: 20, y: 8)
+
+            Image(systemName: systemName)
+                .font(.system(size: size * 0.42, weight: .semibold))
+                .foregroundStyle(.white)
+        }
+    }
+}
+
+// MARK: - Welcome
+
 private struct AccountWelcomeView: View {
     @ObservedObject private var theme = HomeAccentTheme.shared
     let onCreateAccount: () -> Void
     let onSignIn: () -> Void
 
     var body: some View {
-        VStack(spacing: 24) {
+        VStack(spacing: 28) {
             Spacer(minLength: 12)
 
-            ZStack {
-                Circle()
-                    .fill(
-                        LinearGradient(
-                            colors: [theme.accent, theme.accent.darkened(by: 0.65)],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        )
-                    )
-                    .frame(width: 76, height: 76)
-                    .shadow(color: theme.accent.opacity(0.35), radius: 16, y: 6)
+            GlowIconBadge(systemName: "person.crop.circle.badge.checkmark", accent: theme.accent)
 
-                Image(systemName: "person.crop.circle.badge.checkmark")
-                    .font(.system(size: 32, weight: .semibold))
-                    .foregroundStyle(.white)
-            }
-
-            VStack(spacing: 8) {
+            VStack(spacing: 10) {
                 Text(L10n.accountSignedOutTitle)
-                    .font(.title3.weight(.bold))
+                    .font(.title2.weight(.bold))
                     .foregroundStyle(.white)
                 Text(L10n.accountSignedOutHint)
                     .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(.white.opacity(0.55))
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
+                    .padding(.horizontal, 28)
             }
 
             Spacer(minLength: 12)
 
             VStack(spacing: 12) {
-                Button(action: onCreateAccount) {
-                    Text(L10n.accountCreateButton)
-                        .font(.headline)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 14)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(theme.accent)
-                .foregroundStyle(.black)
+                Button(L10n.accountCreateButton, action: onCreateAccount)
+                    .buttonStyle(PremiumPrimaryButtonStyle(accent: theme.accent))
 
-                Button(action: onSignIn) {
-                    Text(L10n.accountAlreadyHaveAccount)
-                        .font(.subheadline.weight(.semibold))
-                }
+                Button(L10n.accountAlreadyHaveAccount, action: onSignIn)
+                    .buttonStyle(PremiumSecondaryButtonStyle())
             }
             .padding(.horizontal, 24)
-            .padding(.bottom, 20)
+            .padding(.bottom, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -156,63 +282,70 @@ private struct SignUpFormView: View {
     }
 
     var body: some View {
-        Form {
-            Section {
-                TextField(L10n.accountNamePlaceholder, text: $fullName)
-                    .textInputAutocapitalization(.words)
-                    .autocorrectionDisabled()
-                    .listRowBackground(HomeNeon.card)
-
-                TextField(L10n.accountFamilyNamePlaceholder, text: $familyName)
-                    .textInputAutocapitalization(.words)
-                    .autocorrectionDisabled()
-                    .listRowBackground(HomeNeon.card)
-            }
-
-            Section {
-                TextField(L10n.accountEmailPlaceholder, text: $email)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .keyboardType(.emailAddress)
-                    .textContentType(.username)
-                    .listRowBackground(HomeNeon.card)
-
-                SecureField(L10n.accountPasswordPlaceholder, text: $password)
-                    .textContentType(.newPassword)
-                    .listRowBackground(HomeNeon.card)
-            } footer: {
-                if let errorMessage {
-                    Text(errorMessage)
-                        .foregroundStyle(.red)
-                } else {
-                    Text(L10n.accountPasswordHint)
+        ScrollView {
+            VStack(spacing: 22) {
+                VStack(spacing: 6) {
+                    Text(L10n.accountSignUpTitle)
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(.white)
                 }
-            }
+                .padding(.top, 12)
 
-            Section {
+                VStack(spacing: 12) {
+                    AccountTextField(
+                        icon: "person.fill",
+                        placeholder: L10n.accountNamePlaceholder,
+                        text: $fullName,
+                        autocapitalization: .words
+                    )
+                    AccountTextField(
+                        icon: "person.2.fill",
+                        placeholder: L10n.accountFamilyNamePlaceholder,
+                        text: $familyName,
+                        autocapitalization: .words
+                    )
+                    AccountTextField(
+                        icon: "envelope.fill",
+                        placeholder: L10n.accountEmailPlaceholder,
+                        text: $email,
+                        keyboardType: .emailAddress,
+                        textContentType: .username,
+                        autocapitalization: .never
+                    )
+                    VStack(alignment: .leading, spacing: 6) {
+                        AccountTextField(
+                            icon: "lock.fill",
+                            placeholder: L10n.accountPasswordPlaceholder,
+                            text: $password,
+                            isSecure: true,
+                            textContentType: .newPassword,
+                            autocapitalization: .never
+                        )
+                        Text(errorMessage ?? L10n.accountPasswordHint)
+                            .font(.caption)
+                            .foregroundStyle(errorMessage != nil ? .red : .white.opacity(0.4))
+                            .padding(.horizontal, 4)
+                    }
+                }
+
                 Button {
                     sendCode()
                 } label: {
-                    HStack {
+                    HStack(spacing: 8) {
                         if isSending {
                             ProgressView().tint(.black)
                         }
                         Text(L10n.accountSendCodeButton)
-                            .font(.headline)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(theme.accent)
-                .foregroundStyle(.black)
+                .buttonStyle(PremiumPrimaryButtonStyle(accent: theme.accent, isDisabled: !isFormValid || isSending))
                 .disabled(!isFormValid || isSending)
-                .listRowBackground(Color.clear)
+                .padding(.top, 4)
             }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 24)
         }
-        .scrollContentBackground(.hidden)
-        .navigationTitle(L10n.accountSignUpTitle)
-        .navigationBarTitleDisplayMode(.inline)
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private func sendCode() {
@@ -258,77 +391,83 @@ private struct VerifyCodeView: View {
     @State private var isVerified = false
     @State private var errorMessage: String?
     @State private var resendMessage: String?
+    @FocusState private var isCodeFocused: Bool
 
     var body: some View {
-        Form {
-            Section {
-                VStack(spacing: 6) {
-                    Image(systemName: "envelope.badge.shield.half.filled")
-                        .font(.system(size: 32))
-                        .foregroundStyle(theme.accent)
-                        .frame(maxWidth: .infinity)
-                        .padding(.bottom, 4)
-                    Text(L10n.accountVerifyHint(email))
-                        .font(.subheadline)
-                        .foregroundStyle(.white.opacity(0.7))
-                        .multilineTextAlignment(.center)
-                        .frame(maxWidth: .infinity)
-                }
-                .listRowBackground(Color.clear)
-            }
+        ScrollView {
+            VStack(spacing: 24) {
+                GlowIconBadge(systemName: "envelope.badge.shield.half.filled", accent: theme.accent, size: 64)
+                    .padding(.top, 8)
 
-            Section {
-                TextField(L10n.accountCodePlaceholder, text: $code)
-                    .keyboardType(.numberPad)
-                    .textContentType(.oneTimeCode)
-                    .font(.title2.weight(.semibold).monospacedDigit())
+                Text(L10n.accountVerifyHint(email))
+                    .font(.subheadline)
+                    .foregroundStyle(.white.opacity(0.65))
                     .multilineTextAlignment(.center)
-                    .listRowBackground(HomeNeon.card)
-                    .onChange(of: code) { _, newValue in
-                        code = String(newValue.filter(\.isNumber).prefix(6))
-                    }
-            } footer: {
-                if let errorMessage {
-                    Text(errorMessage).foregroundStyle(.red)
-                } else if let resendMessage {
-                    Text(resendMessage).foregroundStyle(.green)
-                }
-            }
+                    .padding(.horizontal, 28)
 
-            Section {
-                Button {
-                    verify()
-                } label: {
-                    HStack {
-                        if isVerifying {
-                            ProgressView().tint(.black)
-                        } else if isVerified {
-                            Image(systemName: "checkmark")
+                VStack(spacing: 8) {
+                    TextField("", text: $code, prompt: Text(L10n.accountCodePlaceholder).foregroundStyle(.white.opacity(0.3)))
+                        .keyboardType(.numberPad)
+                        .textContentType(.oneTimeCode)
+                        .focused($isCodeFocused)
+                        .font(.system(size: 28, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(.white)
+                        .tint(theme.accent)
+                        .multilineTextAlignment(.center)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(Color(red: 0.11, green: 0.11, blue: 0.12))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(isCodeFocused ? theme.accent : Color.white.opacity(0.08), lineWidth: isCodeFocused ? 1.5 : 1)
+                        )
+                        .shadow(color: isCodeFocused ? theme.accent.opacity(0.2) : .clear, radius: 12, y: 4)
+                        .onChange(of: code) { _, newValue in
+                            code = String(newValue.filter(\.isNumber).prefix(6))
                         }
-                        Text(isVerified ? L10n.accountVerifiedBadge : L10n.accountVerifyButton)
-                            .font(.headline)
-                    }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
-                }
-                .buttonStyle(.borderedProminent)
-                .tint(isVerified ? .green : theme.accent)
-                .foregroundStyle(isVerified ? .white : .black)
-                .disabled(code.count != 6 || isVerifying || isVerified)
-                .listRowBackground(Color.clear)
 
-                Button(L10n.accountResendCode) {
-                    resend()
+                    if let errorMessage {
+                        Text(errorMessage).font(.caption).foregroundStyle(.red)
+                    } else if let resendMessage {
+                        Text(resendMessage).font(.caption).foregroundStyle(.green)
+                    }
                 }
-                .font(.footnote)
-                .disabled(isVerifying)
-                .frame(maxWidth: .infinity)
-                .listRowBackground(Color.clear)
+                .padding(.horizontal, 20)
+
+                VStack(spacing: 12) {
+                    Button {
+                        verify()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isVerifying {
+                                ProgressView().tint(.black)
+                            } else if isVerified {
+                                Image(systemName: "checkmark")
+                            }
+                            Text(isVerified ? L10n.accountVerifiedBadge : L10n.accountVerifyButton)
+                        }
+                    }
+                    .buttonStyle(PremiumPrimaryButtonStyle(
+                        accent: isVerified ? .green : theme.accent,
+                        isDisabled: code.count != 6 || isVerifying || isVerified
+                    ))
+                    .disabled(code.count != 6 || isVerifying || isVerified)
+
+                    Button(L10n.accountResendCode) {
+                        resend()
+                    }
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .disabled(isVerifying)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
             }
+            .padding(.bottom, 24)
         }
-        .scrollContentBackground(.hidden)
-        .navigationTitle(L10n.accountVerifyTitle)
-        .navigationBarTitleDisplayMode(.inline)
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private func verify() {
@@ -387,48 +526,62 @@ private struct SignInFormView: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        Form {
-            Section {
-                TextField(L10n.accountEmailPlaceholder, text: $email)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .keyboardType(.emailAddress)
-                    .textContentType(.username)
-                    .listRowBackground(HomeNeon.card)
+        ScrollView {
+            VStack(spacing: 22) {
+                GlowIconBadge(systemName: "arrow.right.circle.fill", accent: theme.accent, size: 60)
+                    .padding(.top, 8)
 
-                SecureField(L10n.accountPasswordPlaceholder, text: $password)
-                    .textContentType(.password)
-                    .listRowBackground(HomeNeon.card)
-            } footer: {
-                if let errorMessage {
-                    Text(errorMessage).foregroundStyle(.red)
+                Text(L10n.accountSignInTitle)
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(.white)
+
+                VStack(spacing: 12) {
+                    AccountTextField(
+                        icon: "envelope.fill",
+                        placeholder: L10n.accountEmailPlaceholder,
+                        text: $email,
+                        keyboardType: .emailAddress,
+                        textContentType: .username,
+                        autocapitalization: .never
+                    )
+                    AccountTextField(
+                        icon: "lock.fill",
+                        placeholder: L10n.accountPasswordPlaceholder,
+                        text: $password,
+                        isSecure: true,
+                        textContentType: .password,
+                        autocapitalization: .never
+                    )
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4)
+                    }
                 }
-            }
+                .padding(.horizontal, 20)
 
-            Section {
                 Button {
                     signIn()
                 } label: {
-                    HStack {
+                    HStack(spacing: 8) {
                         if isSigningIn {
                             ProgressView().tint(.black)
                         }
                         Text(L10n.accountSignInButton)
-                            .font(.headline)
                     }
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 4)
                 }
-                .buttonStyle(.borderedProminent)
-                .tint(theme.accent)
-                .foregroundStyle(.black)
+                .buttonStyle(PremiumPrimaryButtonStyle(
+                    accent: theme.accent,
+                    isDisabled: !SupabaseAuthManager.isValidEmail(email) || password.isEmpty || isSigningIn
+                ))
                 .disabled(!SupabaseAuthManager.isValidEmail(email) || password.isEmpty || isSigningIn)
-                .listRowBackground(Color.clear)
+                .padding(.horizontal, 20)
             }
+            .padding(.bottom, 24)
         }
-        .scrollContentBackground(.hidden)
-        .navigationTitle(L10n.accountSignInTitle)
-        .navigationBarTitleDisplayMode(.inline)
+        .scrollDismissesKeyboard(.interactively)
     }
 
     private func signIn() {
@@ -475,53 +628,49 @@ private struct AccountSignedInView: View {
     @State private var errorMessage: String?
 
     var body: some View {
-        Form {
-            Section {
-                HStack(spacing: 14) {
-                    ZStack {
-                        Circle()
-                            .fill(theme.accent.opacity(0.18))
-                            .frame(width: 44, height: 44)
-                        Image(systemName: "checkmark.seal.fill")
-                            .foregroundStyle(theme.accent)
+        ScrollView {
+            VStack(spacing: 24) {
+                VStack(spacing: 14) {
+                    GlowIconBadge(systemName: "checkmark.seal.fill", accent: theme.accent, size: 64)
+                    Text(L10n.accountSignedInAs(auth.currentEmail ?? ""))
+                        .font(.subheadline.weight(.semibold))
+                        .foregroundStyle(.white)
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.caption)
+                            .foregroundStyle(.red)
                     }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(L10n.accountSignedInAs(auth.currentEmail ?? ""))
-                            .font(.subheadline.weight(.semibold))
-                        if let errorMessage {
-                            Text(errorMessage)
-                                .font(.caption)
-                                .foregroundStyle(.red)
+                }
+                .padding(.top, 16)
+
+                VStack(spacing: 12) {
+                    Button {
+                        syncNow()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isSyncing {
+                                ProgressView().tint(.black)
+                                Text(L10n.accountSyncing)
+                            } else {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                Text(L10n.accountSyncNow)
+                            }
                         }
                     }
-                }
-                .padding(.vertical, 4)
-                .listRowBackground(HomeNeon.card)
-            }
+                    .buttonStyle(PremiumPrimaryButtonStyle(accent: theme.accent, isDisabled: isSyncing))
+                    .disabled(isSyncing)
 
-            Section {
-                Button {
-                    syncNow()
-                } label: {
-                    HStack {
-                        if isSyncing {
-                            ProgressView()
-                            Text(L10n.accountSyncing)
-                        } else {
-                            Label(L10n.accountSyncNow, systemImage: "arrow.triangle.2.circlepath")
-                        }
+                    Button {
+                        Task { try? await SupabaseAuthManager.shared.signOut() }
+                    } label: {
+                        Label(L10n.accountSignOut, systemImage: "rectangle.portrait.and.arrow.right")
                     }
+                    .buttonStyle(PremiumSecondaryButtonStyle())
                 }
-                .disabled(isSyncing)
-
-                Button(role: .destructive) {
-                    Task { try? await SupabaseAuthManager.shared.signOut() }
-                } label: {
-                    Label(L10n.accountSignOut, systemImage: "rectangle.portrait.and.arrow.right")
-                }
+                .padding(.horizontal, 20)
             }
+            .padding(.bottom, 24)
         }
-        .scrollContentBackground(.hidden)
     }
 
     private func syncNow() {
