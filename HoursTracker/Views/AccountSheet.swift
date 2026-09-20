@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 /// Which screen of the sign-up / sign-in flow is showing. Kept as one sheet
 /// with an internal step, rather than a `NavigationStack` push per step, so
@@ -97,7 +98,7 @@ private struct AccountTextField: View {
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
-                .font(.system(size: 16, weight: .medium))
+                .htFont(size: 16, relativeTo: .body, weight: .medium)
                 .foregroundStyle(isFocused ? theme.accent : .white.opacity(0.35))
                 .frame(width: 20)
 
@@ -121,7 +122,7 @@ private struct AccountTextField: View {
                     isSecureVisible.toggle()
                 } label: {
                     Image(systemName: isSecureVisible ? "eye.slash" : "eye")
-                        .font(.system(size: 14))
+                        .htFont(size: 14, relativeTo: .footnote)
                         .foregroundStyle(.white.opacity(0.35))
                 }
                 .buttonStyle(.plain)
@@ -199,10 +200,15 @@ private struct GlowIconBadge: View {
     let systemName: String
     var accent: Color = HomeNeon.accent
     var size: CGFloat = 76
+    /// The animated pulse rings read great on the Home clock button and the
+    /// welcome screen, but busy on dense form screens — callers opt out there.
+    var pulse: Bool = true
 
     var body: some View {
         ZStack {
-            HomePulseRings(color: accent, size: size - 10)
+            if pulse {
+                HomePulseRings(color: accent, size: size - 10)
+            }
 
             Circle()
                 .fill(
@@ -213,7 +219,7 @@ private struct GlowIconBadge: View {
                     )
                 )
                 .frame(width: size, height: size)
-                .shadow(color: accent.opacity(0.45), radius: 20, y: 8)
+                .shadow(color: accent.opacity(pulse ? 0.45 : 0.25), radius: pulse ? 20 : 10, y: 4)
 
             Image(systemName: systemName)
                 .font(.system(size: size * 0.42, weight: .semibold))
@@ -395,15 +401,16 @@ private struct VerifyCodeView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                GlowIconBadge(systemName: "envelope.badge.shield.half.filled", accent: theme.accent, size: 64)
-                    .padding(.top, 8)
-
-                Text(L10n.accountVerifyHint(email))
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.65))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 28)
+            VStack(spacing: 18) {
+                VStack(spacing: 10) {
+                    GlowIconBadge(systemName: "envelope.badge.shield.half.filled", accent: theme.accent, size: 52, pulse: false)
+                    Text(L10n.accountVerifyHint(email))
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.65))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
+                }
+                .padding(.top, 12)
 
                 VStack(spacing: 8) {
                     TextField("", text: $code, prompt: Text(L10n.accountCodePlaceholder).foregroundStyle(.white.opacity(0.3)))
@@ -425,7 +432,7 @@ private struct VerifyCodeView: View {
                         )
                         .shadow(color: isCodeFocused ? theme.accent.opacity(0.2) : .clear, radius: 12, y: 4)
                         .onChange(of: code) { _, newValue in
-                            code = String(newValue.filter(\.isNumber).prefix(6))
+                            code = String(newValue.filter(\.isNumber).prefix(8))
                         }
 
                     if let errorMessage {
@@ -451,9 +458,9 @@ private struct VerifyCodeView: View {
                     }
                     .buttonStyle(PremiumPrimaryButtonStyle(
                         accent: isVerified ? .green : theme.accent,
-                        isDisabled: code.count != 6 || isVerifying || isVerified
+                        isDisabled: code.count != 8 || isVerifying || isVerified
                     ))
-                    .disabled(code.count != 6 || isVerifying || isVerified)
+                    .disabled(code.count != 8 || isVerifying || isVerified)
 
                     Button(L10n.accountResendCode) {
                         resend()
@@ -629,43 +636,141 @@ private struct SignInFormView: View {
     }
 }
 
-// MARK: - Signed in
+// MARK: - Signed in (account details)
+
+/// A quiet rounded card grouping the account screen's sections — same visual
+/// language as the app's dark fields, without the glow-heavy floating look.
+private struct AccountCard<Content: View>: View {
+    let title: String?
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            if let title {
+                Text(title)
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(.white.opacity(0.45))
+                    .padding(.horizontal, 4)
+            }
+            content
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .fill(Color.white.opacity(0.05))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+}
+
+/// A static "label + value" row inside an account card.
+private struct AccountDetailRow: View {
+    let icon: String
+    let title: String
+    let value: String
+
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(.white.opacity(0.4))
+                .frame(width: 20)
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.55))
+            Spacer(minLength: 8)
+            Text(value)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(2)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
 
 private struct AccountSignedInView: View {
     @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var auth = SupabaseAuthManager.shared
     @ObservedObject private var theme = HomeAccentTheme.shared
+    @ObservedObject private var profile = AccountProfileStore.shared
     @State private var isSyncing = false
     @State private var errorMessage: String?
+    @State private var profileName = ""
+    @State private var memberSince: Date?
+    @State private var showPhotoPicker = false
+    @State private var showRemovePhotoConfirm = false
+    // Change-password fields.
+    @State private var newPassword = ""
+    @State private var confirmNewPassword = ""
+    @State private var isChangingPassword = false
+    @State private var passwordMessage: String?
+    @State private var passwordMessageIsError = false
+
+    private var displayName: String {
+        let name = profileName.isEmpty ? viewModel.settings.workerFullName : profileName
+        if !name.isEmpty { return name }
+        // Fall back to the email's local part ("hmam.kaadna@x.com" → "hmam.kaadna").
+        return auth.currentEmail?.split(separator: "@").first.map(String.init) ?? ""
+    }
+
+    private var initials: String {
+        AccountProfileStore.initials(for: displayName)
+    }
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 24) {
-                VStack(spacing: 14) {
-                    GlowIconBadge(systemName: "checkmark.seal.fill", accent: theme.accent, size: 64)
-                    Text(L10n.accountSignedInAs(auth.currentEmail ?? ""))
-                        .font(.subheadline.weight(.semibold))
-                        .foregroundStyle(.white)
-                    if let errorMessage {
-                        Text(errorMessage)
-                            .font(.caption)
-                            .foregroundStyle(.red)
+            VStack(spacing: 18) {
+                avatarSection
+                    .padding(.top, 12)
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 24)
+                }
+
+                AccountCard(title: L10n.accountProfileSection) {
+                    VStack(spacing: 12) {
+                        AccountDetailRow(icon: "person.fill", title: L10n.settingsFullName, value: displayName)
+                        Divider().overlay(Color.white.opacity(0.08))
+                        AccountDetailRow(icon: "envelope.fill", title: L10n.accountEmailPlaceholder, value: auth.currentEmail ?? "—")
+                        if let memberSince {
+                            Divider().overlay(Color.white.opacity(0.08))
+                            AccountDetailRow(
+                                icon: "calendar",
+                                title: L10n.accountMemberSinceLabel,
+                                value: AppLocale.makeDateFormatter(dateStyle: .medium, timeStyle: .none).string(from: memberSince)
+                            )
+                        }
                     }
                 }
-                .padding(.top, 16)
+                .padding(.horizontal, 20)
 
-                VStack(spacing: 12) {
+                passwordCard
+                    .padding(.horizontal, 20)
+
+                AccountCard(title: L10n.accountSyncSection) {
+                    Text(L10n.accountSyncHint)
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.45))
+
                     Button {
                         syncNow()
                     } label: {
                         HStack(spacing: 8) {
                             if isSyncing {
                                 ProgressView().tint(.black)
-                                Text(L10n.accountSyncing)
                             } else {
                                 Image(systemName: "arrow.triangle.2.circlepath")
-                                Text(L10n.accountSyncNow)
                             }
+                            Text(isSyncing ? L10n.accountSyncing : L10n.accountSyncNow)
                         }
                     }
                     .buttonStyle(PremiumPrimaryButtonStyle(accent: theme.accent, isDisabled: isSyncing))
@@ -681,6 +786,171 @@ private struct AccountSignedInView: View {
                 .padding(.horizontal, 20)
             }
             .padding(.bottom, 24)
+        }
+        .scrollDismissesKeyboard(.interactively)
+        .task {
+            if let user = auth.client.auth.currentUser {
+                memberSince = user.createdAt
+            }
+            if let fetched = await SupabaseAccountSyncManager.shared.fetchProfile(),
+               !fetched.fullName.isEmpty {
+                profileName = fetched.fullName
+            }
+        }
+        .photosPicker(isPresented: $showPhotoPicker, selection: Binding(get: { nil }, set: { selection in
+            guard let selection else { return }
+            loadPickedPhoto(selection)
+        }), matching: .images)
+        .confirmationDialog(
+            L10n.accountAvatarRemove,
+            isPresented: $showRemovePhotoConfirm,
+            titleVisibility: .visible
+        ) {
+            Button(L10n.accountAvatarRemove, role: .destructive) { profile.delete() }
+            Button(L10n.editCancel, role: .cancel) {}
+        }
+    }
+
+    // MARK: Avatar
+
+    private var avatarSection: some View {
+        VStack(spacing: 10) {
+            Button {
+                if profile.avatarImage != nil {
+                    showRemovePhotoConfirm = true
+                } else {
+                    showPhotoPicker = true
+                }
+            } label: {
+                Group {
+                    if let image = profile.avatarImage {
+                        Image(uiImage: image)
+                            .resizable()
+                            .scaledToFill()
+                    } else {
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: [theme.accent, theme.accent.darkened(by: 0.55)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                            Text(initials)
+                                .font(.system(size: 34, weight: .bold, design: .rounded))
+                                .foregroundStyle(.white)
+                        }
+                    }
+                }
+                .frame(width: 96, height: 96)
+                .clipShape(Circle())
+                .overlay(
+                    Circle().stroke(Color.white.opacity(0.15), lineWidth: 1)
+                )
+                .overlay(alignment: .bottomTrailing) {
+                    Image(systemName: profile.avatarImage == nil ? "plus.circle.fill" : "photo.circle.fill")
+                        .font(.system(size: 26))
+                        .symbolRenderingMode(.hierarchical)
+                        .foregroundStyle(theme.accent, .black)
+                        .offset(x: 4, y: 4)
+                }
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(Text(L10n.accountAvatarChange))
+
+            Text(L10n.accountAvatarChange)
+                .font(.caption)
+                .foregroundStyle(.white.opacity(0.45))
+        }
+    }
+
+    // MARK: Change password
+
+    private var passwordCard: some View {
+        AccountCard(title: L10n.accountSecuritySection) {
+            VStack(spacing: 12) {
+                AccountTextField(
+                    icon: "lock.fill",
+                    placeholder: L10n.accountNewPassword,
+                    text: $newPassword,
+                    isSecure: true,
+                    textContentType: .newPassword,
+                    autocapitalization: .never
+                )
+                AccountTextField(
+                    icon: "lock.rotation",
+                    placeholder: L10n.accountConfirmPassword,
+                    text: $confirmNewPassword,
+                    isSecure: true,
+                    textContentType: .newPassword,
+                    autocapitalization: .never
+                )
+                Text(passwordMessage ?? L10n.accountPasswordRule)
+                    .font(.caption)
+                    .foregroundStyle(passwordMessageIsError ? .red : .white.opacity(0.4))
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                Button {
+                    changePassword()
+                } label: {
+                    HStack(spacing: 8) {
+                        if isChangingPassword {
+                            ProgressView().tint(.black)
+                        }
+                        Text(L10n.accountChangePassword)
+                    }
+                }
+                .buttonStyle(PremiumPrimaryButtonStyle(
+                    accent: theme.accent,
+                    isDisabled: !isPasswordFormValid || isChangingPassword
+                ))
+                .disabled(!isPasswordFormValid || isChangingPassword)
+            }
+        }
+    }
+
+    private var isPasswordFormValid: Bool {
+        newPassword.count >= 6 && newPassword == confirmNewPassword
+    }
+
+    private func changePassword() {
+        guard newPassword == confirmNewPassword else {
+            passwordMessage = L10n.accountPasswordMismatch
+            passwordMessageIsError = true
+            return
+        }
+        passwordMessage = nil
+        passwordMessageIsError = false
+        isChangingPassword = true
+        Task {
+            do {
+                try await SupabaseAuthManager.shared.updatePassword(newPassword)
+                await MainActor.run {
+                    isChangingPassword = false
+                    newPassword = ""
+                    confirmNewPassword = ""
+                    passwordMessage = L10n.accountPasswordChanged
+                    passwordMessageIsError = false
+                    viewModel.showSuccessToast(L10n.accountPasswordChanged)
+                }
+            } catch {
+                await MainActor.run {
+                    isChangingPassword = false
+                    passwordMessage = error.localizedDescription
+                    passwordMessageIsError = true
+                }
+            }
+        }
+    }
+
+    // MARK: Actions
+
+    private func loadPickedPhoto(_ selection: PhotosPickerItem) {
+        Task {
+            guard let data = try? await selection.loadTransferable(type: Data.self),
+                  let image = UIImage(data: data) else { return }
+            profile.save(image)
         }
     }
 

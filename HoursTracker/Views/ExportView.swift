@@ -279,13 +279,13 @@ struct ExportView: View {
     private func previewStat(value: String, label: String) -> some View {
         VStack(spacing: 3) {
             Text(value)
-                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .htFont(size: 14, relativeTo: .headline, weight: .bold, design: .rounded)
                 .foregroundStyle(.primary)
                 .monospacedDigit()
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
             Text(label.uppercased())
-                .font(.system(size: 8, weight: .semibold, design: .rounded))
+                .htFont(size: 8, relativeTo: .caption2, weight: .semibold, design: .rounded)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)

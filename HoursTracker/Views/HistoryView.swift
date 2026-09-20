@@ -823,9 +823,10 @@ struct HistoryView: View {
         VStack(spacing: 12) {
             Spacer(minLength: 28)
             Image(systemName: "hand.draw")
-                .font(.system(size: 40))
+                .htFont(size: 40, relativeTo: .largeTitle)
                 .foregroundStyle(.secondary)
                 .symbolRenderingMode(.hierarchical)
+                .accessibilityHidden(true)
             if selectedDay != nil {
                 Text(L10n.historyEmptyPeriod)
                     .font(.subheadline.weight(.semibold))

@@ -11,7 +11,7 @@ struct LiveTimerView: View {
 
     var body: some View {
         Text(elapsedFormatted)
-            .font(.system(size: fontSize, weight: .light, design: .rounded))
+            .htFont(size: fontSize, relativeTo: .largeTitle, weight: .light, design: .rounded)
             .monospacedDigit()
             .foregroundStyle(.white)
             .lineLimit(1)

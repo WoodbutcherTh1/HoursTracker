@@ -37,6 +37,26 @@ extension WidgetBridge {
     }
 }
 
+// MARK: - Widget install state (Settings "Add Widget" entry point)
+
+extension WidgetBridge {
+    /// Number of HoursTracker widgets/Live Activities currently placed on a
+    /// home screen (or lock screen). `nil` = unknown (WidgetKit refused to
+    /// enumerate), so the UI never claims the opposite of reality.
+    static func installedWidgetCount() async -> Int? {
+        await withCheckedContinuation { continuation in
+            WidgetCenter.shared.getCurrentConfigurations { result in
+                switch result {
+                case .success(let infos):
+                    continuation.resume(returning: infos.isEmpty ? nil : infos.count)
+                case .failure:
+                    continuation.resume(returning: nil)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - Widget timeline refresh (app-only — WidgetKit lives in this target)
 
 extension WidgetBridge {

@@ -28,6 +28,8 @@ struct SettingsView: View {
     @State private var showImportConfirm = false
     @State private var importErrorMessage: String?
     @State private var showContactSupport = false
+    @State private var showWidgetGuide = false
+    @State private var widgetInstallCount: Int?
     @State private var showArrivalExplainer = false
     @State private var showDisableSyncConfirm = false
     @State private var isEditingIDNumber = false
@@ -139,6 +141,9 @@ struct SettingsView: View {
             }
             .sheet(isPresented: $showContactSupport) {
                 ContactSupportSheet(viewModel: viewModel)
+            }
+            .sheet(isPresented: $showWidgetGuide) {
+                WidgetInstallGuideView(installedCount: widgetInstallCount)
             }
             .sheet(isPresented: $showAccountSheet) {
                 AccountSheet(viewModel: viewModel)
@@ -380,6 +385,39 @@ struct SettingsView: View {
         }
     }
 
+    /// iOS has no API to install a widget programmatically (still true in the
+    /// iOS 26 SDK — verified), so this is a one-tap guide: deep context plus
+    /// whether a widget is already placed, then hands off to Settings.
+    private var addWidgetButton: some View {
+        Button {
+            Task {
+                widgetInstallCount = await WidgetBridge.installedWidgetCount()
+                showWidgetGuide = true
+            }
+        } label: {
+            HStack {
+                Label(L10n.settingsAddWidgetButton, systemImage: "square.grid.2x2")
+                    .foregroundStyle(homeTheme.accent)
+                Spacer()
+                if let count = widgetInstallCount {
+                    Text(L10n.settingsWidgetInstalled(count))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .onAppear {
+            Task {
+                widgetInstallCount = await WidgetBridge.installedWidgetCount()
+            }
+        }
+    }
+
     private var securitySection: some View {
         Section {
             Toggle(L10n.appLockEnabled, isOn: $appLock.isEnabled)
@@ -397,6 +435,10 @@ struct SettingsView: View {
     /// it without needing the app's settings file.
     private var widgetPrivacySection: some View {
         Section {
+            addWidgetButton
+            Text(L10n.settingsAddWidgetHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
             Toggle(
                 L10n.settingsHideWidgetPay,
                 isOn: Binding(

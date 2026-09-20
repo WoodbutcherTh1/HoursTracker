@@ -97,6 +97,32 @@ final class SupabaseAccountSyncManager {
         }
     }
 
+    /// Reads the signed-in user's profile row (display name). `nil` when the
+    /// row doesn't exist yet (fresh account, nothing synced) or on any error —
+    /// profile display is cosmetic, so it never blocks the account screen.
+    nonisolated func fetchProfile() async -> (fullName: String, familyName: String?)? {
+        do {
+            struct Row: Decodable {
+                let fullName: String
+                let familyName: String?
+                enum CodingKeys: String, CodingKey {
+                    case fullName = "full_name"
+                    case familyName = "family_name"
+                }
+            }
+            let rows: [Row] = try await auth.client
+                .from("profiles")
+                .select()
+                .eq("id", value: auth.currentUserID as UUID?)
+                .execute()
+                .value
+            guard let row = rows.first else { return nil }
+            return (row.fullName, row.familyName)
+        } catch {
+            return nil
+        }
+    }
+
     /// Downloads the signed-in user's backup. `nil` means a brand-new
     /// account that hasn't uploaded anything yet — not an error.
     func downloadBackup() async throws -> AccountBackupPayload? {

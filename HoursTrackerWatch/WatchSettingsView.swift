@@ -8,6 +8,10 @@ import SwiftUI
 /// iPhone" note — a watch keyboard isn't where anyone wants to type a pay rate or
 /// confirm a data wipe. The toggles that are safe and useful one-tap on a watch
 /// (App Lock, hide widget pay, iCloud Sync, app language) are fully interactive.
+///
+/// Fully localized: section headers and row labels come from the shared String
+/// Catalog (`watch.settings.*`), resolved in the phone-mirrored language via
+/// `AppLocale`. Layout direction is applied at the root (`WatchMainTabView`).
 struct WatchSettingsView: View {
     @EnvironmentObject private var store: WatchSessionStore
 
@@ -16,75 +20,78 @@ struct WatchSettingsView: View {
     var body: some View {
         List {
             Section {
-                readOnlyRow("Name", summary.workerFullName.isEmpty ? "—" : summary.workerFullName)
+                readOnlyRow(AppLocale.tr("watch.settings.name"), summary.workerFullName.isEmpty ? "—" : summary.workerFullName)
             } header: {
-                sectionHeader("Worker Info", "person.fill")
+                sectionHeader(AppLocale.tr("watch.settings.workerInfo"), "person.fill")
             }
 
             Section {
-                readOnlyRow("Workplace", summary.workplaceName.isEmpty ? "—" : summary.workplaceName)
+                readOnlyRow(AppLocale.tr("watch.settings.workplaceRow"), summary.workplaceName.isEmpty ? "—" : summary.workplaceName)
             } header: {
-                sectionHeader("Workplace", "building.2.fill")
+                sectionHeader(AppLocale.tr("watch.settings.workplace"), "building.2.fill")
             }
 
             Section {
-                readOnlyRow("Hourly rate", formattedPay(summary.hourlyRate))
-                readOnlyRow("Gas allowance", formattedPay(summary.dailyGasAllowance))
-                readOnlyRow("Standard day", String(format: "%.1fh", summary.standardDayHours))
-                readOnlyRow("OT cap (day)", String(format: "%.1fh", summary.ot125HoursCap))
-                readOnlyRow("Weekly standard", String(format: "%.0fh", summary.weeklyStandardHours))
-                readOnlyRow("Weekly OT cap", String(format: "%.0fh", summary.weeklyOvertimeCapHours))
+                readOnlyRow(AppLocale.tr("watch.settings.hourlyRate"), formattedPay(summary.hourlyRate))
+                readOnlyRow(AppLocale.tr("watch.settings.gasAllowance"), formattedPay(summary.dailyGasAllowance))
+                readOnlyRow(AppLocale.tr("watch.settings.standardDay"), hours(summary.standardDayHours))
+                readOnlyRow(AppLocale.tr("watch.settings.otCapDay"), hours(summary.ot125HoursCap))
+                readOnlyRow(AppLocale.tr("watch.settings.weeklyStandard"), hours(summary.weeklyStandardHours, decimals: 0))
+                readOnlyRow(AppLocale.tr("watch.settings.weeklyOTCap"), hours(summary.weeklyOvertimeCapHours, decimals: 0))
             } header: {
-                sectionHeader("Pay & Hours", "dollarsign.circle.fill")
+                sectionHeader(AppLocale.tr("watch.settings.payHours"), "dollarsign.circle.fill")
             }
 
             Section {
-                readOnlyRow("Rest day", summary.restDayName)
+                readOnlyRow(AppLocale.tr("watch.settings.restDay"), summary.restDayName)
                 if let second = summary.secondRestDayName {
-                    readOnlyRow("2nd rest day", second)
+                    readOnlyRow(AppLocale.tr("watch.settings.secondRestDay"), second)
                 }
             } header: {
-                sectionHeader("Work Rules", "calendar.badge.clock")
+                sectionHeader(AppLocale.tr("watch.settings.workRules"), "calendar.badge.clock")
             }
 
             Section {
-                readOnlyRow("Starts on", "Day \(summary.payrollStartDay)")
-                readOnlyRow("Current window", summary.payrollWindowLabel)
+                readOnlyRow(
+                    AppLocale.tr("watch.settings.startsOnLabel"),
+                    String(format: AppLocale.tr("watch.settings.startsOnDay %@"), "\(summary.payrollStartDay)")
+                )
+                readOnlyRow(AppLocale.tr("watch.settings.currentWindow"), summary.payrollWindowLabel)
             } header: {
-                sectionHeader("Payroll", "calendar")
+                sectionHeader(AppLocale.tr("watch.settings.payroll"), "calendar")
             }
 
             Section {
-                readOnlyRow("Marital status", summary.maritalStatusName)
+                readOnlyRow(AppLocale.tr("watch.settings.maritalStatus"), summary.maritalStatusName)
                 if summary.hasChildren {
-                    readOnlyRow("Children", "\(summary.numberOfChildren)")
+                    readOnlyRow(AppLocale.tr("watch.settings.children"), "\(summary.numberOfChildren)")
                 }
-                readOnlyRow("Credit points", String(format: "%.2f", summary.creditPoints))
+                readOnlyRow(AppLocale.tr("watch.settings.creditPoints"), String(format: "%.2f", summary.creditPoints))
             } header: {
-                sectionHeader("Tax Profile", "percent")
+                sectionHeader(AppLocale.tr("watch.settings.taxProfile"), "percent")
             }
 
             Section {
-                Toggle("Require Face/Touch ID", isOn: Binding(
+                Toggle(AppLocale.tr("watch.settings.requireBiometrics"), isOn: Binding(
                     get: { summary.appLockEnabled },
                     set: { store.toggleAppLock($0) }
                 ))
             } header: {
-                sectionHeader("App Lock", "lock.fill")
+                sectionHeader(AppLocale.tr("watch.settings.appLock"), "lock.fill")
             }
 
             Section {
-                Toggle("Hide pay on widgets", isOn: Binding(
+                Toggle(AppLocale.tr("watch.settings.hidePayOnWidgets"), isOn: Binding(
                     get: { summary.hideWidgetPay },
                     set: { store.toggleHideWidgetPay($0) }
                 ))
             } header: {
-                sectionHeader("Widget Privacy", "eye.slash.fill")
+                sectionHeader(AppLocale.tr("watch.settings.widgetPrivacy"), "eye.slash.fill")
             }
 
             if summary.isCloudSyncSupported {
                 Section {
-                    Toggle("Sync across devices", isOn: Binding(
+                    Toggle(AppLocale.tr("watch.settings.syncAcrossDevices"), isOn: Binding(
                         get: { summary.isCloudSyncEnabled },
                         set: { store.toggleCloudSync($0) }
                     ))
@@ -94,12 +101,12 @@ struct WatchSettingsView: View {
                             .foregroundStyle(.secondary)
                     }
                 } header: {
-                    sectionHeader("iCloud Sync", "icloud.fill")
+                    sectionHeader(AppLocale.tr("watch.settings.icloudSync"), "icloud.fill")
                 }
             }
 
             Section {
-                Picker("App language", selection: Binding(
+                Picker(AppLocale.tr("watch.settings.appLanguage"), selection: Binding(
                     get: { summary.languageOptionRaw },
                     set: { store.setLanguage($0) }
                 )) {
@@ -108,19 +115,31 @@ struct WatchSettingsView: View {
                     }
                 }
             } header: {
-                sectionHeader("Language", "globe")
+                sectionHeader(AppLocale.tr("watch.settings.language"), "globe")
             }
 
             Section {
-                readOnlyRow("Version", summary.appVersion)
-                Text("Full data export/import, Smart Scanner keys, and Delete All Data stay on iPhone.")
+                readOnlyRow(AppLocale.tr("watch.settings.version"), summary.appVersion)
+                Text(AppLocale.tr("watch.settings.phoneOnly"))
                     .font(.system(size: 9))
                     .foregroundStyle(.secondary)
             } header: {
-                sectionHeader("About", "info.circle.fill")
+                sectionHeader(AppLocale.tr("watch.settings.about"), "info.circle.fill")
             }
         }
-        .navigationTitle("Settings")
+        .navigationTitle(L10n.tabSettings)
+    }
+
+    /// `"%.1fh"` was an English-only literal ("8.6h"); a bare `h` reads wrong
+    /// under RTL. Format through `MeasurementFormatter` in the mirrored locale so
+    /// the unit is localized ("8.6 hr" / "8.6 שע'").
+    private func hours(_ value: Double, decimals: Int = 1) -> String {
+        let formatter = MeasurementFormatter()
+        formatter.locale = AppLocale.resolvedLocale
+        formatter.unitStyle = .short
+        formatter.numberFormatter.maximumFractionDigits = decimals
+        formatter.numberFormatter.minimumFractionDigits = 0
+        return formatter.string(from: Measurement(value: value, unit: UnitDuration.hours))
     }
 
     private func sectionHeader(_ title: String, _ icon: String) -> some View {

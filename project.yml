@@ -143,8 +143,21 @@ targets:
       # Shared wire format for phone <-> Watch state (see WatchConnectivityManager) —
       # compiled into both the app and the Watch app, same pattern as WidgetBridge.swift.
       - path: HoursTracker/Shared/WatchSnapshot.swift
+      # Shared language stack so the Watch resolves the SAME localized strings as the
+      # phone (AppLocale reads the phone-mirrored language choice; L10n keys come from
+      # the app's String Catalog via the app bundle's lproj resources below) — plus
+      # the shared greeting logic and the HTStateView/htFont UI primitives.
+      - path: HoursTracker/Utilities/AppLocale.swift
+      - path: HoursTracker/Utilities/AppLanguagePreference.swift
+      - path: HoursTracker/Utilities/L10n.swift
+      - path: HoursTracker/Shared/DaypartGreeting.swift
+      - path: HoursTracker/Shared/HTStateView.swift
     resources:
       - path: HoursTrackerWatch/Assets.xcassets
+      # The localized catalogs (en/he/ar) the Watch's L10n lookups resolve against.
+      # Only the compiled .lproj folders are needed at runtime; excluding the source
+      # .xcstrings keeps Xcode from compiling a second catalog into the Watch target.
+      - path: HoursTracker/Resources/Localizable.xcstrings
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hourstracker.app.watchkitapp

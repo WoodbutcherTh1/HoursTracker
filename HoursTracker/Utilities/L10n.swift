@@ -247,12 +247,39 @@ enum L10n {
     static var accountVerifyButton: String { t("account.verifyButton") }
     static var accountResendCode: String { t("account.resendCode") }
     static var accountResendSent: String { t("account.resendSent") }
+    static var accountProfileSection: String { t("account.profileSection") }
+    static var accountAvatarChange: String { t("account.avatarChange") }
+    static var accountAvatarRemove: String { t("account.avatarRemove") }
+    static var accountSecuritySection: String { t("account.securitySection") }
+    static var accountNewPassword: String { t("account.newPassword") }
+    static var accountConfirmPassword: String { t("account.confirmPassword") }
+    static var accountChangePassword: String { t("account.changePassword") }
+    static var accountPasswordChanged: String { t("account.passwordChanged") }
+    static var accountPasswordMismatch: String { t("account.passwordMismatch") }
+    static var accountPasswordRule: String { t("account.passwordRule") }
+    static var accountSyncSection: String { t("account.syncSection") }
+    static var accountSyncHint: String { t("account.syncHint") }
+    static var accountDataSection: String { t("account.dataSection") }
+    static var accountMemberSinceLabel: String { t("account.memberSinceLabel") }
+    static var settingsAddWidgetButton: String { t("settings.addWidgetButton") }
+    static var settingsAddWidgetHint: String { t("settings.addWidgetHint") }
+    static func settingsWidgetInstalled(_ count: Int) -> String {
+        String(format: t("settings.widgetInstalled %lld"), count)
+    }
+    static var widgetGuideTitle: String { t("widgetGuide.title") }
+    static var widgetGuideIntro: String { t("widgetGuide.intro") }
+    static var widgetGuideStep1: String { t("widgetGuide.step1") }
+    static var widgetGuideStep2: String { t("widgetGuide.step2") }
+    static var widgetGuideStep3: String { t("widgetGuide.step3") }
+    static var widgetGuideInstalled: String { t("widgetGuide.installed") }
+    static var widgetGuideOpenSettings: String { t("widgetGuide.openSettings") }
     static var accountVerifiedBadge: String { t("account.verifiedBadge") }
     static var accountSignInTitle: String { t("account.signInTitle") }
     static var accountErrorNameRequired: String { t("account.error.nameRequired") }
     static var accountErrorInvalidEmail: String { t("account.error.invalidEmail") }
     static var accountErrorPasswordTooShort: String { t("account.error.passwordTooShort") }
     static var accountErrorCodeIncomplete: String { t("account.error.codeIncomplete") }
+    static var accountErrorCodeExpired: String { t("account.error.codeExpired") }
     static var accountErrorNotSignedUpYet: String { t("account.error.notSignedUpYet") }
 
     // Edit

@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 enum TelegramFeedbackSendResult: Equatable {
     case success
@@ -10,6 +11,12 @@ enum TelegramFeedbackSendResult: Equatable {
 /// to the developer's Telegram chat via the Bot API. No backend of our own,
 /// just the token/chat id from `TelegramFeedbackConfig`.
 enum TelegramFeedbackSender {
+    /// Failures are logged here (subsystem `com.hourstracker.app`, category
+    /// `telegramFeedback`) with the HTTP status and Telegram's own error
+    /// description, so a broken send can be diagnosed from Console.app instead
+    /// of surfacing to the user as an opaque failure.
+    private static let logger = Logger(subsystem: "com.hourstracker.app", category: "telegramFeedback")
+
     static func send(_ text: String, session: URLSession = .shared) async -> TelegramFeedbackSendResult {
         guard TelegramFeedbackConfig.isConfigured else { return .notConfigured }
         guard let url = URL(
@@ -34,10 +41,17 @@ enum TelegramFeedbackSender {
         request.httpBody = data
 
         do {
-            let (_, response) = try await session.data(for: request)
+            let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else { return .failure }
-            return (200..<300).contains(http.statusCode) ? .success : .failure
+            guard (200..<300).contains(http.statusCode) else {
+                logger.error(
+                    "sendMessage rejected: HTTP \(http.statusCode, privacy: .public), \(Self.telegramErrorDescription(from: data), privacy: .public)"
+                )
+                return .failure
+            }
+            return .success
         } catch {
+            logger.error("sendMessage request failed: \(error.localizedDescription, privacy: .public)")
             return .failure
         }
     }
@@ -71,12 +85,29 @@ enum TelegramFeedbackSender {
         )
 
         do {
-            let (_, response) = try await session.data(for: request)
+            let (data, response) = try await session.data(for: request)
             guard let http = response as? HTTPURLResponse else { return .failure }
-            return (200..<300).contains(http.statusCode) ? .success : .failure
+            guard (200..<300).contains(http.statusCode) else {
+                logger.error(
+                    "sendDocument rejected: HTTP \(http.statusCode, privacy: .public), \(Self.telegramErrorDescription(from: data), privacy: .public)"
+                )
+                return .failure
+            }
+            return .success
         } catch {
+            logger.error("sendDocument request failed: \(error.localizedDescription, privacy: .public)")
             return .failure
         }
+    }
+
+    /// Telegram error responses look like
+    /// `{"ok":false,"error_code":400,"description":"Bad Request: chat not found"}`.
+    private static func telegramErrorDescription(from data: Data) -> String {
+        guard
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let description = json["description"] as? String
+        else { return "no description in response" }
+        return description
     }
 
     private static func multipartBody(
