@@ -11,5 +11,5 @@ import Foundation
 /// anyone else's data — that's the whole point of a "publishable" key.
 enum SupabaseConfig {
     static let projectURL = URL(string: "https://rocjprrvrvmtisxnvopg.supabase.co")!
-    static let publishableKey = "sb_publishable_iej3nZ8AVhyLIjCFzsjC7Q_1KJkIUNU"
+    static let publishableKey = "sb_publishable_iej3nZ8AVhyLIjCFzsjC7Q_1KJkIUNU" // gitleaks:allow — publishable key, safe to ship (see doc comment above)
 }

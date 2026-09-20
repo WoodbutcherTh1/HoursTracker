@@ -33,7 +33,7 @@ final class AccountProfileStore: ObservableObject {
         let resized = Self.downscaled(image, maxDimension: maxDimension)
         guard let data = resized.jpegData(compressionQuality: jpegQuality) else { return }
         do {
-            try data.write(to: fileURL, options: .atomic)
+            try ProtectedFileWriter.shared.write(data, to: fileURL)
             avatarImage = resized
         } catch {
             // Best-effort: a failed write leaves the previous avatar in place.

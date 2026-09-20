@@ -166,7 +166,7 @@ final class SupabaseAuthManager: ObservableObject {
             // old `localizedDescription.contains("expired")` guess flagged
             // every failed verification as an expired code.
             Self.logger.error(
-                "OTP verification rejected: errorCode=\(error.errorCode.rawValue, privacy: .public) message=\(error.message, privacy: .public)"
+                "OTP verification rejected: errorCode=\(error.errorCode.rawValue, privacy: .private) message=\(error.message, privacy: .private)"
             )
             if error.errorCode == .otpExpired {
                 throw AccountAuthError.codeExpired
