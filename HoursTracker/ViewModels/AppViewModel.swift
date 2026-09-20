@@ -363,6 +363,7 @@ final class AppViewModel: ObservableObject {
         sessions.append(session)
         persist()
         refreshReminders()
+        syncWidget()
         ActivityLogStore.shared.log(
             L10n.logEventManualEntry,
             level: .success,
@@ -429,6 +430,7 @@ final class AppViewModel: ObservableObject {
         sessions.append(session)
         persist()
         refreshReminders()
+        syncWidget()
         ActivityLogStore.shared.log(
             L10n.logEventManualEntry,
             level: .success,
@@ -486,6 +488,7 @@ final class AppViewModel: ObservableObject {
 
         persist()
         refreshReminders()
+        syncWidget()
         ActivityLogStore.shared.log(
             L10n.logEventImport(importedCount),
             level: .success,
@@ -556,6 +559,7 @@ final class AppViewModel: ObservableObject {
         sessions[index].touch()
         persist()
         refreshReminders()
+        syncWidget()
         ActivityLogStore.shared.log(
             L10n.logEventSessionUpdated,
             level: .info,
@@ -567,6 +571,7 @@ final class AppViewModel: ObservableObject {
         sessions.removeAll { $0.id == session.id }
         persist()
         refreshReminders()
+        syncWidget()
         ActivityLogStore.shared.log(
             L10n.logEventSessionDeleted,
             level: .warning,
@@ -728,7 +733,10 @@ final class AppViewModel: ObservableObject {
                     sessionsLoadUnavailable = false
                     settingsLoadUnavailable = false
                     refreshReminders()
-                    WatchConnectivityManager.shared.pushSnapshot()
+                    // Server-authoritative sessions/settings just replaced the in-memory
+                    // state, so the widget's App Group snapshot needs pushing too — it
+                    // otherwise only refreshes on a local clock in/out.
+                    syncWidget()
                 }
                 syncState = store.syncState
             } catch {

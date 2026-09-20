@@ -73,6 +73,10 @@ final class PersistenceManager: PersistableStore {
         documentsDirectory.appendingPathComponent("workplace_settings.json")
     }
 
+    var workplacesURL: URL {
+        documentsDirectory.appendingPathComponent("workplaces.json")
+    }
+
     init(
         fileManager: FileManager = .default,
         fileWriter: FileWriting = ProtectedFileWriter.shared,
@@ -165,12 +169,37 @@ final class PersistenceManager: PersistableStore {
         try save(diskCopy, to: settingsURL)
     }
 
+    // MARK: - Workplaces
+    //
+    // Standalone storage, deliberately not part of `PersistableStore`/`SyncingStore` yet —
+    // nothing reads or writes this file until a follow-up wires a UI and clock-in flow to
+    // it, so this addition can't affect any currently-working path or its tests.
+
+    func loadWorkplaces() -> [Workplace] {
+        switch loadWorkplacesResult() {
+        case .loaded(let workplaces):
+            return workplaces
+        case .missing, .corruptQuarantined, .temporarilyUnavailable:
+            return []
+        }
+    }
+
+    func loadWorkplacesResult() -> PersistenceLoadResult<[Workplace]> {
+        migrateProtectionIfNeeded()
+        return load(from: workplacesURL)
+    }
+
+    func saveWorkplaces(_ workplaces: [Workplace]) throws {
+        migrateProtectionIfNeeded()
+        try save(workplaces, to: workplacesURL)
+    }
+
     // MARK: - Private
 
     private func migrateProtectionIfNeeded() {
         guard !didMigrateProtection else { return }
         didMigrateProtection = true
-        for url in [sessionsURL, settingsURL] {
+        for url in [sessionsURL, settingsURL, workplacesURL] {
             do {
                 try ProtectedFileMigration.ensureProtection(
                     at: url,
