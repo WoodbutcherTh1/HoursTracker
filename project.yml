@@ -110,10 +110,6 @@ targets:
           - en
           - ar
           - he
-        # Populated from HoursTracker/Config/Secrets.xcconfig (local-only, gitignored
-        # values) — read at runtime by TelegramFeedbackConfig.swift.
-        TelegramBotToken: "$(TELEGRAM_BOT_TOKEN)"
-        TelegramChatID: "$(TELEGRAM_CHAT_ID)"
   HoursTrackerTests:
     type: bundle.unit-test
     platform: iOS
