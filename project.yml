@@ -30,6 +30,13 @@ targets:
   HoursTracker:
     type: application
     platform: iOS
+    # Bound here too (not just at the project level above) so the target's
+    # own build configurations are guaranteed to resolve TELEGRAM_BOT_TOKEN /
+    # TELEGRAM_CHAT_ID / etc. for Info.plist $(VAR) substitution, instead of
+    # depending on inheriting them from the project level.
+    configFiles:
+      Debug: HoursTracker/Config/Secrets.xcconfig
+      Release: HoursTracker/Config/Secrets.xcconfig
     sources:
       - path: HoursTracker
         excludes:
