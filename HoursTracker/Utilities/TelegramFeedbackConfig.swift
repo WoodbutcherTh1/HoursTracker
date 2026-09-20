@@ -17,7 +17,16 @@ enum TelegramFeedbackConfig {
     }
 
     static var isConfigured: Bool {
-        !botToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            && !chatID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        let token = botToken.trimmingCharacters(in: .whitespacesAndNewlines)
+        let chat = chatID.trimmingCharacters(in: .whitespacesAndNewlines)
+        #if DEBUG
+        // One-time diagnostic for "feedback says not configured" reports —
+        // shows exactly what Bundle.main resolved TelegramBotToken/ChatID to
+        // at runtime, so a build-setting substitution problem is visible
+        // immediately instead of guessed at. Safe to remove once confirmed
+        // working; never compiled into Release builds.
+        print("🔍 TelegramFeedbackConfig — botToken: '\(token)' (\(token.count) chars), chatID: '\(chat)'")
+        #endif
+        return !token.isEmpty && !chat.isEmpty
     }
 }
