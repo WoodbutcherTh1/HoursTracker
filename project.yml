@@ -151,9 +151,9 @@ targets:
       - path: HoursTracker/Shared/HTStateView.swift
     resources:
       - path: HoursTrackerWatch/Assets.xcassets
-      # The localized catalogs (en/he/ar) the Watch's L10n lookups resolve against.
-      # Only the compiled .lproj folders are needed at runtime; excluding the source
-      # .xcstrings keeps Xcode from compiling a second catalog into the Watch target.
+      # The source String Catalog the Watch's L10n lookups resolve against (en/he/ar).
+      # Listed here so Xcode compiles it into the Watch target's own bundle, same as
+      # it does for the phone app's copy via HoursTracker/Resources below.
       - path: HoursTracker/Resources/Localizable.xcstrings
     settings:
       base:

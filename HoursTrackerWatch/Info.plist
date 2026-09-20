@@ -12,6 +12,16 @@
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
+	<!-- Without this, the Watch target has no declared localizations anywhere
+	     (unlike the phone app's Info.plist), so Xcode may only compile the
+	     development-language (en) resources from Localizable.xcstrings into
+	     the Watch app bundle and skip ar/he — showing raw catalog keys. -->
+	<key>CFBundleLocalizations</key>
+	<array>
+		<string>en</string>
+		<string>ar</string>
+		<string>he</string>
+	</array>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
