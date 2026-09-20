@@ -8,6 +8,7 @@ enum AccountAuthError: LocalizedError {
     case invalidEmail
     case passwordTooShort
     case codeIncomplete
+    case codeExpired
     case notSignedUpYet
     case server(String)
 
@@ -17,6 +18,7 @@ enum AccountAuthError: LocalizedError {
         case .invalidEmail: return L10n.accountErrorInvalidEmail
         case .passwordTooShort: return L10n.accountErrorPasswordTooShort
         case .codeIncomplete: return L10n.accountErrorCodeIncomplete
+        case .codeExpired: return "Your verification code has expired. Please request a new one."
         case .notSignedUpYet: return L10n.accountErrorNotSignedUpYet
         case .server(let message): return message
         }
@@ -120,6 +122,10 @@ final class SupabaseAuthManager: ObservableObject {
                 type: .signup
             )
         } catch {
+            let errorMsg = error.localizedDescription.lowercased()
+            if errorMsg.contains("expired") {
+                throw AccountAuthError.codeExpired
+            }
             throw AccountAuthError.server(error.localizedDescription)
         }
     }
