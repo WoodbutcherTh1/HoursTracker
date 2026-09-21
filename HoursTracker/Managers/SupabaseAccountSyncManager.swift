@@ -3,11 +3,15 @@ import Supabase
 
 enum AccountSyncError: LocalizedError {
     case notSignedIn
+    /// Refused an upload that would have overwritten a non-empty cloud
+    /// backup with an empty local device — see `uploadBackup`.
+    case wouldOverwriteWithEmptyData
     case server(String)
 
     var errorDescription: String? {
         switch self {
         case .notSignedIn: return L10n.accountErrorNotSignedUpYet
+        case .wouldOverwriteWithEmptyData: return L10n.accountSyncBlockedEmptyOverwrite
         case .server(let message): return message
         }
     }
@@ -72,6 +76,16 @@ final class SupabaseAccountSyncManager {
     ) async throws {
         guard let userID = auth.currentUserID else { throw AccountSyncError.notSignedIn }
         do {
+            // Refuse to let an empty device (e.g. right after a fresh
+            // reinstall, before the user has signed back in / restored)
+            // silently overwrite a real existing backup via this
+            // unconditional upsert — this exact gap once let a user's
+            // shifts be permanently erased by an automatic or accidental
+            // "Sync Now" tap with nothing on the device yet.
+            if sessions.isEmpty, let existing = try? await downloadBackup(), !existing.sessions.isEmpty {
+                throw AccountSyncError.wouldOverwriteWithEmptyData
+            }
+
             let payload = AccountBackupPayload(settings: settings, sessions: sessions)
             let payloadData = try Self.makeEncoder().encode(payload)
             let payloadJSON = try JSONDecoder().decode(AnyJSON.self, from: payloadData)

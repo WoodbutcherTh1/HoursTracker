@@ -712,6 +712,29 @@
         }
       }
     },
+    "account.syncBlockedEmptyOverwrite" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تم تخطي المزامنة — يحتوي حسابك بالفعل على بيانات أكثر عبر الإنترنت مقارنة بهذا الجهاز. سجّل الخروج ثم أعد تسجيل الدخول لاستعادتها، ثم حاول مرة أخرى."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync skipped — your account already has more data online than this device. Sign out and back in to restore it, then try again."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הסנכרון דולג — לחשבון שלך כבר יש יותר נתונים באינטרנט מאשר במכשיר הזה. התנתק והתחבר שוב כדי לשחזר אותם, ואז נסה שוב."
+          }
+        }
+      }
+    },
     "account.signOut" : {
       "extractionState" : "manual",
       "localizations" : {

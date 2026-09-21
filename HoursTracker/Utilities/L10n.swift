@@ -280,6 +280,7 @@ enum L10n {
     static var accountResetHint: String { t("account.resetHint") }
     static var accountResetSubmitButton: String { t("account.resetSubmitButton") }
     static var accountBackToSignIn: String { t("account.backToSignIn") }
+    static var accountSyncBlockedEmptyOverwrite: String { t("account.syncBlockedEmptyOverwrite") }
     static var accountErrorNameRequired: String { t("account.error.nameRequired") }
     static var accountErrorInvalidEmail: String { t("account.error.invalidEmail") }
     static var accountErrorPasswordTooShort: String { t("account.error.passwordTooShort") }
