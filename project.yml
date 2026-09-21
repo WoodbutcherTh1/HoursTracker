@@ -145,9 +145,17 @@ targets:
     resources:
       - path: HoursTrackerWatch/Assets.xcassets
       # The source String Catalog the Watch's L10n lookups resolve against (en/he/ar).
-      # Listed here so Xcode compiles it into the Watch target's own bundle, same as
-      # it does for the phone app's copy via HoursTracker/Resources below.
-      - path: HoursTracker/Resources/Localizable.xcstrings
+      # This used to point directly at HoursTracker/Resources/Localizable.xcstrings
+      # (outside this target's own folder), which Xcode compiled fine for the phone
+      # app but silently produced an EMPTY catalog for the Watch target — every
+      # L10n lookup fell through to AppLocale's raw-key fallback ("home.greeting.night"
+      # printed literally). Xcode's String Catalog compiler is unreliable when the
+      # same .xcstrings file is shared into a second target from outside that
+      # target's own directory tree. A symlink at HoursTrackerWatch/Resources/
+      # Localizable.xcstrings (pointing at the real file, kept as the single
+      # source of truth) gives the Watch target a same-directory resource to
+      # compile normally, matching how Assets.xcassets already works here.
+      - path: HoursTrackerWatch/Resources/Localizable.xcstrings
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hourstracker.app.watchkitapp
