@@ -397,12 +397,17 @@ final class TaxCreditApplicationTests: XCTestCase {
 final class PayRulesViewModelTests: XCTestCase {
     func testClockInAutoTagsRestDay() {
         let store = InMemoryStore()
+        // Fixed, known non-holiday date — using live Date() here made this test
+        // fail every time "today" happened to be an Israeli holiday (e.g. Yom
+        // Kippur), since a holiday-tagged day is never .restDay regardless of
+        // restDayWeekday.
+        let clockInDate = TestData.date(2026, 1, 13, 8, 0)
         var settings = TestData.settings()
-        settings.restDayWeekday = Calendar.current.component(.weekday, from: Date())
+        settings.restDayWeekday = Calendar.current.component(.weekday, from: clockInDate)
         store.storedSettings = settings
         let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
 
-        viewModel.clockIn()
+        viewModel.clockIn(at: clockInDate)
 
         XCTAssertEqual(viewModel.sessions.first?.dayType, .restDay)
     }
@@ -427,28 +432,34 @@ final class PayRulesViewModelTests: XCTestCase {
 
     func testClockInOnOrdinaryWeekdayStaysRegular() {
         let store = InMemoryStore()
+        // Fixed, known non-holiday date — see testClockInAutoTagsRestDay for why
+        // live Date() broke this test whenever "today" was an Israeli holiday.
+        let clockInDate = TestData.date(2026, 1, 13, 8, 0)
         var settings = TestData.settings()
-        let todayWeekday = Calendar.current.component(.weekday, from: Date())
-        settings.restDayWeekday = todayWeekday == 7 ? 1 : todayWeekday + 1
+        let clockInWeekday = Calendar.current.component(.weekday, from: clockInDate)
+        settings.restDayWeekday = clockInWeekday == 7 ? 1 : clockInWeekday + 1
         store.storedSettings = settings
         let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
 
-        viewModel.clockIn()
+        viewModel.clockIn(at: clockInDate)
 
         XCTAssertEqual(viewModel.sessions.first?.dayType, .regular)
     }
 
     func testClockInAutoTagsSecondRestDay() {
         let store = InMemoryStore()
+        // Fixed, known non-holiday date — see testClockInAutoTagsRestDay for why
+        // live Date() broke this test whenever "today" was an Israeli holiday.
+        let clockInDate = TestData.date(2026, 1, 13, 8, 0)
         var settings = TestData.settings()
-        let todayWeekday = Calendar.current.component(.weekday, from: Date())
-        // Primary is a different day; today is the second rest day.
-        settings.restDayWeekday = todayWeekday == 7 ? 1 : todayWeekday + 1
-        settings.secondRestDayWeekday = todayWeekday
+        let clockInWeekday = Calendar.current.component(.weekday, from: clockInDate)
+        // Primary is a different day; the clock-in day is the second rest day.
+        settings.restDayWeekday = clockInWeekday == 7 ? 1 : clockInWeekday + 1
+        settings.secondRestDayWeekday = clockInWeekday
         store.storedSettings = settings
         let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
 
-        viewModel.clockIn()
+        viewModel.clockIn(at: clockInDate)
 
         XCTAssertEqual(viewModel.sessions.first?.dayType, .restDay)
     }
