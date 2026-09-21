@@ -159,37 +159,35 @@ private struct HoursRing: View {
     }
 }
 
-/// Rounded interactive button used across widget sizes — a solid Aurora-gradient
-/// capsule (cool green→cyan→purple for Clock In, warm coral→amber for Clock Out)
-/// with dark text for contrast and a soft matching glow.
+/// Shared visual styling for the widget's Clock In/Out capsule — a solid
+/// Aurora-gradient capsule (cool green→cyan→purple for Clock In, warm
+/// coral→amber for Clock Out) with dark text for contrast and a soft
+/// matching glow.
 ///
-/// Generic over a concrete `AppIntent` type rather than `any AppIntent`: WidgetKit's
-/// interactive buttons are wired up by a build-time "AppIntents metadata extraction"
-/// step that statically scans for `Button(intent:)` call sites, and needs the intent
-/// type to be concrete at that call site. Boxing it as `any AppIntent` and recovering
-/// the concrete type at runtime via `as?` (the previous approach here) compiles fine
-/// but defeats that static scan, so the button renders but never actually registers
-/// as interactive — this is why tapping it did nothing.
-private struct WidgetActionButton<Intent: AppIntent>: View {
-    let title: String
-    let systemImage: String
-    let intent: Intent
-    let isClockIn: Bool
-
-    var body: some View {
-        Button(intent: intent) {
-            Label(title, systemImage: systemImage)
-                .font(.system(size: 12, weight: .heavy, design: .rounded))
-                .foregroundStyle(Color.black.opacity(0.82))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(
-                    isClockIn ? WidgetTheme.auroraButtonGradient : WidgetTheme.stopButtonGradient,
-                    in: Capsule()
-                )
-                .shadow(color: (isClockIn ? WidgetTheme.moneyGreen : WidgetTheme.coral).opacity(0.4), radius: 8, y: 2)
-        }
-    }
+/// Deliberately NOT a generic wrapper around `Button(intent:)`. WidgetKit's
+/// interactive buttons are wired up by a build-time "AppIntents metadata
+/// extraction" step that statically scans source for `Button(intent:)` call
+/// sites with a concrete intent literal. A previous version here boxed the
+/// intent as `any AppIntent` — that defeated the scan outright. Switching to
+/// a generic `<Intent: AppIntent>` wrapper (storing `intent: Intent` and
+/// forwarding it as `Button(intent: intent)`) still isn't enough: the intent
+/// at that inner call site is a generic property, not a literal concrete
+/// type, which the scanner can also fail to pick up — the button renders but
+/// never registers as interactive, and every tap falls through to the
+/// widget's `.widgetURL` instead. Each call site below must spell out
+/// `Button(intent: ClockInIntent())` / `Button(intent: ClockOutIntent())`
+/// literally; only the label styling is shared.
+private func widgetActionLabel(title: String, systemImage: String, isClockIn: Bool) -> some View {
+    Label(title, systemImage: systemImage)
+        .font(.system(size: 12, weight: .heavy, design: .rounded))
+        .foregroundStyle(Color.black.opacity(0.82))
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(
+            isClockIn ? WidgetTheme.auroraButtonGradient : WidgetTheme.stopButtonGradient,
+            in: Capsule()
+        )
+        .shadow(color: (isClockIn ? WidgetTheme.moneyGreen : WidgetTheme.coral).opacity(0.4), radius: 8, y: 2)
 }
 
 // MARK: - Timeline Entry
@@ -399,12 +397,9 @@ struct HoursSmallWidgetView: View {
             }
 
             // Clock out — the whole point: one tap from the home screen.
-            WidgetActionButton(
-                title: "Clock Out",
-                systemImage: "stop.fill",
-                intent: ClockOutIntent(),
-                isClockIn: false
-            )
+            Button(intent: ClockOutIntent()) {
+                widgetActionLabel(title: "Clock Out", systemImage: "stop.fill", isClockIn: false)
+            }
             .frame(maxWidth: .infinity)
         }
         .padding(12)
@@ -475,12 +470,9 @@ struct HoursSmallWidgetView: View {
             Text("Start your shift")
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundStyle(WidgetTheme.textPrimary)
-            WidgetActionButton(
-                title: "Clock In",
-                systemImage: "play.fill",
-                intent: ClockInIntent(),
-                isClockIn: true
-            )
+            Button(intent: ClockInIntent()) {
+                widgetActionLabel(title: "Clock In", systemImage: "play.fill", isClockIn: true)
+            }
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -570,12 +562,9 @@ struct HoursHomeWidgetView: View {
                     valueColor: WidgetTheme.accentLight,
                     iconColor: WidgetTheme.accent
                 )
-                WidgetActionButton(
-                    title: "Clock Out",
-                    systemImage: "stop.fill",
-                    intent: ClockOutIntent(),
-                    isClockIn: false
-                )
+                Button(intent: ClockOutIntent()) {
+                    widgetActionLabel(title: "Clock Out", systemImage: "stop.fill", isClockIn: false)
+                }
             }
         }
         .padding(14)
@@ -647,12 +636,9 @@ struct HoursHomeWidgetView: View {
                 }
             }
             Spacer()
-            WidgetActionButton(
-                title: "Clock In",
-                systemImage: "play.fill",
-                intent: ClockInIntent(),
-                isClockIn: true
-            )
+            Button(intent: ClockInIntent()) {
+                widgetActionLabel(title: "Clock In", systemImage: "play.fill", isClockIn: true)
+            }
         }
         .padding(16)
     }
@@ -712,19 +698,13 @@ struct HoursHomeWidgetView: View {
                 largeStat(label: "This month", value: payText(entry.monthPay), color: WidgetTheme.accentLight, icon: "calendar")
                 Spacer(minLength: 0)
                 if entry.isOpen {
-                    WidgetActionButton(
-                        title: "Out",
-                        systemImage: "stop.fill",
-                        intent: ClockOutIntent(),
-                        isClockIn: false
-                    )
+                    Button(intent: ClockOutIntent()) {
+                        widgetActionLabel(title: "Out", systemImage: "stop.fill", isClockIn: false)
+                    }
                 } else {
-                    WidgetActionButton(
-                        title: "In",
-                        systemImage: "play.fill",
-                        intent: ClockInIntent(),
-                        isClockIn: true
-                    )
+                    Button(intent: ClockInIntent()) {
+                        widgetActionLabel(title: "In", systemImage: "play.fill", isClockIn: true)
+                    }
                 }
             }
         }

@@ -9,6 +9,8 @@ private enum AccountFlowStep: Equatable {
     case signUp
     case verify(email: String, fullName: String, familyName: String)
     case signIn
+    case forgotPassword
+    case resetPassword(email: String)
 }
 
 /// Entry point from Settings' Account section. Shows the sign-up/sign-in
@@ -71,7 +73,14 @@ private struct AccountFlowView: View {
                 familyName: familyName
             )
         case .signIn:
-            SignInFormView(viewModel: viewModel)
+            SignInFormView(viewModel: viewModel, onForgotPassword: { step = .forgotPassword })
+        case .forgotPassword:
+            ForgotPasswordFormView(
+                onCodeSent: { email in step = .resetPassword(email: email) },
+                onBack: { step = .signIn }
+            )
+        case .resetPassword(let email):
+            ResetPasswordView(email: email)
         }
     }
 }
@@ -537,6 +546,7 @@ private struct SignInFormView: View {
     @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var theme = HomeAccentTheme.shared
     @Environment(\.dismiss) private var dismiss
+    let onForgotPassword: () -> Void
 
     @State private var email = ""
     @State private var password = ""
@@ -577,6 +587,11 @@ private struct SignInFormView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 4)
                     }
+
+                    Button(L10n.accountForgotPassword, action: onForgotPassword)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.5))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 .padding(.horizontal, 20)
 
@@ -631,6 +646,261 @@ private struct SignInFormView: View {
                     isSigningIn = false
                     errorMessage = error.localizedDescription
                 }
+            }
+        }
+    }
+}
+
+// MARK: - Forgot password
+
+private struct ForgotPasswordFormView: View {
+    @ObservedObject private var theme = HomeAccentTheme.shared
+    let onCodeSent: (_ email: String) -> Void
+    let onBack: () -> Void
+
+    @State private var email = ""
+    @State private var isSending = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 22) {
+                GlowIconBadge(systemName: "key.fill", accent: theme.accent, size: 60)
+                    .padding(.top, 8)
+
+                VStack(spacing: 6) {
+                    Text(L10n.accountResetTitle)
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(.white)
+                    Text(L10n.accountResetHint)
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.55))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
+                }
+
+                VStack(spacing: 12) {
+                    AccountTextField(
+                        icon: "envelope.fill",
+                        placeholder: L10n.accountEmailPlaceholder,
+                        text: $email,
+                        keyboardType: .emailAddress,
+                        textContentType: .username,
+                        autocapitalization: .never
+                    )
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4)
+                    }
+                }
+                .padding(.horizontal, 20)
+
+                VStack(spacing: 12) {
+                    Button {
+                        sendCode()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isSending {
+                                ProgressView().tint(.black)
+                            }
+                            Text(L10n.accountSendCodeButton)
+                        }
+                    }
+                    .buttonStyle(PremiumPrimaryButtonStyle(
+                        accent: theme.accent,
+                        isDisabled: !SupabaseAuthManager.isValidEmail(email) || isSending
+                    ))
+                    .disabled(!SupabaseAuthManager.isValidEmail(email) || isSending)
+
+                    Button(L10n.accountBackToSignIn, action: onBack)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                .padding(.horizontal, 20)
+            }
+            .padding(.bottom, 24)
+        }
+        .scrollDismissesKeyboard(.interactively)
+    }
+
+    private func sendCode() {
+        errorMessage = nil
+        isSending = true
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task {
+            do {
+                try await SupabaseAuthManager.shared.beginPasswordReset(email: trimmedEmail)
+                await MainActor.run {
+                    isSending = false
+                    onCodeSent(trimmedEmail)
+                }
+            } catch {
+                await MainActor.run {
+                    isSending = false
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Reset password (verify code + set new password)
+
+private struct ResetPasswordView: View {
+    @ObservedObject private var theme = HomeAccentTheme.shared
+    @Environment(\.dismiss) private var dismiss
+    let email: String
+
+    @State private var code = ""
+    @State private var newPassword = ""
+    @State private var confirmPassword = ""
+    @State private var isSubmitting = false
+    @State private var isDone = false
+    @State private var errorMessage: String?
+    @State private var resendMessage: String?
+
+    private var isFormValid: Bool {
+        code.count == 8 && newPassword.count >= 6 && newPassword == confirmPassword
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                VStack(spacing: 10) {
+                    GlowIconBadge(systemName: "envelope.badge.shield.half.filled", accent: theme.accent, size: 52, pulse: false)
+                    Text(L10n.accountVerifyHint(email))
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.65))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
+                }
+                .padding(.top, 12)
+
+                VStack(spacing: 12) {
+                    TextField("", text: $code, prompt: Text(L10n.accountCodePlaceholder).foregroundStyle(.white.opacity(0.3)))
+                        .keyboardType(.numberPad)
+                        .textContentType(.oneTimeCode)
+                        .font(.system(size: 28, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(.white)
+                        .tint(theme.accent)
+                        .multilineTextAlignment(.center)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .fill(Color(red: 0.11, green: 0.11, blue: 0.12))
+                        )
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                        )
+                        .onChange(of: code) { _, newValue in
+                            code = String(newValue.filter(\.isNumber).prefix(8))
+                        }
+
+                    AccountTextField(
+                        icon: "lock.fill",
+                        placeholder: L10n.accountNewPassword,
+                        text: $newPassword,
+                        isSecure: true,
+                        textContentType: .newPassword,
+                        autocapitalization: .never
+                    )
+                    AccountTextField(
+                        icon: "lock.rotation",
+                        placeholder: L10n.accountConfirmPassword,
+                        text: $confirmPassword,
+                        isSecure: true,
+                        textContentType: .newPassword,
+                        autocapitalization: .never
+                    )
+
+                    if let errorMessage {
+                        Text(errorMessage).font(.caption).foregroundStyle(.red)
+                    } else if let resendMessage {
+                        Text(resendMessage).font(.caption).foregroundStyle(.green)
+                    } else {
+                        Text(L10n.accountPasswordRule)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.4))
+                    }
+                }
+                .padding(.horizontal, 20)
+
+                VStack(spacing: 12) {
+                    Button {
+                        submit()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isSubmitting {
+                                ProgressView().tint(.black)
+                            } else if isDone {
+                                Image(systemName: "checkmark")
+                            }
+                            Text(isDone ? L10n.accountVerifiedBadge : L10n.accountResetSubmitButton)
+                        }
+                    }
+                    .buttonStyle(PremiumPrimaryButtonStyle(
+                        accent: isDone ? .green : theme.accent,
+                        isDisabled: !isFormValid || isSubmitting || isDone
+                    ))
+                    .disabled(!isFormValid || isSubmitting || isDone)
+
+                    Button(L10n.accountResendCode) {
+                        resend()
+                    }
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .disabled(isSubmitting)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+            }
+            .padding(.bottom, 24)
+        }
+        .scrollDismissesKeyboard(.interactively)
+    }
+
+    private func submit() {
+        errorMessage = nil
+        isSubmitting = true
+        Task {
+            do {
+                try await SupabaseAuthManager.shared.verifyPasswordReset(email: email, code: code)
+                try await SupabaseAuthManager.shared.updatePassword(newPassword)
+                await MainActor.run {
+                    isSubmitting = false
+                    isDone = true
+                }
+                try? await Task.sleep(for: .seconds(0.6))
+                await MainActor.run { dismiss() }
+            } catch {
+                await MainActor.run {
+                    isSubmitting = false
+                    errorMessage = error.localizedDescription
+                    // Whatever was just rejected can never become valid by
+                    // resubmitting it — clearing it stops a stale code from
+                    // silently being retried after a resend.
+                    code = ""
+                }
+            }
+        }
+    }
+
+    private func resend() {
+        errorMessage = nil
+        resendMessage = nil
+        Task {
+            do {
+                try await SupabaseAuthManager.shared.beginPasswordReset(email: email)
+                await MainActor.run {
+                    resendMessage = L10n.accountResendSent
+                    code = ""
+                }
+            } catch {
+                await MainActor.run { errorMessage = error.localizedDescription }
             }
         }
     }

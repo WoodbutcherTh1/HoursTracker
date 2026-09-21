@@ -1,5 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict/>
+<!--
+  App Groups is available on a free/personal Apple Developer team (unlike the
+  CloudKit entitlement in docs/HoursTracker.entitlements.cloudkit.example,
+  which is paid-team only). WidgetBridge.swift hardcodes this exact group
+  identifier for the UserDefaults suite shared between the app and the widget
+  extension — without it, the app and widget each get their own isolated
+  storage instead of a shared one, so the widget can't see real session data
+  or receive Clock In/Out button taps.
+-->
+<dict>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.hourstracker.app</string>
+	</array>
+</dict>
 </plist>

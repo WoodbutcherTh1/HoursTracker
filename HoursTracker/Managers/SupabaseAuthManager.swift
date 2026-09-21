@@ -189,6 +189,42 @@ final class SupabaseAuthManager: ObservableObject {
         }
     }
 
+    /// Step 1 of "forgot password": sends an 8-digit recovery code to `email`
+    /// (same OTP mechanism as sign-up). Also used to resend the code.
+    func beginPasswordReset(email: String) async throws {
+        guard Self.isValidEmail(email) else { throw AccountAuthError.invalidEmail }
+        do {
+            try await client.auth.resetPasswordForEmail(email.trimmingCharacters(in: .whitespacesAndNewlines))
+        } catch {
+            throw AccountAuthError.server(error.localizedDescription)
+        }
+    }
+
+    /// Step 2: verify the recovery code from the email. On success the SDK
+    /// establishes a session for the user, so a subsequent `updatePassword`
+    /// call can set their new password.
+    func verifyPasswordReset(email: String, code: String) async throws {
+        let trimmedCode = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard trimmedCode.count == 8 else { throw AccountAuthError.codeIncomplete }
+        do {
+            _ = try await client.auth.verifyOTP(
+                email: email.trimmingCharacters(in: .whitespacesAndNewlines),
+                token: trimmedCode,
+                type: .recovery
+            )
+        } catch let error as AuthError {
+            Self.logger.error(
+                "Password reset OTP rejected: errorCode=\(error.errorCode.rawValue, privacy: .private) message=\(error.message, privacy: .private)"
+            )
+            if error.errorCode == .otpExpired {
+                throw AccountAuthError.codeExpired
+            }
+            throw AccountAuthError.server(error.message)
+        } catch {
+            throw AccountAuthError.server(error.localizedDescription)
+        }
+    }
+
     /// Returning-user sign-in (existing, already-verified account).
     func signIn(email: String, password: String) async throws {
         guard Self.isValidEmail(email) else { throw AccountAuthError.invalidEmail }

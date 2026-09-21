@@ -597,6 +597,144 @@
         }
       }
     },
+    "account.forgotPassword" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "نسيت كلمة المرور؟"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Forgot password?"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שכחת סיסמה?"
+          }
+        }
+      }
+    },
+    "account.resetTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إعادة تعيين كلمة المرور"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Password"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "איפוס סיסמה"
+          }
+        }
+      }
+    },
+    "account.resetHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أدخل بريدك الإلكتروني وسنرسل لك رمزًا لإعادة تعيين كلمة المرور."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter your email and we'll send you a code to reset your password."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הזן את כתובת האימייל שלך ונשלח לך קוד לאיפוס הסיסמה."
+          }
+        }
+      }
+    },
+    "account.resetSubmitButton" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إعادة تعيين كلمة المرور"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset Password"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אפס סיסמה"
+          }
+        }
+      }
+    },
+    "account.backToSignIn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "العودة لتسجيل الدخول"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back to Sign In"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "חזרה להתחברות"
+          }
+        }
+      }
+    },
+    "account.syncBlockedEmptyOverwrite" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تم تخطي المزامنة — يحتوي حسابك بالفعل على بيانات أكثر عبر الإنترنت مقارنة بهذا الجهاز. سجّل الخروج ثم أعد تسجيل الدخول لاستعادتها، ثم حاول مرة أخرى."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync skipped — your account already has more data online than this device. Sign out and back in to restore it, then try again."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הסנכרון דולג — לחשבון שלך כבר יש יותר נתונים באינטרנט מאשר במכשיר הזה. התנתק והתחבר שוב כדי לשחזר אותם, ואז נסה שוב."
+          }
+        }
+      }
+    },
     "account.signOut" : {
       "extractionState" : "manual",
       "localizations" : {
