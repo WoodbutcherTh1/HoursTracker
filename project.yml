@@ -64,10 +64,10 @@ targets:
         # already has a 1.5 entry on record — each pre-release train is permanently
         # closed to new TestFlight builds once superseded, so any new submission needs
         # a higher marketing version even if it's otherwise a minor update.
-        CFBundleShortVersionString: "1.6"
+        CFBundleShortVersionString: "1.7"
         # Build 15+: do NOT add UIBackgroundModes: location (Guideline 2.5.4).
         # Arrival reminders use CLCircularRegion monitoring only.
-        CFBundleVersion: "21"
+        CFBundleVersion: "22"
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations:
