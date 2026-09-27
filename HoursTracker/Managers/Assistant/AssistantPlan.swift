@@ -63,6 +63,10 @@ struct AssistantFilters: Codable, Equatable {
     var overtimeTier: AssistantOvertimeTier?
     /// `WorkSession.dayType` raw value: regular / restDay / holiday / sick.
     var dayType: String?
+    /// Hours, inclusive. The exact match for "which day(s) did I work more/less than N
+    /// hours" — see `AssistantToolbox.filterSessionsByHoursRange`.
+    var minHours: Double?
+    var maxHours: Double?
 
     enum CodingKeys: String, CodingKey {
         case month
@@ -72,15 +76,19 @@ struct AssistantFilters: Codable, Equatable {
         case clockInBefore = "clock_in_before"
         case overtimeTier = "overtime_tier"
         case dayType = "day_type"
+        case minHours = "min_hours"
+        case maxHours = "max_hours"
     }
 
     var isEmpty: Bool {
         month == nil && startDate == nil && endDate == nil && clockInAfter == nil
             && clockInBefore == nil && overtimeTier == nil && dayType == nil
+            && minHours == nil && maxHours == nil
     }
 
     /// Lenient decoding: a model that emits `"overtime_tier": "125"` or an empty string
-    /// shouldn't fail the whole plan, it should just drop that one filter.
+    /// shouldn't fail the whole plan, it should just drop that one filter. Same for
+    /// `min_hours`/`max_hours` sent as a numeric string (some models do this).
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         month = assistantDecodedString(container, .month)
@@ -91,6 +99,8 @@ struct AssistantFilters: Codable, Equatable {
         overtimeTier = assistantDecodedString(container, .overtimeTier)
             .flatMap(AssistantOvertimeTier.init(rawValue:))
         dayType = assistantDecodedString(container, .dayType)
+        minHours = assistantDecodedDouble(container, .minHours)
+        maxHours = assistantDecodedDouble(container, .maxHours)
     }
 
     init(
@@ -100,7 +110,9 @@ struct AssistantFilters: Codable, Equatable {
         clockInAfter: String? = nil,
         clockInBefore: String? = nil,
         overtimeTier: AssistantOvertimeTier? = nil,
-        dayType: String? = nil
+        dayType: String? = nil,
+        minHours: Double? = nil,
+        maxHours: Double? = nil
     ) {
         self.month = month
         self.startDate = startDate
@@ -109,6 +121,8 @@ struct AssistantFilters: Codable, Equatable {
         self.clockInBefore = clockInBefore
         self.overtimeTier = overtimeTier
         self.dayType = dayType
+        self.minHours = minHours
+        self.maxHours = maxHours
     }
 }
 
@@ -122,6 +136,20 @@ private func assistantDecodedString<K: CodingKey>(
     guard let value = try? container.decode(String.self, forKey: key) else { return nil }
     let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
     return trimmed.isEmpty ? nil : trimmed
+}
+
+/// A `Double` for `key`, whether the model emitted a JSON number or a numeric string
+/// (both happen in practice). `nil` for anything missing, non-numeric, or negative — a
+/// negative hour count is never a valid filter, so it is dropped rather than passed
+/// through to silently exclude every session.
+private func assistantDecodedDouble<K: CodingKey>(
+    _ container: KeyedDecodingContainer<K>,
+    _ key: K
+) -> Double? {
+    let value = (try? container.decode(Double.self, forKey: key))
+        ?? assistantDecodedString(container, key).flatMap(Double.init)
+    guard let value, value >= 0 else { return nil }
+    return value
 }
 
 /// The complete instruction the model produces. This is the *only* thing that crosses

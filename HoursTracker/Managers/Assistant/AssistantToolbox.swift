@@ -72,6 +72,35 @@ enum AssistantToolbox {
         return sessions.filter { ids.contains($0.id) }
     }
 
+    /// Sessions whose total hours fall in `min...max` (either bound optional), decided
+    /// from `OvertimeCalculator`'s day-aware total — the same figure `listSessions` shows
+    /// per row — rather than the raw shift length, so a day with unpaid breaks applied or
+    /// same-day overtime sharing still filters on the hours the user actually sees
+    /// elsewhere in the app. This exists so "which days did I work more than N hours" has
+    /// an exact answer instead of the `overtime_tier` filter, which only approximates it.
+    static func filterSessionsByHoursRange(
+        _ sessions: [WorkSession],
+        minHours: Double?,
+        maxHours: Double?,
+        settings: WorkplaceSettings,
+        calendar: Calendar = .current
+    ) -> [WorkSession] {
+        guard minHours != nil || maxHours != nil else { return sessions }
+        let priced = OvertimeCalculator.dayAwareBreakdowns(
+            sessions: sessions.filter { $0.clockOut != nil },
+            settings: settings,
+            calendar: calendar
+        )
+        let matching = priced.filter { entry in
+            let hours = entry.breakdown.totalHours
+            if let minHours, hours < minHours { return false }
+            if let maxHours, hours > maxHours { return false }
+            return true
+        }
+        let ids = Set(matching.map { $0.session.id })
+        return sessions.filter { ids.contains($0.id) }
+    }
+
     static func filterSessionsByDayType(
         _ sessions: [WorkSession],
         dayType: DayType
