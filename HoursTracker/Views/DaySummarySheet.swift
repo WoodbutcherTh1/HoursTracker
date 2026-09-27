@@ -65,14 +65,15 @@ struct DaySummarySheet: View {
                 VStack(alignment: .leading, spacing: DS.Space.xl) {
                     header
 
-                    ZStack {
-                        DSHeroGlow(color: glowColor)
+                    Group {
                         if viewModel.settings.hourlyRate > 0 {
                             payCard
                         } else {
                             rateMissingCard
                         }
                     }
+                    // Behind the card without taking layout space.
+                    .background(DSHeroGlow(color: glowColor))
 
                     if viewModel.settings.hourlyRate > 0 {
                         grossNetSwitch
