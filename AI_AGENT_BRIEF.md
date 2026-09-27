@@ -85,7 +85,7 @@ project.yml                      ← XcodeGen manifest (the .xcodeproj is genera
 
 **State flow**: `Views` → `AppViewModel` (`@MainActor`, owns stores/managers) → `PersistenceManager` (source of truth is local disk; cloud is a mirror/backup, merge-on-sync, never the live store).
 
-**Build system**: **XcodeGen** — edit `project.yml`, run `xcodegen generate`; do not hand-edit the `.xcodeproj`. Swift 5.9, iOS deployment target **17.0**, watchOS **10.0**; builds must use **Xcode 26.x** (App Store requirement as of April 2026). App version currently 1.6 (build 21); version trains 1.2/1.3/1.5 are permanently closed on App Store Connect — new submissions need a higher marketing version.
+**Build system**: **XcodeGen** — edit `project.yml`, run `xcodegen generate`; do not hand-edit the `.xcodeproj`. Swift 5.9, iOS deployment target **17.0**, watchOS **10.0**; builds must use **Xcode 26.x** (App Store requirement as of April 2026). App version currently 1.7 (build 22) — read it from `project.yml` (`CFBundleShortVersionString` / `CFBundleVersion`), never hard-code it in UI; version trains 1.2/1.3/1.5 are permanently closed on App Store Connect — new submissions need a higher marketing version.
 
 ## 4. Tech stack — what is used
 

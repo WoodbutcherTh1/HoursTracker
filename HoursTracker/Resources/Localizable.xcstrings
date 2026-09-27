@@ -20356,6 +20356,50 @@
           }
         }
       }
+    },
+    "home.helpFeedback" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "المساعدة والملاحظات"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Help & Feedback"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "עזרה ומשוב"
+          }
+        }
+      }
+    },
+    "about.madeIn" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "صُنع بحبّ ❤️ في إسرائيل"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Made with ❤️ in Israel"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "נעשה באהבה ❤️ בישראל"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

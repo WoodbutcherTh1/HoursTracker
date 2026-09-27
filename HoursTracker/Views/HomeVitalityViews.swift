@@ -89,10 +89,13 @@ struct HomeAnimatedDoorButton: View {
     /// Clock Out only: the door breathes (1.0 ↔ 1.03 over 3 s) to say the shift is
     /// running. Under Reduce Motion it stands still inside a thin ring of `stateColor`.
     var breathes: Bool = false
+    /// A sheet covers Home — hold still (the ring, if any, stays).
+    var breathingPaused: Bool = false
     /// Coral while working, amber on a break.
     var stateColor: Color = HomeNeon.coral
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var isOpen: Bool
     @State private var isBusy = false
@@ -111,6 +114,7 @@ struct HomeAnimatedDoorButton: View {
         compact: Bool = false,
         accent: Color = HomeNeon.accent,
         breathes: Bool = false,
+        breathingPaused: Bool = false,
         stateColor: Color = HomeNeon.coral,
         action: @escaping () -> Void
     ) {
@@ -119,6 +123,7 @@ struct HomeAnimatedDoorButton: View {
         self.compact = compact
         self.accent = accent
         self.breathes = breathes
+        self.breathingPaused = breathingPaused
         self.stateColor = stateColor
         self.action = action
         _isOpen = State(initialValue: mode == .clockOut)
@@ -168,7 +173,7 @@ struct HomeAnimatedDoorButton: View {
                             .frame(width: doorWidth + 12, height: doorHeight + 12)
                     }
 
-                    TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !breathes || reduceMotion)) { context in
+                    TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isBreathing)) { context in
                         doorScene
                             .frame(width: doorWidth, height: doorHeight)
                             .shadow(color: glowColor.opacity(0.3), radius: 10, y: 4)
@@ -193,9 +198,15 @@ struct HomeAnimatedDoorButton: View {
         }
     }
 
+    /// Breathing runs only while a shift is running AND the app is in front AND no
+    /// sheet covers Home AND Reduce Motion is off. Anything else holds it at 1.0.
+    private var isBreathing: Bool {
+        breathes && !breathingPaused && scenePhase == .active && !reduceMotion
+    }
+
     /// 1.0 → 1.03 → 1.0 every 3 s; 1 when not breathing.
     private func breathingScale(at date: Date) -> CGFloat {
-        guard breathes, !reduceMotion else { return 1 }
+        guard isBreathing else { return 1 }
         let phase = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3) / 3
         return 1 + 0.015 * (1 - cos(phase * 2 * .pi))
     }

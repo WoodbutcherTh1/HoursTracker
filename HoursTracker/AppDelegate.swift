@@ -24,6 +24,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             // follow the standard `-AppleLanguages` launch argument — it must be forced
             // directly so screenshots render in English regardless of simulator/device locale.
             UserDefaults.standard.set(AppLanguageOption.english.rawValue, forKey: AppLanguageOption.storageKey)
+            // A typical 5-day / 42h week so the stat cards show their goal bars.
+            DisplayPreferences.shared.weekPattern = .fiveDays
+            DisplayPreferences.shared.weeklyGoalHoursDisplayOnly = 42
         }
         // Onboarding RTL test (HoursTrackerUITests/OnboardingRTLUITests.swift): start the
         // onboarding fresh, in Arabic, with no saved draft.
@@ -55,6 +58,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             var settings = AppViewModel.shared.settings
             settings.workerFullName = arguments[index + 1]
             AppViewModel.shared.saveSettings(settings)
+        }
+        // Design QA (HoursTrackerUITests/DesignQATests.swift): `UITEST_LANG <option>`
+        // overrides the language any hook above set, e.g. screenshots in Hebrew.
+        if let index = arguments.firstIndex(of: "UITEST_LANG"), arguments.indices.contains(index + 1),
+           let language = AppLanguageOption(rawValue: arguments[index + 1]) {
+            UserDefaults.standard.set(language.rawValue, forKey: AppLanguageOption.storageKey)
         }
         #endif
         UNUserNotificationCenter.current().delegate = self

@@ -18,6 +18,8 @@ struct HomeStatCard: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var reachedGoal: Bool { (progress ?? 0) >= 1 }
+    /// A real goal with nothing done yet (e.g. a workday not started).
+    private var notStarted: Bool { progress.map { $0 <= 0 } ?? false }
 
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Space.xs) {
@@ -37,7 +39,7 @@ struct HomeStatCard: View {
                 .htFont(size: compact ? 20 : 24, relativeTo: .title2, weight: .semibold, design: .rounded)
                 .monospacedDigit()
                 .environment(\.layoutDirection, .leftToRight)
-                .foregroundStyle(DS.Palette.textPrimary)
+                .foregroundStyle(notStarted ? DS.Palette.textSecondary : DS.Palette.textPrimary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .contentTransition(.numericText())
@@ -55,15 +57,15 @@ struct HomeStatCard: View {
         .accessibilityValue(targetText.map { "\(value), \($0)" } ?? value)
     }
 
-    /// Nothing done yet toward a real goal (e.g. a workday not started) shows the
-    /// track in the accent at 40% — "today is open", not a discouraging empty 0%.
+    /// Nothing done yet toward a real goal: the hairline track with a 4pt dot at
+    /// its start — "the day is open", never a bar that reads as full or as 0%.
     private func bar(_ progress: Double) -> some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
+                Capsule().fill(DS.Palette.hairline)
                 if progress <= 0 {
-                    Capsule().fill(accent.opacity(0.4))
+                    Circle().fill(accent).frame(width: 4, height: 4)
                 } else {
-                    Capsule().fill(DS.Palette.hairline)
                     Capsule()
                         .fill(reachedGoal ? DS.Palette.success : accent)
                         .frame(width: max(4, geo.size.width * progress))

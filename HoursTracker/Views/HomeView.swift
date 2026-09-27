@@ -110,10 +110,12 @@ struct HomeView: View {
                         } label: {
                             Label(L10n.guideTitle, systemImage: "questionmark.circle")
                         }
+                        // One row for support and feedback — the sheet's own picker
+                        // (bug / suggestion / …) says what it's about.
                         Button {
                             showFeedback = true
                         } label: {
-                            Label(L10n.settingsSupport, systemImage: "envelope")
+                            Label(L10n.homeHelpFeedback, systemImage: "bubble.left.and.text.bubble.right")
                         }
                     } label: {
                         Image(systemName: "ellipsis.circle")
@@ -153,7 +155,7 @@ struct HomeView: View {
             }
             .sheet(isPresented: $showAbout) {
                 AboutSheet(viewModel: viewModel)
-                    .presentationDetents([.medium, .large])
+                    .presentationDetents([.medium])
             }
             .sheet(isPresented: $showFeedback) {
                 ContactSupportSheet(viewModel: viewModel)
@@ -259,11 +261,22 @@ struct HomeView: View {
 
     // MARK: - "Tap to personalize" tip
 
-    /// 60 s after the first Clock Out, until the tip has shown once.
+    /// 60 s after the first Clock Out, once — and only for someone new: the picker
+    /// was never used and their first shift is under 30 days old. Long-time users
+    /// are not interrupted by a tip for something they have lived without.
     private var themeTipDueDate: Date? {
-        guard !themeTipSeen, !AnnouncementCenter.isAutomatedRun,
-              let firstClockOut = completedSessions.compactMap(\.clockOut).min() else { return nil }
+        guard !themeTipSeen, !HomeAccentTheme.hasSavedChoice, !AnnouncementCenter.isAutomatedRun,
+              let firstClockOut = completedSessions.compactMap(\.clockOut).min(),
+              Date().timeIntervalSince(firstClockOut) < Self.themeTipNewUserWindow else { return nil }
         return firstClockOut.addingTimeInterval(60)
+    }
+
+    private static let themeTipNewUserWindow: TimeInterval = 30 * 24 * 60 * 60
+
+    /// Anything covering Home — the door stops breathing while it can't be seen.
+    private var isCovered: Bool {
+        viewModel.showDaySummary || viewModel.showAssistant || showScanner || showForgotClockIn
+            || showThemePicker || showUserGuide || showAbout || showFeedback
     }
 
     /// Waits for the due time (and for the Day Summary or any picker to close), shows
@@ -444,6 +457,7 @@ struct HomeView: View {
                 compact: metrics.isCompact || metrics.isShort,
                 accent: homeTheme.accent,
                 breathes: true,
+                breathingPaused: isCovered,
                 stateColor: stateColor
             ) {
                 viewModel.clockOut()

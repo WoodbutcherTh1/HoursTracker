@@ -213,6 +213,8 @@ enum L10n {
         String(format: t("home.status.break %@"), "\(time)")
     }
     static var homeTimerPaused: String { t("home.timer.paused") }
+    static var homeHelpFeedback: String { t("home.helpFeedback") }
+    static var aboutMadeIn: String { t("about.madeIn") }
     static var homeStatsResetOrder: String { t("home.stats.resetOrder") }
     static var homeStatTodayPay: String { t("home.stat.todayPay") }
     static var homeStatWeekPay: String { t("home.stat.weekPay") }

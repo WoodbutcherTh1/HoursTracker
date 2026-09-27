@@ -1,0 +1,127 @@
+name: Design QA
+
+# Screenshot sweep of the redesigned screens across devices, languages, text
+# sizes and Reduce Motion (HoursTrackerUITests/DesignQATests.swift). Simulator
+# only — it complements, not replaces, a check on a real iPhone.
+#
+# Runs when a pushed commit message contains "[design-qa]", or by hand.
+on:
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    name: ${{ matrix.label }}
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[design-qa]')
+    runs-on: macos-26
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: SE-ar-XL-ReduceMotion
+            device: iPhone-SE-3rd-generation
+            lang: arabic
+            size: UICTContentSizeCategoryXL
+            reduce_motion: "true"
+            appearance: dark
+          - label: SE-he-XL-ReduceMotion
+            device: iPhone-SE-3rd-generation
+            lang: hebrew
+            size: UICTContentSizeCategoryXL
+            reduce_motion: "true"
+            appearance: dark
+          - label: 15Pro-ar-XL
+            device: iPhone-15-Pro
+            lang: arabic
+            size: UICTContentSizeCategoryXL
+            reduce_motion: "false"
+            appearance: dark
+          - label: 15Pro-he-XL
+            device: iPhone-15-Pro
+            lang: hebrew
+            size: UICTContentSizeCategoryXL
+            reduce_motion: "false"
+            appearance: dark
+          # Baseline: default text size, and the system in LIGHT mode to prove the
+          # app's dark surfaces don't turn light-on-light.
+          - label: 15Pro-en-default-lightSystem
+            device: iPhone-15-Pro
+            lang: english
+            size: ""
+            reduce_motion: "false"
+            appearance: light
+    steps:
+      # actions/checkout@v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Create and configure simulator
+        id: sim
+        run: |
+          RUNTIME=$(xcrun simctl list runtimes --json \
+            | jq -r '[.runtimes[] | select(.platform == "iOS" and .isAvailable)] | sort_by(.version) | last.identifier')
+          TYPE="com.apple.CoreSimulator.SimDeviceType.${{ matrix.device }}"
+          if ! xcrun simctl list devicetypes --json | jq -e --arg t "$TYPE" '.devicetypes[] | select(.identifier == $t)' >/dev/null; then
+            echo "::error::Device type $TYPE is not available on this runner"
+            xcrun simctl list devicetypes
+            exit 1
+          fi
+          UDID=$(xcrun simctl create "QA ${{ matrix.label }}" "$TYPE" "$RUNTIME")
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl ui "$UDID" appearance "${{ matrix.appearance }}"
+          if [ "${{ matrix.reduce_motion }}" = "true" ]; then
+            xcrun simctl spawn "$UDID" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true
+          fi
+          echo "Runtime $RUNTIME, device $TYPE, udid $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Run Design QA sweep
+        env:
+          TEST_RUNNER_DESIGN_QA: "1"
+          TEST_RUNNER_QA_LABEL: ${{ matrix.label }}
+          TEST_RUNNER_QA_LANG: ${{ matrix.lang }}
+          TEST_RUNNER_QA_CONTENT_SIZE: ${{ matrix.size }}
+        run: |
+          xcodebuild test \
+            -project HoursTracker.xcodeproj \
+            -scheme HoursTracker \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -only-testing:HoursTrackerUITests/DesignQATests \
+            -resultBundlePath qa.xcresult
+
+      - name: Export screenshots
+        if: always()
+        run: |
+          mkdir -p raw shots
+          if [ -d qa.xcresult ]; then
+            xcrun xcresulttool export attachments --path qa.xcresult --output-path raw || true
+          fi
+          python3 - <<'EOF'
+          import json, os, shutil
+          manifest = os.path.join("raw", "manifest.json")
+          if os.path.exists(manifest):
+              for test in json.load(open(manifest)):
+                  for item in test.get("attachments", []):
+                      name = item.get("suggestedHumanReadableName") or item["exportedFileName"]
+                      shutil.copy(os.path.join("raw", item["exportedFileName"]), os.path.join("shots", name))
+          print("\n".join(sorted(os.listdir("shots"))))
+          EOF
+
+      # actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: design-qa-${{ matrix.label }}
+          path: shots
+          retention-days: 14
