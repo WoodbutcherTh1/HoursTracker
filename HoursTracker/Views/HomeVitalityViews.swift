@@ -208,7 +208,11 @@ struct HomeAnimatedDoorButton: View {
         Button {
             guard !isBusy else { return }
             isBusy = true
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            // Clock Out's one haptic is the Day Summary's success tap when it appears —
+            // a second buzz here would crowd it.
+            if mode == .clockIn {
+                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            }
 
             let duration: TimeInterval = reduceMotion ? 0.2 : 0.55
             withAnimation(.spring(response: duration, dampingFraction: 0.78)) {
@@ -247,6 +251,7 @@ struct HomeAnimatedDoorButton: View {
         .buttonStyle(ScalePressButtonStyle())
         .disabled(isBusy)
         .accessibilityLabel(title)
+        .accessibilityIdentifier(mode == .clockIn ? "home.clockIn" : "home.clockOut")
         .onChange(of: mode) { _, newMode in
             isOpen = (newMode == .clockOut)
             isBusy = false

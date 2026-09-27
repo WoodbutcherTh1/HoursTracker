@@ -36,6 +36,13 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
                 defaults.removeObject(forKey: key)
             }
         }
+        // Day Summary swipe test (HoursTrackerUITests/DaySummarySwipeUITests.swift): no
+        // onboarding, English, and an empty history so the new shift is the only row.
+        if ProcessInfo.processInfo.arguments.contains("UITEST_DAY_SUMMARY") {
+            UserDefaults.standard.set(true, forKey: "hasSeenOnboarding.v1")
+            UserDefaults.standard.set(AppLanguageOption.english.rawValue, forKey: AppLanguageOption.storageKey)
+            AppViewModel.shared.deleteAllUserData()
+        }
         #endif
         UNUserNotificationCenter.current().delegate = self
         ShiftReminderScheduler.registerCategories()

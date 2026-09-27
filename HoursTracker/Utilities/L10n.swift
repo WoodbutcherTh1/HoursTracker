@@ -75,6 +75,27 @@ enum L10n {
 
     // Summary
     static var summaryDayComplete: String { t("summary.dayComplete") }
+    // MARK: Day Summary (Pay Card)
+    static var sumTitle: String { t("sum.title") }
+    static var sumNoteGross: String { t("sum.noteGross") }
+    static var sumNoteNet: String { t("sum.noteNet") }
+    static var sumRowRegular: String { t("sum.rowRegular") }
+    static var sumRow125: String { t("sum.row125") }
+    static var sumRow150: String { t("sum.row150") }
+    static var sumRowBreaks: String { t("sum.rowBreaks") }
+    static var sumBreakPaid: String { t("sum.breakPaid") }
+    static var sumBreakUnpaid: String { t("sum.breakUnpaid") }
+    static func sumDeductions(_ value: CustomStringConvertible) -> String {
+        String(format: t("sum.deductions %@"), "\(value)")
+    }
+    static var sumCreditPointsInfo: String { t("sum.creditPointsInfo") }
+    static func sumWeek(_ v1: CustomStringConvertible, _ v2: CustomStringConvertible) -> String {
+        String(format: t("sum.week %1$@ %2$@"), "\(v1)", "\(v2)")
+    }
+    static var sumHomeSyncNet: String { t("sum.homeSyncNet") }
+    static var sumHomeSyncGross: String { t("sum.homeSyncGross") }
+    static var sumRateMissing: String { t("sum.rateMissing") }
+    static var sumRateSave: String { t("sum.rateSave") }
     static var summaryRegular: String { t("summary.regular") }
     static var summaryOT125: String { t("summary.ot125") }
     static var summaryOT150: String { t("summary.ot150") }

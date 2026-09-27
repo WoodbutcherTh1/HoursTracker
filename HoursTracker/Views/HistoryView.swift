@@ -787,6 +787,7 @@ struct HistoryView: View {
                 List {
                     ForEach(Array(rows.enumerated()), id: \.element.id) { index, session in
                         sessionRow(session, striped: index.isMultiple(of: 2))
+                            .accessibilityIdentifier("history.sessionRow")
                             .contentShape(Rectangle())
                             .onTapGesture {
                                 selectedSession = session

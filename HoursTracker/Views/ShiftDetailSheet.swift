@@ -220,6 +220,9 @@ struct EditSessionView: View {
     let session: WorkSession
     /// Called after a successful delete so parent sheets (e.g. Shift Details) can close too.
     var onDeleted: (() -> Void)? = nil
+    /// When set, the editor is shown in place inside another sheet (the Day Summary):
+    /// Cancel / Save hand control back through this instead of dismissing.
+    var onFinish: (() -> Void)? = nil
     @Environment(\.dismiss) private var dismiss
 
     @State private var clockIn: Date
@@ -233,11 +236,13 @@ struct EditSessionView: View {
     init(
         viewModel: AppViewModel,
         session: WorkSession,
-        onDeleted: (() -> Void)? = nil
+        onDeleted: (() -> Void)? = nil,
+        onFinish: (() -> Void)? = nil
     ) {
         self.viewModel = viewModel
         self.session = session
         self.onDeleted = onDeleted
+        self.onFinish = onFinish
         _clockIn = State(initialValue: session.clockIn)
         _clockOut = State(initialValue: session.clockOut ?? Date())
         _notes = State(initialValue: session.notes ?? "")
@@ -318,7 +323,7 @@ struct EditSessionView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.editCancel) { dismiss() }
+                    Button(L10n.editCancel) { finish() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button(L10n.editSave) {
@@ -332,7 +337,7 @@ struct EditSessionView: View {
                             isNightShift: isNightShift
                         )
                         viewModel.showSuccessToast(L10n.feedbackSessionUpdated)
-                        dismiss()
+                        finish()
                     }
                     .disabled(dayType != .sick && sameClockTimes)
                 }
@@ -351,6 +356,14 @@ struct EditSessionView: View {
                 }
                 Button(L10n.editCancel, role: .cancel) {}
             }
+        }
+    }
+
+    private func finish() {
+        if let onFinish {
+            onFinish()
+        } else {
+            dismiss()
         }
     }
 

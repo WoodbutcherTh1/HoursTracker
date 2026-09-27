@@ -8,12 +8,16 @@ struct PayCardView: View {
     struct Row: Identifiable {
         let label: String
         let value: String
+        /// 6pt tier dot on the leading edge — pay-tier rows only (100/125/150%).
+        var dot: Color?
         var id: String { label }
     }
 
     let amount: Double
     let currencyCode: String
     let caption: String
+    /// Small second line under the caption (e.g. "estimate only · before tax").
+    var note: String?
     var title: String?
     var regularHours: Double = 0
     var ot125Hours: Double = 0
@@ -22,9 +26,13 @@ struct PayCardView: View {
     var accent: Color
     /// Count up from zero once when the card appears (skipped under Reduce Motion).
     var countsUp = true
+    /// Settle from 98% to full size when the card appears (skipped under Reduce Motion).
+    var popsIn = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var shown: Double = 0
+    @State private var hasRevealed = false
+    @State private var popped = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: DS.Space.md) {
@@ -43,16 +51,31 @@ struct PayCardView: View {
                 Text(caption)
                     .dsFont(.meta)
                     .foregroundStyle(DS.Palette.textTertiary)
+                if let note {
+                    Text(note)
+                        .dsFont(.meta)
+                        .foregroundStyle(DS.Palette.textTertiary)
+                }
             }
             .accessibilityElement(children: .ignore)
-            .accessibilityLabel("\(PayFormatter.string(amount, currencyCode: currencyCode)), \(caption)")
+            .accessibilityLabel(
+                [PayFormatter.string(amount, currencyCode: currencyCode), caption, note]
+                    .compactMap { $0 }
+                    .joined(separator: ", ")
+            )
 
             PayTierBar(regular: regularHours, ot125: ot125Hours, ot150: ot150Hours, accent: accent)
 
             if !rows.isEmpty {
                 VStack(spacing: DS.Space.xs) {
                     ForEach(rows) { row in
-                        HStack {
+                        HStack(spacing: DS.Space.xs) {
+                            if let dot = row.dot {
+                                Circle()
+                                    .fill(dot)
+                                    .frame(width: 6, height: 6)
+                                    .accessibilityHidden(true)
+                            }
                             Text(row.label)
                                 .dsFont(.sub)
                                 .foregroundStyle(DS.Palette.textSecondary)
@@ -70,11 +93,27 @@ struct PayCardView: View {
         .padding(DS.Space.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
         .dsCard(radius: DS.Radius.xl)
-        .onAppear { reveal() }
-        .onChange(of: amount) { _, _ in reveal() }
+        .scaleEffect(popsIn && !popped && !reduceMotion ? 0.98 : 1)
+        .onAppear {
+            reveal()
+            if popsIn, !reduceMotion {
+                withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) { popped = true }
+            }
+        }
+        .onChange(of: amount) { _, newValue in
+            // A later change (gross ↔ net, an edit) moves from the current figure
+            // to the new one — only the first appearance counts up from zero.
+            if reduceMotion {
+                shown = newValue
+            } else {
+                withAnimation(DS.Motion.state) { shown = newValue }
+            }
+        }
     }
 
     private func reveal() {
+        guard !hasRevealed else { return }
+        hasRevealed = true
         guard countsUp, !reduceMotion else {
             shown = amount
             return
