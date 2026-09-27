@@ -25,6 +25,17 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             // directly so screenshots render in English regardless of simulator/device locale.
             UserDefaults.standard.set(AppLanguageOption.english.rawValue, forKey: AppLanguageOption.storageKey)
         }
+        // Onboarding RTL test (HoursTrackerUITests/OnboardingRTLUITests.swift): start the
+        // onboarding fresh, in Arabic, with no saved draft.
+        if ProcessInfo.processInfo.arguments.contains("UITEST_ONBOARDING_AR") {
+            let defaults = UserDefaults.standard
+            defaults.set(false, forKey: "hasSeenOnboarding.v1")
+            defaults.set(AppLanguageOption.arabic.rawValue, forKey: AppLanguageOption.storageKey)
+            for key in ["onboarding.lastStep", "onboarding.draft.rate", "onboarding.draft.pattern",
+                        "onboarding.draft.days", "onboarding.draft.hours"] {
+                defaults.removeObject(forKey: key)
+            }
+        }
         #endif
         UNUserNotificationCenter.current().delegate = self
         ShiftReminderScheduler.registerCategories()

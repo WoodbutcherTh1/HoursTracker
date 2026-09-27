@@ -44,6 +44,15 @@ struct OnboardingView: View {
     @State private var selectionTick = 0
     @FocusState private var rateFocused: Bool
 
+    // Draft of the flow, so changing the language from the globe — which reloads
+    // the whole app, this cover included — returns to the same step with the same
+    // answers instead of starting over. Cleared when onboarding finishes.
+    @AppStorage("onboarding.lastStep") private var savedStep = -1
+    @AppStorage("onboarding.draft.rate") private var savedRate = ""
+    @AppStorage("onboarding.draft.pattern") private var savedPattern = ""
+    @AppStorage("onboarding.draft.days") private var savedDays = ""
+    @AppStorage("onboarding.draft.hours") private var savedHours = 0
+
     private var accent: Color { homeTheme.accent }
     private var rate: Double? { OnboardingEstimate.parseRate(rateText) }
 
@@ -81,10 +90,49 @@ struct OnboardingView: View {
         .sensoryFeedback(.success, trigger: successTick)
         .sensoryFeedback(.selection, trigger: selectionTick)
         .onAppear {
+            restoreDraft()
             if viewModel.settings.hourlyRate > 0, rateText.isEmpty {
                 rateText = Self.plainNumber(viewModel.settings.hourlyRate)
             }
         }
+        .onChange(of: step) { _, _ in saveDraft() }
+        .onChange(of: rateText) { _, _ in saveDraft() }
+        .onChange(of: pattern) { _, _ in saveDraft() }
+        .onChange(of: customDays) { _, _ in saveDraft() }
+        .onChange(of: weeklyHours) { _, _ in saveDraft() }
+    }
+
+    // MARK: - Draft (survives a language change)
+
+    private func saveDraft() {
+        savedStep = step.rawValue
+        savedRate = rateText
+        savedPattern = pattern.rawValue
+        savedDays = customDays.sorted().map(String.init).joined(separator: ",")
+        savedHours = touchedWeeklyHours || step.rawValue >= Step.weeklyHours.rawValue ? weeklyHours : 0
+    }
+
+    private func restoreDraft() {
+        guard savedStep >= 0, let restored = Step(rawValue: savedStep) else { return }
+        rateText = savedRate
+        pattern = WeekPattern(rawValue: savedPattern) ?? .fiveDays
+        customDays = Set(savedDays.split(separator: ",").compactMap { Int($0) })
+        if savedHours > 0 {
+            weeklyHours = savedHours
+            touchedWeeklyHours = true
+        }
+        answeredWeek = restored.rawValue > Step.workType.rawValue
+        answeredHours = restored == .result
+        movingForward = true
+        step = restored
+    }
+
+    private func clearDraft() {
+        savedStep = -1
+        savedRate = ""
+        savedPattern = ""
+        savedDays = ""
+        savedHours = 0
     }
 
     // MARK: - Top bar
@@ -195,10 +243,11 @@ struct OnboardingView: View {
 
     /// Small brand mark in the hero corner (the full icon is kept for marketing art).
     private var appMark: some View {
-        RoundedRectangle(cornerRadius: 7, style: .continuous)
+        RoundedRectangle(cornerRadius: DS.Radius.sm, style: .continuous)
             .fill(accent.opacity(0.15))
             .overlay(
-                Image(systemName: "hourglass")
+                Image(systemName: "hourglass.bottomhalf.filled")
+                    .symbolRenderingMode(.hierarchical)
                     .htFont(size: 15, relativeTo: .subheadline, weight: .semibold)
                     .foregroundStyle(accent)
             )
@@ -235,13 +284,16 @@ struct OnboardingView: View {
                     .foregroundStyle(DS.Palette.textPrimary)
                     .tint(accent)
                     .accessibilityLabel(L10n.onbRateA11y)
-                if rate != nil {
-                    Image(systemName: "checkmark.circle.fill")
-                        .htFont(size: 17, relativeTo: .body, weight: .semibold)
-                        .foregroundStyle(DS.Palette.success)
-                        .transition(.opacity)
-                        .accessibilityHidden(true)
-                }
+                    .accessibilityIdentifier("onboarding.rateField")
+                // Always in the row (just faded) so the field never resizes and the
+                // typed digits never shift when the value turns valid.
+                Image(systemName: "checkmark.circle.fill")
+                    .htFont(size: 17, relativeTo: .body, weight: .semibold)
+                    .foregroundStyle(DS.Palette.success)
+                    .opacity(rate != nil ? 1 : 0)
+                    .accessibilityHidden(rate == nil)
+                    .accessibilityLabel(L10n.onbRateA11y)
+                    .accessibilityIdentifier("onboarding.rateValid")
             }
             .environment(\.layoutDirection, .leftToRight)
             .padding(.horizontal, DS.Space.lg)
@@ -505,6 +557,7 @@ struct OnboardingView: View {
             Button(primaryTitle, action: advance)
                 .buttonStyle(DSPrimaryButtonStyle(accent: accent, isEnabled: canAdvance))
                 .disabled(!canAdvance)
+                .accessibilityIdentifier("onboarding.primary")
         }
         .padding(.horizontal, DS.Space.lg)
         .padding(.bottom, rateFocused ? DS.Space.sm : DS.Space.xl)
@@ -576,6 +629,7 @@ struct OnboardingView: View {
 
     private func skip() {
         saveAnswers()
+        clearDraft()
         dismiss()
     }
 
@@ -584,6 +638,7 @@ struct OnboardingView: View {
         if clockIn, viewModel.canClockIn {
             viewModel.clockIn()
         }
+        clearDraft()
         // Dismissal sets `hasSeenOnboarding` via the cover binding.
         dismiss()
     }

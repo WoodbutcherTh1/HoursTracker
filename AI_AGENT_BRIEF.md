@@ -132,6 +132,14 @@ project.yml                      ← XcodeGen manifest (the .xcodeproj is genera
 7. **Feedback**: `ContactSupportSheet` → `TelegramFeedbackSender` (optionally attaching `ActivityLogStore` export) → Bot API → developer's Telegram channel.
 8. **Widgets/Live Activities**: extension reads shared state from the App Group, renders timelines, interactive buttons run App Intents that mutate the app's store and `WidgetCenter`-reload; deep links (`hourstracker://`) route back into specific screens.
 
+## Legally Sensitive Fields
+
+Rest days change the pay premium; never bind `WeekPattern` to them.
+
+- `WorkplaceSettings.restDayWeekday` / `secondRestDayWeekday` are the **legal weekly rest day(s)** (Shabbat, Friday or Sunday depending on the worker). Work on them is paid at a premium, so they are pay inputs — not "days I usually don't work".
+- The onboarding's week pattern (5 days / 6 days / varies / custom days) and `weeklyGoalHoursDisplayOnly` are **display-only** (`DisplayPreferences`, `Models/OnboardingSetup.swift`). They drive previews and goals only and must never be copied into rest days, `weeklyStandardHours` (the legal overtime threshold) or any other pay input. `OnboardingSetupTests.testDisplayOnlyPreferencesNeverReachPayMath` pins this.
+- Any new "convenience" question that looks like a schedule (days off, expected hours, shift type) follows the same rule: store it as a display preference; change pay inputs only through Settings, where the user sees the legal meaning.
+
 ## Quick facts
 
 - **Bundle IDs**: `com.hourstracker.app` (+ `.widget`, `.watchkitapp`, `.tests`, `.uitests`). Team `FQUC6DU87N`.

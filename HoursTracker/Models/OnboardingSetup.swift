@@ -3,8 +3,13 @@ import Foundation
 /// How the user's work week looks, asked during onboarding.
 ///
 /// DISPLAY ONLY — never used in pay math. It drives the onboarding estimate and
-/// default weekly hours only; it does NOT set the legal rest days (Shabbat /
-/// Friday / Sunday premiums), which stay whatever Settings says.
+/// default weekly hours only.
+///
+/// Legally sensitive: do NOT bind this to `restDayWeekday` / `secondRestDayWeekday`.
+/// Those are the legal weekly rest days (Shabbat / Friday / Sunday) and work on them
+/// earns a premium — "a day I don't usually work" is not a rest day. Someone who
+/// works Friday and Saturday picks them here as workdays; their legal rest day is
+/// still whatever Settings says. See AI_AGENT_BRIEF.md → Legally Sensitive Fields.
 enum WeekPattern: String, CaseIterable, Identifiable {
     case fiveDays
     case sixDays

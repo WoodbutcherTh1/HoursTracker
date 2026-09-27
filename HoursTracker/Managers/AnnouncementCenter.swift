@@ -123,7 +123,7 @@ final class AnnouncementCenter: ObservableObject {
     static var isAutomatedRun: Bool {
         let info = ProcessInfo.processInfo
         return info.environment["XCTestConfigurationFilePath"] != nil
-            || info.arguments.contains("UITEST_SCREENSHOTS")
+            || info.arguments.contains { $0.hasPrefix("UITEST_") }
     }
 
     static func shouldRegister(force: Bool, changed: Bool, lastRegistered: Date, now: Date = Date()) -> Bool {
