@@ -34,7 +34,24 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         ShiftIntentRouter.applyPending = {
             AppViewModel.shared.consumeWidgetActionIfNeeded()
         }
+        // Push token for owner announcements. Alerts still only show once the
+        // user has allowed notifications; the token itself needs no prompt.
+        AnnouncementCenter.shared.requestPushToken()
         return true
+    }
+
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        AnnouncementCenter.shared.didReceivePushToken(deviceToken)
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        // No push (e.g. simulator); in-app announcements still arrive on refresh.
     }
 
     func application(
@@ -71,7 +88,12 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping () -> Void
     ) {
         let action = response.actionIdentifier
+        let isAnnouncement = response.notification.request.content.userInfo["announcementId"] != nil
         Task { @MainActor in
+            if isAnnouncement {
+                // Tapping an owner announcement opens its full text in the app.
+                AnnouncementCenter.shared.refresh(force: true)
+            }
             let viewModel = AppViewModel.shared
             switch action {
             case ShiftReminderScheduler.clockInAction where viewModel.canClockIn:

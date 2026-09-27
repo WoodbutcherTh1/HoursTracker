@@ -11,6 +11,10 @@
   or receive Clock In/Out button taps.
 -->
 <dict>
+	<!-- Push for owner announcements (Phase 6). Automatic signing switches this
+	     to "production" when the build is exported for TestFlight/App Store. -->
+	<key>aps-environment</key>
+	<string>development</string>
 	<key>com.apple.security.application-groups</key>
 	<array>
 		<string>group.com.hourstracker.app</string>

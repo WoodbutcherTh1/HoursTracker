@@ -69,6 +69,7 @@ struct HoursTrackerApp: App {
                 WidgetActionBroadcaster.shared.installIfNeeded()
                 viewModel.consumeWidgetActionIfNeeded()
                 viewModel.refreshAppShortcuts()
+                AnnouncementCenter.shared.refresh()
                 if appLock.isEnabled {
                     Task { await appLock.unlock() }
                 }
@@ -85,6 +86,7 @@ struct HoursTrackerApp: App {
                     viewModel.syncNow()
                     viewModel.refreshShiftReminders()
                     viewModel.takeDailyBackupIfNeeded()
+                    AnnouncementCenter.shared.refresh()
                     if appLock.isEnabled && appLock.isLocked {
                         Task { await appLock.unlock() }
                     }
@@ -131,6 +133,7 @@ struct MainTabView: View {
     // color and every standard button/toggle/link tint across History, Export, and
     // Settings, not just Home's own neon-styled elements.
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
+    @ObservedObject private var announcements = AnnouncementCenter.shared
 
     /// A scan that completes while the assistant is already open stays queued rather
     /// than yanking the assistant away mid-conversation: the existing "ready for review"
@@ -221,6 +224,17 @@ struct MainTabView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.undoableDeletion?.id)
+        // Owner announcements (in the user's language), one at a time, until "Got it".
+        .overlay(alignment: .top) {
+            if let announcement = announcements.current {
+                AnnouncementBanner(announcement: announcement) {
+                    announcements.dismissCurrent()
+                }
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: announcements.current?.id)
         // A single routed sheet — see `MainSheetRoute` — rather than one
         // `.sheet(isPresented:)` per case, so the assistant and the scanner-review sheet
         // (which a background scan can request at any moment) can never both be live at

@@ -84,6 +84,17 @@ Privacy manifest reason: `CA92.1` (see `PrivacyInfo.xcprivacy`).
 
 These are the only outbound network traffic in the app besides CloudKit. Conversation history is in-memory only (not persisted, not synced, cleared on sheet close). See `docs/PRIVACY_MANIFEST.md` and `docs/ARCHITECTURE.md` ("Networking gate") for the reasoning and the exception to the no-general-networking rule.
 
+## Device registration & announcements (Supabase `devices`, Phase 6)
+
+| Field | Where | Linked to account | Retention | Deleted by |
+|---|---|---|---|---|
+| Random install id (`announcements.installID`, UserDefaults) | Device + `devices.id` | Only when signed in (`user_id` from the verified session, never the request body) | Until delete-all | `AnnouncementCenter.forget()` on delete-all (row deleted server-side) |
+| APNs push token | Device + `devices.apns_token` | Same | Cleared when APNs reports it invalid | Same |
+| In-app language, app/build/iOS version, has Watch, has widget, announcements on/off | `devices` | Same | Updated on each registration | Same |
+| Which announcements were shown | `announcement_targets.seen_at` | Via device | Cascades with device / announcement | Same |
+
+Never sent: shifts, pay, name, ID number, employer, location. Tables are RLS-locked with no policies; only the `register-device` and `admin-api` Edge Functions (service role) touch them. The admin dashboard gets aggregate counts only (`admin_stats()`); "selected users" targeting resolves emails server-side and returns only a count plus unknown emails. CI / test runs never register (`AnnouncementCenter.isAutomatedRun`).
+
 ## Tombstones (`session_tombstones.json`)
 
 | Field | Storage | Protection | Retention | Deleted by |
@@ -111,4 +122,4 @@ These are the only outbound network traffic in the app besides CloudKit. Convers
 
 ## Not collected
 
-No analytics, advertising IDs, crash reporters, or developer-operated servers. (The opt-in cloud AI features — Smart Scanner extraction and the Assistant — send text to a third-party AI provider the user configures, see the section above, but HoursTracker itself has no backend.) See `PrivacyInfo.xcprivacy` and `docs/PRIVACY_MANIFEST.md`.
+No analytics, advertising IDs or crash reporters. The only developer-operated server is the Supabase project (account backup, feedback relay, and the announcement device registry above). (The opt-in cloud AI features — Smart Scanner extraction and the Assistant — send text to a third-party AI provider the user configures, see the section above, and are separate from HoursTracker's own server.) See `PrivacyInfo.xcprivacy` and `docs/PRIVACY_MANIFEST.md`.

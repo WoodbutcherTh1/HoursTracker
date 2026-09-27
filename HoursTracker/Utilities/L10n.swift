@@ -322,6 +322,81 @@ enum L10n {
     static var feedbackSessionUpdated: String { t("feedback.sessionUpdated") }
     static var feedbackSessionDeleted: String { t("feedback.sessionDeleted") }
     static var undoDelete: String { t("undo.delete") }
+    // MARK: Admin (owner dashboard)
+    static var adminTitle: String { t("admin.title") }
+    static var adminSettingsEntry: String { t("admin.settingsEntry") }
+    static var adminSettingsFooter: String { t("admin.settingsFooter") }
+    static var adminStats: String { t("admin.stats") }
+    static var adminStatsFooter: String { t("admin.statsFooter") }
+    static var adminStatDevices: String { t("admin.stat.devices") }
+    static var adminStatActive1d: String { t("admin.stat.active1d") }
+    static var adminStatActive7d: String { t("admin.stat.active7d") }
+    static var adminStatActive30d: String { t("admin.stat.active30d") }
+    static var adminStatAccounts: String { t("admin.stat.accounts") }
+    static var adminStatPush: String { t("admin.stat.push") }
+    static var adminStatWatch: String { t("admin.stat.watch") }
+    static var adminStatWidget: String { t("admin.stat.widget") }
+    static var adminStatLanguages: String { t("admin.stat.languages") }
+    static var adminStatVersions: String { t("admin.stat.versions") }
+    static var adminAnnouncements: String { t("admin.announcements") }
+    static var adminCompose: String { t("admin.compose") }
+    static var adminHistory: String { t("admin.history") }
+    static var adminHistoryEmpty: String { t("admin.history.empty") }
+    static func adminHistoryCounts(_ v1: CustomStringConvertible, _ v2: CustomStringConvertible, _ v3: CustomStringConvertible) -> String {
+        String(format: t("admin.history.counts %1$@ %2$@ %3$@"), "\(v1)", "\(v2)", "\(v3)")
+    }
+    static var adminMessage: String { t("admin.message") }
+    static var adminLanguage: String { t("admin.language") }
+    static var adminTitleField: String { t("admin.titleField") }
+    static var adminBodyField: String { t("admin.bodyField") }
+    static func adminTranslate(_ value: CustomStringConvertible) -> String {
+        String(format: t("admin.translate %@"), "\(value)")
+    }
+    static var adminTranslateHint: String { t("admin.translateHint") }
+    static var adminTranslateNeedsKey: String { t("admin.translateNeedsKey") }
+    static func adminMissingLanguages(_ value: CustomStringConvertible) -> String {
+        String(format: t("admin.missingLanguages %@"), "\(value)")
+    }
+    static var adminAudience: String { t("admin.audience") }
+    static var adminAudienceAll: String { t("admin.audience.all") }
+    static var adminAudienceLanguage: String { t("admin.audience.language") }
+    static var adminAudienceVersion: String { t("admin.audience.version") }
+    static var adminAudienceUsers: String { t("admin.audience.users") }
+    static var adminVersionsField: String { t("admin.versionsField") }
+    static var adminEmailsField: String { t("admin.emailsField") }
+    static func adminAudienceCount(_ v1: CustomStringConvertible, _ v2: CustomStringConvertible) -> String {
+        String(format: t("admin.audienceCount %1$@ %2$@"), "\(v1)", "\(v2)")
+    }
+    static func adminUnmatchedEmails(_ value: CustomStringConvertible) -> String {
+        String(format: t("admin.unmatchedEmails %@"), "\(value)")
+    }
+    static var adminNoRecipients: String { t("admin.noRecipients") }
+    static var adminDelivery: String { t("admin.delivery") }
+    static var adminDeliverPush: String { t("admin.deliverPush") }
+    static var adminDeliverInApp: String { t("admin.deliverInApp") }
+    static var adminSend: String { t("admin.send") }
+    static func adminConfirmTitle(_ value: CustomStringConvertible) -> String {
+        String(format: t("admin.confirmTitle %@"), "\(value)")
+    }
+    static func adminConfirmMessage(_ value: CustomStringConvertible) -> String {
+        String(format: t("admin.confirmMessage %@"), "\(value)")
+    }
+    static var adminSentTitle: String { t("admin.sentTitle") }
+    static func adminSentMessage(_ v1: CustomStringConvertible, _ v2: CustomStringConvertible, _ v3: CustomStringConvertible) -> String {
+        String(format: t("admin.sentMessage %1$@ %2$@ %3$@"), "\(v1)", "\(v2)", "\(v3)")
+    }
+    static func adminSentPushNotConfigured(_ value: CustomStringConvertible) -> String {
+        String(format: t("admin.sentPushNotConfigured %@"), "\(value)")
+    }
+    static var adminErrorNotSignedIn: String { t("admin.error.notSignedIn") }
+    static var adminErrorForbidden: String { t("admin.error.forbidden") }
+    static var adminErrorRateLimited: String { t("admin.error.rateLimited") }
+    static func adminErrorServer(_ value: CustomStringConvertible) -> String {
+        String(format: t("admin.error.server %@"), "\(value)")
+    }
+    static var settingsNotificationsAnnouncements: String { t("settings.notifications.announcements") }
+    static var announcementHeader: String { t("announcement.header") }
+    static var announcementDismiss: String { t("announcement.dismiss") }
     static var dataSafetySection: String { t("dataSafety.section") }
     static var dataSafetyHint: String { t("dataSafety.hint") }
     static var dataSafetyRecentlyDeleted: String { t("dataSafety.recentlyDeleted") }

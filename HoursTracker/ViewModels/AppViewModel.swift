@@ -892,6 +892,7 @@ final class AppViewModel: ObservableObject {
         deletedSessions.removeAll()
         backups.removeAll()
         clearUndo()
+        AnnouncementCenter.shared.forget()
         accountBackupTask?.cancel()
         PersistenceManager.shared.wipeQuarantinedSidecars()
         SessionTombstoneStore.shared.removeAll()

@@ -15,6 +15,7 @@ struct SettingsView: View {
     @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
     @ObservedObject private var accountAuth = SupabaseAuthManager.shared
+    @ObservedObject private var admin = AdminAPIClient.shared
     @ObservedObject private var notificationPrefs = NotificationPreferences.shared
     @EnvironmentObject private var appLock: AppLockController
     @EnvironmentObject private var appLanguage: AppLanguageController
@@ -68,6 +69,9 @@ struct SettingsView: View {
                     syncSection
                 }
                 dataSafetySection
+                if admin.isAdmin {
+                    adminSection
+                }
                 toolsSection
                 languageSection
                 aboutSection
@@ -95,6 +99,9 @@ struct SettingsView: View {
                     AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
                 }
             }
+            // Asks the server whether this account is an admin; the server enforces
+            // it again on every admin call.
+            .task(id: accountAuth.currentUserID) { await admin.checkAccess() }
             .onAppear {
                 draft = viewModel.settings
                 viewModel.refreshLocationPermissionStatuses()
@@ -452,6 +459,11 @@ struct SettingsView: View {
                 usualScheduleSummary
             }
 
+            Toggle(L10n.settingsNotificationsAnnouncements, isOn: $notificationPrefs.announcementsEnabled)
+                .onChange(of: notificationPrefs.announcementsEnabled) { _, _ in
+                    AnnouncementCenter.shared.refresh(force: true)
+                }
+
             if viewModel.areLocationNotificationsDenied {
                 Text(L10n.settingsNotificationsDenied)
                     .font(.caption)
@@ -542,6 +554,20 @@ struct SettingsView: View {
             Text(L10n.dataSafetySection)
         } footer: {
             Text(L10n.dataSafetyHint)
+        }
+    }
+
+    private var adminSection: some View {
+        Section {
+            NavigationLink {
+                AdminDashboardView()
+            } label: {
+                Label(L10n.adminSettingsEntry, systemImage: "crown")
+            }
+        } header: {
+            Text(L10n.adminTitle)
+        } footer: {
+            Text(L10n.adminSettingsFooter)
         }
     }
 

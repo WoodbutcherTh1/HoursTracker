@@ -1,6 +1,6 @@
 # Privacy Policy — HoursTracker
 
-**Last updated:** 29 August 2026
+**Last updated:** 27 September 2026
 
 HoursTracker (“the App”) is a personal work-hours companion for a single worker. This policy explains what data the App stores and how it is used.
 
@@ -28,6 +28,16 @@ The same setting and the same API key also power the in-app **Assistant** (the i
 ## iCloud sync (optional)
 iCloud sync is **off by default**. If you turn on **Sync with iCloud** in Settings (only available in builds that include CloudKit), work sessions and workplace settings are stored in **your** private iCloud database under your Apple ID. We do not operate a server that receives this data. Turning sync off offers to delete already-uploaded iCloud copies. **Delete All My Data** also erases local data and, when sync is available, your private iCloud copies.
 
+## Announcements from the HoursTracker team
+So we can send occasional news (for example a new version or an important fix) in **your** app language, the App registers with our server (hosted on Supabase, EU region):
+
+- a random install identifier created by the App (not your Apple ID or device serial),
+- the push notification token Apple gives the App,
+- your in-app language, the App and iOS version, and whether you use the Apple Watch app or a widget,
+- if you are signed in to a HoursTracker account, which account the device belongs to (so a message can be sent to specific users).
+
+Your shifts, pay, name, ID number or location are **never** sent for this. The team only sees totals (for example how many devices use each language) — never individual users' data. You can turn announcements off in **Settings → Notifications**; **Delete All My Data** removes this device from the server.
+
 ## Location
 - **While Using:** used only when you tap **Set Location** to save your workplace.
 - **Always:** used only if you enable **Arrival reminders**. Then the App monitors a single geofence around your saved workplace (region monitoring) to remind you to clock in on arrival. The App does **not** use the continuous background-location mode, does **not** continuously track your movements, and does **not** sell location data.
@@ -50,6 +60,7 @@ In **Settings** you can:
 - Turn Smart Scanner cloud extraction on or off (this also enables/disables the cloud Assistant), and remove your saved API key(s)
 - Hide the Assistant button, or leave it on but never use it — it only contacts the network when you send a question
 - Delete individual shifts
+- Turn off announcements from the HoursTracker team (Settings → Notifications)
 - Use **Delete All My Data** to erase sessions, settings, logs, and iCloud copies when sync is available
 
 ## Children

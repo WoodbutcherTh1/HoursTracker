@@ -91,7 +91,7 @@ on `claude/planning-requests-bb6hz1`. Status: ⬜ todo · 🟡 in progress · �
   overwrites an account copy that has shifts this device lacks).
 - Delete-all wipes the bin and backups too.
 
-## Phase 6 — Owner/Admin dashboard — C5
+## Phase 6 — Owner/Admin dashboard — C5 🟡 code done; needs owner setup (`docs/ADMIN_SETUP.md`) + CI + device test
 
 - Server-side roles in Supabase (owner = the account email); RLS + Edge
   Functions reject non-admins. Never trust a client-side email check alone.
@@ -146,4 +146,4 @@ Before merging, one end-to-end pass to make sure nothing conflicts:
 - This environment has no Xcode; builds are verified by CI, device testing by the owner.
 - More requests may be added as the owner remembers them.
 - Widget text is English-only today; localizing widgets (from `chat-session`) is tracked with Phase 7.
-- Notifications screen currently holds the break switches; shift reminders (Phase 5) and announcements (Phase 6) add their rows when they land. Location reminders stay in their own section for now.
+- Notifications screen holds the break, shift-reminder and announcements switches. Location reminders stay in their own section for now.
