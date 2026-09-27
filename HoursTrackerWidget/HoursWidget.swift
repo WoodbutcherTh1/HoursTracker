@@ -853,6 +853,7 @@ struct HoursWidgetBundle: WidgetBundle {
     var body: some Widget {
         HoursSmallWidget()
         HoursMediumWidget()
+        HoursLockScreenWidget()
         HoursLiveActivity()
     }
 }
