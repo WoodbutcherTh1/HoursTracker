@@ -15,12 +15,6 @@ final class ComprehensiveQATests: XCTestCase {
         app = XCUIApplication()
     }
 
-    // MARK: - Helper: Reset onboarding
-    private func resetOnboarding() {
-        app.launchArguments += ["-hasSeenOnboarding.v1", "false"]
-        app.launchArguments += ["-resetOnboarding", "1"]
-    }
-
     // MARK: - Helper: Dismiss onboarding (3 slides)
     private func dismissOnboarding() {
         let nextPred = NSPredicate(format: "label CONTAINS 'Next' OR label CONTAINS 'التالي' OR label CONTAINS 'הבא'")
@@ -72,6 +66,42 @@ final class ComprehensiveQATests: XCTestCase {
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
         let url = dir.appendingPathComponent("\(name).png")
         try? screenshot.pngRepresentation.write(to: url)
+    }
+
+    // MARK: - Helper: Scroll the Settings form until a field is reachable
+    /// The Pay & Hours section sits below the fold on every device, so a field
+    /// there is not queryable until the form has been scrolled.
+    private func scrollToTextField(_ identifier: String, maxSwipes: Int = 6) -> XCUIElement {
+        let field = app.textFields[identifier]
+        for _ in 0..<maxSwipes {
+            if field.exists && field.isHittable { break }
+            app.swipeUp()
+            Thread.sleep(forTimeInterval: 0.4)
+        }
+        return field
+    }
+
+    // MARK: - Helper: Normalize numerals
+    /// Maps Arabic-Indic and Extended Arabic-Indic digits onto ASCII so a typed
+    /// value can be asserted regardless of the locale's numeral system.
+    private func asciiDigits(_ text: String) -> String {
+        let map: [Character: Character] = [
+            "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4",
+            "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9",
+            "۰": "0", "۱": "1", "۲": "2", "۳": "3", "۴": "4",
+            "۵": "5", "۶": "6", "۷": "7", "۸": "8", "۹": "9"
+        ]
+        return String(text.map { map[$0] ?? $0 })
+    }
+
+    // MARK: - Helper: Dump every visible text field (diagnostics)
+    private func dumpTextFields(_ tag: String) {
+        let fields = app.textFields.allElementsBoundByIndex
+        print("[\(tag)] Total text fields visible: \(fields.count)")
+        for (i, f) in fields.enumerated() {
+            print("  [\(i)] id='\(f.identifier)' value='\(f.value as? String ?? "")' "
+                  + "placeholder='\(f.placeholderValue ?? "")' frame=\(f.frame)")
+        }
     }
 
     // MARK: ─────────────────────────────────────────────
@@ -445,36 +475,27 @@ final class ComprehensiveQATests: XCTestCase {
         Thread.sleep(forTimeInterval: 1.5)
         shot("s9-01-settings-initial")
 
-        // Worker info fields
-        let nameField = app.textFields.element(boundBy: 0)
-        print("[S9] Name field value: '\(nameField.value as? String ?? "n/a")'")
+        // Worker info fields — addressed by identifier, not by index
+        let nameField = app.textFields["settings.fullName"]
+        print("[S9] Name field exists: \(nameField.exists) value: '\(nameField.value as? String ?? "n/a")'")
         shot("s9-02-worker-info")
 
-        // Scroll down to Pay & Hours section to find Hourly Rate
-        app.swipeUp(); Thread.sleep(forTimeInterval: 0.5)
+        // Rate field — reached by its stable identifier
+        let rateField = scrollToTextField("settings.hourlyRate")
         shot("s9-02b-settings-pay-section")
-        // Rate field — find by placeholder "0" or numeric value, after scrolling to Pay section
-        // Log all text fields to find correct index
-        let allFields2 = app.textFields.allElementsBoundByIndex
-        print("[S9] Total text fields visible: \(allFields2.count)")
-        for (i, f) in allFields2.enumerated() {
-            print("  [\(i)] value='\(f.value as? String ?? "")' placeholder='\(f.placeholderValue ?? "")' frame=\(f.frame)")
-        }
-        // Find hourly rate field: look for field with "Hourly Rate" nearby or numeric value near 0
-        let rateLabel = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'Hourly Rate' OR label CONTAINS 'Rate'")).firstMatch
-        print("[S9] Hourly Rate label: \(rateLabel.exists) frame: \(rateLabel.frame)")
-        // Tap near the rate row — use coordinate approach
-        if rateLabel.waitForExistence(timeout: 3) {
-            let rateTapCoord = rateLabel.coordinate(withNormalizedOffset: CGVector(dx: 3.0, dy: 0.5))
-            rateTapCoord.tap(); Thread.sleep(forTimeInterval: 0.5)
-            shot("s9-03-rate-field-focused")
-            app.typeText("55")
-            Thread.sleep(forTimeInterval: 0.5)
-            shot("s9-04-rate-typed-55")
-        } else {
-            print("[S9] ⚠️ Hourly Rate label not found")
-            shot("s9-03-rate-field-missing")
-        }
+        dumpTextFields("S9")
+        XCTAssertTrue(rateField.waitForExistence(timeout: 5), "settings.hourlyRate not reachable")
+        print("[S9] Rate field frame: \(rateField.frame) hittable: \(rateField.isHittable)")
+        print("[S9] Rate value before: '\(rateField.value as? String ?? "")'")
+        shot("s9-03-rate-field-focused")
+
+        rateField.clearAndEnterText("55")
+        Thread.sleep(forTimeInterval: 0.6)
+        shot("s9-04-rate-typed-55")
+
+        let s9Raw = rateField.value as? String ?? ""
+        print("[S9] Rate value after typing 55: '\(s9Raw)'")
+        XCTAssertEqual(s9Raw, "55", "Rate field did not accept 55 — raw value was '\(s9Raw)'")
 
         // Scroll down to see more settings
         app.swipeUp(); Thread.sleep(forTimeInterval: 0.5)
@@ -489,10 +510,11 @@ final class ComprehensiveQATests: XCTestCase {
             shot("s9-06-settings-saved")
         }
 
-        // Notifications toggle
-        let notifPred = NSPredicate(format: "label CONTAINS 'Notif' OR label CONTAINS 'إشعار'")
-        let notifToggle = app.switches.matching(notifPred).firstMatch
-        print("[S9] Notifications toggle: \(notifToggle.exists)")
+        // Arrival-reminder switch — the only notification-related toggle in
+        // Settings. The old 'Notif' label probe could never match it, since the
+        // toggle's label says "arrival reminders" in every language.
+        let arrivalToggle = app.switches["settings.arrivalReminders"]
+        print("[S9] Arrival reminders toggle: \(arrivalToggle.exists) value: '\(arrivalToggle.value as? String ?? "")'")
 
         // Language picker
         let langPred = NSPredicate(format: "label CONTAINS 'Language' OR label CONTAINS 'لغة'")
@@ -652,34 +674,27 @@ final class ComprehensiveQATests: XCTestCase {
         settingsTab.tap(); Thread.sleep(forTimeInterval: 1.5)
         shot("bug1-ar-01-settings")
 
-        // Scroll to Pay & Hours section
-        app.swipeUp(); Thread.sleep(forTimeInterval: 0.5)
+        // Rate field by identifier. The previous label probe matched
+        // "الساعات القياسية" (Standard Hours) before "الأجر بالساعة" (Hourly
+        // Rate), so it measured the wrong row entirely.
+        let rateField = scrollToTextField("settings.hourlyRate")
         shot("bug1-ar-02-rate-section")
-
-        // Find Hourly Rate row by label
-        let rateLabelAr = app.staticTexts.matching(NSPredicate(format: "label CONTAINS 'أجر' OR label CONTAINS 'ساعة' OR label CONTAINS 'Hourly' OR label CONTAINS 'Rate'")).firstMatch
-        print("[BUG1-AR] Rate label: \(rateLabelAr.exists) '\(rateLabelAr.label)'")
+        dumpTextFields("BUG1-AR")
+        XCTAssertTrue(rateField.waitForExistence(timeout: 5), "settings.hourlyRate not reachable in Arabic")
+        print("[BUG1-AR] Rate field frame: \(rateField.frame) hittable: \(rateField.isHittable)")
+        print("[BUG1-AR] Rate value before: '\(rateField.value as? String ?? "")'")
         shot("bug1-ar-03-rate-field-default")
 
-        // Log all text fields
-        let allFields = app.textFields.allElementsBoundByIndex
-        print("[BUG1-AR] Total text fields: \(allFields.count)")
-        for (i, f) in allFields.enumerated() {
-            print("  [\(i)] val='\(f.value as? String ?? "")' placeholder='\(f.placeholderValue ?? "")' frame=\(f.frame)")
-        }
+        rateField.clearAndEnterText("55")
+        Thread.sleep(forTimeInterval: 0.6)
+        shot("bug1-ar-04-rate-typed-55")
 
-        // Try tapping right side of rate row to activate field
-        if rateLabelAr.waitForExistence(timeout: 3) {
-            let rateTap = rateLabelAr.coordinate(withNormalizedOffset: CGVector(dx: 3.0, dy: 0.5))
-            rateTap.tap(); Thread.sleep(forTimeInterval: 0.5)
-            shot("bug1-ar-04-rate-field-focused")
-            app.typeText("55")
-            Thread.sleep(forTimeInterval: 0.5)
-            shot("bug1-ar-05-rate-typed-55")
-        } else {
-            print("[BUG1-AR] ⚠️ Hourly Rate label not found in Arabic")
-            shot("bug1-ar-04-rate-label-missing")
-        }
+        let raw = rateField.value as? String ?? ""
+        print("[BUG1-AR] Rate value after typing 55: '\(raw)' normalized: '\(asciiDigits(raw))'")
+        // ar_SA renders numerals as Arabic-Indic (٥٥). Asserting on normalized
+        // digits keeps a numeral-system difference from being reported as the
+        // field rejecting input — those are different defects.
+        XCTAssertEqual(asciiDigits(raw), "55", "Rate field did not accept 55 in Arabic — raw value was '\(raw)'")
         shot("bug1-ar-05-final")
     }
 }
