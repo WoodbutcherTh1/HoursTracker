@@ -107,6 +107,26 @@ on `claude/planning-requests-bb6hz1`. Status: ⬜ todo · 🟡 in progress · �
 | B17 | Older Cursor fixes (sync race, rollback on failed persist, scanner parsing…) — verify each still applies | `cursor/*` |
 | A1 | Multi-workplace UI (model + persistence exist, no UI) — decide first; roadmap lists multi-job as a non-goal | `main` |
 
+## Final phase — Integration review (after all phases + owner approval)
+
+Before merging, one end-to-end pass to make sure nothing conflicts:
+
+- **Behaviour conflicts between features** — e.g. break (paid/unpaid) × default
+  break × manual entry × overtime/tax math; widget/Watch/Live Activity/in-app
+  actions arriving at the same time; shift reminders × geofence reminders ×
+  break reminders (no duplicate or contradictory notifications).
+- **Code conflicts** — recovered branches vs. new work (no duplicated types,
+  dead code, or two implementations of the same thing); every shared file still
+  compiles in each target (app, widget, Watch, tests).
+- **Data** — every new field decodes from old saved data, round-trips through
+  CloudKit / account backup / full export-import, and syncs to Watch/widgets.
+- **Against the owner's requests** — walk this plan item by item and confirm
+  each request is implemented as agreed (and nothing agreed was dropped).
+- **Localization** — every new string exists in he / ar / en; RTL layouts.
+- **Quality gates** — CI green (build, unit tests, SwiftLint, secret scan),
+  privacy docs updated for any new data (Phase 6), then a device test
+  checklist for the owner.
+
 ## Notes
 
 - This environment has no Xcode; builds are verified by CI, device testing by the owner.
