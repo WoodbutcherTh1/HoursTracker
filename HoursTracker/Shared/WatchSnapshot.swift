@@ -25,6 +25,11 @@ struct WatchSnapshot: Codable, Equatable {
     /// True when the workplace pays for breaks: the shift timer keeps running
     /// through a break and the break is a reminder only.
     var breaksArePaid: Bool? = nil
+    /// Live pay of the open shift — the same curve Home and the widgets read, so the
+    /// Watch's ticking figure matches the phone's to the agora.
+    var livePay: LivePayCurve? = nil
+    /// Whether the live figure is net (true) or gross — follows Home's picker.
+    var livePayIsNet: Bool? = nil
 
     // MARK: Home tab
 

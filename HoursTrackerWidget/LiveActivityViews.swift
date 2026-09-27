@@ -91,7 +91,7 @@ struct HoursLiveActivityView: View {
                             Image(systemName: "timer")
                                 .font(.system(size: 9))
                                 .foregroundStyle(LATheme.accent)
-                            Text(formattedTime(state.elapsedTime))
+                            paidClockText(state, fallback: formattedTime(state.elapsedTime))
                                 .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
                                 .foregroundStyle(LATheme.textPrimary)
                         }
@@ -138,9 +138,10 @@ struct HoursLiveActivityMinimal: View {
             Image(systemName: state.isOnBreak ? "cup.and.saucer.fill" : "bolt.fill")
                 .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(state.isOnBreak ? LATheme.coral : LATheme.accent)
-            Text(formattedTime(state.elapsedTime))
+            paidClockText(state, fallback: formattedTime(state.elapsedTime))
                 .font(.system(size: 12, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(LATheme.textPrimary)
+                .frame(maxWidth: 56)
         }
     }
 
@@ -192,7 +193,7 @@ struct HoursLiveActivityExpanded: View {
             // Timer + Pay — main stats
             HStack(alignment: .bottom) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(formattedTime(state.elapsedTime))
+                    paidClockText(state, fallback: formattedTime(state.elapsedTime))
                         .font(.system(size: 44, weight: .black, design: .rounded).monospacedDigit())
                         .foregroundStyle(LATheme.textPrimary)
 
@@ -216,7 +217,7 @@ struct HoursLiveActivityExpanded: View {
                             )
                         )
 
-                    Text("estimated gross")
+                    Text(state.payIsNet == true ? "estimated net" : "estimated gross")
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
                         .tracking(0.5)
                         .foregroundStyle(LATheme.textTertiary)
@@ -264,6 +265,20 @@ struct HoursLiveActivityExpanded: View {
     }
 }
 
+
+// MARK: - Paid clock
+
+/// Paid shift time. While the paid clock runs it's a system-driven timer, so the Lock
+/// Screen / Dynamic Island tick every second with no app updates; while it's stopped
+/// (unpaid break) or the shift is over it's the frozen value the app last pushed.
+@ViewBuilder
+private func paidClockText(_ state: HoursActivityAttributes.ContentState, fallback: String) -> some View {
+    if let start = state.paidClockStart {
+        Text(timerInterval: start...Date.distantFuture, countsDown: false)
+    } else {
+        Text(fallback)
+    }
+}
 
 // MARK: - Controls (Lock Screen banner + expanded Dynamic Island)
 

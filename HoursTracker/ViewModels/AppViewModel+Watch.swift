@@ -133,6 +133,8 @@ extension AppViewModel {
                     : session.breaks.filter { !$0.isOpen }.reduce(0.0) { $0 + $1.seconds() }
             },
             breaksArePaid: settings.breaksArePaid,
+            livePay: refreshLiveCurve(),
+            livePayIsNet: livePayShowsNet,
             todayHours: max(0, todayHours),
             todayNetPay: todayBreakdown.netPay,
             todayGrossPay: todayBreakdown.grossPay,

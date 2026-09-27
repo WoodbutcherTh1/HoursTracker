@@ -136,6 +136,7 @@ targets:
       # Shared wire format for phone <-> Watch state (see WatchConnectivityManager) —
       # compiled into both the app and the Watch app, same pattern as WidgetBridge.swift.
       - path: HoursTracker/Shared/WatchSnapshot.swift
+      - path: HoursTracker/Shared/LivePayCurve.swift
       # Shared language stack so the Watch resolves the SAME localized strings as the
       # phone (AppLocale reads the phone-mirrored language choice; L10n keys come from
       # the app's String Catalog via the app bundle's lproj resources below) — plus
@@ -176,6 +177,8 @@ targets:
         excludes:
           # Design mockup for the widget UI — not part of the extension.
           - Mockup.html
+      # Live pay curve shared with the app and Watch (same figure everywhere).
+      - path: HoursTracker/Shared/LivePayCurve.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hourstracker.app.widget

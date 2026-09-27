@@ -493,13 +493,9 @@ struct SettingsView: View {
                     get: { WidgetBridge.hidePay },
                     set: { newValue in
                         WidgetBridge.hidePay = newValue
-                        WidgetBridge.reloadWidgetTimelines()
-                        // Live Activity updates push fresh (masked) content.
-                        if let open = viewModel.sessions.first(where: \.isOpen) {
-                            if #available(iOS 16.1, *) {
-                                LiveActivityManager.update(session: open, settings: viewModel.settings)
-                            }
-                        }
+                        // Widgets, Watch and the Live Activity re-render with the
+                        // (masked) figures.
+                        viewModel.refreshLiveSurfaces()
                     }
                 )
             )

@@ -21,6 +21,9 @@ final class AppViewModel: ObservableObject {
     @Published private(set) var successToast: String?
     @Published private(set) var locationAuthorizationStatus: CLAuthorizationStatus = .notDetermined
     @Published private(set) var areLocationNotificationsDenied = false
+    /// Live pay for the open shift — what Home, the Watch, the widgets and the Live
+    /// Activity all read, so they show the same figure. Nil when clocked out.
+    @Published private(set) var liveCurve: LivePayCurve?
 
     /// Background Smart Scanner job — user can dismiss the picker and keep using the app.
     enum ScannerImportPhase: Equatable {
@@ -50,6 +53,14 @@ final class AppViewModel: ObservableObject {
     private var successToastTask: Task<Void, Never>?
     private var scannerImportTask: Task<Void, Never>?
     private var liveActivityRefreshTask: Task<Void, Never>?
+    /// Inputs `liveCurve` was last built from; it's only rebuilt when they change.
+    private var liveCurveInputs: LiveCurveInputs?
+
+    private struct LiveCurveInputs: Equatable {
+        let session: WorkSession
+        let settings: WorkplaceSettings
+        let sessionCount: Int
+    }
 
     /// Set to `true` when `load()` observed that `sessions.json` exists on disk
     /// but could not be read (e.g. Data Protection race just after unlock).
@@ -165,6 +176,9 @@ final class AppViewModel: ObservableObject {
         self.locationManager = locationManager
         syncState = store.syncState
         load()
+        // An open shift from a previous launch: build its live pay curve right away so
+        // Home and the widgets show the shared figure from the first frame.
+        refreshLiveCurve()
         refreshReminders()
         refreshLocationPermissionStatuses()
         startLiveActivityRefreshLoop()
@@ -222,7 +236,12 @@ final class AppViewModel: ObservableObject {
         refreshAppShortcuts()
         // Start Live Activity for the running shift.
         if #available(iOS 16.1, *) {
-            LiveActivityManager.start(session: session, settings: settings)
+            LiveActivityManager.start(
+                session: session,
+                settings: settings,
+                curve: refreshLiveCurve(),
+                showsNet: livePayShowsNet
+            )
         }
         ActivityLogStore.shared.log(
             L10n.logEventClockIn,
@@ -281,7 +300,12 @@ final class AppViewModel: ObservableObject {
         guard let index = sessions.firstIndex(where: { $0.id == activeSession?.id }) else { return }
         // End Live Activity before the session is modified.
         if #available(iOS 16.1, *) {
-            LiveActivityManager.end(session: sessions[index], settings: settings)
+            LiveActivityManager.end(
+                session: sessions[index],
+                settings: settings,
+                curve: liveCurve,
+                showsNet: livePayShowsNet
+            )
         }
         let clockOutDate = Date()
         // Clocking out mid-break ends that break at the same moment.
@@ -944,13 +968,39 @@ final class AppViewModel: ObservableObject {
     /// Push current sessions and settings to the WidgetKit extension
     /// and update the Live Activity (if one is running).
     private func syncWidget() {
-        WidgetBridge.pushUpdate(settings: settings, sessions: sessions)
+        let curve = refreshLiveCurve()
+        let showsNet = livePayShowsNet
+        WidgetBridge.pushUpdate(settings: settings, sessions: sessions, livePay: curve, livePayShowsNet: showsNet)
         WatchConnectivityManager.shared.pushSnapshot()
         if #available(iOS 16.1, *) {
-            if let open = sessions.first(where: { $0.isOpen }) {
-                LiveActivityManager.update(session: open, settings: settings)
+            if let open = activeSession {
+                LiveActivityManager.update(session: open, settings: settings, curve: curve, showsNet: showsNet)
             }
         }
+    }
+
+    /// Re-pushes the live figures to the widgets, Watch and Live Activity — e.g. after
+    /// Home's gross/net picker changes which figure they should show.
+    func refreshLiveSurfaces() {
+        syncWidget()
+    }
+
+    /// Rebuilds `liveCurve` when the open shift, the settings or the session list
+    /// changed since it was built (building it prices ~200 samples), and clears it
+    /// when nothing is open.
+    @discardableResult
+    func refreshLiveCurve() -> LivePayCurve? {
+        guard let open = activeSession else {
+            liveCurve = nil
+            liveCurveInputs = nil
+            return nil
+        }
+        let inputs = LiveCurveInputs(session: open, settings: settings, sessionCount: sessions.count)
+        if inputs != liveCurveInputs || liveCurve == nil {
+            liveCurve = makeLivePayCurve(for: open)
+            liveCurveInputs = inputs
+        }
+        return liveCurve
     }
 
     /// Live Activity content (elapsed hours/time, estimated pay) is a static

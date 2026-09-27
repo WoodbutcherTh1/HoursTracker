@@ -241,6 +241,10 @@ struct HoursEntry: TimelineEntry {
     let monthPay: Double
     let weekBars: [DayBar]
     let settings: WidgetSettings
+    /// Live pay curve of the open shift (same figures as the app), when available.
+    var livePay: LivePayCurve? = nil
+    /// Whether `estimatedPay` is net — follows the app's gross/net choice.
+    var payIsNet: Bool = false
 }
 
 // MARK: - Timeline Provider
@@ -271,11 +275,21 @@ struct HoursTimelineProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<HoursEntry>) -> Void) {
-        let entry = buildEntry()
+        let now = Date()
+        let entry = buildEntry(at: now)
+        // While the paid clock runs, lay out one entry per minute for the next hour
+        // from the app's live pay curve: the money ticks up minute by minute with no
+        // app involvement (the hours tick by themselves via a system timer). Entries
+        // are free; only reloads count against WidgetKit's budget.
+        if entry.isOpen, let curve = entry.livePay, !curve.isPaused {
+            let entries = [entry] + (1...60).map { minute in
+                buildEntry(at: now.addingTimeInterval(TimeInterval(minute * 60)))
+            }
+            completion(Timeline(entries: entries, policy: .atEnd))
+            return
+        }
         let refreshInterval: TimeInterval = entry.isOpen ? 180 : 900
-        let nextUpdate = Date().addingTimeInterval(refreshInterval)
-        let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
-        completion(timeline)
+        completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(refreshInterval))))
     }
 
     private var sampleBars: [DayBar] {
@@ -284,10 +298,11 @@ struct HoursTimelineProvider: TimelineProvider {
         return labels.enumerated().map { DayBar(id: $0.offset, label: $0.element, hours: hours[$0.offset]) }
     }
 
-    private func buildEntry() -> HoursEntry {
+    private func buildEntry(at date: Date = Date()) -> HoursEntry {
         let settings = WidgetBridge.readSettings()
         let sessions = WidgetBridge.readSessions()
         let calendar = Calendar.current
+        let showsNet = WidgetBridge.livePayShowsNet
 
         let todayCompleted = WidgetBridge.todayCompletedSessions(from: sessions, calendar: calendar)
         let completedHours = todayCompleted.reduce(0) { $0 + $1.effectiveHours }
@@ -310,19 +325,25 @@ struct HoursTimelineProvider: TimelineProvider {
         let bars = weekBars(from: sessions, calendar: calendar)
 
         if let open = WidgetBridge.openSession(from: sessions) {
-            let elapsed = open.effectiveHours
-            let pay = WidgetBridge.estimatePay(elapsedHours: elapsed, settings: settings)
+            // Prefer the app's live curve (real pay engine: tiers, rest-day rates, net)
+            // so the widget shows exactly what Home shows; fall back to the quick
+            // estimate if the app hasn't written one yet.
+            let curve = WidgetBridge.readLivePay().flatMap { $0.sessionID == open.id ? $0 : nil }
+            let elapsed = curve?.paidHours(at: date) ?? open.effectiveHours
+            let pay = curve?.pay(at: date, net: showsNet)
+                ?? WidgetBridge.estimatePay(elapsedHours: elapsed, settings: settings)
             return HoursEntry(
-                date: Date(), isOpen: true, session: open,
+                date: date, isOpen: true, session: open,
                 elapsedHours: elapsed, estimatedPay: pay,
                 todayCompletedHours: completedHours, todayCompletedPay: completedPay,
                 weeklyHours: weeklyHours, weeklyPay: weeklyPay,
                 monthHours: monthHours, monthPay: monthPay,
-                weekBars: bars, settings: settings
+                weekBars: bars, settings: settings,
+                livePay: curve, payIsNet: curve != nil && showsNet
             )
         } else {
             return HoursEntry(
-                date: Date(), isOpen: false, session: nil,
+                date: date, isOpen: false, session: nil,
                 elapsedHours: 0, estimatedPay: 0,
                 todayCompletedHours: completedHours, todayCompletedPay: completedPay,
                 weeklyHours: weeklyHours, weeklyPay: weeklyPay,

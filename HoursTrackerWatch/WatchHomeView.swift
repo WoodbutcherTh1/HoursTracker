@@ -103,6 +103,10 @@ struct WatchHomeView: View {
                 }
             }
 
+            if snapshot.isClockedIn, let curve = snapshot.livePay {
+                livePayText(curve)
+            }
+
             Button(action: toggleClock) {
                 HStack(spacing: 6) {
                     Image(systemName: snapshot.isClockedIn ? "stop.fill" : "play.fill")
@@ -220,6 +224,21 @@ struct WatchHomeView: View {
         return DaypartGreeting.current().title(withName: workerName.isEmpty ? nil : workerName)
     }
 
+    /// The shift's pay so far, ticking every second from the phone's live pay curve —
+    /// the same figure Home shows at the same moment. Frozen during an unpaid break.
+    private func livePayText(_ curve: LivePayCurve) -> some View {
+        let net = snapshot.livePayIsNet == true
+        return TimelineView(.periodic(from: .now, by: 1)) { context in
+            Text(Self.livePayString(curve.pay(at: context.date, net: net), currencyCode: curve.currencyCode))
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(accent)
+                .contentTransition(.numericText())
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+        }
+    }
+
     /// Counts down the planned break length, then up (in coral) once over.
     private func breakCountdown(breakStart: Date) -> some View {
         let target = TimeInterval((snapshot.breakTargetMinutes ?? 30) * 60)
@@ -276,6 +295,16 @@ struct WatchHomeView: View {
         let h = Int(hours)
         let m = Int((hours - Double(h)) * 60)
         return String(format: "%d:%02d", h, m)
+    }
+
+    /// Agorot included, so the live figure visibly counts up (the stat cards stay whole).
+    private static func livePayString(_ amount: Double, currencyCode: String) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currencyCode.isEmpty ? "ILS" : currencyCode
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: NSNumber(value: amount)) ?? String(format: "%.2f", amount)
     }
 
     private func formattedPay(_ amount: Double) -> String {

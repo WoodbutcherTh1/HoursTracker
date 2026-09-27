@@ -396,7 +396,7 @@ struct HomeView: View {
     }
 
     private func clockedInView(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {
-        let live = liveBreakdown(for: session, at: liveNow)
+        let livePay = livePayText(for: session, at: liveNow)
         let timerSize: CGFloat = metrics.isCompact ? 42 : 52
 
         return VStack(spacing: metrics.stackSpacing) {
@@ -443,6 +443,8 @@ struct HomeView: View {
                     }
                     .pickerStyle(.segmented)
                     .frame(maxWidth: 150)
+                    // Widgets, Watch and the Live Activity show the same figure.
+                    .onChange(of: livePayMode) { _, _ in viewModel.refreshLiveSurfaces() }
                     // Home is a dark surface whatever the device appearance is, so the
                     // segmented control has to be told that or it renders light-on-light
                     // for anyone whose phone is in light mode.
@@ -450,7 +452,7 @@ struct HomeView: View {
                     .tint(homeTheme.accent)
                     .accessibilityLabel(L10n.homeLivePay)
 
-                    Text(livePayMode == .net ? live.formattedNetPay : live.formattedGrossPay)
+                    Text(livePay)
                         .font(.headline.monospacedDigit())
                         .foregroundStyle(homeTheme.accent)
                         .lineLimit(1)
@@ -519,30 +521,17 @@ struct HomeView: View {
         }
     }
 
-    /// Pay earned so far in the running shift, priced by the same engine as every other
-    /// figure in the app: the open session is closed off at `now` and handed to
-    /// `OvertimeCalculator` in the context of its own day, so the live number already
-    /// includes the 125%/150% tiers, rest-day and holiday rates, the travel allowance,
-    /// and the tax estimate behind net. The previous "live gross (basic)" label was
-    /// hours × hourly rate and quietly under-reported once a shift ran into overtime.
-    ///
-    /// The default unpaid break is applied here too — the same call `clockOut()` makes —
-    /// so the figure doesn't drop the instant the shift is actually closed.
-    private func liveBreakdown(for session: WorkSession, at now: Date) -> DayPayBreakdown {
-        var provisional = session
-        let end = max(session.clockIn, now)
-        // A break in progress at a workplace that deducts breaks is unpaid: close it at
-        // `now` so pay stops rising while the worker is on break, exactly as it will
-        // once they tap "back to work". Paid breaks leave the figure running.
-        provisional.closeOpenBreak(at: end, deductFromPay: !viewModel.settings.breaksArePaid)
-        provisional.clockOut = end
-        provisional.applyDefaultBreakIfNeeded(settings: viewModel.settings)
-        return OvertimeCalculator.breakdown(
-            for: provisional,
-            in: viewModel.sessions,
-            settings: viewModel.settings,
-            calendar: calendar
-        )
+    /// The running shift's pay at `now`, read from the view model's live pay curve —
+    /// the same curve the Watch, widgets and Live Activity read, so all of them show
+    /// the same figure at the same moment. Falls back to pricing the shift directly
+    /// if the curve isn't built yet (or belongs to another session).
+    private func livePayText(for session: WorkSession, at now: Date) -> String {
+        let net = livePayMode == .net
+        if let curve = viewModel.liveCurve, curve.sessionID == session.id {
+            return PayFormatter.string(curve.pay(at: now, net: net), currencyCode: curve.currencyCode)
+        }
+        let breakdown = viewModel.liveBreakdown(for: session, at: now, calendar: calendar)
+        return net ? breakdown.formattedNetPay : breakdown.formattedGrossPay
     }
 
     // MARK: - Stats

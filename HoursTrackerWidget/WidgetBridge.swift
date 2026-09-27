@@ -102,6 +102,12 @@ struct HoursActivityAttributes: ActivityAttributes {
         var breakStart: Date? = nil
         /// Planned break length, for the Lock Screen / Dynamic Island countdown.
         var breakTargetMinutes: Int? = nil
+        /// When the paid clock read 0 — set while it's running, so the Lock Screen can
+        /// tick the hours with a system timer between app updates. Nil while the paid
+        /// clock is stopped (unpaid break) or the shift is over.
+        var paidClockStart: Date? = nil
+        /// Whether `estimatedPay` is net (true) or gross — follows Home's picker.
+        var payIsNet: Bool? = nil
 
         var isOnBreak: Bool { breakStart != nil }
 
@@ -133,6 +139,8 @@ enum WidgetBridge {
     static let hidePayKey = "widget_hide_pay"
     static let pendingActionKey = "widget_pending_action"
     static let pendingActionDateKey = "widget_pending_action_date"
+    static let livePayKey = "widget_live_pay"
+    static let livePayShowsNetKey = "widget_live_pay_net"
 
     /// Darwin notification name — works across the app ↔ widget processes.
     static let darwinActionNotification = "com.hourstracker.widget.action" as CFString
@@ -152,6 +160,25 @@ enum WidgetBridge {
         guard let data = try? JSONEncoder().encode(sessions) else { return }
         suite?.set(data, forKey: sessionsKey)
         suite?.set(Date(), forKey: lastUpdateKey)
+    }
+
+    /// The open shift's live pay curve (nil when clocked out) and which figure to show.
+    static func update(livePay: LivePayCurve?, showsNet: Bool) {
+        if let livePay, let data = try? JSONEncoder().encode(livePay) {
+            suite?.set(data, forKey: livePayKey)
+        } else {
+            suite?.removeObject(forKey: livePayKey)
+        }
+        suite?.set(showsNet, forKey: livePayShowsNetKey)
+    }
+
+    static func readLivePay() -> LivePayCurve? {
+        guard let data = suite?.data(forKey: livePayKey) else { return nil }
+        return try? JSONDecoder().decode(LivePayCurve.self, from: data)
+    }
+
+    static var livePayShowsNet: Bool {
+        suite?.bool(forKey: livePayShowsNetKey) ?? false
     }
 
     // NOTE: no `reloadTimelines` here — `WidgetCenter` requires linking WidgetKit

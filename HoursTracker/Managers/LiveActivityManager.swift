@@ -22,10 +22,15 @@ enum LiveActivityManager {
 
     /// Start a new Live Activity when the user clocks in.
     @available(iOS 16.1, *)
-    static func start(session: WorkSession, settings: WorkplaceSettings) {
+    static func start(
+        session: WorkSession,
+        settings: WorkplaceSettings,
+        curve: LivePayCurve? = nil,
+        showsNet: Bool = false
+    ) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
         let attributes = HoursActivityAttributes.from(session: session, settings: settings)
-        let state = makeState(session: session, settings: settings)
+        let state = makeState(session: session, settings: settings, curve: curve, showsNet: showsNet)
 
         do {
             activity = try Activity.request(
@@ -44,9 +49,14 @@ enum LiveActivityManager {
 
     /// Push an updated content state (typically every ~60 s from the app's timer).
     @available(iOS 16.1, *)
-    static func update(session: WorkSession, settings: WorkplaceSettings) {
+    static func update(
+        session: WorkSession,
+        settings: WorkplaceSettings,
+        curve: LivePayCurve? = nil,
+        showsNet: Bool = false
+    ) {
         guard let activity = current else { return }
-        let state = makeState(session: session, settings: settings)
+        let state = makeState(session: session, settings: settings, curve: curve, showsNet: showsNet)
         Task {
             await activity.update(.init(state: state, staleDate: nil))
         }
@@ -56,9 +66,17 @@ enum LiveActivityManager {
 
     /// End the Live Activity when the user clocks out.
     @available(iOS 16.1, *)
-    static func end(session: WorkSession, settings: WorkplaceSettings) {
+    static func end(
+        session: WorkSession,
+        settings: WorkplaceSettings,
+        curve: LivePayCurve? = nil,
+        showsNet: Bool = false
+    ) {
         guard let activity = current else { return }
-        let state = makeState(session: session, settings: settings)
+        var state = makeState(session: session, settings: settings, curve: curve, showsNet: showsNet)
+        // The shift is over: freeze the banner's clock for its last 30 s on screen.
+        state.paidClockStart = nil
+        state.breakStart = nil
         Task {
             // `ActivityDismissalPolicy.after` takes a Date (the dismissal time),
             // not a Duration — keep the live banner on screen for 30s.
@@ -75,23 +93,36 @@ enum LiveActivityManager {
     @available(iOS 16.1, *)
     private static func makeState(
         session: WorkSession,
-        settings: WorkplaceSettings
+        settings: WorkplaceSettings,
+        curve: LivePayCurve?,
+        showsNet: Bool
     ) -> HoursActivityAttributes.ContentState {
-        // `effectiveHours` is 0 for an open session (it needs a clock-out), which left
-        // the banner reading 0.0h / 0 pay all shift. Use paid time so far instead —
-        // wall clock minus recorded breaks, so it also stands still during a break.
-        let paidSeconds = session.paidElapsedSeconds(breaksArePaid: settings.breaksArePaid)
-        let elapsed = paidSeconds / 3600
-        let pay = WidgetBridge.estimatePay(
-            elapsedHours: elapsed,
-            settings: WidgetBridge.snapshot(from: settings)
-        )
+        let now = Date()
+        let isPaused = session.isOnBreak && !settings.breaksArePaid
+        let paidSeconds: Double
+        let pay: Double
+        if let curve, curve.sessionID == session.id {
+            // Same curve Home, the Watch and the widgets read — same figure everywhere.
+            paidSeconds = curve.paidSeconds(at: now)
+            pay = curve.pay(at: now, net: showsNet)
+        } else {
+            // Fallback (e.g. the final state at clock-out): paid time so far — wall
+            // clock minus unpaid breaks — priced with the widget's quick estimate.
+            paidSeconds = session.paidElapsedSeconds(now: now, breaksArePaid: settings.breaksArePaid)
+            pay = WidgetBridge.estimatePay(
+                elapsedHours: paidSeconds / 3600,
+                settings: WidgetBridge.snapshot(from: settings)
+            )
+        }
         return HoursActivityAttributes.ContentState(
             elapsedTime: paidSeconds,
             estimatedPay: pay,
-            elapsedHours: elapsed,
+            elapsedHours: paidSeconds / 3600,
             breakStart: session.activeBreak?.start,
-            breakTargetMinutes: NotificationPreferences.shared.breakTargetMinutes
+            breakTargetMinutes: NotificationPreferences.shared.breakTargetMinutes,
+            // A running paid clock lets the Lock Screen tick the hours by itself.
+            paidClockStart: isPaused ? nil : now.addingTimeInterval(-paidSeconds),
+            payIsNet: curve != nil && showsNet
         )
     }
 }

@@ -39,7 +39,13 @@ extension WidgetBridge {
         )
     }
 
-    static func pushUpdate(settings: WorkplaceSettings, sessions: [WorkSession]) {
+    static func pushUpdate(
+        settings: WorkplaceSettings,
+        sessions: [WorkSession],
+        livePay: LivePayCurve? = nil,
+        livePayShowsNet: Bool = false
+    ) {
+        update(livePay: livePay, showsNet: livePayShowsNet)
         update(settings: snapshot(from: settings))
         update(sessions: sessions.map { snapshot(from: $0, breaksArePaid: settings.breaksArePaid) })
         reloadWidgetTimelines()

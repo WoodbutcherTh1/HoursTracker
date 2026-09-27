@@ -53,7 +53,11 @@ on `claude/planning-requests-bb6hz1`. Status: ⬜ todo · 🟡 in progress · �
 - If the phone is locked and the app's data is still protected, the tap is
   kept (with its time) and applied at unlock.
 
-## Phase 3 — Live hours/money counter everywhere — C3
+## Phase 3 — Live hours/money counter everywhere — C3 ✅ (awaiting CI + device test)
+
+- One source: the phone builds a `LivePayCurve` (cumulative gross/net vs. paid
+  seconds, 5-min samples, 16 h ahead) with the real pay engine; Home, Watch,
+  widgets and Live Activity all read it, so they show the same figure.
 
 - App, Watch, widgets and Dynamic Island all derive from the same clock-in
   time so the numbers match.
