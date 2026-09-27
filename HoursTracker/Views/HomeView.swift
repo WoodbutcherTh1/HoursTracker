@@ -4,6 +4,9 @@ import UIKit
 struct LiveTimerView: View {
     let startDate: Date
     var fontSize: CGFloat = 52
+    /// Time to leave out of the count (recorded breaks), so the clock stops while
+    /// the worker is on break and resumes where it left off.
+    var excludedSeconds: ((Date) -> TimeInterval)?
     var onTick: ((Date) -> Void)?
 
     @State private var now = Date()
@@ -24,7 +27,8 @@ struct LiveTimerView: View {
     }
 
     private var elapsedFormatted: String {
-        let elapsed = max(0, Int(now.timeIntervalSince(startDate)))
+        let excluded = excludedSeconds?(now) ?? 0
+        let elapsed = max(0, Int(now.timeIntervalSince(startDate) - excluded))
         let hours = elapsed / 3600
         let minutes = (elapsed % 3600) / 60
         let seconds = elapsed % 60
@@ -36,6 +40,7 @@ struct HomeView: View {
     @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
     @ObservedObject private var homeStatsLayout = HomeStatsLayout.shared
+    @ObservedObject private var notificationPrefs = NotificationPreferences.shared
     @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @AppStorage("homeStatsReorderHintDismissed") private var didReorderStats = false
     /// Gross/net choice for the live pay counter. Its own key rather than History's
@@ -420,9 +425,13 @@ struct HomeView: View {
             }
 
             VStack(spacing: 10) {
-                LiveTimerView(startDate: session.clockIn, fontSize: timerSize) { date in
-                    liveNow = date
-                }
+                LiveTimerView(
+                    startDate: session.clockIn,
+                    fontSize: timerSize,
+                    excludedSeconds: { session.recordedBreakSeconds(now: $0) },
+                    onTick: { date in liveNow = date }
+                )
+                .opacity(session.isOnBreak ? 0.45 : 1)
 
                 VStack(spacing: 6) {
                     Picker("", selection: $livePayMode) {
@@ -477,6 +486,14 @@ struct HomeView: View {
                 compact: metrics.isCompact
             )
 
+            HomeBreakControl(
+                session: session,
+                targetMinutes: notificationPrefs.breakTargetMinutes,
+                accent: homeTheme.accent,
+                compact: metrics.isCompact || metrics.isShort,
+                onToggle: { viewModel.toggleBreak() }
+            )
+
             HomeAnimatedDoorButton(
                 mode: .clockOut,
                 title: L10n.homeClockOut,
@@ -510,7 +527,11 @@ struct HomeView: View {
     /// so the figure doesn't drop the instant the shift is actually closed.
     private func liveBreakdown(for session: WorkSession, at now: Date) -> DayPayBreakdown {
         var provisional = session
-        provisional.clockOut = max(session.clockIn, now)
+        let end = max(session.clockIn, now)
+        // A break in progress is unpaid: close it at `now` so pay stops rising while
+        // the worker is on break, exactly as it will once they tap "back to work".
+        provisional.closeOpenBreak(at: end)
+        provisional.clockOut = end
         provisional.applyDefaultBreakIfNeeded(settings: viewModel.settings)
         return OvertimeCalculator.breakdown(
             for: provisional,
@@ -777,5 +798,124 @@ struct DaySummarySheet: View {
                 .font(bold ? .headline : .subheadline)
                 .monospacedDigit()
         }
+    }
+}
+
+/// "יצאתי להפסקה" / "חזרתי" — the break control shown just above the clock-out
+/// door while a shift is running. Off break it's a single capsule button; on break
+/// it becomes a card counting down the planned break length (and up past it, in
+/// coral, once the worker is over time).
+struct HomeBreakControl: View {
+    let session: WorkSession
+    let targetMinutes: Int
+    let accent: Color
+    let compact: Bool
+    let onToggle: () -> Void
+
+    var body: some View {
+        if let active = session.activeBreak {
+            onBreakCard(active)
+        } else {
+            startButton
+        }
+    }
+
+    private var startButton: some View {
+        Button(action: toggle) {
+            Label(L10n.homeBreakStart, systemImage: "cup.and.saucer.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(Color.white.opacity(0.08))
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .stroke(accent.opacity(0.45), lineWidth: 1)
+                        )
+                )
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func onBreakCard(_ active: BreakInterval) -> some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let elapsed = active.seconds(now: context.date)
+            let target = TimeInterval(max(0, targetMinutes) * 60)
+            let remaining = target - elapsed
+            let isOver = remaining < 0
+            let progress = target > 0 ? min(1, elapsed / target) : 1
+
+            VStack(spacing: compact ? 6 : 8) {
+                HStack {
+                    Label(L10n.homeOnBreak, systemImage: "cup.and.saucer.fill")
+                        .font(.caption.weight(.semibold))
+                        .textCase(.uppercase)
+                        .foregroundStyle(.white.opacity(0.7))
+                    Spacer(minLength: 8)
+                    Text(L10n.homeSince(Self.timeFormatter.string(from: active.start)))
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.55))
+                }
+
+                Text(isOver
+                     ? L10n.homeBreakOver(Self.clock(-remaining))
+                     : L10n.homeBreakRemaining(Self.clock(remaining)))
+                    .font(.system(size: compact ? 22 : 26, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(isOver ? HomeNeon.coral : .white)
+                    .contentTransition(.numericText())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                ProgressView(value: progress)
+                    .tint(isOver ? HomeNeon.coral : accent)
+                    .accessibilityHidden(true)
+
+                Text(L10n.homeBreakTarget(targetMinutes))
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.45))
+
+                Button(action: toggle) {
+                    Label(L10n.homeBreakEnd, systemImage: "arrow.uturn.backward")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.black)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(Capsule(style: .continuous).fill(accent))
+                        .contentShape(Capsule())
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(compact ? 12 : 14)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(HomeNeon.card)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke((isOver ? HomeNeon.coral : accent).opacity(0.4), lineWidth: 1)
+                    )
+            )
+        }
+    }
+
+    private func toggle() {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        onToggle()
+    }
+
+    private static var timeFormatter: DateFormatter {
+        AppLocale.makeDateFormatter(timeStyle: .short)
+    }
+
+    /// mm:ss (or h:mm:ss past an hour).
+    static func clock(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds.rounded()))
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let secs = total % 60
+        return hours > 0
+            ? String(format: "%d:%02d:%02d", hours, minutes, secs)
+            : String(format: "%02d:%02d", minutes, secs)
     }
 }

@@ -15,6 +15,7 @@ struct SettingsView: View {
     @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
     @ObservedObject private var accountAuth = SupabaseAuthManager.shared
+    @ObservedObject private var notificationPrefs = NotificationPreferences.shared
     @EnvironmentObject private var appLock: AppLockController
     @EnvironmentObject private var appLanguage: AppLanguageController
 
@@ -59,6 +60,7 @@ struct SettingsView: View {
                 payrollSection
                 taxSection
                 locationSection
+                notificationsSection
                 securitySection
                 widgetPrivacySection
                 smartScannerSection
@@ -416,6 +418,52 @@ struct SettingsView: View {
                 widgetInstallCount = await WidgetBridge.installedWidgetCount()
             }
         }
+    }
+
+    /// One switch per notification-sending feature. These are device preferences
+    /// (UserDefaults), not workplace settings, so they apply immediately — no Save.
+    private var notificationsSection: some View {
+        Section {
+            Picker(L10n.settingsNotificationsBreakLength, selection: $notificationPrefs.breakTargetMinutes) {
+                ForEach(breakTargetChoices, id: \.self) { minutes in
+                    Text(L10n.settingsNotificationsMinutes(minutes)).tag(minutes)
+                }
+            }
+
+            Toggle(L10n.settingsNotificationsBreakEndingSoon, isOn: $notificationPrefs.breakEndingSoonEnabled)
+
+            if notificationPrefs.breakEndingSoonEnabled {
+                Picker(L10n.settingsNotificationsBreakLead, selection: $notificationPrefs.breakLeadMinutes) {
+                    ForEach(NotificationPreferences.breakLeadTimeOptions, id: \.self) { minutes in
+                        Text(L10n.settingsNotificationsMinutes(minutes)).tag(minutes)
+                    }
+                }
+            }
+
+            Toggle(L10n.settingsNotificationsBreakOver, isOn: $notificationPrefs.breakOverEnabled)
+
+            if viewModel.areLocationNotificationsDenied {
+                Text(L10n.settingsNotificationsDenied)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                Button(L10n.settingsOpenSystemSettings) {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+            }
+        } header: {
+            Text(L10n.settingsNotificationsSection)
+        } footer: {
+            Text(L10n.settingsNotificationsHint)
+        }
+    }
+
+    /// Offered break lengths, plus the stored value if it's a custom one.
+    private var breakTargetChoices: [Int] {
+        let options = NotificationPreferences.breakTargetOptions
+        let current = notificationPrefs.breakTargetMinutes
+        return options.contains(current) ? options : (options + [current]).sorted()
     }
 
     private var securitySection: some View {
