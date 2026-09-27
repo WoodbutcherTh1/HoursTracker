@@ -260,7 +260,7 @@ struct HomeView: View {
                     .frame(height: metrics.particleHeight)
 
                 Text(title)
-                    .font(.system(size: metrics.greetingFontSize, weight: .bold, design: .rounded))
+                    .font(.title2.weight(.bold))
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
