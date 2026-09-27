@@ -190,6 +190,34 @@ private func widgetActionLabel(title: String, systemImage: String, isClockIn: Bo
         .shadow(color: (isClockIn ? WidgetTheme.moneyGreen : WidgetTheme.coral).opacity(0.4), radius: 8, y: 2)
 }
 
+/// Round coffee-cup button face for "start break" (label only — each call site
+/// spells out `Button(intent: StartBreakIntent())` literally, see above).
+private var widgetBreakIcon: some View {
+    Image(systemName: "cup.and.saucer.fill")
+        .font(.system(size: 11, weight: .heavy))
+        .foregroundStyle(WidgetTheme.textPrimary)
+        .frame(width: 28, height: 28)
+        .background(Color.white.opacity(0.14), in: Circle())
+}
+
+/// End of the planned break for an on-break session (nil when working).
+private func breakEnd(for session: WidgetSession) -> Date? {
+    guard let start = session.breakStart else { return nil }
+    let minutes = WidgetBridge.readSettings().breakTargetMinutes ?? 30
+    return start.addingTimeInterval(TimeInterval(max(1, minutes) * 60))
+}
+
+/// System-driven countdown to the end of the planned break — ticks by itself on
+/// the home screen without timeline reloads. Stops at 0:00 once the break is over.
+private func breakCountdown(start: Date, end: Date) -> some View {
+    Text(timerInterval: min(start, end)...end, countsDown: true)
+        .font(.system(size: 11, weight: .bold, design: .rounded))
+        .monospacedDigit()
+        .foregroundStyle(WidgetTheme.coral)
+        .multilineTextAlignment(.trailing)
+        .lineLimit(1)
+}
+
 // MARK: - Timeline Entry
 
 /// One day bar for the large widget's week chart.
@@ -367,14 +395,17 @@ struct HoursSmallWidgetView: View {
         VStack(alignment: .leading, spacing: 8) {
             // Status bar
             HStack(spacing: 5) {
-                PulseDot(color: WidgetTheme.workingDot, size: 5)
-                Text("Working")
+                PulseDot(color: session.isOnBreak ? WidgetTheme.coral : WidgetTheme.workingDot, size: 5)
+                Text(session.isOnBreak ? "On break" : "Working")
                     .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .foregroundStyle(WidgetTheme.accentLight)
+                    .foregroundStyle(session.isOnBreak ? WidgetTheme.coral : WidgetTheme.accentLight)
                 Spacer()
-                Text(session.clockIn, style: .time)
-                    .font(.system(size: 9, weight: .medium, design: .rounded))
-                    .foregroundStyle(WidgetTheme.textTertiary)
+                if !session.isOnBreak {
+                    Button(intent: StartBreakIntent()) {
+                        widgetBreakIcon
+                    }
+                    .buttonStyle(.plain)
+                }
             }
 
             // Hours ring + pay
@@ -389,18 +420,29 @@ struct HoursSmallWidgetView: View {
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.55)
-                    Text("today")
-                        .font(.system(size: 8, weight: .semibold, design: .rounded))
-                        .foregroundStyle(WidgetTheme.textTertiary)
-                        .textCase(.uppercase)
+                    if let breakEnd = breakEnd(for: session) {
+                        breakCountdown(start: session.breakStart ?? entry.date, end: breakEnd)
+                    } else {
+                        Text("today")
+                            .font(.system(size: 8, weight: .semibold, design: .rounded))
+                            .foregroundStyle(WidgetTheme.textTertiary)
+                            .textCase(.uppercase)
+                    }
                 }
             }
 
-            // Clock out — the whole point: one tap from the home screen.
-            Button(intent: ClockOutIntent()) {
-                widgetActionLabel(title: "Clock Out", systemImage: "stop.fill", isClockIn: false)
+            // Clock out (or back from break) — one tap from the home screen.
+            if session.isOnBreak {
+                Button(intent: EndBreakIntent()) {
+                    widgetActionLabel(title: "I'm back", systemImage: "arrow.uturn.backward", isClockIn: true)
+                }
+                .frame(maxWidth: .infinity)
+            } else {
+                Button(intent: ClockOutIntent()) {
+                    widgetActionLabel(title: "Clock Out", systemImage: "stop.fill", isClockIn: false)
+                }
+                .frame(maxWidth: .infinity)
             }
-            .frame(maxWidth: .infinity)
         }
         .padding(12)
     }
@@ -535,10 +577,14 @@ struct HoursHomeWidgetView: View {
                     .frame(width: 66, height: 66)
 
                 HStack(spacing: 5) {
-                    PulseDot(color: WidgetTheme.workingDot, size: 4)
-                    Text("Working")
+                    PulseDot(color: entry.session?.isOnBreak == true ? WidgetTheme.coral : WidgetTheme.workingDot, size: 4)
+                    Text(entry.session?.isOnBreak == true ? "On break" : "Working")
                         .font(.system(size: 9, weight: .bold, design: .rounded))
-                        .foregroundStyle(WidgetTheme.accentLight)
+                        .foregroundStyle(entry.session?.isOnBreak == true ? WidgetTheme.coral : WidgetTheme.accentLight)
+                }
+
+                if let session = entry.session, let breakEnd = breakEnd(for: session) {
+                    breakCountdown(start: session.breakStart ?? entry.date, end: breakEnd)
                 }
             }
 
@@ -562,8 +608,20 @@ struct HoursHomeWidgetView: View {
                     valueColor: WidgetTheme.accentLight,
                     iconColor: WidgetTheme.accent
                 )
-                Button(intent: ClockOutIntent()) {
-                    widgetActionLabel(title: "Clock Out", systemImage: "stop.fill", isClockIn: false)
+                HStack(spacing: 6) {
+                    if entry.session?.isOnBreak == true {
+                        Button(intent: EndBreakIntent()) {
+                            widgetActionLabel(title: "Back", systemImage: "arrow.uturn.backward", isClockIn: true)
+                        }
+                    } else {
+                        Button(intent: StartBreakIntent()) {
+                            widgetBreakIcon
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Button(intent: ClockOutIntent()) {
+                        widgetActionLabel(title: "Out", systemImage: "stop.fill", isClockIn: false)
+                    }
                 }
             }
         }
@@ -697,7 +755,11 @@ struct HoursHomeWidgetView: View {
                     .frame(width: 1)
                 largeStat(label: "This month", value: payText(entry.monthPay), color: WidgetTheme.accentLight, icon: "calendar")
                 Spacer(minLength: 0)
-                if entry.isOpen {
+                if entry.session?.isOnBreak == true {
+                    Button(intent: EndBreakIntent()) {
+                        widgetActionLabel(title: "Back", systemImage: "arrow.uturn.backward", isClockIn: true)
+                    }
+                } else if entry.isOpen {
                     Button(intent: ClockOutIntent()) {
                         widgetActionLabel(title: "Out", systemImage: "stop.fill", isClockIn: false)
                     }
@@ -780,12 +842,21 @@ struct HoursLiveActivity: Widget {
                     state: context.state
                 )
             } compactTrailing: {
-                Text(livePayText(context.state.estimatedPay, currency: context.attributes.currencyCode))
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(WidgetTheme.moneyGreen)
+                if let breakStart = context.state.breakStart, let breakEnd = context.state.breakEnd {
+                    // Break countdown, driven by the system clock (no app pushes needed).
+                    Text(timerInterval: min(breakStart, breakEnd)...breakEnd, countsDown: true)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(WidgetTheme.coral)
+                        .frame(maxWidth: 52)
+                } else {
+                    Text(livePayText(context.state.estimatedPay, currency: context.attributes.currencyCode))
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(WidgetTheme.moneyGreen)
+                }
             } minimal: {
-                Image(systemName: "clock.fill")
-                    .foregroundStyle(WidgetTheme.accent)
+                Image(systemName: context.state.isOnBreak ? "cup.and.saucer.fill" : "clock.fill")
+                    .foregroundStyle(context.state.isOnBreak ? WidgetTheme.coral : WidgetTheme.accent)
             }
         }
     }

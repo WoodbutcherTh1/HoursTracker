@@ -66,15 +66,21 @@ enum LiveActivityManager {
         session: WorkSession,
         settings: WorkplaceSettings
     ) -> HoursActivityAttributes.ContentState {
-        let elapsed = session.effectiveHours
+        // `effectiveHours` is 0 for an open session (it needs a clock-out), which left
+        // the banner reading 0.0h / 0 pay all shift. Use paid time so far instead —
+        // wall clock minus recorded breaks, so it also stands still during a break.
+        let paidSeconds = session.paidElapsedSeconds()
+        let elapsed = paidSeconds / 3600
         let pay = WidgetBridge.estimatePay(
             elapsedHours: elapsed,
             settings: WidgetBridge.snapshot(from: settings)
         )
         return HoursActivityAttributes.ContentState(
-            elapsedTime: session.elapsedSeconds,
+            elapsedTime: paidSeconds,
             estimatedPay: pay,
-            elapsedHours: elapsed
+            elapsedHours: elapsed,
+            breakStart: session.activeBreak?.start,
+            breakTargetMinutes: NotificationPreferences.shared.breakTargetMinutes
         )
     }
 }

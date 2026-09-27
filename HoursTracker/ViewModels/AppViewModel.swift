@@ -439,10 +439,17 @@ final class AppViewModel: ObservableObject {
     /// App Group suite. Safe to call on every launch and every Darwin wake:
     /// a nil pending action is a no-op.
     func consumeWidgetActionIfNeeded() {
-        guard let action = WidgetBridge.consumePendingAction() else { return }
-        switch action {
-        case .clockIn: clockIn()
+        guard let pending = WidgetBridge.consumePendingActionWithDate() else { return }
+        // Honor the tap time when the app only got to it later (it wasn't running),
+        // but not for a stale tap from long ago — that's safer applied as "now".
+        let tappedAt = pending.tappedAt.flatMap { date in
+            Date().timeIntervalSince(date) < 12 * 3600 ? date : nil
+        } ?? Date()
+        switch pending.action {
+        case .clockIn: clockIn(at: tappedAt)
         case .clockOut: clockOut()
+        case .startBreak: startBreak(at: tappedAt)
+        case .endBreak: endBreak(at: tappedAt)
         }
     }
 

@@ -87,6 +87,10 @@ extension WatchConnectivityManager: WCSessionDelegate {
                 viewModel.clockIn()
             case .clockOut:
                 viewModel.clockOut()
+            case .startBreak:
+                viewModel.startBreak()
+            case .endBreak:
+                viewModel.endBreak()
             case .shiftHistoryPeriod:
                 self.historyPeriodOffset += request.intValue ?? 0
             case .toggleAppLock:

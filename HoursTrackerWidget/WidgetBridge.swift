@@ -33,6 +33,9 @@ struct WidgetSettings: Codable, Equatable {
     var currencyCode: String
     var weeklyStandardHours: Double
     var weeklyOvertimeCapHours: Double
+    /// Planned break length for the break countdown. Optional so snapshots written
+    /// by an older app build still decode.
+    var breakTargetMinutes: Int? = nil
 
     static let empty = WidgetSettings(
         hourlyRate: 0,
@@ -53,14 +56,23 @@ struct WidgetSession: Codable, Equatable {
     let clockOut: Date?
     let breakMinutes: Int
     let isNightShift: Bool
+    /// Start of the break in progress (nil when not on break).
+    var breakStart: Date? = nil
+    /// Seconds of already-finished breaks in this (open) shift.
+    var closedBreakSeconds: Double? = nil
 
     var isOpen: Bool { clockOut == nil }
+    var isOnBreak: Bool { isOpen && breakStart != nil }
 
-    /// Paid elapsed hours (total minus unpaid break).
+    /// Paid elapsed hours (total minus unpaid break). While the shift is open the
+    /// recorded breaks — including one still running — are left out, so the figure
+    /// stands still during a break.
     var effectiveHours: Double {
         let end = clockOut ?? Date()
         let raw = max(0, end.timeIntervalSince(clockIn) / 3600)
-        return max(0, raw - Double(breakMinutes) / 60)
+        guard isOpen else { return max(0, raw - Double(breakMinutes) / 60) }
+        let running = breakStart.map { max(0, end.timeIntervalSince($0)) } ?? 0
+        return max(0, raw - ((closedBreakSeconds ?? 0) + running) / 3600)
     }
 }
 
@@ -69,6 +81,8 @@ struct WidgetSession: Codable, Equatable {
 enum WidgetAction: String {
     case clockIn = "clockIn"
     case clockOut = "clockOut"
+    case startBreak = "startBreak"
+    case endBreak = "endBreak"
 }
 
 // MARK: - Live Activity attributes
@@ -81,6 +95,18 @@ struct HoursActivityAttributes: ActivityAttributes {
         var elapsedTime: TimeInterval
         var estimatedPay: Double
         var elapsedHours: Double
+        /// Start of the break in progress; nil while working.
+        var breakStart: Date? = nil
+        /// Planned break length, for the Lock Screen / Dynamic Island countdown.
+        var breakTargetMinutes: Int? = nil
+
+        var isOnBreak: Bool { breakStart != nil }
+
+        /// When the planned break ends (nil when not on break).
+        var breakEnd: Date? {
+            guard let breakStart else { return nil }
+            return breakStart.addingTimeInterval(TimeInterval((breakTargetMinutes ?? 30) * 60))
+        }
     }
 
     var clockInTime: Date
@@ -103,6 +129,7 @@ enum WidgetBridge {
     static let lastUpdateKey = "widget_last_update"
     static let hidePayKey = "widget_hide_pay"
     static let pendingActionKey = "widget_pending_action"
+    static let pendingActionDateKey = "widget_pending_action_date"
 
     /// Darwin notification name — works across the app ↔ widget processes.
     static let darwinActionNotification = "com.hourstracker.widget.action" as CFString
@@ -147,15 +174,21 @@ enum WidgetBridge {
     /// Live Activity, and sync — the widget only signals).
     static func recordPendingAction(_ action: WidgetAction) {
         suite?.set(action.rawValue, forKey: pendingActionKey)
+        suite?.set(Date(), forKey: pendingActionDateKey)
         postDarwinNotification()
     }
 
-    /// Read + clear the pending action. Returns nil when nothing is pending.
-    static func consumePendingAction() -> WidgetAction? {
+    /// Read + clear the pending action (nil when nothing is pending), together with
+    /// when it was tapped. The app may only get to apply it much later (it wasn't
+    /// running), so the tap time — not the time it was applied — is when the
+    /// break / shift really started.
+    static func consumePendingActionWithDate() -> (action: WidgetAction, tappedAt: Date?)? {
         guard let raw = suite?.string(forKey: pendingActionKey),
               let action = WidgetAction(rawValue: raw) else { return nil }
+        let tappedAt = suite?.object(forKey: pendingActionDateKey) as? Date
         suite?.removeObject(forKey: pendingActionKey)
-        return action
+        suite?.removeObject(forKey: pendingActionDateKey)
+        return (action, tappedAt)
     }
 
     /// Cross-process wake-up: the app observes this name while running.

@@ -15,6 +15,13 @@ struct WatchSnapshot: Codable, Equatable {
 
     var isClockedIn: Bool
     var clockInTime: Date?
+    /// Start of the break in progress (nil while working or clocked out).
+    var breakStart: Date? = nil
+    /// Planned break length for the countdown.
+    var breakTargetMinutes: Int? = nil
+    /// Seconds of finished breaks in the open shift — the Watch's shift timer leaves
+    /// them out so it matches the phone's.
+    var closedBreakSeconds: Double? = nil
 
     // MARK: Home tab
 
@@ -215,6 +222,8 @@ struct WatchLanguageOption: Codable, Equatable, Identifiable {
 enum WatchActionKind: String, Codable {
     case clockIn
     case clockOut
+    case startBreak
+    case endBreak
     /// `intValue` is the number of payroll periods to move (±1).
     case shiftHistoryPeriod
     /// `boolValue` is the new state.

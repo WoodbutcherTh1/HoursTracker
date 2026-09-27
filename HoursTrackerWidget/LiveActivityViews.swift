@@ -13,6 +13,7 @@ private enum LATheme {
     static let textSecondary = Color.white.opacity(0.5)
     static let textTertiary = Color.white.opacity(0.3)
     static let glow = Color(red: 0.180, green: 0.831, blue: 0.769).opacity(0.15)
+    static let coral = Color(red: 1.0, green: 0.420, blue: 0.482) // #FF6B7B — break state
 }
 
 // MARK: - Lock Screen Banner
@@ -67,20 +68,37 @@ struct HoursLiveActivityView: View {
 
             Spacer()
 
-            // Time + since
+            // Time + since (or the break countdown while on break)
             VStack(alignment: .trailing, spacing: 3) {
-                HStack(spacing: 3) {
-                    Image(systemName: "timer")
-                        .font(.system(size: 9))
-                        .foregroundStyle(LATheme.accent)
-                    Text(formattedTime(state.elapsedTime))
-                        .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
-                        .foregroundStyle(LATheme.textPrimary)
-                }
+                if let breakStart = state.breakStart, let breakEnd = state.breakEnd {
+                    HStack(spacing: 3) {
+                        Image(systemName: "cup.and.saucer.fill")
+                            .font(.system(size: 9))
+                            .foregroundStyle(LATheme.coral)
+                        Text(timerInterval: min(breakStart, breakEnd)...breakEnd, countsDown: true)
+                            .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
+                            .foregroundStyle(LATheme.textPrimary)
+                            .multilineTextAlignment(.trailing)
+                            .frame(maxWidth: 60, alignment: .trailing)
+                    }
 
-                Text("since \(attributes.clockInTime, style: .time)")
-                    .font(.system(size: 9, weight: .medium, design: .rounded))
-                    .foregroundStyle(LATheme.textTertiary)
+                    Text("on break")
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .foregroundStyle(LATheme.coral)
+                } else {
+                    HStack(spacing: 3) {
+                        Image(systemName: "timer")
+                            .font(.system(size: 9))
+                            .foregroundStyle(LATheme.accent)
+                        Text(formattedTime(state.elapsedTime))
+                            .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
+                            .foregroundStyle(LATheme.textPrimary)
+                    }
+
+                    Text("since \(attributes.clockInTime, style: .time)")
+                        .font(.system(size: 9, weight: .medium, design: .rounded))
+                        .foregroundStyle(LATheme.textTertiary)
+                }
             }
         }
         .padding(.horizontal, 16)
@@ -112,9 +130,9 @@ struct HoursLiveActivityMinimal: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: "bolt.fill")
+            Image(systemName: state.isOnBreak ? "cup.and.saucer.fill" : "bolt.fill")
                 .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(LATheme.accent)
+                .foregroundStyle(state.isOnBreak ? LATheme.coral : LATheme.accent)
             Text(formattedTime(state.elapsedTime))
                 .font(.system(size: 12, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(LATheme.textPrimary)
@@ -148,14 +166,22 @@ struct HoursLiveActivityExpanded: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                    Text("Clocked In")
+                    Text(state.isOnBreak ? "On break" : "Clocked In")
                         .font(.system(size: 14, weight: .bold, design: .rounded))
-                        .foregroundStyle(LATheme.textPrimary)
+                        .foregroundStyle(state.isOnBreak ? LATheme.coral : LATheme.textPrimary)
                 }
                 Spacer()
-                Text("since \(attributes.clockInTime, style: .time)")
-                    .font(.system(size: 11, weight: .medium, design: .rounded))
-                    .foregroundStyle(LATheme.textSecondary)
+                if let breakStart = state.breakStart, let breakEnd = state.breakEnd {
+                    Text(timerInterval: min(breakStart, breakEnd)...breakEnd, countsDown: true)
+                        .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(LATheme.coral)
+                        .multilineTextAlignment(.trailing)
+                        .frame(maxWidth: 70, alignment: .trailing)
+                } else {
+                    Text("since \(attributes.clockInTime, style: .time)")
+                        .font(.system(size: 11, weight: .medium, design: .rounded))
+                        .foregroundStyle(LATheme.textSecondary)
+                }
             }
 
             // Timer + Pay — main stats

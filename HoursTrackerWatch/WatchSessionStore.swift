@@ -54,6 +54,14 @@ final class WatchSessionStore: NSObject, ObservableObject {
         send(WatchRequest(kind: .clockOut))
     }
 
+    func startBreak() {
+        send(WatchRequest(kind: .startBreak))
+    }
+
+    func endBreak() {
+        send(WatchRequest(kind: .endBreak))
+    }
+
     /// Moves the History tab's displayed payroll period by `delta` periods (±1).
     func shiftHistoryPeriod(by delta: Int) {
         send(WatchRequest(kind: .shiftHistoryPeriod, intValue: delta))

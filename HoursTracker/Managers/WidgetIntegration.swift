@@ -16,17 +16,24 @@ extension WidgetBridge {
             breakMinutes: settings.defaultBreakMinutes,
             currencyCode: settings.currencyCode,
             weeklyStandardHours: settings.weeklyStandardHours,
-            weeklyOvertimeCapHours: settings.weeklyOvertimeCapHours
+            weeklyOvertimeCapHours: settings.weeklyOvertimeCapHours,
+            breakTargetMinutes: NotificationPreferences.shared.breakTargetMinutes
         )
     }
 
     static func snapshot(from session: WorkSession) -> WidgetSession {
-        WidgetSession(
+        let active = session.activeBreak
+        let closedSeconds = session.breaks
+            .filter { !$0.isOpen }
+            .reduce(0.0) { $0 + $1.seconds() }
+        return WidgetSession(
             id: session.id,
             clockIn: session.clockIn,
             clockOut: session.clockOut,
             breakMinutes: session.breakMinutes,
-            isNightShift: session.isNightShift
+            isNightShift: session.isNightShift,
+            breakStart: active?.start,
+            closedBreakSeconds: session.isOpen ? closedSeconds : nil
         )
     }
 

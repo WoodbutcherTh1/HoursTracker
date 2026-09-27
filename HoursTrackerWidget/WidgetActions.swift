@@ -31,6 +31,28 @@ struct ClockOutIntent: AppIntent {
     }
 }
 
+struct StartBreakIntent: AppIntent {
+    static var title: LocalizedStringResource = "Start Break"
+    static var description = IntentDescription("Pause your shift for a break")
+    static var openAppWhenRun: Bool = false
+
+    func perform() async throws -> some IntentResult {
+        WidgetBridge.recordPendingAction(.startBreak)
+        return .result()
+    }
+}
+
+struct EndBreakIntent: AppIntent {
+    static var title: LocalizedStringResource = "End Break"
+    static var description = IntentDescription("Back to work after a break")
+    static var openAppWhenRun: Bool = false
+
+    func perform() async throws -> some IntentResult {
+        WidgetBridge.recordPendingAction(.endBreak)
+        return .result()
+    }
+}
+
 extension WidgetBridge {
     /// Deep links for tapping (non-button) areas of the widget.
     static let deepLinkHome = "hourstracker://tab/home"
