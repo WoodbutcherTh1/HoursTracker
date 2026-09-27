@@ -128,8 +128,11 @@ extension AppViewModel {
             breakStart: activeSession?.activeBreak?.start,
             breakTargetMinutes: NotificationPreferences.shared.breakTargetMinutes,
             closedBreakSeconds: activeSession.map { session in
-                session.breaks.filter { !$0.isOpen }.reduce(0.0) { $0 + $1.seconds() }
+                settings.breaksArePaid
+                    ? 0
+                    : session.breaks.filter { !$0.isOpen }.reduce(0.0) { $0 + $1.seconds() }
             },
+            breaksArePaid: settings.breaksArePaid,
             todayHours: max(0, todayHours),
             todayNetPay: todayBreakdown.netPay,
             todayGrossPay: todayBreakdown.grossPay,

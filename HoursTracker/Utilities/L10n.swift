@@ -44,6 +44,8 @@ enum L10n {
     static var homeBreakStart: String { t("home.break.start") }
     static var homeBreakEnd: String { t("home.break.end") }
     static var homeOnBreak: String { t("home.break.onBreak") }
+    static var homeBreakPaid: String { t("home.break.paid") }
+    static var homeBreakUnpaid: String { t("home.break.unpaid") }
     static func homeBreakRemaining(_ time: String) -> String {
         String(format: t("home.break.remaining %@"), time)
     }
@@ -393,6 +395,9 @@ enum L10n {
     static var settingsLocationDenied: String { t("settings.locationDenied") }
     static var settingsNotificationsDenied: String { t("settings.notificationsDenied") }
     static var settingsNotificationsSection: String { t("settings.notifications.section") }
+    static var settingsBreaksArePaid: String { t("settings.breaksArePaid") }
+    static var settingsBreaksArePaidOnHint: String { t("settings.breaksArePaid.onHint") }
+    static var settingsBreaksArePaidOffHint: String { t("settings.breaksArePaid.offHint") }
     static var settingsNotificationsHint: String { t("settings.notifications.hint") }
     static var settingsNotificationsBreakLength: String { t("settings.notifications.breakLength") }
     static var settingsNotificationsBreakEndingSoon: String { t("settings.notifications.breakEndingSoon") }

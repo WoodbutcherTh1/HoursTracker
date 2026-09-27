@@ -60,6 +60,8 @@ struct HomeView: View {
 
     private let calendar = Calendar.current
 
+    private var breaksArePaid: Bool { viewModel.settings.breaksArePaid }
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -428,10 +430,10 @@ struct HomeView: View {
                 LiveTimerView(
                     startDate: session.clockIn,
                     fontSize: timerSize,
-                    excludedSeconds: { session.recordedBreakSeconds(now: $0) },
+                    excludedSeconds: { breaksArePaid ? 0 : session.recordedBreakSeconds(now: $0) },
                     onTick: { date in liveNow = date }
                 )
-                .opacity(session.isOnBreak ? 0.45 : 1)
+                .opacity(session.isOnBreak && !breaksArePaid ? 0.45 : 1)
 
                 VStack(spacing: 6) {
                     Picker("", selection: $livePayMode) {
@@ -489,6 +491,7 @@ struct HomeView: View {
             HomeBreakControl(
                 session: session,
                 targetMinutes: notificationPrefs.breakTargetMinutes,
+                isPaid: breaksArePaid,
                 accent: homeTheme.accent,
                 compact: metrics.isCompact || metrics.isShort,
                 onToggle: { viewModel.toggleBreak() }
@@ -528,9 +531,10 @@ struct HomeView: View {
     private func liveBreakdown(for session: WorkSession, at now: Date) -> DayPayBreakdown {
         var provisional = session
         let end = max(session.clockIn, now)
-        // A break in progress is unpaid: close it at `now` so pay stops rising while
-        // the worker is on break, exactly as it will once they tap "back to work".
-        provisional.closeOpenBreak(at: end)
+        // A break in progress at a workplace that deducts breaks is unpaid: close it at
+        // `now` so pay stops rising while the worker is on break, exactly as it will
+        // once they tap "back to work". Paid breaks leave the figure running.
+        provisional.closeOpenBreak(at: end, deductFromPay: !viewModel.settings.breaksArePaid)
         provisional.clockOut = end
         provisional.applyDefaultBreakIfNeeded(settings: viewModel.settings)
         return OvertimeCalculator.breakdown(
@@ -808,6 +812,9 @@ struct DaySummarySheet: View {
 struct HomeBreakControl: View {
     let session: WorkSession
     let targetMinutes: Int
+    /// Paid breaks keep the pay clock running — the card says so, so the worker
+    /// knows this break is a reminder only.
+    let isPaid: Bool
     let accent: Color
     let compact: Bool
     let onToggle: () -> Void
@@ -873,7 +880,7 @@ struct HomeBreakControl: View {
                     .tint(isOver ? HomeNeon.coral : accent)
                     .accessibilityHidden(true)
 
-                Text(L10n.homeBreakTarget(targetMinutes))
+                Text(verbatim: "\(L10n.homeBreakTarget(targetMinutes)) · \(isPaid ? L10n.homeBreakPaid : L10n.homeBreakUnpaid)")
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.45))
 

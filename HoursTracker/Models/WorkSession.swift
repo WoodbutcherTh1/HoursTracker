@@ -54,7 +54,9 @@ struct WorkSession: Codable, Identifiable, Equatable {
     /// True when imported via the timesheet scanner / OCR flow.
     var isAIImported: Bool
     /// Unpaid break, deducted from paid hours. When the worker used the live break
-    /// button, this is kept equal to the recorded `breaks` total (see `endBreak`).
+    /// button at a workplace that deducts breaks, this is kept equal to the recorded
+    /// `breaks` total (see `endBreak`); at a workplace that pays for breaks the
+    /// recorded breaks leave it untouched.
     var breakMinutes: Int
     /// Breaks recorded live with the break button. Empty for manual / imported
     /// entries and for every session saved before the feature existed.
@@ -124,8 +126,9 @@ struct WorkSession: Codable, Identifiable, Equatable {
     /// running figure doesn't drop the instant the shift is actually closed.
     mutating func applyDefaultBreakIfNeeded(settings: WorkplaceSettings) {
         // A break the worker actually recorded with the break button wins over the
-        // workplace default — never deduct both.
-        guard breaks.isEmpty else { return }
+        // workplace default — never deduct both. And a workplace that pays for breaks
+        // never deducts one at all.
+        guard breaks.isEmpty, !settings.breaksArePaid else { return }
         guard settings.defaultBreakMinutes > 0, breakMinutes == 0, totalHours >= 6 else { return }
         breakMinutes = settings.defaultBreakMinutes
     }
@@ -154,20 +157,22 @@ struct WorkSession: Codable, Identifiable, Equatable {
         return true
     }
 
-    /// Ends the running break and folds the recorded total into `breakMinutes`.
+    /// Ends the running break. When the workplace deducts breaks (`deductFromPay`),
+    /// the recorded total is folded into `breakMinutes`; when it pays for them, the
+    /// break is kept for the record only and pay is untouched.
     @discardableResult
-    mutating func endBreak(at time: Date = Date()) -> Bool {
+    mutating func endBreak(at time: Date = Date(), deductFromPay: Bool = true) -> Bool {
         guard let index = breaks.lastIndex(where: \.isOpen) else { return false }
         breaks[index].end = max(time, breaks[index].start)
-        syncBreakMinutesFromRecordedBreaks()
+        if deductFromPay { syncBreakMinutesFromRecordedBreaks() }
         return true
     }
 
     /// Closes a break left running when the shift itself is closed at `time`.
-    mutating func closeOpenBreak(at time: Date) {
+    mutating func closeOpenBreak(at time: Date, deductFromPay: Bool = true) {
         guard let index = breaks.lastIndex(where: \.isOpen) else { return }
         breaks[index].end = max(time, breaks[index].start)
-        syncBreakMinutesFromRecordedBreaks()
+        if deductFromPay { syncBreakMinutesFromRecordedBreaks() }
     }
 
     private mutating func syncBreakMinutesFromRecordedBreaks() {
@@ -176,9 +181,12 @@ struct WorkSession: Codable, Identifiable, Equatable {
     }
 
     /// Paid time elapsed so far on an open shift: wall-clock time minus recorded
-    /// breaks (a running break stops the paid clock).
-    func paidElapsedSeconds(now: Date = Date()) -> TimeInterval {
-        max(0, (clockOut ?? now).timeIntervalSince(clockIn) - recordedBreakSeconds(now: clockOut ?? now))
+    /// breaks (a running break stops the paid clock) — unless the workplace pays for
+    /// breaks, in which case the clock keeps running through them.
+    func paidElapsedSeconds(now: Date = Date(), breaksArePaid: Bool = false) -> TimeInterval {
+        let end = clockOut ?? now
+        let unpaid = breaksArePaid ? 0 : recordedBreakSeconds(now: end)
+        return max(0, end.timeIntervalSince(clockIn) - unpaid)
     }
 
     var isOpen: Bool {

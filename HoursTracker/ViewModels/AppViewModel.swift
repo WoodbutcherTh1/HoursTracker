@@ -280,7 +280,7 @@ final class AppViewModel: ObservableObject {
         }
         let clockOutDate = Date()
         // Clocking out mid-break ends that break at the same moment.
-        sessions[index].closeOpenBreak(at: clockOutDate)
+        sessions[index].closeOpenBreak(at: clockOutDate, deductFromPay: !settings.breaksArePaid)
         BreakReminderScheduler.cancel()
         sessions[index].clockOut = clockOutDate
         sessions[index].isNightShift = WorkSession.qualifiesAsNightShift(
@@ -335,7 +335,7 @@ final class AppViewModel: ObservableObject {
     func endBreak(at date: Date = Date()) {
         guard let id = activeSession?.id,
               let index = sessions.firstIndex(where: { $0.id == id }) else { return }
-        guard sessions[index].endBreak(at: min(date, Date())) else { return }
+        guard sessions[index].endBreak(at: min(date, Date()), deductFromPay: !settings.breaksArePaid) else { return }
         sessions[index].touch()
         persist()
         syncWidget()
@@ -649,6 +649,9 @@ final class AppViewModel: ObservableObject {
         let remindersJustDisabled = !updated.arrivalRemindersEnabled && settings.arrivalRemindersEnabled
         settings = updated
         persistSettings()
+        // Session snapshots depend on settings too (e.g. whether breaks are paid), so
+        // refresh widgets / Live Activity / Watch, not just the settings snapshot.
+        syncWidget()
         if remindersJustEnabled {
             locationManager.requestArrivalReminderPermissions()
             refreshLocationPermissionStatuses()

@@ -17012,6 +17012,116 @@
           }
         }
       }
+    },
+    "home.break.paid" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استراحة مدفوعة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "paid break"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הפסקה בתשלום"
+          }
+        }
+      }
+    },
+    "home.break.unpaid" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "غير مدفوعة — بتنخصم من الراتب"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "unpaid — deducted from pay"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ללא תשלום — יורד מהשכר"
+          }
+        }
+      }
+    },
+    "settings.breaksArePaid" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الاستراحة مدفوعة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Breaks are paid"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הפסקות בתשלום"
+          }
+        }
+      }
+    },
+    "settings.breaksArePaid.onHint" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مكان الشغل بيدفع عن الاستراحة: زر الاستراحة للتذكير بس — الساعات والمصاري بيضلوا ينعدّوا."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your workplace pays for breaks: the break button is a reminder only — hours and pay keep counting."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מקום העבודה משלם על הפסקות: כפתור ההפסקה הוא תזכורת בלבד — השעות והשכר ממשיכים להיספר."
+          }
+        }
+      }
+    },
+    "settings.breaksArePaid.offHint" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مكان الشغل بيخصم الاستراحة: وقتها بينقص من الساعات والراتب."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your workplace deducts breaks: break time is taken off your hours and pay."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מקום העבודה מנכה הפסקות: זמן ההפסקה יורד מהשעות ומהשכר."
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

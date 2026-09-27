@@ -58,8 +58,11 @@ struct WidgetSession: Codable, Equatable {
     let isNightShift: Bool
     /// Start of the break in progress (nil when not on break).
     var breakStart: Date? = nil
-    /// Seconds of already-finished breaks in this (open) shift.
+    /// Seconds of already-finished unpaid breaks in this (open) shift.
     var closedBreakSeconds: Double? = nil
+    /// True when the running break is paid (workplace doesn't deduct breaks), so the
+    /// paid clock keeps running through it.
+    var breakIsPaid: Bool? = nil
 
     var isOpen: Bool { clockOut == nil }
     var isOnBreak: Bool { isOpen && breakStart != nil }
@@ -71,7 +74,7 @@ struct WidgetSession: Codable, Equatable {
         let end = clockOut ?? Date()
         let raw = max(0, end.timeIntervalSince(clockIn) / 3600)
         guard isOpen else { return max(0, raw - Double(breakMinutes) / 60) }
-        let running = breakStart.map { max(0, end.timeIntervalSince($0)) } ?? 0
+        let running = breakIsPaid == true ? 0 : breakStart.map { max(0, end.timeIntervalSince($0)) } ?? 0
         return max(0, raw - ((closedBreakSeconds ?? 0) + running) / 3600)
     }
 }

@@ -624,15 +624,26 @@ struct SettingsView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(L10n.settingsDefaultBreak)
-                    Spacer()
-                    breakMinutesStepper
-                }
-                breakMinutesQuickPicks
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle(L10n.settingsBreaksArePaid, isOn: $draft.breaksArePaid)
+                Text(draft.breaksArePaid ? L10n.settingsBreaksArePaidOnHint : L10n.settingsBreaksArePaidOffHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .padding(.vertical, 2)
+
+            // The automatic break is an unpaid deduction — meaningless when the
+            // workplace pays for breaks.
+            if !draft.breaksArePaid {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(L10n.settingsDefaultBreak)
+                        Spacer()
+                        breakMinutesStepper
+                    }
+                    breakMinutesQuickPicks
+                }
+                .padding(.vertical, 2)
+            }
 
             DatePicker(
                 L10n.settingsExpectedShiftStart,

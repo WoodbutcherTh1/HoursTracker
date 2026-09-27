@@ -69,7 +69,7 @@ enum LiveActivityManager {
         // `effectiveHours` is 0 for an open session (it needs a clock-out), which left
         // the banner reading 0.0h / 0 pay all shift. Use paid time so far instead —
         // wall clock minus recorded breaks, so it also stands still during a break.
-        let paidSeconds = session.paidElapsedSeconds()
+        let paidSeconds = session.paidElapsedSeconds(breaksArePaid: settings.breaksArePaid)
         let elapsed = paidSeconds / 3600
         let pay = WidgetBridge.estimatePay(
             elapsedHours: elapsed,

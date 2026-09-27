@@ -82,7 +82,7 @@ struct WatchHomeView: View {
         VStack(spacing: 8) {
             if snapshot.isClockedIn, let clockInTime = snapshot.clockInTime {
                 let closedBreaks = snapshot.closedBreakSeconds ?? 0
-                if let breakStart = snapshot.breakStart {
+                if let breakStart = snapshot.breakStart, snapshot.breaksArePaid != true {
                     // Paid clock is stopped for the break — show where it paused.
                     Text(Self.clock(breakStart.timeIntervalSince(clockInTime) - closedBreaks))
                         .font(.system(size: 32, weight: .light, design: .rounded))
@@ -96,6 +96,10 @@ struct WatchHomeView: View {
                         .font(.system(size: 32, weight: .light, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(.white)
+                    // Paid break: the clock keeps running, the countdown is a reminder.
+                    if let breakStart = snapshot.breakStart {
+                        breakCountdown(breakStart: breakStart)
+                    }
                 }
             }
 

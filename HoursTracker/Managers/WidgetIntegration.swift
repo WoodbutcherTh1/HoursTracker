@@ -21,9 +21,10 @@ extension WidgetBridge {
         )
     }
 
-    static func snapshot(from session: WorkSession) -> WidgetSession {
+    static func snapshot(from session: WorkSession, breaksArePaid: Bool = false) -> WidgetSession {
         let active = session.activeBreak
-        let closedSeconds = session.breaks
+        // A paid break doesn't stop the paid clock, so there's nothing to leave out.
+        let closedSeconds = breaksArePaid ? 0 : session.breaks
             .filter { !$0.isOpen }
             .reduce(0.0) { $0 + $1.seconds() }
         return WidgetSession(
@@ -33,13 +34,14 @@ extension WidgetBridge {
             breakMinutes: session.breakMinutes,
             isNightShift: session.isNightShift,
             breakStart: active?.start,
-            closedBreakSeconds: session.isOpen ? closedSeconds : nil
+            closedBreakSeconds: session.isOpen ? closedSeconds : nil,
+            breakIsPaid: active == nil ? nil : breaksArePaid
         )
     }
 
     static func pushUpdate(settings: WorkplaceSettings, sessions: [WorkSession]) {
         update(settings: snapshot(from: settings))
-        update(sessions: sessions.map(snapshot(from:)))
+        update(sessions: sessions.map { snapshot(from: $0, breaksArePaid: settings.breaksArePaid) })
         reloadWidgetTimelines()
     }
 }

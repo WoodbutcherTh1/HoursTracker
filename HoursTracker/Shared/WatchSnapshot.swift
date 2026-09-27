@@ -22,6 +22,9 @@ struct WatchSnapshot: Codable, Equatable {
     /// Seconds of finished breaks in the open shift — the Watch's shift timer leaves
     /// them out so it matches the phone's.
     var closedBreakSeconds: Double? = nil
+    /// True when the workplace pays for breaks: the shift timer keeps running
+    /// through a break and the break is a reminder only.
+    var breaksArePaid: Bool? = nil
 
     // MARK: Home tab
 

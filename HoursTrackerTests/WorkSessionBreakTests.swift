@@ -148,3 +148,55 @@ final class BreakReminderPlanTests: XCTestCase {
         XCTAssertEqual(plan.map(\.kind), [.over])
     }
 }
+
+final class PaidBreakTests: XCTestCase {
+    private let clockIn = TestData.date(2026, 3, 10, 8)
+
+    private var paidSettings: WorkplaceSettings {
+        var settings = WorkplaceSettings.default
+        settings.breaksArePaid = true
+        settings.defaultBreakMinutes = 30
+        return settings
+    }
+
+    func testPaidBreakIsRecordedButNotDeducted() {
+        var session = WorkSession(date: clockIn, clockIn: clockIn)
+        session.startBreak(at: clockIn.addingTimeInterval(4 * 3600))
+        session.endBreak(at: clockIn.addingTimeInterval(4 * 3600 + 30 * 60), deductFromPay: false)
+        XCTAssertEqual(session.breaks.count, 1)
+        XCTAssertEqual(session.breakMinutes, 0)
+    }
+
+    func testPaidBreakKeepsPaidClockRunning() {
+        var session = WorkSession(date: clockIn, clockIn: clockIn)
+        session.startBreak(at: clockIn.addingTimeInterval(3600))
+        let now = clockIn.addingTimeInterval(3600 + 20 * 60)
+        XCTAssertEqual(session.paidElapsedSeconds(now: now, breaksArePaid: true), 3600 + 20 * 60, accuracy: 0.5)
+    }
+
+    func testPaidWorkplaceNeverAppliesDefaultBreak() {
+        var session = WorkSession(date: clockIn, clockIn: clockIn, clockOut: clockIn.addingTimeInterval(9 * 3600))
+        session.applyDefaultBreakIfNeeded(settings: paidSettings)
+        XCTAssertEqual(session.breakMinutes, 0)
+    }
+
+    func testClosingOpenPaidBreakAtClockOutDeductsNothing() {
+        var session = WorkSession(date: clockIn, clockIn: clockIn)
+        session.startBreak(at: clockIn.addingTimeInterval(7 * 3600))
+        session.closeOpenBreak(at: clockIn.addingTimeInterval(8 * 3600), deductFromPay: false)
+        XCTAssertEqual(session.breakMinutes, 0)
+        XCTAssertFalse(session.breaks.contains(where: \.isOpen))
+    }
+
+    func testBreaksArePaidDefaultsToFalseForOldSettings() throws {
+        var object = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: JSONEncoder().encode(WorkplaceSettings.default)) as? [String: Any]
+        )
+        object.removeValue(forKey: "breaksArePaid")
+        let decoded = try JSONDecoder().decode(
+            WorkplaceSettings.self,
+            from: JSONSerialization.data(withJSONObject: object)
+        )
+        XCTAssertFalse(decoded.breaksArePaid)
+    }
+}

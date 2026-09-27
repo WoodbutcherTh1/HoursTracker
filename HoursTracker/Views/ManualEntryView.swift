@@ -110,7 +110,8 @@ struct ManualEntryView: View {
         }
         .onAppear {
             syncTimesToDate()
-            breakMinutes = viewModel.settings.defaultBreakMinutes
+            // Paid-break workplaces never deduct a break, so don't pre-fill one.
+            breakMinutes = viewModel.settings.breaksArePaid ? 0 : viewModel.settings.defaultBreakMinutes
             dayType = viewModel.resolvedDayType(for: selectedDate)
             applyHolidayAutoFillIfNeeded()
         }
