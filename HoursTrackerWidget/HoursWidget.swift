@@ -201,7 +201,7 @@ private var widgetBreakIcon: some View {
 }
 
 /// End of the planned break for an on-break session (nil when working).
-private func breakEnd(for session: WidgetSession) -> Date? {
+private func plannedBreakEnd(for session: WidgetSession) -> Date? {
     guard let start = session.breakStart else { return nil }
     let minutes = WidgetBridge.readSettings().breakTargetMinutes ?? 30
     return start.addingTimeInterval(TimeInterval(max(1, minutes) * 60))
@@ -420,7 +420,7 @@ struct HoursSmallWidgetView: View {
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.55)
-                    if let breakEnd = breakEnd(for: session) {
+                    if let breakEnd = plannedBreakEnd(for: session) {
                         breakCountdown(start: session.breakStart ?? entry.date, end: breakEnd)
                     } else {
                         Text("today")
@@ -583,7 +583,7 @@ struct HoursHomeWidgetView: View {
                         .foregroundStyle(entry.session?.isOnBreak == true ? WidgetTheme.coral : WidgetTheme.accentLight)
                 }
 
-                if let session = entry.session, let breakEnd = breakEnd(for: session) {
+                if let session = entry.session, let breakEnd = plannedBreakEnd(for: session) {
                     breakCountdown(start: session.breakStart ?? entry.date, end: breakEnd)
                 }
             }

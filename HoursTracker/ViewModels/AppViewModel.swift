@@ -349,7 +349,11 @@ final class AppViewModel: ObservableObject {
     }
 
     func toggleBreak() {
-        isOnBreak ? endBreak() : startBreak()
+        if isOnBreak {
+            endBreak()
+        } else {
+            startBreak()
+        }
     }
 
     func dismissDaySummary() {
