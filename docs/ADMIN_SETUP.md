@@ -28,11 +28,13 @@ Paste the `.p8` only here — never in chat, Git, or the app.
 1. Apply `supabase/migrations/20260927100000_admin_devices_announcements.sql`.
 2. Deploy `register-device` and `admin-api` **with JWT verification off**
    (`supabase/config.toml`; the functions verify the session themselves).
-3. Make the owner account an admin (run once in the SQL editor):
+3. Make the owner accounts admins (run once in the SQL editor). Both are
+   `owner`; more admins can be added the same way with role `admin`:
 
 ```sql
 insert into public.admins (user_id, role)
-select id, 'owner' from auth.users where lower(email) = lower('<owner email>')
+select id, 'owner' from auth.users
+where lower(email) in ('hmam.kaadna@gmail.com', 'info.hourstracker@gmail.com')
 on conflict (user_id) do update set role = 'owner';
 ```
 
