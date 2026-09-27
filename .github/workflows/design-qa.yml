@@ -126,7 +126,7 @@ jobs:
           for f in design-qa/screenshots/*.png; do
             [ -e "$f" ] || continue
             name=$(basename "$f" .png)
-            sips -Z 520 -s format jpeg -s formatOptions 55 "$f" --out "previews/$name.jpg" >/dev/null
+            sips -Z 420 -s format jpeg -s formatOptions 50 "$f" --out "previews/$name.jpg" >/dev/null
             echo "=== QA-IMG $name ==="
             base64 -i "previews/$name.jpg" | fold -w 4000
             echo "=== QA-END ==="
