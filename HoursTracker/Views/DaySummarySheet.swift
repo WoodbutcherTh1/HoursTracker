@@ -234,14 +234,18 @@ struct DaySummarySheet: View {
                     Text(verbatim: currencySymbol)
                         .dsFont(.numLarge)
                         .foregroundStyle(DS.Palette.textSecondary)
+                    // Same rule as the onboarding rate field: no forced
+                    // `.leftToRight` around a TextField, or RTL hides the digits.
                     TextField("0", text: $rateText)
                         .keyboardType(.decimalPad)
-                        .dsFont(.numLarge)
+                        .htFont(size: 28, relativeTo: .title, weight: .semibold, design: .rounded)
+                        .monospacedDigit()
+                        .multilineTextAlignment(.leading)
                         .foregroundStyle(DS.Palette.textPrimary)
                         .tint(accent)
                         .accessibilityLabel(L10n.onbRateA11y)
+                        .accessibilityIdentifier("daySummary.rateField")
                 }
-                .environment(\.layoutDirection, .leftToRight)
                 .padding(.horizontal, DS.Space.md)
                 .frame(minHeight: 56)
                 .background(

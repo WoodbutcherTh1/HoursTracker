@@ -273,6 +273,11 @@ struct OnboardingView: View {
         VStack(alignment: .leading, spacing: DS.Space.lg) {
             stepTitle(L10n.onbRateTitle, subtitle: L10n.onbRateSubtitle)
 
+            // Follows the app's direction: [₪][55][✓] in English, ₪ on the right in
+            // Hebrew/Arabic. Do NOT force `.leftToRight` on this row or the field:
+            // a TextField whose layout direction is flipped against the app's RTL
+            // stores the text but doesn't draw it (only the caret shows). The digits
+            // still read left to right on their own (bidi), so "557" never reorders.
             HStack(spacing: DS.Space.xs) {
                 Text(verbatim: currencySymbol)
                     .dsFont(.numLarge)
@@ -280,7 +285,10 @@ struct OnboardingView: View {
                 TextField("0", text: $rateText)
                     .keyboardType(.decimalPad)
                     .focused($rateFocused)
-                    .dsFont(.numHero)
+                    // Not `.dsFont(.numHero)`: that also forces `.leftToRight`.
+                    .htFont(size: 48, relativeTo: .largeTitle, weight: .bold, design: .rounded)
+                    .monospacedDigit()
+                    .multilineTextAlignment(.leading)
                     .foregroundStyle(DS.Palette.textPrimary)
                     .tint(accent)
                     .accessibilityLabel(L10n.onbRateA11y)
@@ -295,7 +303,6 @@ struct OnboardingView: View {
                     .accessibilityLabel(L10n.onbRateA11y)
                     .accessibilityIdentifier("onboarding.rateValid")
             }
-            .environment(\.layoutDirection, .leftToRight)
             .padding(.horizontal, DS.Space.lg)
             .frame(minHeight: 88)
             .background(
