@@ -35,6 +35,11 @@ final class SyncingPersistenceStore: SyncingStore {
     private let tombstones: SessionTombstoneStoring
     private let writeQueue = CloudWriteQueue()
     private let syncTimeoutNanoseconds: UInt64
+    /// Bumped on every local save. `syncNow()` compares it after the network call
+    /// to notice a clock-in/out or edit made *while* it was waiting, so the sync
+    /// result (computed from the older snapshot) is merged with it instead of
+    /// overwriting it.
+    private var localRevision = 0
 
     private(set) var syncState: SyncState = .idle
 
@@ -79,6 +84,7 @@ final class SyncingPersistenceStore: SyncingStore {
             tombstones.record(ids: deletedIDs)
         }
         try local.saveSessions(sessions)
+        localRevision += 1
         guard syncPreference.isEnabled else { return }
         Task {
             await writeQueue.enqueue { [cloud] in
@@ -102,6 +108,7 @@ final class SyncingPersistenceStore: SyncingStore {
 
     func saveSettings(_ settings: WorkplaceSettings) throws {
         try local.saveSettings(settings)
+        localRevision += 1
         guard syncPreference.isEnabled else { return }
         Task {
             await writeQueue.enqueue { [cloud] in
@@ -112,6 +119,7 @@ final class SyncingPersistenceStore: SyncingStore {
 
     func saveSettingsLocally(_ settings: WorkplaceSettings) throws {
         try local.saveSettings(settings)
+        localRevision += 1
     }
 
     func purgeCloudData(sessionIDs: Set<UUID>) async throws {
@@ -160,6 +168,7 @@ final class SyncingPersistenceStore: SyncingStore {
             return .default
         }()
         let deleted = tombstones.tombstoneIDs
+        let revisionAtStart = localRevision
 
         do {
             let cloud = self.cloud
@@ -170,10 +179,29 @@ final class SyncingPersistenceStore: SyncingStore {
                     tombstoneIDs: deleted
                 )
             }
-            try local.saveSessions(result.sessions)
-            try local.saveSettings(result.settings)
+            // Something was saved locally while we waited on the network: merge the
+            // sync result with that newer state rather than overwrite it.
+            let merged: SyncResult
+            if localRevision == revisionAtStart {
+                merged = result
+            } else {
+                merged = SyncResult(
+                    sessions: CloudKitSyncManager.mergeSessions(
+                        local: local.loadSessions(),
+                        remote: result.sessions,
+                        tombstoneIDs: tombstones.tombstoneIDs
+                    ),
+                    settings: CloudKitSyncManager.mergeSettings(
+                        local: local.loadSettings(),
+                        remote: result.settings
+                    )
+                )
+            }
+            try local.saveSessions(merged.sessions)
+            try local.saveSettings(merged.settings)
+            localRevision += 1
             syncState = cloud.state
-            return result
+            return merged
         } catch {
             syncState = .failed(error.localizedDescription)
             throw error
