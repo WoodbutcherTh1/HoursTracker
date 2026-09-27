@@ -490,9 +490,7 @@ final class AppViewModel: ObservableObject {
         // keeps our files unreadable. Retry the load; if the data is still locked,
         // leave the tap pending (it keeps its tap time) instead of applying it to
         // an empty in-memory state that `persist()` would refuse to save anyway.
-        if sessionsLoadUnavailable || settingsLoadUnavailable {
-            load()
-        }
+        retryLoadIfNeeded()
         guard !sessionsLoadUnavailable, !settingsLoadUnavailable else { return }
         guard let pending = WidgetBridge.consumePendingActionWithDate() else { return }
         // Honor the tap time when the app only got to it later (it wasn't running),
@@ -748,6 +746,18 @@ final class AppViewModel: ObservableObject {
     /// Automatic on-device backups, newest first.
     var localBackups: [LocalBackup] {
         backups.list()
+    }
+
+    /// Re-attempts a load that came back `.temporarilyUnavailable` — e.g. the
+    /// process was woken by a widget / Live Activity tap while Data Protection still
+    /// had the files locked, so the first `load()` in `init()` lost the race.
+    /// Without this the flags stay set for the process's life: an empty History and
+    /// every `persist()` refused (by design, so the intact file is never
+    /// overwritten) until a force-quit. Called whenever the app becomes active.
+    /// A no-op when the last load was fine, so in-memory state is never clobbered.
+    func retryLoadIfNeeded() {
+        guard sessionsLoadUnavailable || settingsLoadUnavailable else { return }
+        load()
     }
 
     /// Today's automatic backup (once a day). Taken at launch and whenever the app

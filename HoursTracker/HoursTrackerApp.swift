@@ -53,6 +53,7 @@ struct HoursTrackerApp: App {
             .onAppear {
                 ExportTempFileStore.wipeAll()
                 PayslipStore.shared.sweepOrphanedFiles()
+                viewModel.retryLoadIfNeeded()
                 WatchConnectivityManager.shared.configure(viewModel: viewModel, appLock: appLock)
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("UITEST_SCREENSHOTS") {
@@ -87,6 +88,7 @@ struct HoursTrackerApp: App {
                 // Wipe on background only — `.inactive` also fires while the share
                 // sheet is presented and would delete the file mid-share.
                 if phase == .active {
+                    viewModel.retryLoadIfNeeded()
                     viewModel.syncNow()
                     viewModel.refreshShiftReminders()
                     viewModel.takeDailyBackupIfNeeded()
