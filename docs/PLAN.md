@@ -29,6 +29,9 @@ on `claude/planning-requests-bb6hz1`. Status: ⬜ todo · 🟡 in progress · �
   Both cancelled when the user taps "Back to work" early.
 - Fully synced: app, Watch, widgets, Live Activity / Dynamic Island — break
   can be started/ended from any of them.
+- Workplace setting **Breaks are paid** (default off). Off: break stops the paid
+  clock and is deducted. On: break is a reminder only — pay keeps counting and
+  the automatic default break is never applied.
 
 ### Notifications settings screen (shared by Phases 2, 5, 6)
 
