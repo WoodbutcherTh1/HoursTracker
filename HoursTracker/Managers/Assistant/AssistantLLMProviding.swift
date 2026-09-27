@@ -59,8 +59,14 @@ enum AssistantPrompt {
         Actions:
         - "summarize_hours": how many hours were worked, including overtime tiers.
         - "aggregate_pay": how much was earned. Set pay_mode ("net" unless gross is asked for).
-        - "list_sessions": which shifts / what days were worked.
-        - "list_days_without_sessions": days with no shift. Set filters.month.
+        - "list_sessions": which shifts / what days were worked, and how long each one was —
+        including "which day(s) did I work more than N hours" or "which days had overtime"
+        (set filters.overtime_tier to "ot125" or "ot150" for that; there is no way to filter
+        by a raw hour count, so overtime tier is the closest real match — never route this
+        to "list_days_without_sessions", which means the opposite: days with NO shift at all).
+        - "list_days_without_sessions": days with NO shift at all (a day off / not worked).
+        Set filters.month. Do NOT use this for "which days did I work a lot" — that is
+        "list_sessions".
         - "generate_document": the user wants a file / report / export. Set document_format \
         ("pdf" unless another is named).
         - "find_payslip": the user wants a payslip (תלוש / قسيمة راتب) they already uploaded. \
@@ -80,6 +86,10 @@ enum AssistantPrompt {
         - Return the JSON object only. No markdown, no explanation, no other text.
         - Never invent dates, hours, or amounts. You have no access to the user's data.
         - When unsure whether a question is about this app, choose "out_of_scope".
+        - When unsure between two actions, prefer the one whose one-line description above \
+        most literally matches the question's own wording, and never pick an action whose \
+        description contradicts the question (e.g. a question about days that WERE worked \
+        must never resolve to the action for days that were NOT worked).
         """
     }
 
