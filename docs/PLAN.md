@@ -16,7 +16,7 @@ on `claude/planning-requests-bb6hz1`. Status: ⬜ todo · 🟡 in progress · �
 | B13 | Timeout on CloudKit sync so a hang surfaces as failed | `claude/agitated-mestorf-e371c0` | ✅ |
 | B14 | In-app language override actually changes language | `claude/fix-in-app-language-resolution` | ✅ already fixed on `main` (lproj-first lookup) |
 
-## Phase 2 — Break button ("יצאתי להפסקה") — C1
+## Phase 2 — Break button ("יצאתי להפסקה") — C1 ✅ (awaiting CI + device test)
 
 - Session records break intervals (start/end); `breakMinutes` derived from them;
   old sessions keep decoding.
@@ -98,3 +98,5 @@ on `claude/planning-requests-bb6hz1`. Status: ⬜ todo · 🟡 in progress · �
 
 - This environment has no Xcode; builds are verified by CI, device testing by the owner.
 - More requests may be added as the owner remembers them.
+- Widget text is English-only today; localizing widgets (from `chat-session`) is tracked with Phase 7.
+- Notifications screen currently holds the break switches; shift reminders (Phase 5) and announcements (Phase 6) add their rows when they land. Location reminders stay in their own section for now.
