@@ -17650,6 +17650,28 @@
           }
         }
       }
+    },
+    "account.checkSpamHint" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ما وصلك الكود؟ شيك على مجلد الـSpam / الرسائل غير المرغوبة."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Didn't get the code? Check your Spam / Junk folder."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לא קיבלת את הקוד? כדאי לבדוק בתיקיית הספאם."
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

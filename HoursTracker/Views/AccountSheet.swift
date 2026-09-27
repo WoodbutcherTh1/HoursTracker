@@ -418,6 +418,12 @@ private struct VerifyCodeView: View {
                         .foregroundStyle(.white.opacity(0.65))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 28)
+                    // The code can land in spam, especially the first time.
+                    Label(L10n.accountCheckSpamHint, systemImage: "tray.full")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.45))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
                 }
                 .padding(.top, 12)
 
@@ -774,6 +780,12 @@ private struct ResetPasswordView: View {
                     Text(L10n.accountVerifyHint(email))
                         .font(.subheadline)
                         .foregroundStyle(.white.opacity(0.65))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
+                    // The code can land in spam, especially the first time.
+                    Label(L10n.accountCheckSpamHint, systemImage: "tray.full")
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.45))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 28)
                 }

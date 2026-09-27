@@ -261,6 +261,7 @@ enum L10n {
     }
     static var accountCodePlaceholder: String { t("account.codePlaceholder") }
     static var accountVerifyButton: String { t("account.verifyButton") }
+    static var accountCheckSpamHint: String { t("account.checkSpamHint") }
     static var accountResendCode: String { t("account.resendCode") }
     static var accountResendSent: String { t("account.resendSent") }
     static var accountProfileSection: String { t("account.profileSection") }
