@@ -218,6 +218,17 @@ private func breakCountdown(start: Date, end: Date) -> some View {
         .lineLimit(1)
 }
 
+/// Paid shift time ticking every second on the home screen — a system timer from the
+/// app's live pay curve, so it matches Home, the Watch and the Lock Screen.
+private func paidClockTimer(_ curve: LivePayCurve) -> some View {
+    Text(timerInterval: curve.paidClockStart...Date.distantFuture, countsDown: false)
+        .font(.system(size: 11, weight: .bold, design: .rounded))
+        .monospacedDigit()
+        .foregroundStyle(WidgetTheme.accentLight)
+        .multilineTextAlignment(.trailing)
+        .lineLimit(1)
+}
+
 // MARK: - Timeline Entry
 
 /// One day bar for the large widget's week chart.
@@ -443,6 +454,8 @@ struct HoursSmallWidgetView: View {
                         .minimumScaleFactor(0.55)
                     if let breakEnd = plannedBreakEnd(for: session) {
                         breakCountdown(start: session.breakStart ?? entry.date, end: breakEnd)
+                    } else if let curve = entry.livePay, !curve.isPaused {
+                        paidClockTimer(curve)
                     } else {
                         Text("today")
                             .font(.system(size: 8, weight: .semibold, design: .rounded))
@@ -606,6 +619,8 @@ struct HoursHomeWidgetView: View {
 
                 if let session = entry.session, let breakEnd = plannedBreakEnd(for: session) {
                     breakCountdown(start: session.breakStart ?? entry.date, end: breakEnd)
+                } else if let curve = entry.livePay, !curve.isPaused {
+                    paidClockTimer(curve)
                 }
             }
 
