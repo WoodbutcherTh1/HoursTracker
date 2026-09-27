@@ -24,9 +24,21 @@ on `claude/planning-requests-bb6hz1`. Status: ⬜ todo · 🟡 in progress · �
   the automatic `defaultBreakMinutes` deduction.
 - Home: "Start break" next to the door while clocked in; countdown
   ("12 of 30 min left"); "Back to work".
-- Local notification when the target break length ends.
+- Local notifications: a heads-up a few minutes before the break ends
+  (lead time configurable: 2 / 5 / 10 min, default 5) and "break is over" when the target length is reached.
+  Both cancelled when the user taps "Back to work" early.
 - Fully synced: app, Watch, widgets, Live Activity / Dynamic Island — break
   can be started/ended from any of them.
+
+### Notifications settings screen (shared by Phases 2, 5, 6)
+
+- A dedicated **Notifications** section in Settings where the user turns each
+  notification type on/off individually:
+  - Break: "ending soon" reminder (+ lead time) and "break over"
+  - Shift: clock-in reminder / clock-out reminder (Phase 5)
+  - Location: arrival / left-work reminders (existing geofence feature, moved here)
+  - Announcements from the app owner (Phase 6 push broadcasts)
+- Shows a banner with a shortcut to iOS Settings when notification permission is denied.
 
 ## Phase 3 — Live hours/money counter everywhere — C3
 
