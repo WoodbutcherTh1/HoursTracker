@@ -22,6 +22,9 @@ struct PayCardView: View {
     var regularHours: Double = 0
     var ot125Hours: Double = 0
     var ot150Hours: Double = 0
+    /// Real tiers (with the rate actually paid). When set, they replace the three hour
+    /// buckets above — needed for rest days / holidays, where the base is 150%.
+    var tiers: [PayTier]?
     var rows: [Row] = []
     var accent: Color
     /// Count up from zero once when the card appears (skipped under Reduce Motion).
@@ -64,7 +67,7 @@ struct PayCardView: View {
                     .joined(separator: ", ")
             )
 
-            PayTierBar(regular: regularHours, ot125: ot125Hours, ot150: ot150Hours, accent: accent)
+            PayTierBar(segments: barSegments, accent: accent)
 
             if !rows.isEmpty {
                 VStack(spacing: DS.Space.xs) {
@@ -111,6 +114,11 @@ struct PayCardView: View {
         }
     }
 
+    private var barSegments: [(hours: Double, percent: Int)] {
+        if let tiers { return tiers.map { ($0.hours, $0.percent) } }
+        return [(regularHours, 100), (ot125Hours, 125), (ot150Hours, 150)]
+    }
+
     private func reveal() {
         guard !hasRevealed else { return }
         hasRevealed = true
@@ -138,40 +146,46 @@ private struct CountingAmount: View, Animatable {
     }
 }
 
+extension PayTier {
+    /// Tier colour for `PayTier.tone(percent:)`.
+    static func color(percent: Int, accent: Color) -> Color {
+        switch tone(percent: percent) {
+        case .accent: return accent
+        case .gold: return DS.Palette.ot125
+        case .orange: return DS.Palette.ot150
+        }
+    }
+}
+
 /// Hours split by pay tier. Empty tiers are left out; nothing is drawn with no hours.
 struct PayTierBar: View {
-    let regular: Double
-    let ot125: Double
-    let ot150: Double
+    let segments: [(hours: Double, percent: Int)]
     var accent: Color
 
-    private var segments: [(Double, Color)] {
-        [(regular, accent), (ot125, DS.Palette.ot125), (ot150, DS.Palette.ot150)].filter { $0.0 > 0.001 }
+    private var visible: [(hours: Double, percent: Int)] {
+        segments.filter { $0.hours > 0.001 }
     }
 
     var body: some View {
-        let total = segments.reduce(0.0) { $0 + $1.0 }
+        let total = visible.reduce(0.0) { $0 + $1.hours }
         if total > 0 {
             GeometryReader { geo in
                 HStack(spacing: 2) {
-                    ForEach(Array(segments.enumerated()), id: \.offset) { _, segment in
+                    ForEach(Array(visible.enumerated()), id: \.offset) { _, segment in
                         Capsule(style: .continuous)
-                            .fill(segment.1)
-                            .frame(width: max(4, (geo.size.width - 4) * segment.0 / total))
+                            .fill(PayTier.color(percent: segment.percent, accent: accent))
+                            .frame(width: max(4, (geo.size.width - 4) * segment.hours / total))
                     }
                 }
             }
             .frame(height: 8)
             .environment(\.layoutDirection, .leftToRight)
             .accessibilityElement()
-            .accessibilityLabel(accessibilityText)
+            .accessibilityLabel(
+                visible
+                    .map { L10n.payTierAt(HistoryPeriodHelper.formatHoursClock($0.hours), $0.percent) }
+                    .joined(separator: ", ")
+            )
         }
-    }
-
-    private var accessibilityText: String {
-        var parts = [L10n.payTier100(HistoryPeriodHelper.formatHoursClock(regular))]
-        if ot125 > 0.001 { parts.append(L10n.payTier125(HistoryPeriodHelper.formatHoursClock(ot125))) }
-        if ot150 > 0.001 { parts.append(L10n.payTier150(HistoryPeriodHelper.formatHoursClock(ot150))) }
-        return parts.joined(separator: ", ")
     }
 }

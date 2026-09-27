@@ -54,6 +54,11 @@ final class AppViewModel: ObservableObject {
     private let exportManager = ExportManager()
     private let locationCapture = LocationCaptureHelper()
     private var successToastTask: Task<Void, Never>?
+    private var liveSurfacesTask: Task<Void, Never>?
+    /// How many debounced live-surface pushes actually went out, and the gross/net
+    /// choice the last one carried (observable by tests).
+    private(set) var liveSurfacesPushCount = 0
+    private(set) var lastLiveSurfacesShowsNet: Bool?
     private var scannerImportTask: Task<Void, Never>?
     private var liveActivityRefreshTask: Task<Void, Never>?
     /// Inputs `liveCurve` was last built from; it's only rebuilt when they change.
@@ -1170,9 +1175,21 @@ final class AppViewModel: ObservableObject {
 
     /// Re-pushes the live figures to the widgets, Watch and Live Activity — e.g. after
     /// Home's gross/net picker changes which figure they should show.
+    ///
+    /// Debounced (`liveSurfacesDebounce`): quick repeated taps send one update with the
+    /// final choice instead of a burst of Live Activity / widget reloads.
     func refreshLiveSurfaces() {
-        syncWidget()
+        liveSurfacesTask?.cancel()
+        liveSurfacesTask = Task { @MainActor [weak self] in
+            try? await Task.sleep(for: Self.liveSurfacesDebounce)
+            guard !Task.isCancelled, let self else { return }
+            self.liveSurfacesPushCount += 1
+            self.lastLiveSurfacesShowsNet = self.livePayShowsNet
+            self.syncWidget()
+        }
     }
+
+    static let liveSurfacesDebounce: Duration = .milliseconds(300)
 
     /// Rebuilds `liveCurve` when the open shift, the settings or the session list
     /// changed since it was built (building it prices ~200 samples), and clears it

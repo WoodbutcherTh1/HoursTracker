@@ -22,6 +22,9 @@ struct DaySummarySheet: View {
     @State private var appeared = 0
     @State private var toast: String?
     @State private var toastTask: Task<Void, Never>?
+    @State private var weekRowShown = false
+    /// When "This week" was first shown — its sparkle marks it as new for one day.
+    @AppStorage("daySummary.weekRowFirstSeen") private var weekRowFirstSeen: Double = 0
 
     init(viewModel: AppViewModel, breakdown: DayPayBreakdown) {
         self.viewModel = viewModel
@@ -161,9 +164,7 @@ struct DaySummarySheet: View {
             currencyCode: breakdown.currencyCode,
             caption: isNet ? AppLocale.tr("pay.net") : AppLocale.tr("pay.gross"),
             note: isNet ? L10n.sumNoteNet : L10n.sumNoteGross,
-            regularHours: breakdown.regularHours,
-            ot125Hours: breakdown.ot125Hours,
-            ot150Hours: breakdown.ot150Hours,
+            tiers: tiers,
             rows: payRows(isNet: isNet),
             accent: accent,
             popsIn: true
@@ -171,22 +172,32 @@ struct DaySummarySheet: View {
         .accessibilityIdentifier("daySummary.payCard")
     }
 
-    /// Only rows with something in them. Tier rows carry the tier dot; in net mode
-    /// they show hours only (the tier amounts are gross, which would not add up to
-    /// the net hero).
+    /// The shift's tiers at the rate actually paid (rest days / holidays start at 150%).
+    private var tiers: [PayTier] {
+        PayTier.tiers(for: breakdown, dayType: completedSession?.dayType ?? .regular)
+    }
+
+    /// Only rows with something in them. Tier rows carry the tier dot. In net mode each
+    /// tier shows its proportional share of the net (display only), so the rows add up
+    /// to the net hero.
     private func payRows(isNet: Bool) -> [PayCardView.Row] {
-        var rows: [PayCardView.Row] = []
-        func tier(_ label: String, _ hours: Double, _ pay: Double, _ color: Color) {
-            guard hours > 0.001 else { return }
-            let time = HistoryPeriodHelper.formatHoursClock(hours)
-            let value = isNet ? time : "\(time) · \(breakdown.formatted(pay))"
-            rows.append(.init(label: label, value: value, dot: color))
+        let dayType = completedSession?.dayType ?? .regular
+        var rows: [PayCardView.Row] = tiers.map { tier in
+            let time = HistoryPeriodHelper.formatHoursClock(tier.hours)
+            let amount = isNet
+                ? "≈ " + breakdown.formatted(tier.approximateNet(dayGross: breakdown.grossPay, dayNet: breakdown.netPay))
+                : breakdown.formatted(tier.grossPay)
+            return .init(
+                label: Self.tierLabel(tier, dayType: dayType),
+                value: "\(time) · \(amount)",
+                dot: PayTier.color(percent: tier.percent, accent: accent)
+            )
         }
-        tier(L10n.sumRowRegular, breakdown.regularHours, breakdown.basePay, accent)
-        tier(L10n.sumRow125, breakdown.ot125Hours, breakdown.ot125Pay, DS.Palette.ot125)
-        tier(L10n.sumRow150, breakdown.ot150Hours, breakdown.ot150Pay, DS.Palette.ot150)
         if breakdown.gasAllowance > 0.001 {
-            rows.append(.init(label: AppLocale.tr("shift.gas"), value: breakdown.formatted(breakdown.gasAllowance)))
+            let gas = isNet
+                ? "≈ " + breakdown.formatted(PayTier.netShare(of: breakdown.gasAllowance, in: breakdown))
+                : breakdown.formatted(breakdown.gasAllowance)
+            rows.append(.init(label: AppLocale.tr("shift.gas"), value: gas))
         }
         if let minutes = completedSession?.breakMinutes, minutes > 0 {
             let time = HistoryPeriodHelper.formatHoursClock(Double(minutes) / 60)
@@ -196,12 +207,16 @@ struct DaySummarySheet: View {
         return rows
     }
 
-    /// The glow follows the highest tier worked (a Shabbat / holiday shift at 150%
-    /// glows orange, a 125% day gold).
+    /// "Regular 100%", "Rest day 150%", "Overtime 175%"…
+    static func tierLabel(_ tier: PayTier, dayType: DayType) -> String {
+        guard tier.isBase else { return L10n.sumRowOvertime(tier.percent) }
+        return dayType == .regular ? L10n.sumRowRegular : "\(dayType.localizedName) \(tier.percent)%"
+    }
+
+    /// The glow follows the highest rate worked: orange from 150% (Shabbat, holidays,
+    /// long days), gold at 125%, otherwise the accent.
     private var glowColor: Color {
-        if breakdown.ot150Hours > 0.001 { return DS.Palette.ot150 }
-        if breakdown.ot125Hours > 0.001 { return DS.Palette.ot125 }
-        return accent
+        PayTier.color(percent: PayTier.dominantPercent(tiers) ?? 100, accent: accent)
     }
 
     // MARK: Rate missing (inline, no second sheet)
@@ -451,6 +466,13 @@ struct DaySummarySheet: View {
                 .dsFont(.sub)
                 .foregroundStyle(DS.Palette.textPrimary)
                 .contentTransition(.numericText())
+            Spacer(minLength: 0)
+            if weekRowIsNew {
+                Image(systemName: "sparkles")
+                    .htFont(size: 15, relativeTo: .subheadline, weight: .semibold)
+                    .foregroundStyle(accent)
+                    .accessibilityLabel(L10n.sumNew)
+            }
         }
         .padding(DS.Space.md)
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -459,6 +481,18 @@ struct DaySummarySheet: View {
                 .fill(DS.Palette.raised)
         )
         .animation(reduceMotion ? nil : .easeOut(duration: 0.2), value: week.pay)
+        // First appearance: a short fade + 6pt rise (fade only under Reduce Motion).
+        .opacity(weekRowShown ? 1 : 0)
+        .offset(y: weekRowShown || reduceMotion ? 0 : 6)
+        .onAppear {
+            if weekRowFirstSeen == 0 { weekRowFirstSeen = Date().timeIntervalSince1970 }
+            withAnimation(.easeOut(duration: 0.2)) { weekRowShown = true }
+        }
+    }
+
+    /// The sparkle shows for one day after "This week" first appears.
+    private var weekRowIsNew: Bool {
+        weekRowFirstSeen == 0 || Date().timeIntervalSince1970 - weekRowFirstSeen < 24 * 3600
     }
 
     // MARK: Toast (inside the sheet — the app's own toast sits behind it)

@@ -80,9 +80,14 @@ enum L10n {
     static var sumNoteGross: String { t("sum.noteGross") }
     static var sumNoteNet: String { t("sum.noteNet") }
     static var sumRowRegular: String { t("sum.rowRegular") }
-    static var sumRow125: String { t("sum.row125") }
-    static var sumRow150: String { t("sum.row150") }
     static var sumRowBreaks: String { t("sum.rowBreaks") }
+    static func sumRowOvertime(_ percent: CustomStringConvertible) -> String {
+        String(format: t("sum.rowOvertime %@"), "\(percent)")
+    }
+    static var sumNew: String { t("sum.new") }
+    static func payTierAt(_ hours: CustomStringConvertible, _ percent: CustomStringConvertible) -> String {
+        String(format: t("pay.tierAt %1$@ %2$@"), "\(hours)", "\(percent)")
+    }
     static var sumBreakPaid: String { t("sum.breakPaid") }
     static var sumBreakUnpaid: String { t("sum.breakUnpaid") }
     static func sumDeductions(_ value: CustomStringConvertible) -> String {
@@ -965,15 +970,6 @@ enum L10n {
     static var onbClockInNow: String { t("onb.clockInNow") }
     static var onbCtaStart: String { t("onb.cta.start") }
     static var onbCtaShowResult: String { t("onb.cta.showResult") }
-    static func payTier100(_ value: CustomStringConvertible) -> String {
-        String(format: t("pay.tier.100 %@"), "\(value)")
-    }
-    static func payTier125(_ value: CustomStringConvertible) -> String {
-        String(format: t("pay.tier.125 %@"), "\(value)")
-    }
-    static func payTier150(_ value: CustomStringConvertible) -> String {
-        String(format: t("pay.tier.150 %@"), "\(value)")
-    }
     static var onboardingNext: String { t("onboarding.next") }
     static var onboardingStart: String { t("onboarding.start") }
 
