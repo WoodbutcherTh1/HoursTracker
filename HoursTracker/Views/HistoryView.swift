@@ -16,6 +16,10 @@ struct HistoryView: View {
     /// Skyscanner-style expand: swipe the week strip down to see every week in the
     /// period at once (with each day's pay total), swipe up to collapse back.
     @State private var isCalendarExpanded: Bool = false
+    /// Week to land on after a week step crossed into the neighbouring payroll period
+    /// (consumed by `onChange(of: periodAnchor)`, which would otherwise snap to today).
+    @State private var pendingWeekIndex: Int?
+    @Environment(\.layoutDirection) private var layoutDirection
     @AppStorage("historyPayDisplayMode") private var payMode: PayDisplayMode = .net
     /// Tap-to-toggle on the "Date" column header: weekday names instead of dd/MM.
     @AppStorage("historyShowWeekdayNames") private var showWeekdayNames: Bool = false
@@ -64,7 +68,11 @@ struct HistoryView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 historyChrome
-                if selectedDay == nil && !filteredSessions.isEmpty {
+                // Hidden while the full calendar is open too: a six-row month plus the
+                // chart could outgrow the screen, and an overflowing stack pushes the
+                // period title up under the navigation bar (the "title disappears
+                // going from month 9 to 8" bug).
+                if selectedDay == nil && !isCalendarExpanded && !filteredSessions.isEmpty {
                     // Six-month trend: hours per month + average monthly pay.
                     // Hidden once a specific day is picked so that day's own
                     // shift rows (below) land right under the calendar instead
@@ -80,6 +88,9 @@ struct HistoryView: View {
                 sessionsContent
                 stickySummaryBar
             }
+            // Anchor to the top so anything that doesn't fit spills off the bottom,
+            // never over the period header.
+            .frame(maxHeight: .infinity, alignment: .top)
             .background(appBackground.background.ignoresSafeArea())
             .navigationTitle(L10n.historyTitle)
             .navigationBarTitleDisplayMode(.inline)
@@ -222,6 +233,11 @@ struct HistoryView: View {
                 }
             }
             .onChange(of: periodAnchor) { _, _ in
+                if let pending = pendingWeekIndex {
+                    pendingWeekIndex = nil
+                    selectedWeekIndex = pending
+                    return
+                }
                 if let day = selectedDay {
                     syncWeekPage(to: day, animated: false)
                 } else {
@@ -246,10 +262,7 @@ struct HistoryView: View {
         return VStack(spacing: 14) {
             HStack(spacing: 4) {
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        periodAnchor = HistoryPeriodHelper.shiftPayrollAnchor(periodAnchor, by: -1)
-                    }
-                    snapSelectedDayIntoPeriod()
+                    moveWeek(by: -1)
                 } label: {
                     Image(systemName: "chevron.backward")
                         .font(.body.weight(.semibold))
@@ -257,6 +270,7 @@ struct HistoryView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(L10n.historyPreviousWeek)
 
                 Spacer(minLength: 0)
 
@@ -273,15 +287,13 @@ struct HistoryView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 .accessibilityElement(children: .combine)
-                .transition(.identity)
+                // The title swaps in place — never fades or slides out mid-transition.
+                .transaction { $0.animation = nil }
 
                 Spacer(minLength: 0)
 
                 Button {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        periodAnchor = HistoryPeriodHelper.shiftPayrollAnchor(periodAnchor, by: 1)
-                    }
-                    snapSelectedDayIntoPeriod()
+                    moveWeek(by: 1)
                 } label: {
                     Image(systemName: "chevron.forward")
                         .font(.body.weight(.semibold))
@@ -289,7 +301,11 @@ struct HistoryView: View {
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel(L10n.historyNextWeek)
             }
+            // Swiping the header row steps week by week, same as its arrows.
+            .contentShape(Rectangle())
+            .gesture(weekSwipeGesture)
 
             VStack(spacing: 6) {
                 if isCalendarExpanded {
@@ -446,10 +462,9 @@ struct HistoryView: View {
     }
 
     /// A vertical swipe on the strip/grid area toggles expanded state. A horizontal
-    /// swipe moves to the previous/next payroll period — but only once it's clearly
-    /// wider than a normal week-to-week page swipe on the collapsed strip's own
-    /// TabView, so the two don't fight each other (both gestures see the same touch;
-    /// this one only acts past that width).
+    /// swipe inside the **full calendar** moves a whole payroll period; on the
+    /// collapsed strip horizontal swipes belong to its own week pager (one week at a
+    /// time), so the two never fight over the same touch.
     private var calendarDragGesture: some Gesture {
         DragGesture(minimumDistance: 16)
             .onEnded { value in
@@ -462,13 +477,70 @@ struct HistoryView: View {
                             isCalendarExpanded = false
                         }
                     }
-                } else if abs(translation.width) > 100 {
-                    withAnimation(.easeInOut(duration: 0.2)) {
-                        periodAnchor = HistoryPeriodHelper.shiftPayrollAnchor(periodAnchor, by: translation.width < 0 ? 1 : -1)
-                    }
-                    snapSelectedDayIntoPeriod()
+                } else if isCalendarExpanded, abs(translation.width) > 60 {
+                    movePeriod(by: swipeStep(translation.width))
                 }
             }
+    }
+
+    /// Header-row swipe: one week per swipe, like the arrows.
+    private var weekSwipeGesture: some Gesture {
+        DragGesture(minimumDistance: 20)
+            .onEnded { value in
+                let translation = value.translation
+                guard abs(translation.width) > abs(translation.height), abs(translation.width) > 40 else { return }
+                moveWeek(by: swipeStep(translation.width))
+            }
+    }
+
+    /// +1 (next) or −1 (previous) for a horizontal swipe. "Next" comes in from the
+    /// trailing side — a leftward swipe in English, a rightward one in Hebrew/Arabic.
+    private func swipeStep(_ width: CGFloat) -> Int {
+        let towardLeft = width < 0
+        let isRTL = layoutDirection == .rightToLeft
+        return towardLeft != isRTL ? 1 : -1
+    }
+
+    /// Previous / next payroll period. The title swaps in place (no animation), and
+    /// the week strip lands on the week containing the selected day or today.
+    private func movePeriod(by delta: Int) {
+        periodAnchor = HistoryPeriodHelper.shiftPayrollAnchor(periodAnchor, by: delta)
+        snapSelectedDayIntoPeriod()
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
+
+    /// One week back or forward. Past the period's first/last week it steps into
+    /// the neighbouring payroll period and lands on the adjacent week there
+    /// (skipping a straddling week both periods share, so every tap moves on).
+    private func moveWeek(by delta: Int) {
+        let weeks = periodWeeks
+        let target = selectedWeekIndex + delta
+        if weeks.indices.contains(target) {
+            withAnimation(.easeInOut(duration: 0.25)) {
+                selectedWeekIndex = target
+            }
+            UISelectionFeedbackGenerator().selectionChanged()
+            return
+        }
+
+        let leavingWeekStart = weeks.indices.contains(selectedWeekIndex)
+            ? weeks[selectedWeekIndex].days.first?.date
+            : nil
+        periodAnchor = HistoryPeriodHelper.shiftPayrollAnchor(periodAnchor, by: delta > 0 ? 1 : -1)
+        if let day = selectedDay, !activePeriod.contains(day, calendar: calendar) {
+            selectedDay = nil
+        }
+        let newWeeks = periodWeeks
+        guard !newWeeks.isEmpty else { return }
+        var landing = delta > 0 ? 0 : newWeeks.count - 1
+        if let leavingWeekStart,
+           let landingStart = newWeeks[landing].days.first?.date,
+           calendar.isDate(landingStart, inSameDayAs: leavingWeekStart) {
+            landing = delta > 0 ? min(1, newWeeks.count - 1) : max(0, newWeeks.count - 2)
+        }
+        pendingWeekIndex = landing
+        selectedWeekIndex = landing
+        UISelectionFeedbackGenerator().selectionChanged()
     }
 
     /// Every week of the active payroll period, stacked, with each day's pay total
@@ -484,13 +556,20 @@ struct HistoryView: View {
                 }
             }
 
-            ForEach(periodWeeks) { week in
+            ForEach(Array(periodWeeks.enumerated()), id: \.element.id) { index, week in
                 HStack(spacing: 0) {
                     ForEach(week.days) { day in
                         calendarDayCell(day)
                             .frame(maxWidth: .infinity)
                     }
                 }
+                // The week the arrows / header swipe are on.
+                .background(
+                    RoundedRectangle(cornerRadius: 10, style: .continuous)
+                        .fill(Color.white.opacity(index == selectedWeekIndex ? 0.08 : 0))
+                        .padding(.horizontal, -4)
+                )
+                .animation(.easeInOut(duration: 0.2), value: selectedWeekIndex)
             }
         }
     }

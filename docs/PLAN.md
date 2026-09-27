@@ -66,7 +66,7 @@ on `claude/planning-requests-bb6hz1`. Status: ⬜ todo · 🟡 in progress · �
   Activity it refreshes as often as the system allows (Apple does not allow
   per-second computation there).
 
-## Phase 4 — History swipe behaviour — C4
+## Phase 4 — History swipe behaviour — C4 ✅ (awaiting CI + device test)
 
 - Swipe on the week strip / arrows row → move one **week**.
 - Swipe inside the full-history (expanded) grid → move one **month** (payroll period).
