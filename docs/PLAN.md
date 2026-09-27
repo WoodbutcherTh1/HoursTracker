@@ -7,14 +7,14 @@ on `claude/planning-requests-bb6hz1`. Status: ⬜ todo · 🟡 in progress · �
 
 | # | Item | Source branch | Status |
 |---|------|---------------|--------|
-| B2 | Prevent cloud sync from silently erasing data | `claude/jolly-wright-6ep32d` | ⬜ |
-| B1 | Forgot-password flow (code-based reset) | `claude/jolly-wright-6ep32d` | ⬜ |
-| B3 | Widget interactivity, Watch hours display, Live Activity staleness | `claude/jolly-wright-6ep32d` | ⬜ |
-| B4 | Watch app showing raw localization keys | `claude/jolly-wright-6ep32d` | ⬜ |
-| B5 | Neon hourglass app icon (iPhone + Watch) | `claude/jolly-wright-6ep32d` / `claude/neon-app-icon` | ⬜ |
-| B12 | Assistant: honour cloud opt-out, visibility toggle | `assistant-review-fixes` | ⬜ |
-| B13 | Timeout on CloudKit sync so a hang surfaces as failed | `claude/agitated-mestorf-e371c0` | ⬜ |
-| B14 | In-app language override actually changes language | `claude/fix-in-app-language-resolution` | ⬜ |
+| B2 | Prevent cloud sync from silently erasing data | `claude/jolly-wright-6ep32d` | ✅ |
+| B1 | Forgot-password flow (code-based reset) | `claude/jolly-wright-6ep32d` | ✅ |
+| B3 | Widget interactivity, Watch hours display, Live Activity staleness | `claude/jolly-wright-6ep32d` | ✅ |
+| B4 | Watch app showing raw localization keys | `claude/jolly-wright-6ep32d` | ✅ |
+| B5 | Neon hourglass app icon (iPhone + Watch) | `claude/jolly-wright-6ep32d` / `claude/neon-app-icon` | ✅ |
+| B12 | Assistant: honour cloud opt-out, visibility toggle | `assistant-review-fixes` | ✅ |
+| B13 | Timeout on CloudKit sync so a hang surfaces as failed | `claude/agitated-mestorf-e371c0` | ✅ |
+| B14 | In-app language override actually changes language | `claude/fix-in-app-language-resolution` | ✅ already fixed on `main` (lproj-first lookup) |
 
 ## Phase 2 — Break button ("יצאתי להפסקה") — C1
 
