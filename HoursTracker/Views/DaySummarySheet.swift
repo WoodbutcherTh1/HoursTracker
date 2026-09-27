@@ -121,6 +121,7 @@ struct DaySummarySheet: View {
                     Button(L10n.summaryDone) {
                         viewModel.dismissDaySummary()
                     }
+                    .accessibilityIdentifier("daySummary.done")
                 }
             }
             .toolbarBackground(appBackground.background, for: .navigationBar)

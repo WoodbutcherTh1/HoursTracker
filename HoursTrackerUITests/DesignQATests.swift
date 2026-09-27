@@ -31,7 +31,7 @@ final class DesignQATests: XCTestCase {
             seeded.swipeUp()
             pause(1)
             capture(app, "day-summary-\(scenario)-scrolled")
-            dismissSheet(seeded, in: app)
+            closeDaySummary(app)
         }
 
         var clockIn = app.buttons["home.clockIn"]
@@ -61,7 +61,7 @@ final class DesignQATests: XCTestCase {
         XCTAssertTrue(summary.waitForExistence(timeout: 15), "Day Summary never appeared")
         pause(2)
         capture(app, "day-summary")
-        dismissSheet(summary, in: app)
+        closeDaySummary(app)
         capture(app, "home-after-shift")
 
         for (index, name) in [(1, "history"), (4, "settings")] {
@@ -155,12 +155,17 @@ final class DesignQATests: XCTestCase {
         return app
     }
 
-    /// Drag the sheet down from its own top edge.
-    private func dismissSheet(_ sheet: XCUIElement, in app: XCUIApplication) {
-        let top = sheet.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.01))
-        let bottom = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.98))
-        top.press(forDuration: 0.1, thenDragTo: bottom)
-        _ = sheet.waitForNonExistence(timeout: 5)
+    /// Close the Day Summary with its Done button. A drag from the sheet's top edge
+    /// is unsafe once the sheet is at full height: it starts at the top of the
+    /// screen and pulls down the system Lock Screen instead.
+    private func closeDaySummary(_ app: XCUIApplication) {
+        let done = app.buttons["daySummary.done"]
+        if done.waitForExistence(timeout: 5) {
+            done.tap()
+        } else {
+            XCTFail("Day Summary has no Done button")
+        }
+        _ = app.scrollViews["daySummary.sheet"].waitForNonExistence(timeout: 5)
         pause(1)
     }
 
