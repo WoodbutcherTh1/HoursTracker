@@ -1,0 +1,14 @@
+# Only the per-function settings are used; the rest of the project config
+# lives in the Supabase dashboard.
+project_id = "rocjprrvrvmtisxnvopg"
+
+[functions.submit-feedback]
+verify_jwt = true
+
+# The app's publishable key is not a JWT, so these two verify the caller
+# themselves (auth.getUser + the admins table) instead of at the gateway.
+[functions.register-device]
+verify_jwt = false
+
+[functions.admin-api]
+verify_jwt = false
