@@ -33,3 +33,6 @@ HoursTracker.xcodeproj/
 scripts/*
 !scripts/*.py
 !scripts/*.sh
+
+# Claude-generated marketing assets
+Claude outputs/
