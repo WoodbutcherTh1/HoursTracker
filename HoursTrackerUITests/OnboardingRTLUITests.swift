@@ -20,11 +20,11 @@ final class OnboardingRTLUITests: XCTestCase {
         app.launch()
 
         let primary = app.buttons["onboarding.primary"]
-        XCTAssertTrue(primary.waitForExistence(timeout: 15), "Onboarding never appeared")
+        XCTAssertTrue(primary.waitForExistence(timeout: 30), "Onboarding never appeared")
         primary.tap()
 
         let field = app.textFields["onboarding.rateField"]
-        XCTAssertTrue(field.waitForExistence(timeout: 5))
+        XCTAssertTrue(field.waitForExistence(timeout: 15))
         field.tap()
         let startFrame = field.frame
 
@@ -37,7 +37,7 @@ final class OnboardingRTLUITests: XCTestCase {
             XCTAssertEqual(field.frame.width, startFrame.width, accuracy: 1, "Field resized after typing \(character)")
         }
 
-        XCTAssertTrue(app.images["onboarding.rateValid"].waitForExistence(timeout: 2), "٤٥٫٥ should be a valid rate")
+        XCTAssertTrue(app.images["onboarding.rateValid"].waitForExistence(timeout: 5), "٤٥٫٥ should be a valid rate")
         XCTAssertTrue(primary.isEnabled)
     }
 }

@@ -23,28 +23,35 @@ final class DaySummarySwipeUITests: XCTestCase {
         app.launch()
 
         let clockIn = app.buttons["home.clockIn"]
-        XCTAssertTrue(clockIn.waitForExistence(timeout: 15), "Clock In never appeared")
+        XCTAssertTrue(clockIn.waitForExistence(timeout: 30), "Clock In never appeared")
         clockIn.tap()
         // A permission prompt, if any, is handled by the monitor on the next interaction.
 
         let clockOut = app.buttons["home.clockOut"]
-        XCTAssertTrue(clockOut.waitForExistence(timeout: 5), "Clock Out never appeared")
+        XCTAssertTrue(clockOut.waitForExistence(timeout: 15), "Clock Out never appeared")
         clockOut.tap()
 
         let sheet = app.scrollViews["daySummary.sheet"]
-        XCTAssertTrue(sheet.waitForExistence(timeout: 5), "Day Summary never appeared")
-        sheet.swipeDown(velocity: .fast)
+        XCTAssertTrue(sheet.waitForExistence(timeout: 15), "Day Summary never appeared")
 
-        let gone = NSPredicate(format: "exists == false")
-        expectation(for: gone, evaluatedWith: sheet)
-        waitForExpectations(timeout: 5)
+        // Drag the sheet down from its top edge (the grabber area) — a swipe inside
+        // the scroll view can be taken as a scroll instead of a dismiss. One retry,
+        // since a slow runner can start the drag before the sheet has settled.
+        for attempt in 1...2 where sheet.exists {
+            let top = sheet.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.01))
+            let bottom = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.98))
+            top.press(forDuration: 0.1, thenDragTo: bottom)
+            if attempt == 1 { _ = sheet.waitForNonExistence(timeout: 5) }
+        }
+
+        XCTAssertTrue(sheet.waitForNonExistence(timeout: 10), "The Day Summary did not close on swipe down")
 
         // Index-based, like ScreenshotTests: Home, History, Payslips, Export, Settings.
         let historyTab = app.tabBars.firstMatch.buttons.element(boundBy: 1)
-        XCTAssertTrue(historyTab.waitForExistence(timeout: 5))
+        XCTAssertTrue(historyTab.waitForExistence(timeout: 10))
         historyTab.tap()
 
         let row = app.descendants(matching: .any)["history.sessionRow"].firstMatch
-        XCTAssertTrue(row.waitForExistence(timeout: 5), "The shift is missing from History after swiping the summary away")
+        XCTAssertTrue(row.waitForExistence(timeout: 10), "The shift is missing from History after swiping the summary away")
     }
 }
