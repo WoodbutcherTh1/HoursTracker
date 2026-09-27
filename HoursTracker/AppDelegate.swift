@@ -28,6 +28,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             DisplayPreferences.shared.weekPattern = .fiveDays
             DisplayPreferences.shared.weeklyGoalHoursDisplayOnly = 42
         }
+        // UI tests that need a clean launch without walking the onboarding. Does not
+        // seed demo data or force a language.
+        if ProcessInfo.processInfo.arguments.contains("UITEST_SKIP_ONBOARDING") {
+            UserDefaults.standard.set(true, forKey: "hasSeenOnboarding.v1")
+        }
         // Onboarding RTL test (HoursTrackerUITests/OnboardingRTLUITests.swift): start the
         // onboarding fresh, in Arabic, with no saved draft.
         if ProcessInfo.processInfo.arguments.contains("UITEST_ONBOARDING_AR") {

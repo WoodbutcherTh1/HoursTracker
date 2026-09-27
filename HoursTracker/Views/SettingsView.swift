@@ -108,6 +108,7 @@ struct SettingsView: View {
                     Button(L10n.settingsSave) {
                         saveSettings()
                     }
+                    .accessibilityIdentifier("settings.save")
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
@@ -382,9 +383,11 @@ struct SettingsView: View {
     private var workerSection: some View {
         Section {
             TextField(L10n.settingsFullName, text: $draft.workerFullName)
+                .accessibilityIdentifier("settings.fullName")
             if isEditingIDNumber {
                 TextField(L10n.settingsIDNumber, text: $draft.workerIDNumber)
                     .keyboardType(.numberPad)
+                    .accessibilityIdentifier("settings.idNumber")
                 if IsraeliIDValidator.shouldWarn(for: draft.workerIDNumber) {
                     Text(L10n.settingsIDChecksumWarning)
                         .font(.caption)
@@ -410,6 +413,7 @@ struct SettingsView: View {
                 }
             }
             TextField(L10n.settingsEmployeeNumber, text: $draft.employeeNumber)
+                .accessibilityIdentifier("settings.employeeNumber")
         } header: {
             sectionHeader(L10n.settingsWorkerInfo, icon: "person.text.rectangle.fill")
         }
@@ -635,10 +639,12 @@ struct SettingsView: View {
     private var workplaceSection: some View {
         Section {
             TextField(L10n.settingsWorkplaceName, text: $draft.workplaceName)
+                .accessibilityIdentifier("settings.workplaceName")
             TextField(L10n.settingsContractor, text: Binding(
                 get: { draft.contractorName ?? "" },
                 set: { draft.contractorName = $0.isEmpty ? nil : $0 }
             ))
+            .accessibilityIdentifier("settings.contractor")
         } header: {
             sectionHeader(L10n.settingsWorkplace, icon: "building.2.fill")
         }
@@ -653,6 +659,7 @@ struct SettingsView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
+                    .accessibilityIdentifier("settings.hourlyRate")
                 Text(PayFormatter.symbol(for: draft.currencyCode))
             }
             HStack {
@@ -662,6 +669,7 @@ struct SettingsView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
+                    .accessibilityIdentifier("settings.gasAllowance")
                 Text(PayFormatter.symbol(for: draft.currencyCode))
             }
             HStack {
@@ -671,6 +679,7 @@ struct SettingsView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
+                    .accessibilityIdentifier("settings.standardDayHours")
             }
             HStack {
                 Text(L10n.settingsOTCap)
@@ -679,6 +688,7 @@ struct SettingsView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
+                    .accessibilityIdentifier("settings.ot125Cap")
             }
             HStack {
                 Text(L10n.settingsWeeklyStandardHours)
@@ -687,6 +697,7 @@ struct SettingsView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
+                    .accessibilityIdentifier("settings.weeklyStandardHours")
             }
             HStack {
                 Text(L10n.settingsWeeklyOTCap)
@@ -695,6 +706,7 @@ struct SettingsView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
+                    .accessibilityIdentifier("settings.weeklyOvertimeCap")
             }
         } header: {
             sectionHeader(L10n.settingsPayHours, icon: "banknote.fill")
@@ -781,6 +793,7 @@ struct SettingsView: View {
                     Text("\(code) (\(PayFormatter.symbol(for: code)))").tag(code)
                 }
             }
+            .accessibilityIdentifier("settings.currency")
 
             DisclosureGroup(L10n.settingsWorkRulesNoteTitle) {
                 Text(L10n.settingsWorkRulesNote)
@@ -975,6 +988,7 @@ struct SettingsView: View {
                     }
                 }
             ))
+            .accessibilityIdentifier("settings.arrivalReminders")
 
             Text(L10n.settingsArrivalHint)
                 .font(.caption)
@@ -1009,6 +1023,7 @@ struct SettingsView: View {
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 80)
+                    .accessibilityIdentifier("settings.locationRadius")
                 Text("m")
             }
 
@@ -1127,6 +1142,7 @@ struct SettingsView: View {
                     Text(option.pickerLabel).tag(option)
                 }
             }
+            .accessibilityIdentifier("settings.appLanguage")
         } header: {
             sectionHeader(L10n.settingsAppLanguage, icon: "globe")
         } footer: {
