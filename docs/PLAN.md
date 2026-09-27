@@ -106,20 +106,24 @@ on `claude/planning-requests-bb6hz1`. Status: ⬜ todo · 🟡 in progress · �
 - Stats: aggregate only (user counts, active users, version distribution,
   Watch/widget adoption). No per-user wage/shift data.
 
-## Phase 7 — Remaining recovered work
+## Phase 7 — Remaining recovered work 🟡 (awaiting CI + device test; 3 items need the owner's choice)
 
-| # | Item | Source |
-|---|------|--------|
-| B6 | 6-month hours/pay trend chart | `install-claude-code-tool` / `project-thread-dslh5m` |
-| B7 | Payslips as its own tab | `install-claude-code-tool` |
-| B8 | Lock Screen widget | `chat-session` / `install-claude-code-tool` |
-| B9 | History header tap toggles (date, net/gross) | `chat-session` / `project-thread-dslh5m` |
-| B10 | CSV-column-aware timesheet importer | `chat-session` |
-| B11 | Icon-led Settings section headers | `project-thread-dslh5m` |
-| B15 | Full backup/restore + rolling auto backups | `cursor/full-backup-restore*` |
-| B16 | Monthly payroll-period overview ring | `cursor/history-monthly-overview` |
-| B17 | Older Cursor fixes (sync race, rollback on failed persist, scanner parsing…) — verify each still applies | `cursor/*` |
-| A1 | Multi-workplace UI (model + persistence exist, no UI) — decide first; roadmap lists multi-job as a non-goal | `main` |
+| # | Item | Source | Status |
+|---|------|--------|--------|
+| — | Widget + Live Activity text in he/ar/en, follows the in-app language, RTL | `chat-session` 39fcaac / 8a62f93 | ✅ |
+| B6 | 6-month hours/pay trend chart | `install-claude-code-tool` | ✅ already on `main` (History `MonthlyTrendCard`) |
+| B7 | Payslips as its own tab | `install-claude-code-tool` d1afafc | ✅ |
+| B8 | Lock Screen widget (rectangular / circular / inline, read-only) | `chat-session` / `install-claude-code-tool` | ✅ |
+| B9 | History header tap toggles (date, net/gross) | `chat-session` / `project-thread` | ✅ already on `main` |
+| B10 | CSV-column-aware timesheet importer | `chat-session` 223ca96 | ✅ |
+| B11 | Icon-led Settings section headers | `project-thread` cd28a75 | ✅ |
+| B15 | Full backup/restore + rolling auto backups | `cursor/full-backup-restore*` | ✅ superseded (full export/import on `main` + Phase 5.5) |
+| B16 | Monthly payroll-period overview ring in History | `cursor/history-monthly-overview` | ❓ owner's choice (adds a large card above the list) |
+| B17 | Older Cursor fixes | `cursor/*` | ✅ addRow bound, dotted-date scanner parsing, Settings tab jump, sparkline open-day, sync overwrite race, history default period (already), scanner→form (already). ⏭ rollback-on-failed-save not ported: its main case (locked data) is covered by load retry + pending widget taps, and it would rewrite every save path |
+| — | Smaller fixes | `chat-session` / `install-claude-code-tool` | ✅ load retry on foreground, 44pt touch targets, guide mockup language, Assistant hours filter + routing. Already on `main`: day-summary edit button, weekly labels, Watch history, splash entrance, sign-up code-expired |
+| A1 | Multi-workplace UI (model + persistence exist, no UI) — roadmap lists multi-job as a non-goal | `main` | ❓ owner's choice |
+| — | Alternative app icon (hourglass between mountains + tiny worker) | `project-thread` 787d2e9 | ❓ owner's choice (current: neon hourglass, B5) |
+| — | Six-month trend chart also on Home | `project-thread` cd28a75 | ❓ owner's choice |
 
 ## Final phase — Integration review (after all phases + owner approval)
 
@@ -145,5 +149,4 @@ Before merging, one end-to-end pass to make sure nothing conflicts:
 
 - This environment has no Xcode; builds are verified by CI, device testing by the owner.
 - More requests may be added as the owner remembers them.
-- Widget text is English-only today; localizing widgets (from `chat-session`) is tracked with Phase 7.
 - Notifications screen holds the break, shift-reminder and announcements switches. Location reminders stay in their own section for now.
