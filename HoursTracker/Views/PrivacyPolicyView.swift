@@ -24,6 +24,7 @@ struct PrivacyPolicyView: View {
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .accessibilityIdentifier("privacy.scroll")
         .background(appBackground.background.ignoresSafeArea())
         .navigationTitle(L10n.privacyTitle)
         .navigationBarTitleDisplayMode(.inline)

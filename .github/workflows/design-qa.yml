@@ -100,6 +100,14 @@ jobs:
               for test in json.load(open(manifest)):
                   for item in test.get("attachments", []):
                       raw_name = item.get("suggestedHumanReadableName") or item["exportedFileName"]
+                      if raw_name.startswith("Complete Issue Description"):
+                          print("---- failure ----")
+                          print(open(os.path.join("raw", item["exportedFileName"]), errors="replace").read()[:4000])
+                          continue
+                      # Only our screenshots ("<config>__<screen>"), not XCTest's own
+                      # hierarchy dumps, UI snapshots or screen recordings.
+                      if "__" not in raw_name or not raw_name.endswith(".png"):
+                          continue
                       base = os.path.splitext(raw_name)[0]
                       # Attachment names are "<config>__<screen>"; xcresulttool may append "_<n>_<uuid>".
                       base = re.sub(r"_\d+_[0-9A-Fa-f-]{36}$", "", base)
@@ -108,6 +116,21 @@ jobs:
                       shutil.copy(os.path.join("raw", item["exportedFileName"]), os.path.join(out, name))
           print("\n".join(sorted(os.listdir(out))))
           EOF
+
+      # Small JPEG previews in the job log (between QA-IMG markers), so a reviewer
+      # without artifact download access can still see every screen.
+      - name: Log previews
+        if: always()
+        run: |
+          mkdir -p previews
+          for f in design-qa/screenshots/*.png; do
+            [ -e "$f" ] || continue
+            name=$(basename "$f" .png)
+            sips -Z 520 -s format jpeg -s formatOptions 55 "$f" --out "previews/$name.jpg" >/dev/null
+            echo "=== QA-IMG $name ==="
+            base64 -i "previews/$name.jpg" | fold -w 4000
+            echo "=== QA-END ==="
+          done
 
       # actions/upload-artifact@v4.6.2
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

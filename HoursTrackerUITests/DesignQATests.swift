@@ -20,7 +20,7 @@ final class DesignQATests: XCTestCase {
     private var scenario: String { env["QA_SCENARIO"] ?? "standard" }
 
     func testSweepRedesignedScreens() {
-        let app = launch(["UITEST_SCREENSHOTS", "UITEST_QA_SCENARIO", scenario])
+        var app = launch(["UITEST_SCREENSHOTS", "UITEST_QA_SCENARIO", scenario])
 
         // Shabbat / night: the seeded shift's Day Summary opens on launch.
         if scenario == "shabbat" || scenario == "night" {
@@ -34,13 +34,20 @@ final class DesignQATests: XCTestCase {
             dismissSheet(seeded, in: app)
         }
 
-        let clockIn = app.buttons["home.clockIn"]
+        var clockIn = app.buttons["home.clockIn"]
         XCTAssertTrue(clockIn.waitForExistence(timeout: 30), "Home never appeared")
         pause(2)
         capture(app, "home-clocked-out")
 
         if scenario == "standard" {
             captureAboutAndPrivacy(app)
+            // Start the shift flow from a fresh launch instead of unwinding two
+            // stacked sheets (About → Privacy).
+            app.terminate()
+            app = launch(["UITEST_SCREENSHOTS", "UITEST_QA_SCENARIO", scenario])
+            clockIn = app.buttons["home.clockIn"]
+            XCTAssertTrue(clockIn.waitForExistence(timeout: 30), "Home never came back")
+            pause(1)
         }
 
         clockIn.tap()
@@ -98,7 +105,7 @@ final class DesignQATests: XCTestCase {
         let privacyRow = app.buttons["about.privacy"]
         if privacyRow.waitForExistence(timeout: 5) {
             privacyRow.tap()
-            let policy = app.scrollViews.firstMatch
+            let policy = app.scrollViews["privacy.scroll"]
             if policy.waitForExistence(timeout: 10) {
                 pause(1)
                 capture(app, "privacy")
@@ -106,14 +113,12 @@ final class DesignQATests: XCTestCase {
                 policy.swipeUp()
                 pause(1)
                 capture(app, "privacy-scrolled")
-                dismissSheet(policy, in: app)
             } else {
                 XCTFail("Privacy policy never opened")
             }
         } else {
             XCTFail("Privacy row missing in About")
         }
-        dismissSheet(about, in: app)
     }
 
     /// Home on each of the 5 background presets (the app is dark-only, so these
