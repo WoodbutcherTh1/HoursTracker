@@ -33,11 +33,19 @@ struct LiveTimerView: View {
     }
 }
 
+private struct ClockOutDockHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
 struct HomeView: View {
     @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
     @ObservedObject private var homeStatsLayout = HomeStatsLayout.shared
     @ObservedObject private var appBackground = AppBackgroundTheme.shared
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     @AppStorage("homeStatsReorderHintDismissed") private var didReorderStats = false
     /// Gross/net choice for the live pay counter. Its own key rather than History's
     /// `historyPayDisplayMode`, so switching one screen doesn't silently change the
@@ -49,6 +57,9 @@ struct HomeView: View {
     @State private var showThemePicker = false
     @State private var showUserGuide = false
     @State private var liveNow = Date()
+    /// Height of the pinned Clock Out dock, so the scroll content's `minHeight` matches
+    /// the area actually left above it instead of the full screen.
+    @State private var clockOutDockHeight: CGFloat = 0
 
     private var timeFormatter: DateFormatter {
         AppLocale.makeDateFormatter(timeStyle: .short)
@@ -92,9 +103,18 @@ struct HomeView: View {
                             }
                         }
                         .padding(.horizontal, metrics.horizontalPadding)
-                        .frame(minHeight: geo.size.height)
+                        .frame(minHeight: max(0, geo.size.height - clockOutDockHeight))
                     }
                     .scrollBounceBehavior(.basedOnSize)
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        if viewModel.activeSession != nil {
+                            clockOutDoor(metrics: metrics)
+                        }
+                    }
+                    .onPreferenceChange(ClockOutDockHeightKey.self) { clockOutDockHeight = $0 }
+                    .onChange(of: viewModel.activeSession == nil) { _, clockedOut in
+                        if clockedOut { clockOutDockHeight = 0 }
+                    }
                 }
             }
             .toolbar {
@@ -385,6 +405,37 @@ struct HomeView: View {
         normalizedLevel(Double(value), max: max)
     }
 
+    /// Pinned under the clocked-in scroll and above the tab bar. No fixed height:
+    /// the door label grows with Dynamic Type, and a fixed slot is what let it
+    /// slide under the tab bar.
+    private func clockOutDoor(metrics: HomeLayoutMetrics) -> some View {
+        HomeAnimatedDoorButton(
+            mode: .clockOut,
+            title: L10n.homeClockOut,
+            compact: metrics.isCompact || metrics.isShort,
+            accent: homeTheme.accent
+        ) {
+            viewModel.clockOut()
+        }
+        .padding(.horizontal, 20)
+        .padding(.top, 8)
+        .padding(.bottom, 8)
+        .frame(maxWidth: .infinity)
+        .background {
+            ZStack(alignment: .top) {
+                appBackground.background
+                Rectangle()
+                    .fill(Color.white.opacity(0.16))
+                    .frame(height: 0.5)
+            }
+        }
+        .background {
+            GeometryReader { proxy in
+                Color.clear.preference(key: ClockOutDockHeightKey.self, value: proxy.size.height)
+            }
+        }
+    }
+
     private func clockedInView(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {
         let live = liveBreakdown(for: session, at: liveNow)
         let timerSize: CGFloat = metrics.isCompact ? 42 : 52
@@ -395,6 +446,7 @@ struct HomeView: View {
                     .title(withName: viewModel.settings.workerFullName)
                 Text(title)
                     .font(.system(size: metrics.isCompact ? 22 : 26, weight: .bold, design: .rounded))
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                     .foregroundStyle(.white)
                     .multilineTextAlignment(.center)
                     .lineLimit(2)
@@ -406,11 +458,13 @@ struct HomeView: View {
             VStack(spacing: 4) {
                 Text(L10n.homeClockedIn)
                     .font(.caption.weight(.semibold))
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility2)
                     .foregroundStyle(.white.opacity(0.55))
                     .textCase(.uppercase)
                     .tracking(0.8)
                 Text(L10n.homeSince(timeFormatter.string(from: session.clockIn)))
                     .font(.subheadline.weight(.medium))
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                     .foregroundStyle(.white.opacity(0.8))
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
@@ -428,6 +482,7 @@ struct HomeView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                    .dynamicTypeSize(...DynamicTypeSize.accessibility2)
                     .frame(maxWidth: 150)
                     // Home is a dark surface whatever the device appearance is, so the
                     // segmented control has to be told that or it renders light-on-light
@@ -438,16 +493,20 @@ struct HomeView: View {
 
                     Text(livePayMode == .net ? live.formattedNetPay : live.formattedGrossPay)
                         .font(.headline.monospacedDigit())
+                        .dynamicTypeSize(...DynamicTypeSize.accessibility2)
                         .foregroundStyle(homeTheme.accent)
                         .lineLimit(1)
                         .minimumScaleFactor(0.7)
                         .contentTransition(.numericText())
 
-                    Text(L10n.homeLivePayHint)
-                        .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.4))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
+                    if !(dynamicTypeSize >= .accessibility4 && metrics.isCompact) {
+                        Text(L10n.homeLivePayHint)
+                            .font(.caption2)
+                            .dynamicTypeSize(...DynamicTypeSize.accessibility3)
+                            .foregroundStyle(.white.opacity(0.4))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
+                    }
                 }
             }
             .padding(.vertical, metrics.isCompact ? 14 : 18)
@@ -473,16 +532,6 @@ struct HomeView: View {
                 accent: homeTheme.accent,
                 compact: metrics.isCompact
             )
-
-            HomeAnimatedDoorButton(
-                mode: .clockOut,
-                title: L10n.homeClockOut,
-                compact: metrics.isCompact || metrics.isShort,
-                accent: homeTheme.accent
-            ) {
-                viewModel.clockOut()
-            }
-            .frame(height: metrics.doorHeight)
 
             Spacer(minLength: 4)
 
