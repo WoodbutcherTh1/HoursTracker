@@ -303,9 +303,9 @@ private struct GuideCopy {
     )
 
     static let payslips = GuideCopy(
-        en: ("Every payslip, organized", "Tap a payslip to open its PDF, review the extracted details, and confirm or delete it. Full reports live in the Export tab."),
-        he: ("כל תלוש, מסודר", "הקישו על תלוש כדי לפתוח את ה-PDF, לבדוק את הפרטים שחולצו, ולאשר או למחוק. דוחות מלאים נמצאים בלשונית ייצוא."),
-        ar: ("كل قسيمة راتب، منظمة", "اضغط على قسيمة لفتح ملف PDF ومراجعة التفاصيل المستخرجة وتأكيدها أو حذفها. التقارير الكاملة في تبويب التصدير.")
+        en: ("Every payslip, organized", "Payslips have their own tab. Tap one to open its PDF, review the extracted details, and confirm or delete it. Full reports live in the Export tab."),
+        he: ("כל תלוש, מסודר", "לתלושים יש לשונית משלהם. הקישו על תלוש כדי לפתוח את ה-PDF, לבדוק את הפרטים שחולצו, ולאשר או למחוק. דוחות מלאים נמצאים בלשונית ייצוא."),
+        ar: ("كل قسيمة راتب، منظمة", "لكشوف الرواتب تبويب خاص بها. اضغط على قسيمة لفتح ملف PDF ومراجعة التفاصيل المستخرجة وتأكيدها أو حذفها. التقارير الكاملة في تبويب التصدير.")
     )
 
     static let shiftDetail = GuideCopy(

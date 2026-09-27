@@ -38,15 +38,18 @@ final class ScreenshotTests: XCTestCase {
 
         // Index-based rather than by accessibility identifier: tabItem's identifier
         // doesn't reliably propagate to the underlying UITabBarItem on every OS/SwiftUI
-        // combo, but tab order (Home, History, Export, Settings) is fixed in the app.
+        // combo, but tab order (Home, History, Payslips, Export, Settings) is fixed in the app.
         tapTab(app, index: 1)
         capture(app, "02_History")
 
         tapTab(app, index: 2)
-        capture(app, "03_Export")
+        capture(app, "03_Payslips")
 
         tapTab(app, index: 3)
-        capture(app, "04_Settings")
+        capture(app, "04_Export")
+
+        tapTab(app, index: 4)
+        capture(app, "05_Settings")
     }
 
     private func tapTab(_ app: XCUIApplication, index: Int) {

@@ -123,6 +123,7 @@ private enum MainSheetRoute: Identifiable, Hashable {
 private enum AppTab: String {
     case home
     case history
+    case payslips
     case export
     case settings
 }
@@ -190,6 +191,13 @@ struct MainTabView: View {
                         .accessibilityIdentifier("tab.history")
                 }
                 .tag(AppTab.history)
+
+            PayslipsTabView(viewModel: viewModel)
+                .tabItem {
+                    Label(L10n.tabPayslips, systemImage: "doc.text.viewfinder")
+                        .accessibilityIdentifier("tab.payslips")
+                }
+                .tag(AppTab.payslips)
 
             ExportView(viewModel: viewModel)
                 .tabItem {

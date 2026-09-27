@@ -2282,19 +2282,19 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "أضف واحدة من التصدير ← תלושים وسأتمكن من إيجادها."
+            "value" : "أضف واحدة من تبويب كشوف الرواتب وسأتمكن من إيجادها."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Add one from Export → Payslips and I'll be able to find it."
+            "value" : "Add one from the Payslips tab and I'll be able to find it."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "הוסיפו אחד מייצוא ← תלושים ואוכל למצוא אותו."
+            "value" : "הוסיפו אחד מלשונית התלושים ואוכל למצוא אותו."
           }
         }
       }
@@ -18857,6 +18857,28 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "שגיאת שרת (%@). נסו שוב."
+          }
+        }
+      }
+    },
+    "tab.payslips" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "كشوف الرواتب"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Payslips"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "תלושים"
           }
         }
       }
