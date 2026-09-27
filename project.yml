@@ -9,6 +9,11 @@ options:
   xcodeVersion: "26.0"
 settings:
   base:
+    # THE version and build number for every target (app, widget, Watch). The
+    # Info.plists read them as $(MARKETING_VERSION) / $(CURRENT_PROJECT_VERSION);
+    # never type a version anywhere else (AI_AGENT_BRIEF → Build Versioning).
+    MARKETING_VERSION: "1.8"
+    CURRENT_PROJECT_VERSION: "23"
     SWIFT_VERSION: "5.9"
     DEVELOPMENT_LANGUAGE: en
     LOCALIZATION_PREFERS_STRING_CATALOGS: YES
@@ -68,10 +73,10 @@ targets:
         # already has a 1.5 entry on record — each pre-release train is permanently
         # closed to new TestFlight builds once superseded, so any new submission needs
         # a higher marketing version even if it's otherwise a minor update.
-        CFBundleShortVersionString: "1.7"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
         # Build 15+: do NOT add UIBackgroundModes: location (Guideline 2.5.4).
         # Arrival reminders use CLCircularRegion monitoring only.
-        CFBundleVersion: "22"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
         # The app is dark-only (every surface is designed on dark tokens), so system
         # UI — alerts, share sheets, keyboards — matches it too.
         UIUserInterfaceStyle: Dark

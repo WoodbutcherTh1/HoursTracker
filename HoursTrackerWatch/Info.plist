@@ -29,9 +29,9 @@
 	<!-- Must always match CFBundleShortVersionString/CFBundleVersion in project.yml's
 	     HoursTracker target (App Store rejects a mismatched companion app version). -->
 	<key>CFBundleShortVersionString</key>
-	<string>1.7</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>22</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>WKApplication</key>
 	<true/>
 	<key>WKCompanionAppBundleIdentifier</key>

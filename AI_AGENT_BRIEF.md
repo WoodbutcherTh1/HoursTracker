@@ -148,7 +148,7 @@ Rest days change the pay premium; never bind `WeekPattern` to them.
 
 ## Build Versioning
 
-- Version and build number come from `project.yml` (`CFBundleShortVersionString` / `CFBundleVersion` under the app target's `info.properties`).
+- Version and build number come from `project.yml` → `settings.base.MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` — one place for the app, widget and Watch. Every Info.plist reads them as `$(MARKETING_VERSION)` / `$(CURRENT_PROJECT_VERSION)`; App Store Connect rejects an upload whose extensions don't match the app.
 - Never hard-code them in Swift or markdown.
 - `Info.plist` inherits them from `project.yml` at generate time (`xcodegen generate`).
 - Any text that shows a version must read it from `Bundle.main` (see `AboutSheet.versionString`).
