@@ -24,6 +24,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             // directly so screenshots render in English regardless of simulator/device locale.
             UserDefaults.standard.set(AppLanguageOption.english.rawValue, forKey: AppLanguageOption.storageKey)
         }
+        // UI tests that need a clean launch without walking the three onboarding
+        // slides. Does not seed demo data or force a language.
+        if ProcessInfo.processInfo.arguments.contains("UITEST_SKIP_ONBOARDING") {
+            UserDefaults.standard.set(true, forKey: "hasSeenOnboarding.v1")
+        }
         #endif
         return true
     }
