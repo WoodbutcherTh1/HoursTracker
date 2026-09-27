@@ -196,6 +196,16 @@ enum L10n {
     static var homeThemeWordmarkPlaceholder: String { t("home.theme.wordmarkPlaceholder") }
     static var homeThemeWordmarkHint: String { t("home.theme.wordmarkHint") }
     static var homeStatsReorderHint: String { t("home.stats.reorderHint") }
+    static var homeStatsWelcomeTitle: String { t("home.stats.welcomeTitle") }
+    static var homeStatsWelcomeBody: String { t("home.stats.welcomeBody") }
+    static func homeStatsGoal(_ target: CustomStringConvertible) -> String {
+        String(format: t("home.stats.goal %@"), "\(target)")
+    }
+    static var homeStatsMoveEarlier: String { t("home.stats.moveEarlier") }
+    static var homeStatsMoveLater: String { t("home.stats.moveLater") }
+    static var homeThemeTip: String { t("home.theme.tip") }
+    static var homeMore: String { t("home.more") }
+    static var homeAboutOpen: String { t("home.about.open") }
     static var homeStatsResetOrder: String { t("home.stats.resetOrder") }
     static var homeStatTodayPay: String { t("home.stat.todayPay") }
     static var homeStatWeekPay: String { t("home.stat.weekPay") }

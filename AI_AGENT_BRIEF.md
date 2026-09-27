@@ -140,6 +140,12 @@ Rest days change the pay premium; never bind `WeekPattern` to them.
 - The onboarding's week pattern (5 days / 6 days / varies / custom days) and `weeklyGoalHoursDisplayOnly` are **display-only** (`DisplayPreferences`, `Models/OnboardingSetup.swift`). They drive previews and goals only and must never be copied into rest days, `weeklyStandardHours` (the legal overtime threshold) or any other pay input. `OnboardingSetupTests.testDisplayOnlyPreferencesNeverReachPayMath` pins this.
 - Any new "convenience" question that looks like a schedule (days off, expected hours, shift type) follows the same rule: store it as a display preference; change pay inputs only through Settings, where the user sees the legal meaning.
 
+## Display vs. Calculation Separation
+
+- The pay engine keeps Shabbat/holiday hours in the "regular" bucket (base 150%, then 175%/200% for overtime) — see `OvertimeCalculator.tiers(for:)`.
+- `PayTier` (`Models/PayTier.swift`, display layer) reads the day type and shows the real rate.
+- Never assume `regularHours` == 100%. Always go through `PayTier` when showing rates, tier colours or tier labels. `DaySummaryTests.testShabbatShiftShowsAllHoursAt150Percent` pins this.
+
 ## Quick facts
 
 - **Bundle IDs**: `com.hourstracker.app` (+ `.widget`, `.watchkitapp`, `.tests`, `.uitests`). Team `FQUC6DU87N`.

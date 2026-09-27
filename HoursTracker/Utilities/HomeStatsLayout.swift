@@ -66,6 +66,20 @@ final class HomeStatsLayout: ObservableObject {
         }
     }
 
+    /// Moves `metric` one slot toward the start (`by: -1`) or the end (`by: 1`) — the
+    /// long-press menu and VoiceOver alternative to drag and drop. No-op at the edges.
+    func shift(_ metric: HomeStatMetric, by offset: Int) {
+        guard canShift(metric, by: offset), let from = order.firstIndex(of: metric) else { return }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            order.swapAt(from, from + offset)
+        }
+    }
+
+    func canShift(_ metric: HomeStatMetric, by offset: Int) -> Bool {
+        guard let from = order.firstIndex(of: metric) else { return false }
+        return order.indices.contains(from + offset)
+    }
+
     /// Assigns `metric` to the card at `index`. If `metric` is already showing in
     /// another slot, the two slots swap so no metric is ever shown twice.
     func setMetric(_ metric: HomeStatMetric, at index: Int) {

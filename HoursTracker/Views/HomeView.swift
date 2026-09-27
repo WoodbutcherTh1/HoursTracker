@@ -52,6 +52,10 @@ struct HomeView: View {
     @State private var showForgotClockIn = false
     @State private var showThemePicker = false
     @State private var showUserGuide = false
+    @State private var showAbout = false
+    @State private var showFeedback = false
+    /// Set once the theme picker has been opened; hides the "Tap to personalize" tip.
+    @AppStorage("home.themeTipSeen") private var themeTipSeen = false
     @State private var liveNow = Date()
 
     private var timeFormatter: DateFormatter {
@@ -103,43 +107,31 @@ struct HomeView: View {
                     .scrollBounceBehavior(.basedOnSize)
                 }
             }
+            // Two icons at most. The theme picker lives in the greeting row, the
+            // scanner behind the "Import timesheet" button on the screen, and the
+            // wordmark in About (the brand mark). SwiftUI mirrors both sides in RTL.
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    HomeBrandTitle(accent: homeTheme.accent)
-                }
-                // App-level entry point, kept on the leading side so it doesn't crowd
-                // the three screen actions (theme / scanner / guide) on the trailing
-                // side or get squeezed against the centered wordmark. SwiftUI mirrors it
-                // to the right edge automatically in Hebrew/Arabic.
                 ToolbarItem(placement: .topBarLeading) {
                     AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
                 }
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showThemePicker = true
+                    Menu {
+                        Button {
+                            showUserGuide = true
+                        } label: {
+                            Label(L10n.guideTitle, systemImage: "questionmark.circle")
+                        }
+                        Button {
+                            showFeedback = true
+                        } label: {
+                            Label(L10n.settingsSupport, systemImage: "envelope")
+                        }
                     } label: {
-                        Image(systemName: "paintpalette")
+                        Image(systemName: "ellipsis.circle")
                             .foregroundStyle(homeTheme.accent)
                     }
-                    .accessibilityLabel(L10n.homeThemeTitle)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showScanner = true
-                    } label: {
-                        Image(systemName: "doc.viewfinder")
-                            .foregroundStyle(homeTheme.accent)
-                    }
-                    .accessibilityLabel(L10n.gridTitle)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showUserGuide = true
-                    } label: {
-                        Image(systemName: "questionmark.circle")
-                            .foregroundStyle(homeTheme.accent)
-                    }
-                    .accessibilityLabel(L10n.guideTitle)
+                    .accessibilityLabel(L10n.homeMore)
+                    .accessibilityIdentifier("home.moreMenu")
                 }
             }
             .toolbarBackground(appBackground.background, for: .navigationBar)
@@ -163,6 +155,16 @@ struct HomeView: View {
             .sheet(isPresented: $showThemePicker) {
                 HomeThemePickerSheet(theme: homeTheme)
                     .presentationDetents([.medium, .large])
+            }
+            .onChange(of: showThemePicker) { _, isShowing in
+                if isShowing { themeTipSeen = true }
+            }
+            .sheet(isPresented: $showAbout) {
+                AboutSheet(viewModel: viewModel)
+                    .presentationDetents([.medium, .large])
+            }
+            .sheet(isPresented: $showFeedback) {
+                ContactSupportSheet(viewModel: viewModel)
             }
             .sheet(isPresented: $showUserGuide) {
                 UserGuideSheet(workerName: viewModel.settings.workerFullName)
@@ -242,55 +244,77 @@ struct HomeView: View {
     }
 
     private func greetingHeader(metrics: HomeLayoutMetrics) -> some View {
-        TimelineView(.periodic(from: .now, by: 60)) { context in
-            let greeting = DaypartGreeting.current(at: context.date, calendar: calendar)
-            let title = greeting.title(withName: viewModel.settings.workerFullName)
-            ZStack {
-                HomeFloatingParticles(accent: homeTheme.accent)
-                    .frame(height: metrics.particleHeight)
+        HomeGreetingRow(
+            name: viewModel.settings.workerFullName,
+            accent: homeTheme.accent,
+            compact: metrics.isCompact,
+            showThemeTip: !themeTipSeen && !completedSessions.isEmpty,
+            onBrandTap: { showAbout = true },
+            onThemeTap: { showThemePicker = true }
+        )
+        .padding(.top, DS.Space.xxs)
+    }
 
-                Text(title)
-                    .font(.system(size: metrics.greetingFontSize, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.45)
-                    .contentTransition(.opacity)
-                    .animation(.easeInOut(duration: 0.35), value: title)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 4)
+    @ViewBuilder
+    private func statsRow(metrics: HomeLayoutMetrics) -> some View {
+        if completedSessions.isEmpty {
+            HomeStatsWelcomeCard(accent: homeTheme.accent)
+        } else {
+            VStack(spacing: DS.Space.xs) {
+                HStack(spacing: metrics.statsSpacing) {
+                    ForEach(homeStatsLayout.order) { kind in
+                        reorderableStatCard(kind, metrics: metrics)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+
+                if !didReorderStats {
+                    Text(L10n.homeStatsReorderHint)
+                        .dsFont(.meta)
+                        .foregroundStyle(DS.Palette.textTertiary)
+                }
             }
-            .padding(.top, 4)
         }
     }
 
-    private func statsRow(metrics: HomeLayoutMetrics) -> some View {
-        VStack(spacing: 6) {
-            HStack(spacing: metrics.statsSpacing) {
-                ForEach(homeStatsLayout.order) { kind in
-                    statCard(for: kind, metrics: metrics)
-                        .draggable(kind.rawValue) {
-                            statCard(for: kind, metrics: metrics)
-                                .frame(width: 96)
-                                .opacity(0.9)
-                        }
-                        .dropDestination(for: String.self) { items, _ in
-                            guard let raw = items.first, let dragged = HomeStatMetric(rawValue: raw) else {
-                                return false
-                            }
-                            homeStatsLayout.move(dragged, onto: kind)
-                            didReorderStats = true
-                            return true
-                        }
+    /// Drag and drop for touch; the long-press menu and VoiceOver actions do the
+    /// same one step at a time for anyone who can't drag.
+    private func reorderableStatCard(_ kind: HomeStatMetric, metrics: HomeLayoutMetrics) -> some View {
+        statCard(for: kind, metrics: metrics)
+            .draggable(kind.rawValue) {
+                statCard(for: kind, metrics: metrics)
+                    .frame(width: 110, height: 96)
+                    .opacity(0.9)
+            }
+            .dropDestination(for: String.self) { items, _ in
+                guard let raw = items.first, let dragged = HomeStatMetric(rawValue: raw) else {
+                    return false
+                }
+                homeStatsLayout.move(dragged, onto: kind)
+                didReorderStats = true
+                return true
+            }
+            .contextMenu {
+                if homeStatsLayout.canShift(kind, by: -1) {
+                    Button { shiftStat(kind, by: -1) } label: {
+                        Label(L10n.homeStatsMoveEarlier, systemImage: "chevron.backward")
+                    }
+                }
+                if homeStatsLayout.canShift(kind, by: 1) {
+                    Button { shiftStat(kind, by: 1) } label: {
+                        Label(L10n.homeStatsMoveLater, systemImage: "chevron.forward")
+                    }
                 }
             }
+            .accessibilityAction(named: Text(L10n.homeStatsMoveEarlier)) { shiftStat(kind, by: -1) }
+            .accessibilityAction(named: Text(L10n.homeStatsMoveLater)) { shiftStat(kind, by: 1) }
+    }
 
-            if !didReorderStats {
-                Text(L10n.homeStatsReorderHint)
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.35))
-            }
-        }
+    private func shiftStat(_ kind: HomeStatMetric, by offset: Int) {
+        guard homeStatsLayout.canShift(kind, by: offset) else { return }
+        UISelectionFeedbackGenerator().selectionChanged()
+        homeStatsLayout.shift(kind, by: offset)
+        didReorderStats = true
     }
 
     /// Display value for a stat, in one place so the full cards (clocked out) and the
@@ -306,93 +330,50 @@ struct HomeView: View {
         }
     }
 
-    @ViewBuilder
     private func statCard(for kind: HomeStatMetric, metrics: HomeLayoutMetrics) -> some View {
+        let goal = statGoal(for: kind)
+        return HomeStatCard(
+            title: kind.title,
+            value: statValue(for: kind),
+            systemImage: Self.statSymbol(for: kind),
+            progress: goal?.progress,
+            targetText: goal.map { L10n.homeStatsGoal($0.label) },
+            accent: homeTheme.accent,
+            compact: metrics.isCompact
+        )
+    }
+
+    private static func statSymbol(for kind: HomeStatMetric) -> String {
         switch kind {
-        case .month:
-            HomeNeonStatCard(
-                title: L10n.homeStatMonth,
-                value: statValue(for: kind),
-                icon: .calendar,
-                sparkSeed: 0.4,
-                level: Self.normalizedLevel(monthShiftCount, max: Self.monthShiftLevelMax),
-                compact: metrics.isCompact,
-                showSparkline: metrics.showStatSparkline,
-                accent: homeTheme.accent
-            )
-        case .week:
-            HomeNeonStatCard(
-                title: L10n.homeStatWeek,
-                value: statValue(for: kind),
-                icon: .chart,
-                sparkSeed: 1.3,
-                level: Self.normalizedLevel(weekHours, max: Self.weekHoursLevelMax),
-                compact: metrics.isCompact,
-                showSparkline: metrics.showStatSparkline,
-                accent: homeTheme.accent
-            )
-        case .today:
-            HomeNeonStatCard(
-                title: L10n.homeStatToday,
-                value: statValue(for: kind),
-                icon: .clock,
-                sparkSeed: 2.2,
-                level: Self.normalizedLevel(todayHours, max: Self.todayHoursLevelMax),
-                compact: metrics.isCompact,
-                showSparkline: metrics.showStatSparkline,
-                accent: homeTheme.accent
-            )
-        case .todayPay:
-            HomeNeonStatCard(
-                title: L10n.homeStatTodayPay,
-                value: statValue(for: kind),
-                icon: .clock,
-                sparkSeed: 2.7,
-                level: Self.normalizedLevel(todayHours, max: Self.todayHoursLevelMax),
-                compact: metrics.isCompact,
-                showSparkline: metrics.showStatSparkline,
-                accent: homeTheme.accent
-            )
-        case .weekPay:
-            HomeNeonStatCard(
-                title: L10n.homeStatWeekPay,
-                value: statValue(for: kind),
-                icon: .chart,
-                sparkSeed: 1.7,
-                level: Self.normalizedLevel(weekHours, max: Self.weekHoursLevelMax),
-                compact: metrics.isCompact,
-                showSparkline: metrics.showStatSparkline,
-                accent: homeTheme.accent
-            )
-        case .monthPay:
-            HomeNeonStatCard(
-                title: L10n.homeStatMonthPay,
-                value: statValue(for: kind),
-                icon: .calendar,
-                sparkSeed: 0.9,
-                level: Self.normalizedLevel(monthShiftCount, max: Self.monthShiftLevelMax),
-                compact: metrics.isCompact,
-                showSparkline: metrics.showStatSparkline,
-                accent: homeTheme.accent
-            )
+        case .month, .monthPay: return "calendar"
+        case .week, .weekPay: return "chart.bar.fill"
+        case .today, .todayPay: return "clock"
         }
     }
 
-    // MARK: - Stat card sparkline levels
-
-    /// Reasonable "full bar" ceilings for each stat, chosen so a typical value sits
-    /// mid-height rather than maxing the line out immediately.
-    private static let monthShiftLevelMax: Double = 24
-    private static let weekHoursLevelMax: Double = 60
-    private static let todayHoursLevelMax: Double = 12
-
-    private static func normalizedLevel(_ value: Double, max: Double) -> Double {
-        guard max > 0 else { return 0 }
-        return Swift.min(Swift.max(value / max, 0), 1)
-    }
-
-    private static func normalizedLevel(_ value: Int, max: Double) -> Double {
-        normalizedLevel(Double(value), max: max)
+    /// Progress against the user's own display-only goal. Pay cards have no target —
+    /// a pay goal would be a pay estimate, and those come from the engine only.
+    private func statGoal(for kind: HomeStatMetric) -> (progress: Double, label: String)? {
+        let goals = HomeStatGoals.current()
+        let now = Date()
+        switch kind {
+        case .today:
+            guard let target = goals.todayHoursTarget(on: now, calendar: calendar),
+                  let progress = HomeStatGoals.progress(todayHours, target: target) else { return nil }
+            return (progress, HistoryPeriodHelper.formatHoursClock(target))
+        case .week:
+            guard let target = goals.weekHoursTarget,
+                  let progress = HomeStatGoals.progress(weekHours, target: target) else { return nil }
+            return (progress, HistoryPeriodHelper.formatHoursClock(target))
+        case .month:
+            guard let target = goals.monthShiftTarget(for: now, calendar: calendar),
+                  let progress = HomeStatGoals.progress(Double(monthShiftCount), target: Double(target)) else {
+                return nil
+            }
+            return (progress, "\(target)")
+        case .todayPay, .weekPay, .monthPay:
+            return nil
+        }
     }
 
     private func clockedInView(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {
@@ -400,18 +381,7 @@ struct HomeView: View {
         let timerSize: CGFloat = metrics.isCompact ? 42 : 52
 
         return VStack(spacing: metrics.stackSpacing) {
-            TimelineView(.periodic(from: .now, by: 60)) { context in
-                let title = DaypartGreeting.current(at: context.date, calendar: calendar)
-                    .title(withName: viewModel.settings.workerFullName)
-                Text(title)
-                    .font(.system(size: metrics.isCompact ? 22 : 26, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.5)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 4)
-            }
+            greetingHeader(metrics: metrics)
 
             VStack(spacing: 4) {
                 Text(L10n.homeClockedIn)

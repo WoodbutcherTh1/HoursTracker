@@ -33,14 +33,11 @@ struct HomeLayoutMetrics {
 
     var horizontalPadding: CGFloat { isVeryCompact ? 12 : (isCompact ? 14 : 18) }
     var stackSpacing: CGFloat { tight ? 10 : 13 }
-    var greetingFontSize: CGFloat { isVeryCompact ? 24 : (tight ? 27 : 31) }
     var statsSpacing: CGFloat { isCompact ? 6 : 10 }
     /// Matches `HomeAnimatedDoorButton(compact:)`'s real rendered height (door + spacing
     /// + label) plus a small buffer — must stay in sync with that view's own sizing or
     /// the button overflows this frame and overlaps whatever's below it.
     var doorHeight: CGFloat { tight ? 118 : 148 }
-    var showStatSparkline: Bool { !isVeryCompact }
-    var particleHeight: CGFloat { tight ? 44 : 56 }
 }
 
 /// Soft drifting aurora band across the top of Home.
@@ -92,39 +89,6 @@ private struct HomeAuroraCanvas: View {
                 )
             }
         }
-    }
-}
-
-/// Floating luminous dots near the greeting.
-struct HomeFloatingParticles: View {
-    var accent: Color = HomeNeon.accent
-
-    private let dots: [(x: CGFloat, y: CGFloat, size: CGFloat, speed: Double)] = [
-        (0.12, 0.25, 5, 2.8),
-        (0.28, 0.70, 3.5, 3.4),
-        (0.55, 0.20, 4, 2.2),
-        (0.78, 0.55, 3, 3.1),
-        (0.90, 0.30, 4.5, 2.6)
-    ]
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            GeometryReader { geo in
-                ForEach(Array(dots.enumerated()), id: \.offset) { index, dot in
-                    let wave = sin(t * (1.1 + Double(index) * 0.35) / dot.speed)
-                    Circle()
-                        .fill(accent.opacity(0.35 + 0.25 * (wave + 1) / 2))
-                        .frame(width: dot.size, height: dot.size)
-                        .blur(radius: 0.4)
-                        .position(
-                            x: geo.size.width * dot.x,
-                            y: geo.size.height * dot.y + CGFloat(wave) * 6
-                        )
-                }
-            }
-        }
-        .allowsHitTesting(false)
     }
 }
 
@@ -510,14 +474,15 @@ struct HomeCompactStatsStrip: View {
 
                 VStack(spacing: 2) {
                     Text(item.title)
-                        .font(.system(size: compact ? 9 : 10, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.45))
+                        .dsFont(.meta, weight: .medium)
+                        .foregroundStyle(DS.Palette.textSecondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                     Text(item.value)
-                        .font(.system(size: compact ? 13 : 15, weight: .semibold, design: .rounded))
+                        .htFont(size: 15, relativeTo: .subheadline, weight: .semibold, design: .rounded)
                         .monospacedDigit()
-                        .foregroundStyle(accent.opacity(0.85))
+                        .environment(\.layoutDirection, .leftToRight)
+                        .foregroundStyle(accent)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                         .contentTransition(.numericText())
@@ -537,245 +502,6 @@ struct HomeCompactStatsStrip: View {
                         .stroke(Color.white.opacity(0.06), lineWidth: 1)
                 )
         )
-    }
-}
-
-enum HomeStatIconKind {
-    case calendar
-    case chart
-    case clock
-}
-
-/// Compact neon stats card with animated icon + mini waving sparkline.
-struct HomeNeonStatCard: View {
-    let title: String
-    let value: String
-    let icon: HomeStatIconKind
-    var sparkSeed: Double = 0
-    /// This card's value normalized to 0...1 against a reasonable max, so the mini
-    /// sparkline's height reflects the real number instead of animating decoratively —
-    /// 0 renders as a flat line, higher values sit higher with more motion.
-    var level: Double = 0
-    var compact: Bool = false
-    var showSparkline: Bool = true
-    /// User-customizable via the Home color picker; defaults to the original green.
-    var accent: Color = HomeNeon.accent
-
-    var body: some View {
-        VStack(spacing: compact ? 5 : 8) {
-            animatedIcon
-                .frame(height: compact ? 22 : 28)
-
-            Text(title)
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(.white.opacity(0.55))
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-                .multilineTextAlignment(.center)
-
-            Text(value)
-                .font((compact ? Font.callout : Font.title3).weight(.bold).monospacedDigit())
-                .foregroundStyle(.white)
-                .minimumScaleFactor(0.55)
-                .lineLimit(1)
-                .multilineTextAlignment(.center)
-
-            if showSparkline {
-                MiniWaveSparkline(seed: sparkSeed, accent: accent, level: level)
-                    .frame(height: compact ? 16 : 22)
-                    .padding(.top, 2)
-            }
-        }
-        .padding(.vertical, compact ? 8 : 12)
-        .padding(.horizontal, compact ? 4 : 8)
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: compact ? 14 : 16, style: .continuous)
-                .fill(HomeNeon.card.opacity(0.92))
-                .overlay(
-                    RoundedRectangle(cornerRadius: compact ? 14 : 16, style: .continuous)
-                        .stroke(accent.opacity(0.22), lineWidth: 1)
-                )
-                .shadow(color: accent.opacity(0.12), radius: 10, y: 2)
-        )
-    }
-
-    @ViewBuilder
-    private var animatedIcon: some View {
-        switch icon {
-        case .calendar:
-            AnimatedCalendarIcon(accent: accent)
-        case .chart:
-            AnimatedChartIcon(accent: accent)
-        case .clock:
-            AnimatedClockIcon(accent: accent)
-        }
-    }
-}
-
-/// Month digits flip inside a calendar outline.
-struct AnimatedCalendarIcon: View {
-    var accent: Color = HomeNeon.accent
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            let cycle = (t * 1.2).truncatingRemainder(dividingBy: 12)
-            let idx = Int(cycle)
-            let frac = cycle - Double(idx)
-            let current = (idx % 12) + 1
-            let next = ((idx + 1) % 12) + 1
-
-            ZStack {
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .stroke(accent, lineWidth: 1.5)
-                    .frame(width: 22, height: 20)
-                // Binding nubs
-                HStack(spacing: 8) {
-                    Capsule().fill(accent).frame(width: 2.5, height: 5)
-                    Capsule().fill(accent).frame(width: 2.5, height: 5)
-                }
-                .offset(y: -11)
-
-                Capsule()
-                    .fill(accent.opacity(0.7))
-                    .frame(width: 14, height: 1)
-                    .offset(y: -5)
-
-                ZStack {
-                    Text("\(current)")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
-                        .foregroundStyle(accent.opacity(1 - frac))
-                        .offset(y: -CGFloat(frac) * 8)
-                    Text("\(next)")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
-                        .foregroundStyle(accent.opacity(frac))
-                        .offset(y: (1 - CGFloat(frac)) * 8)
-                }
-                .frame(width: 14, height: 10)
-                .clipped()
-                .offset(y: 2)
-            }
-        }
-        .accessibilityHidden(true)
-    }
-}
-
-/// Bars bounce inside a chart outline.
-struct AnimatedChartIcon: View {
-    var accent: Color = HomeNeon.accent
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            HStack(alignment: .bottom, spacing: 3) {
-                ForEach(0..<3, id: \.self) { i in
-                    let h = 6 + 5 * (0.5 + 0.5 * sin(t * 2.8 + Double(i) * 1.1))
-                    RoundedRectangle(cornerRadius: 1)
-                        .fill(accent)
-                        .frame(width: 4, height: h)
-                }
-            }
-            .frame(width: 22, height: 18, alignment: .bottom)
-        }
-        .accessibilityHidden(true)
-    }
-}
-
-/// Clock hands keep ticking inside the circle.
-struct AnimatedClockIcon: View {
-    var accent: Color = HomeNeon.accent
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            ZStack {
-                Circle()
-                    .stroke(accent, lineWidth: 1.5)
-                    .frame(width: 20, height: 20)
-
-                // Hour hand
-                Capsule()
-                    .fill(accent)
-                    .frame(width: 1.5, height: 5)
-                    .offset(y: -2)
-                    .rotationEffect(.radians(t * 0.35))
-
-                // Minute hand
-                Capsule()
-                    .fill(accent)
-                    .frame(width: 1.2, height: 7)
-                    .offset(y: -3)
-                    .rotationEffect(.radians(t * 1.8))
-
-                Circle()
-                    .fill(.white)
-                    .frame(width: 2.5, height: 2.5)
-            }
-        }
-        .accessibilityHidden(true)
-    }
-}
-
-/// Tiny mountain line for each stats card — its height and liveliness now track a real
-/// metric instead of being purely decorative. `level` is the value normalized to 0...1
-/// (0 = nothing recorded, flat straight line; 1 = at/above the card's reasonable max,
-/// tall and animated). Height and wiggle amplitude both scale with `level`, so "0 hours"
-/// reads as a still, flat line and higher values sit visibly higher with more motion.
-struct MiniWaveSparkline: View {
-    let seed: Double
-    var accent: Color = HomeNeon.accent
-    var level: Double = 0
-
-    private var clampedLevel: Double { min(max(level, 0), 1) }
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            let level = clampedLevel
-            Canvas { context, size in
-                var path = Path()
-                let steps = 24
-                for i in 0...steps {
-                    let u = CGFloat(i) / CGFloat(steps)
-                    let x = u * size.width
-                    let y = size.height - CGFloat(Self.ridge(u: Double(u), t: t, seed: seed, level: level)) * size.height
-                    if i == 0 { path.move(to: CGPoint(x: x, y: y)) }
-                    else { path.addLine(to: CGPoint(x: x, y: y)) }
-                }
-                context.stroke(
-                    path,
-                    with: .color(accent.opacity(0.85)),
-                    style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round)
-                )
-
-                // Traveling glow dot only makes sense once there's something to trace;
-                // at level 0 the line has just a subtle idle wobble, so skip the dot.
-                guard level > 0.02 else { return }
-                let progress = (t * 0.45 + seed * 0.1).truncatingRemainder(dividingBy: 1)
-                let px = CGFloat(progress) * size.width
-                let py = size.height - CGFloat(Self.ridge(u: progress, t: t, seed: seed, level: level)) * size.height
-                let glow = Path(ellipseIn: CGRect(x: px - 2.5, y: py - 2.5, width: 5, height: 5))
-                context.fill(glow, with: .color(.white))
-            }
-        }
-        .allowsHitTesting(false)
-    }
-
-    /// Small always-present wobble amplitude, independent of `level` — a 0-hours day
-    /// still reads as "alive" instead of a dead flat line.
-    private static let idleAmplitude = 0.035
-
-    /// Normalized (0...1) line height at horizontal position `u`. `level` scales the
-    /// baseline height and adds extra wiggle/wave amplitude on top of the idle motion,
-    /// so level 0 is a subtle gentle wobble and higher levels build into a full wave.
-    private static func ridge(u: Double, t: Double, seed: Double, level: Double) -> Double {
-        let baseline = 0.08 + level * 0.58
-        let idleWiggle = idleAmplitude * sin(u * .pi * 2.2 + seed)
-        let idleWave = idleAmplitude * 0.6 * sin(t * 2.0 + seed * 1.7)
-        let levelWiggle = level * (0.16 * sin(u * .pi * 2.4 + seed) + 0.08 * sin(u * .pi * 5 + seed * 1.4))
-        let levelWave = level * 0.10 * sin(u * .pi * 3.2 - t * 3.8 + seed)
-        return baseline + idleWiggle + idleWave + levelWiggle + levelWave
     }
 }
 
