@@ -206,6 +206,13 @@ enum L10n {
     static var homeThemeTip: String { t("home.theme.tip") }
     static var homeMore: String { t("home.more") }
     static var homeAboutOpen: String { t("home.about.open") }
+    static func homeStatusWorking(_ time: CustomStringConvertible) -> String {
+        String(format: t("home.status.working %@"), "\(time)")
+    }
+    static func homeStatusBreak(_ time: CustomStringConvertible) -> String {
+        String(format: t("home.status.break %@"), "\(time)")
+    }
+    static var homeTimerPaused: String { t("home.timer.paused") }
     static var homeStatsResetOrder: String { t("home.stats.resetOrder") }
     static var homeStatTodayPay: String { t("home.stat.todayPay") }
     static var homeStatWeekPay: String { t("home.stat.weekPay") }

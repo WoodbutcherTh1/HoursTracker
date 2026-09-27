@@ -55,13 +55,19 @@ struct HomeStatCard: View {
         .accessibilityValue(targetText.map { "\(value), \($0)" } ?? value)
     }
 
+    /// Nothing done yet toward a real goal (e.g. a workday not started) shows the
+    /// track in the accent at 40% — "today is open", not a discouraging empty 0%.
     private func bar(_ progress: Double) -> some View {
         GeometryReader { geo in
             ZStack(alignment: .leading) {
-                Capsule().fill(DS.Palette.hairline)
-                Capsule()
-                    .fill(reachedGoal ? DS.Palette.success : accent)
-                    .frame(width: max(4, geo.size.width * progress))
+                if progress <= 0 {
+                    Capsule().fill(accent.opacity(0.4))
+                } else {
+                    Capsule().fill(DS.Palette.hairline)
+                    Capsule()
+                        .fill(reachedGoal ? DS.Palette.success : accent)
+                        .frame(width: max(4, geo.size.width * progress))
+                }
             }
         }
         .frame(height: 4)

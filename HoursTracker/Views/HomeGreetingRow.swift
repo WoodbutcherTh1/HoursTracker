@@ -5,31 +5,25 @@ import UIKit
 /// [brand mark → About] greeting … [palette → theme picker].
 ///
 /// The palette sits here rather than in a toolbar menu because the colour picker
-/// lives on being found. After the first shift a one-time tip points at it until
-/// the picker has been opened once.
+/// lives on being found (HomeView shows a one-time `HomeThemeTipToast` under it).
+/// The name truncates before anything else gives way; the two 44pt buttons keep
+/// their size at any Dynamic Type setting.
 struct HomeGreetingRow: View {
     /// Worker name from Settings; blank → the plain greeting, no name.
     let name: String?
     let accent: Color
     var compact: Bool = false
-    var showThemeTip: Bool = false
     let onBrandTap: () -> Void
     let onThemeTap: () -> Void
 
     private let calendar = Calendar.current
 
     var body: some View {
-        VStack(alignment: .trailing, spacing: DS.Space.xxs) {
-            HStack(spacing: DS.Space.sm) {
-                brandMark
-                greeting
-                Spacer(minLength: 0)
-                themeButton
-            }
-            if showThemeTip {
-                themeTip
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
+        HStack(spacing: DS.Space.sm) {
+            brandMark
+            greeting
+            Spacer(minLength: 0)
+            themeButton
         }
     }
 
@@ -39,8 +33,9 @@ struct HomeGreetingRow: View {
             Text(title)
                 .htFont(size: compact ? 20 : 24, relativeTo: .title2, weight: .bold)
                 .foregroundStyle(DS.Palette.textPrimary)
-                .lineLimit(2)
-                .minimumScaleFactor(0.7)
+                .lineLimit(1)
+                .truncationMode(.tail)
+                .minimumScaleFactor(0.8)
                 .multilineTextAlignment(.leading)
                 .contentTransition(.opacity)
                 .accessibilityAddTraits(.isHeader)
@@ -63,6 +58,7 @@ struct HomeGreetingRow: View {
                 .frame(width: 28, height: 28)
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
+                .dynamicTypeSize(...DynamicTypeSize.xLarge)
         }
         .buttonStyle(ScalePressButtonStyle())
         .accessibilityLabel(L10n.homeAboutOpen)
@@ -77,6 +73,7 @@ struct HomeGreetingRow: View {
             Image(systemName: "paintpalette")
                 .htFont(size: 22, relativeTo: .title3, weight: .medium)
                 .foregroundStyle(accent)
+                .dynamicTypeSize(...DynamicTypeSize.xLarge)
                 .frame(width: 44, height: 44)
                 .contentShape(Rectangle())
         }
@@ -84,9 +81,16 @@ struct HomeGreetingRow: View {
         .accessibilityLabel(L10n.homeThemeTitle)
         .accessibilityIdentifier("home.themeButton")
     }
+}
 
-    private var themeTip: some View {
-        Button(action: onThemeTap) {
+/// One-time hint under the palette button: shown 60 s after the first Clock Out,
+/// for 5 s. Tapping it opens the colour picker. Timing lives in `HomeView`.
+struct HomeThemeTipToast: View {
+    let accent: Color
+    let onTap: () -> Void
+
+    var body: some View {
+        Button(action: onTap) {
             HStack(spacing: DS.Space.xxs) {
                 Image(systemName: "arrow.up")
                     .htFont(size: 12, relativeTo: .footnote, weight: .bold)
@@ -96,9 +100,11 @@ struct HomeGreetingRow: View {
             }
             .foregroundStyle(DS.Palette.ink)
             .padding(.horizontal, DS.Space.sm)
-            .padding(.vertical, DS.Space.xxs + 2)
+            .padding(.vertical, DS.Space.xs)
             .background(Capsule(style: .continuous).fill(accent))
+            .shadow(color: .black.opacity(0.35), radius: 8, y: 3)
         }
         .buttonStyle(ScalePressButtonStyle())
+        .accessibilityIdentifier("home.themeTip")
     }
 }

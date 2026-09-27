@@ -9,7 +9,8 @@ enum HomeNeon {
     static let accent = Color(red: 0.15, green: 0.95, blue: 0.45)
     static let accentDeep = Color(red: 0.05, green: 0.55, blue: 0.28)
     static let card = Color(red: 0.09, green: 0.10, blue: 0.12)
-    static let coral = Color(red: 0.95, green: 0.28, blue: 0.35)
+    /// The clocked-in state colour — same value as `DS.Palette.clockedIn`.
+    static let coral = DS.Palette.clockedIn
     static let coralDeep = Color(red: 0.72, green: 0.12, blue: 0.22)
 }
 
@@ -40,59 +41,7 @@ struct HomeLayoutMetrics {
     var doorHeight: CGFloat { tight ? 118 : 148 }
 }
 
-/// Soft drifting aurora band across the top of Home.
-struct HomeAuroraRibbon: View {
-    var accent: Color = HomeNeon.accent
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-            HomeAuroraCanvas(date: timeline.date, accent: accent)
-        }
-        .blur(radius: 10)
-        .opacity(0.9)
-        .allowsHitTesting(false)
-    }
-}
-
-private struct HomeAuroraCanvas: View {
-    let date: Date
-    var accent: Color = HomeNeon.accent
-
-    var body: some View {
-        Canvas { context, size in
-            let t = date.timeIntervalSinceReferenceDate
-            let drift = CGFloat(t.truncatingRemainder(dividingBy: 8) / 8)
-            for i in 0..<3 {
-                let offset = (drift + CGFloat(i) * 0.22).truncatingRemainder(dividingBy: 1)
-                var path = Path()
-                let yBase = size.height * (0.35 + CGFloat(i) * 0.18)
-                path.move(to: CGPoint(x: -size.width * 0.2, y: yBase))
-                path.addCurve(
-                    to: CGPoint(x: size.width * 1.2, y: yBase + 8),
-                    control1: CGPoint(x: size.width * (0.25 + offset * 0.3), y: yBase - 28),
-                    control2: CGPoint(x: size.width * (0.55 + offset * 0.25), y: yBase + 34)
-                )
-                let colors: [Color] = [
-                    accent.opacity(0),
-                    accent.opacity(0.55 - Double(i) * 0.12),
-                    Color.mint.opacity(0.35),
-                    accent.opacity(0)
-                ]
-                context.stroke(
-                    path,
-                    with: .linearGradient(
-                        Gradient(colors: colors),
-                        startPoint: CGPoint(x: 0, y: yBase),
-                        endPoint: CGPoint(x: size.width, y: yBase)
-                    ),
-                    style: StrokeStyle(lineWidth: 18 - CGFloat(i) * 4, lineCap: .round)
-                )
-            }
-        }
-    }
-}
-
-/// Soft circular pulse rings behind the hero clock button.
+/// Soft circular pulse rings (the Account sheet's hero; Home no longer uses them).
 struct HomePulseRings: View {
     var color: Color = HomeNeon.accent
     var size: CGFloat = 132
@@ -137,6 +86,11 @@ struct HomeAnimatedDoorButton: View {
     /// The "closed" (clock-in) door color — user-customizable. The "open" (clock-out /
     /// active-session) coral stays fixed since it's a semantic state color, not decor.
     var accent: Color = HomeNeon.accent
+    /// Clock Out only: the door breathes (1.0 ↔ 1.03 over 3 s) to say the shift is
+    /// running. Under Reduce Motion it stands still inside a thin ring of `stateColor`.
+    var breathes: Bool = false
+    /// Coral while working, amber on a break.
+    var stateColor: Color = HomeNeon.coral
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -151,11 +105,21 @@ struct HomeAnimatedDoorButton: View {
     private var doorWidth: CGFloat { compact ? 60 : 72 }
     private var doorHeight: CGFloat { compact ? 70 : 86 }
 
-    init(mode: Mode, title: String, compact: Bool = false, accent: Color = HomeNeon.accent, action: @escaping () -> Void) {
+    init(
+        mode: Mode,
+        title: String,
+        compact: Bool = false,
+        accent: Color = HomeNeon.accent,
+        breathes: Bool = false,
+        stateColor: Color = HomeNeon.coral,
+        action: @escaping () -> Void
+    ) {
         self.mode = mode
         self.title = title
         self.compact = compact
         self.accent = accent
+        self.breathes = breathes
+        self.stateColor = stateColor
         self.action = action
         _isOpen = State(initialValue: mode == .clockOut)
     }
@@ -175,7 +139,7 @@ struct HomeAnimatedDoorButton: View {
             // Clock Out's one haptic is the Day Summary's success tap when it appears —
             // a second buzz here would crowd it.
             if mode == .clockIn {
-                UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
             }
 
             let duration: TimeInterval = reduceMotion ? 0.2 : 0.55
@@ -198,11 +162,18 @@ struct HomeAnimatedDoorButton: View {
         } label: {
             VStack(spacing: compact ? 6 : 10) {
                 ZStack {
-                    HomePulseRings(color: glowColor, size: compact ? 66 : 78)
+                    if breathes && reduceMotion {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(stateColor, lineWidth: 2)
+                            .frame(width: doorWidth + 12, height: doorHeight + 12)
+                    }
 
-                    doorScene
-                        .frame(width: doorWidth, height: doorHeight)
-                        .shadow(color: glowColor.opacity(0.4), radius: 12, y: 5)
+                    TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !breathes || reduceMotion)) { context in
+                        doorScene
+                            .frame(width: doorWidth, height: doorHeight)
+                            .shadow(color: glowColor.opacity(0.3), radius: 10, y: 4)
+                            .scaleEffect(breathingScale(at: context.date))
+                    }
                 }
                 .frame(width: doorWidth + (compact ? 44 : 56), height: doorHeight + (compact ? 22 : 28))
 
@@ -220,6 +191,13 @@ struct HomeAnimatedDoorButton: View {
             isOpen = (newMode == .clockOut)
             isBusy = false
         }
+    }
+
+    /// 1.0 → 1.03 → 1.0 every 3 s; 1 when not breathing.
+    private func breathingScale(at date: Date) -> CGFloat {
+        guard breathes, !reduceMotion else { return 1 }
+        let phase = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3) / 3
+        return 1 + 0.015 * (1 - cos(phase * 2 * .pi))
     }
 
     private var doorScene: some View {

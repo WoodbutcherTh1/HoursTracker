@@ -293,51 +293,15 @@ struct DaySummarySheet: View {
     // MARK: Gross ↔ Net
 
     private var grossNetSwitch: some View {
-        HStack(spacing: 0) {
-            modeCell(.gross, title: AppLocale.tr("pay.gross"), value: breakdown.formattedGrossPay)
-            Rectangle().fill(DS.Palette.hairline).frame(width: 1).padding(.vertical, DS.Space.sm)
-            modeCell(.net, title: AppLocale.tr("pay.net"), value: breakdown.formattedNetPay)
-        }
-        .dsCard()
-    }
-
-    private func modeCell(_ mode: PayDisplayMode, title: String, value: String) -> some View {
-        let selected = payMode == mode
-        return Button {
-            guard payMode != mode else { return }
-            withAnimation(DS.Motion.animation(DS.Motion.state, reduceMotion: reduceMotion)) {
-                payMode = mode
-            }
+        GrossNetSwitch(
+            mode: $payMode,
+            grossValue: breakdown.formattedGrossPay,
+            netValue: breakdown.formattedNetPay,
+            accent: accent
+        ) { mode in
             viewModel.refreshLiveSurfaces()
             showToast(mode == .net ? L10n.sumHomeSyncNet : L10n.sumHomeSyncGross)
-        } label: {
-            VStack(spacing: DS.Space.xxs) {
-                Text(title)
-                    .dsFont(.meta)
-                    .foregroundStyle(DS.Palette.textTertiary)
-                Text(verbatim: value)
-                    .htFont(size: 20, relativeTo: .title3, weight: .semibold, design: .rounded)
-                    .monospacedDigit()
-                    .environment(\.layoutDirection, .leftToRight)
-                    .foregroundStyle(DS.Palette.textPrimary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-            }
-            .frame(maxWidth: .infinity, minHeight: 64)
-            .background(
-                RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous)
-                    .fill(selected ? accent.opacity(0.08) : .clear)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: DS.Radius.md, style: .continuous)
-                    .stroke(selected ? accent : .clear, lineWidth: 1.5)
-            )
-            .padding(DS.Space.xxs)
-            .contentShape(Rectangle())
         }
-        .buttonStyle(.plain)
-        .sensoryFeedback(.selection, trigger: payMode)
-        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 
     // MARK: Deductions (collapsed by default, no red)

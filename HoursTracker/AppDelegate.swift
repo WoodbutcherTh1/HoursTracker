@@ -43,6 +43,19 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             UserDefaults.standard.set(AppLanguageOption.english.rawValue, forKey: AppLanguageOption.storageKey)
             AppViewModel.shared.deleteAllUserData()
         }
+        // Long-name test (HoursTrackerUITests/HomeGreetingLayoutUITests.swift):
+        // `UITEST_HOME_NAME <name> <english|hebrew|arabic>` — empty history, that worker
+        // name, that language.
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "UITEST_HOME_NAME"), arguments.indices.contains(index + 2) {
+            let language = AppLanguageOption(rawValue: arguments[index + 2]) ?? .english
+            UserDefaults.standard.set(true, forKey: "hasSeenOnboarding.v1")
+            UserDefaults.standard.set(language.rawValue, forKey: AppLanguageOption.storageKey)
+            AppViewModel.shared.deleteAllUserData()
+            var settings = AppViewModel.shared.settings
+            settings.workerFullName = arguments[index + 1]
+            AppViewModel.shared.saveSettings(settings)
+        }
         #endif
         UNUserNotificationCenter.current().delegate = self
         ShiftReminderScheduler.registerCategories()

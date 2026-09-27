@@ -54,8 +54,9 @@ struct HomeView: View {
     @State private var showUserGuide = false
     @State private var showAbout = false
     @State private var showFeedback = false
-    /// Set once the theme picker has been opened; hides the "Tap to personalize" tip.
+    /// Set once the "Tap to personalize" toast has shown (or the picker was opened).
     @AppStorage("home.themeTipSeen") private var themeTipSeen = false
+    @State private var showThemeTip = false
     @State private var liveNow = Date()
 
     private var timeFormatter: DateFormatter {
@@ -69,21 +70,9 @@ struct HomeView: View {
     var body: some View {
         NavigationStack {
             ZStack {
+                // No ambient decoration: the one glow sits behind the hero (the door
+                // when clocked out, the live card when clocked in) and follows the state.
                 appBackground.background.ignoresSafeArea()
-
-                // Ambient neon wash
-                Circle()
-                    .fill((viewModel.activeSession == nil ? homeTheme.accent : HomeNeon.coral)
-                        .opacity(viewModel.activeSession == nil ? 0.12 : 0.08))
-                    .frame(width: 320, height: 320)
-                    .blur(radius: 70)
-                    .offset(y: 40)
-                    .allowsHitTesting(false)
-
-                HomeAuroraRibbon(accent: viewModel.activeSession == nil ? homeTheme.accent : HomeNeon.coral)
-                    .frame(maxHeight: 160)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.top, 8)
 
                 GeometryReader { geo in
                     let metrics = HomeLayoutMetrics(width: geo.size.width, height: geo.size.height)
@@ -134,6 +123,7 @@ struct HomeView: View {
                     .accessibilityIdentifier("home.moreMenu")
                 }
             }
+            .task(id: themeTipDueDate) { await runThemeTip() }
             .toolbarBackground(appBackground.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
@@ -157,7 +147,9 @@ struct HomeView: View {
                     .presentationDetents([.medium, .large])
             }
             .onChange(of: showThemePicker) { _, isShowing in
-                if isShowing { themeTipSeen = true }
+                guard isShowing else { return }
+                showThemeTip = false
+                themeTipSeen = true
             }
             .sheet(isPresented: $showAbout) {
                 AboutSheet(viewModel: viewModel)
@@ -181,6 +173,7 @@ struct HomeView: View {
 
             Spacer(minLength: 4)
 
+            // Hero: the door, static, with the single glow behind it.
             HomeAnimatedDoorButton(
                 mode: .clockIn,
                 title: L10n.homeClockIn,
@@ -190,6 +183,7 @@ struct HomeView: View {
                 viewModel.clockIn()
             }
             .frame(height: metrics.doorHeight)
+            .background(DSHeroGlow(color: homeTheme.accent))
 
             if viewModel.shouldOfferForgotClockIn {
                 Button {
@@ -248,11 +242,48 @@ struct HomeView: View {
             name: viewModel.settings.workerFullName,
             accent: homeTheme.accent,
             compact: metrics.isCompact,
-            showThemeTip: !themeTipSeen && !completedSessions.isEmpty,
             onBrandTap: { showAbout = true },
             onThemeTap: { showThemePicker = true }
         )
         .padding(.top, DS.Space.xxs)
+        // A toast under the row, over the cards — it never pushes the layout.
+        .overlay(alignment: .bottomTrailing) {
+            if showThemeTip {
+                HomeThemeTipToast(accent: homeTheme.accent) { showThemePicker = true }
+                    .alignmentGuide(.bottom) { $0[.top] - DS.Space.xxs }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .zIndex(1)
+    }
+
+    // MARK: - "Tap to personalize" tip
+
+    /// 60 s after the first Clock Out, until the tip has shown once.
+    private var themeTipDueDate: Date? {
+        guard !themeTipSeen, !AnnouncementCenter.isAutomatedRun,
+              let firstClockOut = completedSessions.compactMap(\.clockOut).min() else { return nil }
+        return firstClockOut.addingTimeInterval(60)
+    }
+
+    /// Waits for the due time (and for the Day Summary or any picker to close), shows
+    /// the toast for 5 s, then marks it seen. Opening the picker ends it early.
+    @MainActor
+    private func runThemeTip() async {
+        guard let due = themeTipDueDate else { return }
+        do {
+            let wait = due.timeIntervalSinceNow
+            if wait > 0 { try await Task.sleep(for: .seconds(wait)) }
+            while viewModel.showDaySummary || showThemePicker {
+                try await Task.sleep(for: .seconds(1))
+            }
+        } catch {
+            return
+        }
+        withAnimation(DS.Motion.state) { showThemeTip = true }
+        try? await Task.sleep(for: .seconds(5))
+        withAnimation(DS.Motion.state) { showThemeTip = false }
+        themeTipSeen = true
     }
 
     @ViewBuilder
@@ -297,12 +328,12 @@ struct HomeView: View {
             .contextMenu {
                 if homeStatsLayout.canShift(kind, by: -1) {
                     Button { shiftStat(kind, by: -1) } label: {
-                        Label(L10n.homeStatsMoveEarlier, systemImage: "chevron.backward")
+                        Label(L10n.homeStatsMoveEarlier, systemImage: "arrow.backward")
                     }
                 }
                 if homeStatsLayout.canShift(kind, by: 1) {
                     Button { shiftStat(kind, by: 1) } label: {
-                        Label(L10n.homeStatsMoveLater, systemImage: "chevron.forward")
+                        Label(L10n.homeStatsMoveLater, systemImage: "arrow.forward")
                     }
                 }
             }
@@ -377,76 +408,14 @@ struct HomeView: View {
     }
 
     private func clockedInView(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {
-        let livePay = livePayText(for: session, at: liveNow)
-        let timerSize: CGFloat = metrics.isCompact ? 42 : 52
+        let stateColor = Self.stateColor(for: session)
 
         return VStack(spacing: metrics.stackSpacing) {
             greetingHeader(metrics: metrics)
 
-            VStack(spacing: 4) {
-                Text(L10n.homeClockedIn)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.55))
-                    .textCase(.uppercase)
-                    .tracking(0.8)
-                Text(L10n.homeSince(timeFormatter.string(from: session.clockIn)))
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.8))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
+            statusRow(session: session, color: stateColor)
 
-            VStack(spacing: 10) {
-                LiveTimerView(
-                    startDate: session.clockIn,
-                    fontSize: timerSize,
-                    excludedSeconds: { breaksArePaid ? 0 : session.recordedBreakSeconds(now: $0) },
-                    onTick: { date in liveNow = date }
-                )
-                .opacity(session.isOnBreak && !breaksArePaid ? 0.45 : 1)
-
-                VStack(spacing: 6) {
-                    Picker("", selection: $livePayMode) {
-                        ForEach(PayDisplayMode.allCases) { mode in
-                            Text(mode == .net ? L10n.historyPayNet : L10n.historyPayGross).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 150)
-                    // Widgets, Watch and the Live Activity show the same figure.
-                    .onChange(of: livePayMode) { _, _ in viewModel.refreshLiveSurfaces() }
-                    // Home is a dark surface whatever the device appearance is, so the
-                    // segmented control has to be told that or it renders light-on-light
-                    // for anyone whose phone is in light mode.
-                    .colorScheme(.dark)
-                    .tint(homeTheme.accent)
-                    .accessibilityLabel(L10n.homeLivePay)
-
-                    Text(livePay)
-                        .font(.headline.monospacedDigit())
-                        .foregroundStyle(homeTheme.accent)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        .contentTransition(.numericText())
-
-                    Text(L10n.homeLivePayHint)
-                        .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.4))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                }
-            }
-            .padding(.vertical, metrics.isCompact ? 14 : 18)
-            .padding(.horizontal, metrics.isCompact ? 14 : 20)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(HomeNeon.card)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(HomeNeon.coral.opacity(0.25), lineWidth: 1)
-                    )
-            )
+            liveCard(session: session, stateColor: stateColor, metrics: metrics)
 
             HomeCompactStatsStrip(
                 items: homeStatsLayout.order.map {
@@ -473,7 +442,9 @@ struct HomeView: View {
                 mode: .clockOut,
                 title: L10n.homeClockOut,
                 compact: metrics.isCompact || metrics.isShort,
-                accent: homeTheme.accent
+                accent: homeTheme.accent,
+                breathes: true,
+                stateColor: stateColor
             ) {
                 viewModel.clockOut()
             }
@@ -489,6 +460,88 @@ struct HomeView: View {
                 accent: HomeNeon.coral
             )
         }
+    }
+
+    // MARK: - Clocked-in hero
+
+    /// Coral while working, amber on a break — the status dot, the live card's glow
+    /// and the door's Reduce Motion ring all follow it.
+    private static func stateColor(for session: WorkSession) -> Color {
+        session.isOnBreak ? DS.Palette.onBreak : DS.Palette.clockedIn
+    }
+
+    private func statusRow(session: WorkSession, color: Color) -> some View {
+        let text = session.activeBreak.map { L10n.homeStatusBreak(timeFormatter.string(from: $0.start)) }
+            ?? L10n.homeStatusWorking(timeFormatter.string(from: session.clockIn))
+        return HStack(spacing: DS.Space.xs) {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
+                .accessibilityHidden(true)
+            Text(text)
+                .dsFont(.headline)
+                .foregroundStyle(DS.Palette.textPrimary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .animation(DS.Motion.state, value: session.isOnBreak)
+    }
+
+    /// The live shift's Pay Card: timer, live pay, note and the shared Gross | Net
+    /// switch, with the one glow behind it.
+    private func liveCard(session: WorkSession, stateColor: Color, metrics: HomeLayoutMetrics) -> some View {
+        let isPaused = session.isOnBreak && !breaksArePaid
+        return VStack(spacing: DS.Space.sm) {
+            // An unpaid break stops the clock; say so in words, not only by dimming.
+            Text(L10n.homeTimerPaused)
+                .dsFont(.meta, weight: .semibold)
+                .foregroundStyle(DS.Palette.onBreak)
+                .opacity(isPaused ? 1 : 0)
+                .accessibilityHidden(!isPaused)
+
+            LiveTimerView(
+                startDate: session.clockIn,
+                fontSize: metrics.isCompact ? 42 : 48,
+                excludedSeconds: { breaksArePaid ? 0 : session.recordedBreakSeconds(now: $0) },
+                onTick: { date in liveNow = date }
+            )
+            .environment(\.layoutDirection, .leftToRight)
+            .opacity(isPaused ? 0.45 : 1)
+
+            VStack(spacing: DS.Space.xxs) {
+                Text(verbatim: livePayText(for: session, at: liveNow))
+                    .htFont(size: 28, relativeTo: .title, weight: .semibold, design: .rounded)
+                    .monospacedDigit()
+                    .environment(\.layoutDirection, .leftToRight)
+                    .foregroundStyle(homeTheme.accent)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .contentTransition(.numericText())
+                    .accessibilityLabel(L10n.homeLivePay)
+                    .accessibilityValue(livePayText(for: session, at: liveNow))
+                Text(livePayMode == .net ? L10n.sumNoteNet : L10n.sumNoteGross)
+                    .dsFont(.meta)
+                    .foregroundStyle(DS.Palette.textTertiary)
+            }
+
+            // Widgets, Watch and the Live Activity follow the same choice.
+            GrossNetSwitch(mode: $livePayMode, accent: homeTheme.accent) { _ in
+                viewModel.refreshLiveSurfaces()
+            }
+            .frame(maxWidth: 240)
+        }
+        .padding(.vertical, metrics.isCompact ? DS.Space.md : DS.Space.lg)
+        .padding(.horizontal, metrics.isCompact ? DS.Space.md : DS.Space.lg)
+        .frame(maxWidth: .infinity)
+        .dsCard(radius: DS.Radius.xl)
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.xl, style: .continuous)
+                .stroke(stateColor.opacity(0.25), lineWidth: 1)
+        )
+        .background(DSHeroGlow(color: stateColor))
+        .animation(DS.Motion.state, value: session.isOnBreak)
     }
 
     /// The running shift's pay at `now`, read from the view model's live pay curve —
