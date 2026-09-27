@@ -5,6 +5,11 @@ import UIKit
 
 @MainActor
 final class AppViewModel: ObservableObject {
+    /// The app's single live view model. Shared (rather than owned only by the
+    /// SwiftUI scene) so a widget button intent that iOS runs in the background —
+    /// with no UI on screen — acts on the same instance the UI shows later.
+    static let shared = AppViewModel()
+
     @Published private(set) var sessions: [WorkSession] = []
     @Published var settings: WorkplaceSettings = .default
     @Published var lastCompletedBreakdown: DayPayBreakdown?
@@ -443,6 +448,14 @@ final class AppViewModel: ObservableObject {
     /// App Group suite. Safe to call on every launch and every Darwin wake:
     /// a nil pending action is a no-op.
     func consumeWidgetActionIfNeeded() {
+        // A widget tap can arrive while the phone is locked, when Data Protection
+        // keeps our files unreadable. Retry the load; if the data is still locked,
+        // leave the tap pending (it keeps its tap time) instead of applying it to
+        // an empty in-memory state that `persist()` would refuse to save anyway.
+        if sessionsLoadUnavailable || settingsLoadUnavailable {
+            load()
+        }
+        guard !sessionsLoadUnavailable, !settingsLoadUnavailable else { return }
         guard let pending = WidgetBridge.consumePendingActionWithDate() else { return }
         // Honor the tap time when the app only got to it later (it wasn't running),
         // but not for a stale tap from long ago — that's safer applied as "now".

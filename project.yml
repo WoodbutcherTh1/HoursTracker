@@ -31,6 +31,9 @@ targets:
       # Shared widget bridge — compiled into BOTH the app and the widget
       # extension so ActivityKit + App Group data types are identical.
       - path: HoursTrackerWidget/WidgetBridge.swift
+      # Widget button intents — also in the app so iOS can run them in the app's
+      # process (LiveActivityIntent) without opening it.
+      - path: HoursTrackerWidget/ShiftIntents.swift
     resources:
       - path: HoursTracker/Resources
     settings:

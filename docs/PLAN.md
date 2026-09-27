@@ -43,6 +43,16 @@ on `claude/planning-requests-bb6hz1`. Status: ⬜ todo · 🟡 in progress · �
   - Announcements from the app owner (Phase 6 push broadcasts)
 - Shows a banner with a shortcut to iOS Settings when notification permission is denied.
 
+## Full control from widgets / Lock Screen — C6 ✅ (awaiting CI + device test)
+
+- Widget and Live Activity buttons (clock in/out, start/end break) are
+  `LiveActivityIntent`s shared with the app, so iOS runs them in the app's
+  process (background launch if needed) — the action applies immediately and
+  the widget refreshes, without opening the app.
+- Lock Screen banner + expanded Dynamic Island get Break/Back + Clock Out buttons.
+- If the phone is locked and the app's data is still protected, the tap is
+  kept (with its time) and applied at unlock.
+
 ## Phase 3 — Live hours/money counter everywhere — C3
 
 - App, Watch, widgets and Dynamic Island all derive from the same clock-in

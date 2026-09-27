@@ -3,7 +3,7 @@ import SwiftUI
 @main
 struct HoursTrackerApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var viewModel = AppViewModel()
+    @StateObject private var viewModel = AppViewModel.shared
     @StateObject private var appLock = AppLockController()
     @ObservedObject private var appLanguage = AppLanguageController.shared
     @Environment(\.scenePhase) private var scenePhase

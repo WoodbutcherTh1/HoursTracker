@@ -7,6 +7,17 @@ import Foundation
 enum LiveActivityManager {
     private static var activity: Activity<HoursActivityAttributes>?
 
+    /// The running activity, even if this process didn't start it. A widget-button
+    /// intent can run in a fresh background launch of the app, where the `activity`
+    /// reference from the launch that clocked in is gone — without this fallback a
+    /// clock-out from the widget would leave the Lock Screen banner running.
+    @available(iOS 16.1, *)
+    private static var current: Activity<HoursActivityAttributes>? {
+        if let activity { return activity }
+        activity = Activity<HoursActivityAttributes>.activities.first { $0.activityState == .active }
+        return activity
+    }
+
     // MARK: - Start
 
     /// Start a new Live Activity when the user clocks in.
@@ -34,7 +45,7 @@ enum LiveActivityManager {
     /// Push an updated content state (typically every ~60 s from the app's timer).
     @available(iOS 16.1, *)
     static func update(session: WorkSession, settings: WorkplaceSettings) {
-        guard let activity else { return }
+        guard let activity = current else { return }
         let state = makeState(session: session, settings: settings)
         Task {
             await activity.update(.init(state: state, staleDate: nil))
@@ -46,7 +57,7 @@ enum LiveActivityManager {
     /// End the Live Activity when the user clocks out.
     @available(iOS 16.1, *)
     static func end(session: WorkSession, settings: WorkplaceSettings) {
-        guard let activity else { return }
+        guard let activity = current else { return }
         let state = makeState(session: session, settings: settings)
         Task {
             // `ActivityDismissalPolicy.after` takes a Date (the dismissal time),

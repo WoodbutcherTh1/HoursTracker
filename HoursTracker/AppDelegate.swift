@@ -27,6 +27,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         }
         #endif
         UNUserNotificationCenter.current().delegate = self
+        // Widget buttons (clock in/out, breaks) are LiveActivityIntents that iOS runs
+        // in this process — possibly a background launch with no UI — so apply them
+        // straight to the shared view model instead of waiting for the app to open.
+        ShiftIntentRouter.applyPending = {
+            AppViewModel.shared.consumeWidgetActionIfNeeded()
+        }
         return true
     }
 
