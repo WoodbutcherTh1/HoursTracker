@@ -142,6 +142,22 @@ enum AppLocale {
         }
     }
 
+    static func breakEndingSoon(minutes: Int) -> String {
+        switch current {
+        case .arabic: return "الاستراحة بتخلص بعد \(minutes) دقائق"
+        case .hebrew: return "ההפסקה מסתיימת בעוד \(minutes) דקות"
+        case .english: return "Your break ends in \(minutes) minutes"
+        }
+    }
+
+    static func breakOver() -> String {
+        switch current {
+        case .arabic: return "خلصت الاستراحة — يلا نرجع للشغل"
+        case .hebrew: return "ההפסקה נגמרה — חוזרים לעבודה"
+        case .english: return "Your break is over — back to work"
+        }
+    }
+
     static func geofenceExitPrompt() -> String {
         switch current {
         case .arabic: return " طلعت من الشغل؟ لا تنسى تعمل خروج!"

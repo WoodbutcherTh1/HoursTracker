@@ -1,4 +1,5 @@
 import UIKit
+import UserNotifications
 
 /// Bridges home-screen quick actions (long-press app icon) into the SwiftUI
 /// layer, which owns the tab state and the view model.
@@ -25,6 +26,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             UserDefaults.standard.set(AppLanguageOption.english.rawValue, forKey: AppLanguageOption.storageKey)
         }
         #endif
+        UNUserNotificationCenter.current().delegate = self
         return true
     }
 
@@ -39,6 +41,18 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         }
         AppShortcutRouting.route(url)
         completionHandler(true)
+    }
+}
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    /// Without this, iOS silently drops a local notification that fires while the app
+    /// is open — e.g. "your break is over" while the worker is looking at Home.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list, .sound])
     }
 }
 

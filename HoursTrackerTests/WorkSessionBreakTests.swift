@@ -98,3 +98,53 @@ final class WorkSessionBreakTests: XCTestCase {
         XCTAssertTrue(decoded.isOnBreak)
     }
 }
+
+final class BreakReminderPlanTests: XCTestCase {
+    private let start = TestData.date(2026, 3, 10, 12)
+
+    func testPlansHeadsUpAndBreakOver() {
+        let plan = BreakReminderScheduler.plan(
+            breakStart: start, now: start,
+            targetMinutes: 30, leadMinutes: 5,
+            endingSoonEnabled: true, overEnabled: true
+        )
+        XCTAssertEqual(plan, [
+            .init(kind: .endingSoon, fireDate: start.addingTimeInterval(25 * 60)),
+            .init(kind: .over, fireDate: start.addingTimeInterval(30 * 60))
+        ])
+    }
+
+    func testRespectsDisabledToggles() {
+        let onlyOver = BreakReminderScheduler.plan(
+            breakStart: start, now: start,
+            targetMinutes: 30, leadMinutes: 5,
+            endingSoonEnabled: false, overEnabled: true
+        )
+        XCTAssertEqual(onlyOver.map(\.kind), [.over])
+
+        let none = BreakReminderScheduler.plan(
+            breakStart: start, now: start,
+            targetMinutes: 30, leadMinutes: 5,
+            endingSoonEnabled: false, overEnabled: false
+        )
+        XCTAssertTrue(none.isEmpty)
+    }
+
+    func testSkipsHeadsUpWhenLeadIsNotShorterThanBreak() {
+        let plan = BreakReminderScheduler.plan(
+            breakStart: start, now: start,
+            targetMinutes: 5, leadMinutes: 5,
+            endingSoonEnabled: true, overEnabled: true
+        )
+        XCTAssertEqual(plan.map(\.kind), [.over])
+    }
+
+    func testSkipsRemindersAlreadyInThePast() {
+        let plan = BreakReminderScheduler.plan(
+            breakStart: start, now: start.addingTimeInterval(27 * 60),
+            targetMinutes: 30, leadMinutes: 5,
+            endingSoonEnabled: true, overEnabled: true
+        )
+        XCTAssertEqual(plan.map(\.kind), [.over])
+    }
+}

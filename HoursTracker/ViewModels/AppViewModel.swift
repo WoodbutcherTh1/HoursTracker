@@ -279,6 +279,9 @@ final class AppViewModel: ObservableObject {
             LiveActivityManager.end(session: sessions[index], settings: settings)
         }
         let clockOutDate = Date()
+        // Clocking out mid-break ends that break at the same moment.
+        sessions[index].closeOpenBreak(at: clockOutDate)
+        BreakReminderScheduler.cancel()
         sessions[index].clockOut = clockOutDate
         sessions[index].isNightShift = WorkSession.qualifiesAsNightShift(
             clockIn: sessions[index].clockIn,
@@ -306,6 +309,47 @@ final class AppViewModel: ObservableObject {
             category: "clock",
             details: String(format: "%.2fh", sessions[index].totalHours)
         )
+    }
+
+    // MARK: - Breaks
+
+    /// True while the open shift has a break in progress.
+    var isOnBreak: Bool {
+        activeSession?.isOnBreak ?? false
+    }
+
+    /// "יצאתי להפסקה": pauses the paid clock and schedules the break reminders.
+    func startBreak(at date: Date = Date()) {
+        guard let id = activeSession?.id,
+              let index = sessions.firstIndex(where: { $0.id == id }) else { return }
+        let start = min(date, Date())
+        guard sessions[index].startBreak(at: start) else { return }
+        sessions[index].touch()
+        persist()
+        syncWidget()
+        BreakReminderScheduler.schedule(breakStart: start)
+        ActivityLogStore.shared.log(L10n.logEventBreakStart, level: .info, category: "break")
+    }
+
+    /// "חזרתי": closes the running break and cancels any pending break reminder.
+    func endBreak(at date: Date = Date()) {
+        guard let id = activeSession?.id,
+              let index = sessions.firstIndex(where: { $0.id == id }) else { return }
+        guard sessions[index].endBreak(at: min(date, Date())) else { return }
+        sessions[index].touch()
+        persist()
+        syncWidget()
+        BreakReminderScheduler.cancel()
+        ActivityLogStore.shared.log(
+            L10n.logEventBreakEnd,
+            level: .info,
+            category: "break",
+            details: "\(sessions[index].breakMinutes)m"
+        )
+    }
+
+    func toggleBreak() {
+        isOnBreak ? endBreak() : startBreak()
     }
 
     func dismissDaySummary() {

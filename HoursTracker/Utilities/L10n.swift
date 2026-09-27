@@ -41,6 +41,18 @@ enum L10n {
     static func homeSince(_ time: String) -> String {
         String(format: t("home.since %@"), time)
     }
+    static var homeBreakStart: String { t("home.break.start") }
+    static var homeBreakEnd: String { t("home.break.end") }
+    static var homeOnBreak: String { t("home.break.onBreak") }
+    static func homeBreakRemaining(_ time: String) -> String {
+        String(format: t("home.break.remaining %@"), time)
+    }
+    static func homeBreakOver(_ time: String) -> String {
+        String(format: t("home.break.over %@"), time)
+    }
+    static func homeBreakTarget(_ minutes: Int) -> String {
+        String(format: t("home.break.target %@"), "\(minutes)")
+    }
     static var homeLiveGrossBasic: String { t("home.liveGrossBasic") }
     static var homeLivePay: String { t("home.livePay") }
     static var homeLivePayHint: String { t("home.livePayHint") }
@@ -380,6 +392,15 @@ enum L10n {
     static var settingsLocationFailed: String { t("settings.locationFailed") }
     static var settingsLocationDenied: String { t("settings.locationDenied") }
     static var settingsNotificationsDenied: String { t("settings.notificationsDenied") }
+    static var settingsNotificationsSection: String { t("settings.notifications.section") }
+    static var settingsNotificationsHint: String { t("settings.notifications.hint") }
+    static var settingsNotificationsBreakLength: String { t("settings.notifications.breakLength") }
+    static var settingsNotificationsBreakEndingSoon: String { t("settings.notifications.breakEndingSoon") }
+    static var settingsNotificationsBreakLead: String { t("settings.notifications.breakLead") }
+    static var settingsNotificationsBreakOver: String { t("settings.notifications.breakOver") }
+    static func settingsNotificationsMinutes(_ minutes: Int) -> String {
+        String(format: t("settings.notifications.minutes %@"), "\(minutes)")
+    }
     static var settingsOpenSystemSettings: String { t("settings.openSystemSettings") }
     static var settingsArrivalReminders: String { t("settings.arrivalReminders") }
     static var settingsArrivalHint: String { t("settings.arrivalHint") }
@@ -559,6 +580,8 @@ enum L10n {
     static var logFormatMarkdown: String { t("log.format.markdown") }
     static var logEventClockIn: String { t("log.event.clockIn") }
     static var logEventClockOut: String { t("log.event.clockOut") }
+    static var logEventBreakStart: String { t("log.event.breakStart") }
+    static var logEventBreakEnd: String { t("log.event.breakEnd") }
     static var logEventManualEntry: String { t("log.event.manualEntry") }
     static func logEventImport(_ count: Int) -> String {
         String(format: t("log.event.import %lld"), count)
