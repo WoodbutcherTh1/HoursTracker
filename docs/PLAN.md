@@ -83,6 +83,14 @@ on `claude/planning-requests-bb6hz1`. Status: ⬜ todo · 🟡 in progress · �
 - Cancelled automatically when already clocked in / out. No location needed;
   skip rest days; on/off toggle in Settings. Existing geofence reminders stay.
 
+## Phase 5.5 — Data safety ✅ (awaiting CI + device test)
+
+- Undo banner after deleting a shift; "Recently deleted" bin (30 days) with restore.
+- Daily automatic on-device backup (14 days) + restore screen (pre-restore snapshot first).
+- Account backup refreshed automatically after changes (only additive — never
+  overwrites an account copy that has shifts this device lacks).
+- Delete-all wipes the bin and backups too.
+
 ## Phase 6 — Owner/Admin dashboard — C5
 
 - Server-side roles in Supabase (owner = the account email); RLS + Edge

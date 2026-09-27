@@ -65,8 +65,7 @@ struct ShiftDetailSheet: View {
             }
             .alert(L10n.editDeleteConfirm, isPresented: $showDeleteConfirm) {
                 Button(L10n.editDelete, role: .destructive) {
-                    viewModel.deleteSession(session)
-                    viewModel.showSuccessToast(L10n.feedbackSessionDeleted)
+                    viewModel.deleteSession(session)  // shows its own Undo banner
                     dismiss()
                 }
                 Button(L10n.editCancel, role: .cancel) {}
@@ -343,8 +342,7 @@ struct EditSessionView: View {
                 isPresented: $showDeleteConfirm
             ) {
                 Button(L10n.editDelete, role: .destructive) {
-                    viewModel.deleteSession(session)
-                    viewModel.showSuccessToast(L10n.feedbackSessionDeleted)
+                    viewModel.deleteSession(session)  // shows its own Undo banner
                     if let onDeleted {
                         onDeleted()
                     } else {

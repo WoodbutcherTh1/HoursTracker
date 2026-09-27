@@ -776,8 +776,7 @@ struct DaySummarySheet: View {
     private func deleteJustCompletedShift() {
         if let id = viewModel.lastCompletedSessionID,
            let session = viewModel.sessions.first(where: { $0.id == id }) {
-            viewModel.deleteSession(session)
-            viewModel.showSuccessToast(L10n.feedbackSessionDeleted)
+            viewModel.deleteSession(session)  // shows its own Undo banner
         }
         viewModel.dismissDaySummary()
     }

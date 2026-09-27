@@ -84,6 +84,7 @@ struct HoursTrackerApp: App {
                 if phase == .active {
                     viewModel.syncNow()
                     viewModel.refreshShiftReminders()
+                    viewModel.takeDailyBackupIfNeeded()
                     if appLock.isEnabled && appLock.isLocked {
                         Task { await appLock.unlock() }
                     }
@@ -211,6 +212,15 @@ struct MainTabView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.successToast)
+        // "Shift deleted · Undo" for a few seconds after any delete.
+        .overlay(alignment: .bottom) {
+            if viewModel.undoableDeletion != nil {
+                UndoDeleteBanner { viewModel.undoLastDeletion() }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .padding(.bottom, 56)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: viewModel.undoableDeletion?.id)
         // A single routed sheet — see `MainSheetRoute` — rather than one
         // `.sheet(isPresented:)` per case, so the assistant and the scanner-review sheet
         // (which a background scan can request at any moment) can never both be live at

@@ -24,6 +24,8 @@ final class AppViewModel: ObservableObject {
     /// Live pay for the open shift — what Home, the Watch, the widgets and the Live
     /// Activity all read, so they show the same figure. Nil when clocked out.
     @Published private(set) var liveCurve: LivePayCurve?
+    /// The shift just deleted, while its "Undo" banner is on screen.
+    @Published private(set) var undoableDeletion: WorkSession?
 
     /// Background Smart Scanner job — user can dismiss the picker and keep using the app.
     enum ScannerImportPhase: Equatable {
@@ -55,6 +57,10 @@ final class AppViewModel: ObservableObject {
     private var liveActivityRefreshTask: Task<Void, Never>?
     /// Inputs `liveCurve` was last built from; it's only rebuilt when they change.
     private var liveCurveInputs: LiveCurveInputs?
+    private var undoClearTask: Task<Void, Never>?
+    private var accountBackupTask: Task<Void, Never>?
+    private let deletedSessions: DeletedSessionsStore
+    private let backups: LocalBackupStore
 
     private struct LiveCurveInputs: Equatable {
         let session: WorkSession
@@ -170,15 +176,20 @@ final class AppViewModel: ObservableObject {
 
     init(
         store: SyncingStore = SyncingPersistenceStore.shared,
-        locationManager: LocationReminderManaging = LocationReminderManager.shared
+        locationManager: LocationReminderManaging = LocationReminderManager.shared,
+        deletedSessions: DeletedSessionsStore = .shared,
+        backups: LocalBackupStore = .shared
     ) {
         self.store = store
         self.locationManager = locationManager
+        self.deletedSessions = deletedSessions
+        self.backups = backups
         syncState = store.syncState
         load()
         // An open shift from a previous launch: build its live pay curve right away so
         // Home and the widgets show the shared figure from the first frame.
         refreshLiveCurve()
+        takeDailyBackupIfNeeded()
         refreshReminders()
         refreshLocationPermissionStatuses()
         startLiveActivityRefreshLoop()
@@ -669,7 +680,10 @@ final class AppViewModel: ObservableObject {
     }
 
     func deleteSession(_ session: WorkSession) {
+        // Into "Recently deleted" (30 days) rather than gone — and offer an Undo.
+        try? deletedSessions.add(session)
         sessions.removeAll { $0.id == session.id }
+        offerUndo(for: session)
         persist()
         refreshReminders()
         syncWidget()
@@ -678,6 +692,146 @@ final class AppViewModel: ObservableObject {
             level: .warning,
             category: "session"
         )
+    }
+
+    // MARK: - Recently deleted / undo
+
+    /// Shifts deleted in the last 30 days, newest first.
+    var recentlyDeletedSessions: [DeletedSession] {
+        deletedSessions.load()
+    }
+
+    /// Undo the delete whose banner is showing.
+    func undoLastDeletion() {
+        guard let session = undoableDeletion else { return }
+        restoreDeletedSession(id: session.id)
+    }
+
+    /// Puts a deleted shift back (from Undo or the Recently Deleted list).
+    func restoreDeletedSession(id: UUID) {
+        guard let entry = try? deletedSessions.remove(id: id) else { return }
+        clearUndo()
+        guard !sessions.contains(where: { $0.id == id }) else { return }
+        var restored = entry.session
+        restored.touch()
+        store.forgetDeletions(ids: [id])
+        sessions.append(restored)
+        sessions.sort { $0.clockIn < $1.clockIn }
+        persist()
+        syncWidget()
+        ActivityLogStore.shared.log(L10n.logEventSessionRestored, level: .success, category: "session")
+    }
+
+    /// Removes a shift from Recently Deleted for good.
+    func deleteForever(id: UUID) {
+        try? deletedSessions.remove(id: id)
+        objectWillChange.send()
+    }
+
+    private func offerUndo(for session: WorkSession) {
+        undoableDeletion = session
+        undoClearTask?.cancel()
+        undoClearTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(8))
+            guard !Task.isCancelled else { return }
+            self?.undoableDeletion = nil
+        }
+    }
+
+    private func clearUndo() {
+        undoClearTask?.cancel()
+        undoableDeletion = nil
+    }
+
+    // MARK: - Automatic backups
+
+    /// Automatic on-device backups, newest first.
+    var localBackups: [LocalBackup] {
+        backups.list()
+    }
+
+    /// Today's automatic backup (once a day). Taken at launch and whenever the app
+    /// comes to the foreground — i.e. before the day's changes — with the first save
+    /// of the day as a fallback. Skipped while the data couldn't be read, so an
+    /// empty stand-in is never backed up.
+    func takeDailyBackupIfNeeded() {
+        guard !sessionsLoadUnavailable, !settingsLoadUnavailable else { return }
+        backups.backupIfNeeded(settings: settings, sessions: sessions)
+    }
+
+    /// Replaces the current shifts and settings with a backup's. The current state is
+    /// backed up first, so restoring the wrong day can be undone too. The activity
+    /// log is left alone (backups don't carry it).
+    func restoreBackup(_ backup: LocalBackup) throws {
+        let document = try backups.load(backup.url)
+        backups.backupBeforeRestore(settings: settings, sessions: sessions)
+        sessionsLoadUnavailable = false
+        settingsLoadUnavailable = false
+        store.forgetDeletions(ids: Set(document.sessions.map(\.id)))
+        sessions = document.sessions.sorted { $0.clockIn < $1.clockIn }
+        settings = document.settings
+        do {
+            try store.saveSessions(sessions)
+            try store.saveSettings(settings)
+        } catch {
+            errorMessage = L10n.errorSaveFailed
+            throw error
+        }
+        refreshReminders()
+        syncWidget()
+        ActivityLogStore.shared.log(
+            L10n.logEventBackupRestored,
+            level: .success,
+            category: "backup",
+            details: "\(document.sessions.count)"
+        )
+    }
+
+    // MARK: - Automatic account backup
+
+    /// Keeps the signed-in account's cloud copy current: uploads a few seconds after
+    /// the last change. It only ever *adds to* what's in the account — if the cloud
+    /// copy has a shift this device doesn't (another device, or a reinstall that
+    /// hasn't restored yet), the automatic upload stands down instead of overwriting
+    /// it; the manual "Sync now" in Account still works as before.
+    private func scheduleAccountBackup() {
+        guard SupabaseAuthManager.shared.isSignedIn else { return }
+        accountBackupTask?.cancel()
+        accountBackupTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(10))
+            guard !Task.isCancelled, let self else { return }
+            let local = self.sessions
+            guard !local.isEmpty else { return }
+            let localIDs = Set(local.map(\.id))
+            let deletedIDs = Set(self.deletedSessions.load().map(\.id))
+            let sync = SupabaseAccountSyncManager.shared
+            do {
+                if let remote = try await sync.downloadBackup() {
+                    let missingLocally = Set(remote.sessions.map(\.id))
+                        .subtracting(localIDs)
+                        .subtracting(deletedIDs)
+                    guard missingLocally.isEmpty else {
+                        ActivityLogStore.shared.log(
+                            L10n.logEventAutoBackupSkipped,
+                            level: .warning,
+                            category: "backup",
+                            details: "\(missingLocally.count)"
+                        )
+                        return
+                    }
+                }
+                // Keep the account's family name — passing nil would clear it.
+                let profile = await sync.fetchProfile()
+                try await sync.uploadBackup(
+                    settings: self.settings,
+                    sessions: local,
+                    fullName: self.settings.workerFullName,
+                    familyName: profile?.familyName
+                )
+            } catch {
+                // Offline or server error: the next change retries.
+            }
+        }
     }
 
     // MARK: - Settings
@@ -734,6 +888,11 @@ final class AppViewModel: ObservableObject {
         refreshReminders()
         ExportTempFileStore.wipeAll()
         PayslipStore.wipeAll()
+        // "Delete all my data" means the safety copies too.
+        deletedSessions.removeAll()
+        backups.removeAll()
+        clearUndo()
+        accountBackupTask?.cancel()
         PersistenceManager.shared.wipeQuarantinedSidecars()
         SessionTombstoneStore.shared.removeAll()
         SessionTombstoneStore.shared.wipeQuarantinedSidecars()
@@ -942,6 +1101,8 @@ final class AppViewModel: ObservableObject {
         }
         do {
             try store.saveSessions(sessions)
+            takeDailyBackupIfNeeded()
+            scheduleAccountBackup()
         } catch {
             errorMessage = L10n.errorSaveFailed
         }

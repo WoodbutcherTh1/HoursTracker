@@ -320,6 +320,25 @@ enum L10n {
     static var feedbackSessionSaved: String { t("feedback.sessionSaved") }
     static var feedbackSessionUpdated: String { t("feedback.sessionUpdated") }
     static var feedbackSessionDeleted: String { t("feedback.sessionDeleted") }
+    static var undoDelete: String { t("undo.delete") }
+    static var dataSafetySection: String { t("dataSafety.section") }
+    static var dataSafetyHint: String { t("dataSafety.hint") }
+    static var dataSafetyRecentlyDeleted: String { t("dataSafety.recentlyDeleted") }
+    static var dataSafetyRecentlyDeletedEmpty: String { t("dataSafety.recentlyDeleted.empty") }
+    static var dataSafetyBackups: String { t("dataSafety.backups") }
+    static var dataSafetyBackupsEmpty: String { t("dataSafety.backups.empty") }
+    static var dataSafetyBackupsPreRestore: String { t("dataSafety.backups.preRestore") }
+    static var dataSafetyBackupsConfirmTitle: String { t("dataSafety.backups.confirmTitle") }
+    static var dataSafetyBackupsConfirmMessage: String { t("dataSafety.backups.confirmMessage") }
+    static var dataSafetyRestore: String { t("dataSafety.restore") }
+    static var dataSafetyRestored: String { t("dataSafety.restored") }
+    static var dataSafetyDeleteForever: String { t("dataSafety.deleteForever") }
+    static func dataSafetyDeletedOn(_ date: String) -> String {
+        String(format: t("dataSafety.deletedOn %@"), date)
+    }
+    static func dataSafetyBackupsShifts(_ count: Int) -> String {
+        String(format: t("dataSafety.backups.shifts %@"), "\(count)")
+    }
     static var feedbackDataDeleted: String { t("feedback.dataDeleted") }
     static var feedbackLogCleared: String { t("feedback.logCleared") }
     static func feedbackImported(_ count: Int) -> String {
@@ -593,6 +612,9 @@ enum L10n {
     static var logEventClockOut: String { t("log.event.clockOut") }
     static var logEventBreakStart: String { t("log.event.breakStart") }
     static var logEventBreakEnd: String { t("log.event.breakEnd") }
+    static var logEventSessionRestored: String { t("log.event.sessionRestored") }
+    static var logEventBackupRestored: String { t("log.event.backupRestored") }
+    static var logEventAutoBackupSkipped: String { t("log.event.autoBackupSkipped") }
     static var logEventManualEntry: String { t("log.event.manualEntry") }
     static func logEventImport(_ count: Int) -> String {
         String(format: t("log.event.import %lld"), count)

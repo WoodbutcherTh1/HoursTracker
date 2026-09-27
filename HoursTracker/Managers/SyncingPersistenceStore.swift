@@ -12,10 +12,22 @@ protocol SyncingStore: PersistableStore {
     /// Deletes remote sessions and the settings record when CloudKit is supported.
     /// Not gated by the user sync toggle (used by delete-all and toggle-off cleanup).
     func purgeCloudData(sessionIDs: Set<UUID>) async throws
+    /// A deleted session was restored (undo / recently deleted / backup): drop its
+    /// tombstone so the next sync doesn't delete it again.
+    func forgetDeletions(ids: Set<UUID>)
+}
+
+extension SyncingStore {
+    func forgetDeletions(ids: Set<UUID>) {}
 }
 
 final class SyncingPersistenceStore: SyncingStore {
     static let shared = SyncingPersistenceStore()
+
+    func forgetDeletions(ids: Set<UUID>) {
+        guard !ids.isEmpty else { return }
+        tombstones.remove(ids: ids)
+    }
 
     private let local: PersistableStore
     private let cloud: CloudSyncing

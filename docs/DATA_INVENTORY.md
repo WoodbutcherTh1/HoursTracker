@@ -28,6 +28,16 @@ Definition-of-done for privacy changes: if a PR stores, logs, exports, or transm
 | Session id, dates, clock in/out, break, day type, night flag, notes, `modifiedAt`, import flags | Documents JSON; one CloudKit record per session if sync on | File protection | Until delete | Local + cloud purge |
 | Corrupt decode sidecar | `work_sessions.json.corrupt*` | Same directory | Until delete-all or manual | `wipeQuarantinedSidecars` |
 
+## Recently deleted & automatic backups (Application Support/HoursTracker)
+
+| Field | Storage | Protection | Retention | Deleted by |
+|---|---|---|---|---|
+| Deleted shifts + deletion time (`deleted_sessions.json`) | Application Support JSON (not CloudKit, not Files app) | File protection (`ProtectedFileWriter`) | 30 days, then dropped | Restore / "Delete forever" / delete-all |
+| Daily full backup of settings + sessions (`Backups/backup-YYYY-MM-DD.json`, full-export JSON format, no activity log) | Application Support JSON (not CloudKit, not Files app); included in the device's own iCloud/Finder backup | File protection (`ProtectedFileWriter`) | Newest 14 days | Delete-all |
+| Pre-restore snapshot (`Backups/pre-restore-<unix>.json`) | Same as above | File protection | Newest 3 | Delete-all |
+
+When signed in to an account, the account backup (`user_backups`) is also refreshed automatically ~10 s after a change — only when the account holds no shift missing on this device.
+
 ## Workplaces (`workplaces.json`)
 
 | Field | Storage | Protection | Retention | Deleted by |

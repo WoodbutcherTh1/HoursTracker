@@ -67,6 +67,7 @@ struct SettingsView: View {
                 if viewModel.isCloudSyncSupported {
                     syncSection
                 }
+                dataSafetySection
                 toolsSection
                 languageSection
                 aboutSection
@@ -522,6 +523,26 @@ struct SettingsView: View {
         let options = NotificationPreferences.breakTargetOptions
         let current = notificationPrefs.breakTargetMinutes
         return options.contains(current) ? options : (options + [current]).sorted()
+    }
+
+    /// Recently deleted shifts (30 days) and the automatic daily backups (14 days).
+    private var dataSafetySection: some View {
+        Section {
+            NavigationLink {
+                RecentlyDeletedView(viewModel: viewModel)
+            } label: {
+                Label(L10n.dataSafetyRecentlyDeleted, systemImage: "trash")
+            }
+            NavigationLink {
+                LocalBackupsView(viewModel: viewModel)
+            } label: {
+                Label(L10n.dataSafetyBackups, systemImage: "clock.arrow.circlepath")
+            }
+        } header: {
+            Text(L10n.dataSafetySection)
+        } footer: {
+            Text(L10n.dataSafetyHint)
+        }
     }
 
     private var securitySection: some View {
