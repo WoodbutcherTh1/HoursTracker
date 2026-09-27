@@ -51,6 +51,7 @@ final class DesignQATests: XCTestCase {
         }
 
         clockIn.tap()
+        allowSystemPrompt()
         let clockOut = app.buttons["home.clockOut"]
         XCTAssertTrue(clockOut.waitForExistence(timeout: 15), "Clock Out never appeared")
         pause(4)
@@ -85,9 +86,17 @@ final class DesignQATests: XCTestCase {
             pause(1)
             capture(onboarding, "onboarding-welcome")
             primary.tap()
-            if onboarding.textFields["onboarding.rateField"].waitForExistence(timeout: 10) {
+            let rateField = onboarding.textFields["onboarding.rateField"]
+            if rateField.waitForExistence(timeout: 10) {
                 pause(1)
                 capture(onboarding, "onboarding-rate")
+                // Diagnostic for the RTL rate field: what the field holds vs. what
+                // is drawn, before and after typing one digit.
+                note("rateField.value before typing = \(String(describing: rateField.value))")
+                rateField.typeText("7")
+                pause(1)
+                note("rateField.value after typing 7 = \(String(describing: rateField.value))")
+                capture(onboarding, "onboarding-rate-typed")
             }
             onboarding.terminate()
         }
@@ -141,6 +150,14 @@ final class DesignQATests: XCTestCase {
         let app = XCUIApplication()
         let language = env["QA_LANG"] ?? "english"
         app.launchArguments += hooks + ["UITEST_LANG", language]
+        // Also as argument-domain defaults: the SwiftUI App reads these before
+        // AppDelegate's hooks run, which raced (a mirrored first launch, or Home
+        // instead of onboarding). The argument domain is in place before anything.
+        let onboarding = hooks.contains("UITEST_ONBOARDING_AR")
+        app.launchArguments += [
+            "-appLanguagePreference", language,
+            "-hasSeenOnboarding.v1", onboarding ? "NO" : "YES"
+        ]
         if let size = env["QA_CONTENT_SIZE"], !size.isEmpty {
             app.launchArguments += ["-UIPreferredContentSizeCategoryName", size]
         }
@@ -167,6 +184,27 @@ final class DesignQATests: XCTestCase {
         }
         _ = app.scrollViews["daySummary.sheet"].waitForNonExistence(timeout: 5)
         pause(1)
+    }
+
+    /// The notification permission alert belongs to SpringBoard, not the app, and
+    /// covers the screen until answered.
+    private func allowSystemPrompt() {
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        for label in ["Allow", "Don’t Allow", "Don't Allow"] {
+            let button = springboard.buttons[label]
+            if button.waitForExistence(timeout: 3) {
+                button.tap()
+                return
+            }
+        }
+    }
+
+    private func note(_ text: String) {
+        let attachment = XCTAttachment(string: text)
+        attachment.name = "\(label)__note"
+        attachment.lifetime = .keepAlways
+        add(attachment)
+        print("QA-NOTE \(label): \(text)")
     }
 
     private func pause(_ seconds: TimeInterval) {
