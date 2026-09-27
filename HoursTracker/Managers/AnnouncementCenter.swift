@@ -186,7 +186,12 @@ final class AnnouncementCenter: ObservableObject {
 
     private func makePayload() async -> DeviceRegistrationPayload {
         let info = Bundle.main.infoDictionary ?? [:]
-        let hasWidget = ((try? await WidgetCenter.shared.currentConfigurations()) ?? []).isEmpty == false
+        // Completion-handler form: the async `currentConfigurations()` is iOS 18+.
+        let hasWidget = await withCheckedContinuation { continuation in
+            WidgetCenter.shared.getCurrentConfigurations { result in
+                continuation.resume(returning: ((try? result.get()) ?? []).isEmpty == false)
+            }
+        }
         let hasWatch = WCSession.isSupported()
             && WCSession.default.activationState == .activated
             && WCSession.default.isPaired

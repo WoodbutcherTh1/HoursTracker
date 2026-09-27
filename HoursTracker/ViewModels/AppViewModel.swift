@@ -724,7 +724,7 @@ final class AppViewModel: ObservableObject {
 
     /// Removes a shift from Recently Deleted for good.
     func deleteForever(id: UUID) {
-        try? deletedSessions.remove(id: id)
+        _ = try? deletedSessions.remove(id: id)
         objectWillChange.send()
     }
 
