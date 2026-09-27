@@ -83,6 +83,7 @@ struct HoursTrackerApp: App {
                 // sheet is presented and would delete the file mid-share.
                 if phase == .active {
                     viewModel.syncNow()
+                    viewModel.refreshShiftReminders()
                     if appLock.isEnabled && appLock.isLocked {
                         Task { await appLock.unlock() }
                     }

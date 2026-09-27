@@ -73,7 +73,9 @@ on `claude/planning-requests-bb6hz1`. Status: ⬜ todo · 🟡 in progress · �
 - The period title header stays pinned and never disappears during the
   transition (bug seen moving 9 → 8).
 
-## Phase 5 — Shift reminders by usual schedule — C2
+## Phase 5 — Shift reminders by usual schedule — C2 ✅ (awaiting CI + device test)
+
+- Clock In / Clock Out buttons right on the reminder (no need to open the app).
 
 - Learn usual clock-in / clock-out time **per weekday** from past sessions.
 - Notify **5 min before** the usual start ("don't forget to clock in") and

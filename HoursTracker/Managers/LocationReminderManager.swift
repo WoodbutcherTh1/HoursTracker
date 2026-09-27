@@ -250,6 +250,13 @@ final class LocationReminderManager: NSObject, LocationReminderManaging {
     func scheduleClockOutReminder() {
         notificationCenter.removePendingNotificationRequests(withIdentifiers: [clockOutReminderID])
         guard remindersAreArmed(), hasOpenSession() else { return }
+        // The schedule-based "shift ends in 5 minutes" reminder already covers this
+        // shift (and is timed per weekday) — don't send a second, differently timed one.
+        if NotificationPreferences.shared.shiftEndReminderEnabled,
+           let open = sessions.filter(\.isOpen).max(by: { $0.clockIn < $1.clockIn }),
+           ShiftSchedule.learn(from: sessions).window(for: open.clockIn) != nil {
+            return
+        }
         guard let reminderTime = estimatedClockOutTime() else { return }
 
         var components = Calendar.current.dateComponents([.hour, .minute], from: reminderTime)

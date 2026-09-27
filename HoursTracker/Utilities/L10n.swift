@@ -405,6 +405,10 @@ enum L10n {
     static var settingsNotificationsBreakEndingSoon: String { t("settings.notifications.breakEndingSoon") }
     static var settingsNotificationsBreakLead: String { t("settings.notifications.breakLead") }
     static var settingsNotificationsBreakOver: String { t("settings.notifications.breakOver") }
+    static var settingsNotificationsShiftStart: String { t("settings.notifications.shiftStart") }
+    static var settingsNotificationsShiftEnd: String { t("settings.notifications.shiftEnd") }
+    static var settingsNotificationsUsualSchedule: String { t("settings.notifications.usualSchedule") }
+    static var settingsNotificationsScheduleLearning: String { t("settings.notifications.scheduleLearning") }
     static func settingsNotificationsMinutes(_ minutes: Int) -> String {
         String(format: t("settings.notifications.minutes %@"), "\(minutes)")
     }

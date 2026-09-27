@@ -27,6 +27,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         }
         #endif
         UNUserNotificationCenter.current().delegate = self
+        ShiftReminderScheduler.registerCategories()
         // Widget buttons (clock in/out, breaks) are LiveActivityIntents that iOS runs
         // in this process — possibly a background launch with no UI — so apply them
         // straight to the shared view model instead of waiting for the app to open.
@@ -59,6 +60,29 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
         completionHandler([.banner, .list, .sound])
+    }
+
+    /// Clock In / Clock Out buttons on the shift reminders. They run without opening
+    /// the app (the system launches it in the background if needed) through the same
+    /// path as the in-app buttons.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let action = response.actionIdentifier
+        Task { @MainActor in
+            let viewModel = AppViewModel.shared
+            switch action {
+            case ShiftReminderScheduler.clockInAction where viewModel.canClockIn:
+                viewModel.clockIn()
+            case ShiftReminderScheduler.clockOutAction where !viewModel.canClockIn:
+                viewModel.clockOut()
+            default:
+                break
+            }
+            completionHandler()
+        }
     }
 }
 

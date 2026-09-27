@@ -142,6 +142,22 @@ enum AppLocale {
         }
     }
 
+    static func shiftStartsSoon(minutes: Int) -> String {
+        switch current {
+        case .arabic: return "ورديتك بتبلش بعد \(minutes) دقائق — لا تنسى تعمل دخول"
+        case .hebrew: return "המשמרת מתחילה בעוד \(minutes) דקות — לא לשכוח להחתים כניסה"
+        case .english: return "Your shift starts in \(minutes) minutes — don't forget to clock in"
+        }
+    }
+
+    static func shiftEndsSoon(minutes: Int) -> String {
+        switch current {
+        case .arabic: return "ورديتك بتخلص بعد \(minutes) دقائق — لا تنسى تعمل خروج"
+        case .hebrew: return "המשמרת מסתיימת בעוד \(minutes) דקות — לא לשכוח להחתים יציאה"
+        case .english: return "Your shift ends in \(minutes) minutes — don't forget to clock out"
+        }
+    }
+
     static func breakEndingSoon(minutes: Int) -> String {
         switch current {
         case .arabic: return "الاستراحة بتخلص بعد \(minutes) دقائق"

@@ -442,6 +442,15 @@ struct SettingsView: View {
 
             Toggle(L10n.settingsNotificationsBreakOver, isOn: $notificationPrefs.breakOverEnabled)
 
+            Toggle(L10n.settingsNotificationsShiftStart, isOn: $notificationPrefs.shiftStartReminderEnabled)
+                .onChange(of: notificationPrefs.shiftStartReminderEnabled) { _, _ in viewModel.refreshShiftReminders() }
+            Toggle(L10n.settingsNotificationsShiftEnd, isOn: $notificationPrefs.shiftEndReminderEnabled)
+                .onChange(of: notificationPrefs.shiftEndReminderEnabled) { _, _ in viewModel.refreshShiftReminders() }
+
+            if notificationPrefs.shiftStartReminderEnabled || notificationPrefs.shiftEndReminderEnabled {
+                usualScheduleSummary
+            }
+
             if viewModel.areLocationNotificationsDenied {
                 Text(L10n.settingsNotificationsDenied)
                     .font(.caption)
@@ -457,6 +466,55 @@ struct SettingsView: View {
         } footer: {
             Text(L10n.settingsNotificationsHint)
         }
+    }
+
+    /// What the shift reminders are timed against — the usual hours learned from the
+    /// worker's own shifts, per weekday — so the reminders never feel random.
+    @ViewBuilder
+    private var usualScheduleSummary: some View {
+        let schedule = ShiftSchedule.learn(from: viewModel.sessions)
+        if schedule.windows.isEmpty {
+            Text(L10n.settingsNotificationsScheduleLearning)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L10n.settingsNotificationsUsualSchedule)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                ForEach(orderedWeekdays(in: schedule), id: \.self) { weekday in
+                    if let window = schedule.windows[weekday] {
+                        HStack {
+                            Text(weekdayName(weekday))
+                            Spacer()
+                            Text(usualHoursLabel(window))
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(.caption)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Learned weekdays in the locale's week order.
+    private func orderedWeekdays(in schedule: ShiftSchedule) -> [Int] {
+        let first = Calendar.current.firstWeekday
+        return (0..<7).map { (first - 1 + $0) % 7 + 1 }.filter { schedule.windows[$0] != nil }
+    }
+
+    private func weekdayName(_ weekday: Int) -> String {
+        let symbols = AppLocale.makeDateFormatter().weekdaySymbols ?? Calendar.current.weekdaySymbols
+        return symbols.indices.contains(weekday - 1) ? symbols[weekday - 1] : ""
+    }
+
+    private func usualHoursLabel(_ window: ShiftSchedule.Window) -> String {
+        let formatter = AppLocale.makeDateFormatter(timeStyle: .short)
+        let day = Calendar.current.startOfDay(for: Date())
+        let start = day.addingTimeInterval(TimeInterval(window.startMinutes * 60))
+        let end = start.addingTimeInterval(TimeInterval(window.durationMinutes * 60))
+        return "\(formatter.string(from: start)) – \(formatter.string(from: end))"
     }
 
     /// Offered break lengths, plus the stored value if it's a custom one.

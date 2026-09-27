@@ -232,6 +232,9 @@ final class AppViewModel: ObservableObject {
         sessions.append(session)
         persist()
         refreshReminders()
+        // First clock-in is the natural moment to ask for notification access, if
+        // it hasn't been asked yet — the clock-out reminder is about to be useful.
+        ShiftReminderScheduler.reschedule(sessions: sessions, settings: settings, askPermission: true)
         syncWidget()
         refreshAppShortcuts()
         // Start Live Activity for the running shift.
@@ -963,6 +966,14 @@ final class AppViewModel: ObservableObject {
 
     private func refreshReminders() {
         locationManager.configure(settings: settings, sessions: sessions)
+        ShiftReminderScheduler.reschedule(sessions: sessions, settings: settings)
+    }
+
+    /// Rebuilds the "clock in / clock out" reminders — after a Notifications toggle
+    /// changes, and when the app comes to the foreground (the plan only reaches a
+    /// week ahead, so it's topped up whenever the app is used).
+    func refreshShiftReminders() {
+        ShiftReminderScheduler.reschedule(sessions: sessions, settings: settings)
     }
 
     /// Push current sessions and settings to the WidgetKit extension

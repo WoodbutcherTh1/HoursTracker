@@ -17166,6 +17166,94 @@
           }
         }
       }
+    },
+    "settings.notifications.shiftStart" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ذكّرني أعمل دخول (قبل بداية ورديتي المعتادة بـ5 د)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remind me to clock in (5 min before my usual start)"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "תזכורת להחתמת כניסה (5 דק׳ לפני תחילת המשמרת הרגילה)"
+          }
+        }
+      }
+    },
+    "settings.notifications.shiftEnd" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ذكّرني أعمل خروج (قبل نهاية ورديتي المعتادة بـ5 د)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remind me to clock out (5 min before my usual end)"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "תזכורת להחתמת יציאה (5 דק׳ לפני סוף המשמרת הרגילה)"
+          }
+        }
+      }
+    },
+    "settings.notifications.usualSchedule" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ورديّاتك المعتادة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your usual shifts"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "המשמרות הרגילות שלך"
+          }
+        }
+      }
+    },
+    "settings.notifications.scheduleLearning" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "عم نتعلّم ساعاتك المعتادة — التذكيرات بتبلش لما يكون لأي يوم بالأسبوع ورديتين بآخر 8 أسابيع."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Learning your usual hours — reminders start once a weekday has 2 shifts in the last 8 weeks."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לומדים את השעות הרגילות שלך — התזכורות יתחילו כשליום בשבוע יש 2 משמרות ב־8 השבועות האחרונים."
+          }
+        }
+      }
     }
   },
   "version" : "1.1"
