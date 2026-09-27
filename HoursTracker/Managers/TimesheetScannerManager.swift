@@ -508,11 +508,11 @@ actor TimesheetScannerManager {
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
             .compactMap { line -> ScannedSessionDraft? in
-                if isLikelyHeader(line) { return nil }
-                guard let date = firstDate(in: line, calendar: calendar) else { return nil }
-                let times = allTimes(in: line)
+                if isLikelyHeader(line, calendar: calendar) { return nil }
+                guard let dateMatch = firstDateMatch(in: line, calendar: calendar) else { return nil }
+                let times = allTimes(in: line, excluding: [dateMatch.range])
                 guard times.count >= 2 else { return nil }
-                return makeDraft(date: date, inTime: times[0], outTime: times[1], calendar: calendar, confidence: 0.9)
+                return makeDraft(date: dateMatch.date, inTime: times[0], outTime: times[1], calendar: calendar, confidence: 0.9)
             }
     }
 
@@ -521,6 +521,7 @@ actor TimesheetScannerManager {
         struct MarkedDate {
             let date: Date
             let location: Int
+            let range: NSRange
         }
         struct MarkedTime {
             let time: (Int, Int)
@@ -540,17 +541,19 @@ actor TimesheetScannerManager {
                 guard let full = Range(match.range, in: text),
                       let date = firstDate(in: String(text[full]), calendar: calendar)
                 else { continue }
-                dates.append(MarkedDate(date: date, location: match.range.location))
+                dates.append(MarkedDate(date: date, location: match.range.location, range: match.range))
             }
         }
 
         if let regex = try? NSRegularExpression(pattern: timePattern) {
             let range = NSRange(text.startIndex..., in: text)
             for match in regex.matches(in: text, range: range) {
+                if dates.contains(where: { rangesOverlap(match.range, $0.range) }) {
+                    continue
+                }
                 guard let full = Range(match.range, in: text),
                       let parsed = parseTime(String(text[full]))
                 else { continue }
-                // Skip values that were already counted as dates (e.g. 12.07 mistaken) — rare with HH:MM.
                 times.append(MarkedTime(time: parsed, location: match.range.location, used: false))
             }
         }
@@ -593,11 +596,11 @@ actor TimesheetScannerManager {
         var index = 0
         while index < lines.count {
             let window = lines[index..<min(index + 3, lines.count)].joined(separator: " ")
-            if let date = firstDate(in: window, calendar: calendar) {
-                let times = allTimes(in: window)
+            if let dateMatch = firstDateMatch(in: window, calendar: calendar) {
+                let times = allTimes(in: window, excluding: [dateMatch.range])
                 if times.count >= 2 {
                     drafts.append(
-                        makeDraft(date: date, inTime: times[0], outTime: times[1], calendar: calendar, confidence: 0.6)
+                        makeDraft(date: dateMatch.date, inTime: times[0], outTime: times[1], calendar: calendar, confidence: 0.6)
                     )
                     index += 2
                     continue
@@ -649,14 +652,19 @@ actor TimesheetScannerManager {
         )
     }
 
-    nonisolated private func isLikelyHeader(_ line: String) -> Bool {
+    nonisolated private func isLikelyHeader(_ line: String, calendar: Calendar) -> Bool {
         let lower = line.lowercased()
         let keys = ["תאריך", "כניסה", "יציאה", "שעות", "date", "clock", "hours", "total", "סה\"כ", "סהכ"]
         let hits = keys.filter { lower.contains($0) }.count
-        return hits >= 2 && allTimes(in: line).count < 2
+        let dateRange = firstDateMatch(in: line, calendar: calendar).map { [$0.range] } ?? []
+        return hits >= 2 && allTimes(in: line, excluding: dateRange).count < 2
     }
 
     nonisolated private func firstDate(in text: String, calendar: Calendar) -> Date? {
+        firstDateMatch(in: text, calendar: calendar)?.date
+    }
+
+    nonisolated private func firstDateMatch(in text: String, calendar: Calendar) -> (date: Date, range: Range<String.Index>)? {
         let patterns = [
             #"(\d{1,2})[./\-](\d{1,2})[./\-](\d{4})"#,
             #"(\d{1,2})[./\-](\d{1,2})[./\-](\d{2})"#,
@@ -664,8 +672,16 @@ actor TimesheetScannerManager {
         ]
 
         for (index, pattern) in patterns.enumerated() {
-            guard let match = firstGroups(in: text, pattern: pattern) else { continue }
-            let parts = match.compactMap(Int.init)
+            guard let regex = try? NSRegularExpression(pattern: pattern),
+                  let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text)),
+                  let fullRange = Range(match.range, in: text)
+            else { continue }
+
+            let groups = (1..<match.numberOfRanges).compactMap { groupIndex -> String? in
+                guard let range = Range(match.range(at: groupIndex), in: text) else { return nil }
+                return String(text[range])
+            }
+            let parts = groups.compactMap(Int.init)
             guard parts.count >= 2 else { continue }
 
             var day = parts[0]
@@ -684,14 +700,16 @@ actor TimesheetScannerManager {
             components.month = month
             components.day = day
             if let date = calendar.date(from: components) {
-                return calendar.startOfDay(for: date)
+                return (calendar.startOfDay(for: date), fullRange)
             }
         }
         return nil
     }
 
-    nonisolated private func allTimes(in text: String) -> [(Int, Int)] {
-        var times = matches(in: text, pattern: #"\b([01]?\d|2[0-3])[:.]([0-5]\d)(?:[:.][0-5]\d)?\b"#)
+    nonisolated private func allTimes(in text: String, excluding ranges: [Range<String.Index>] = []) -> [(Int, Int)] {
+        // Dates ("12.07.2026") are blanked out first so their "12.07" can't be read as a time.
+        let searchableText = mask(text, excluding: ranges)
+        var times = matches(in: searchableText, pattern: #"\b([01]?\d|2[0-3])[:.]([0-5]\d)(?:[:.][0-5]\d)?\b"#)
             .compactMap(parseTime)
 
         // OCR often drops the colon entirely ("08:00-16:00" → "0800-1600");
@@ -699,7 +717,7 @@ actor TimesheetScannerManager {
         // Only trusted as a PAIR, because a lone 4-digit token is far more
         // likely to be a date or an ID than a time.
         if times.count < 2 {
-            times += compactTimes(in: text)
+            times += compactTimes(in: searchableText)
         }
         return times
     }
@@ -715,6 +733,30 @@ actor TimesheetScannerManager {
             return (value / 100, value % 100)
         }
         return parsed.count >= 2 ? parsed : []
+    }
+
+    nonisolated private func mask(_ text: String, excluding ranges: [Range<String.Index>]) -> String {
+        guard !ranges.isEmpty else { return text }
+
+        var masked = ""
+        var cursor = text.startIndex
+        for range in ranges.sorted(by: { $0.lowerBound < $1.lowerBound }) {
+            let lowerBound = max(cursor, range.lowerBound)
+            guard lowerBound < range.upperBound else { continue }
+            if cursor < lowerBound {
+                masked.append(contentsOf: text[cursor..<lowerBound])
+            }
+            masked.append(contentsOf: String(repeating: " ", count: text[lowerBound..<range.upperBound].count))
+            cursor = range.upperBound
+        }
+        if cursor < text.endIndex {
+            masked.append(contentsOf: text[cursor..<text.endIndex])
+        }
+        return masked
+    }
+
+    nonisolated private func rangesOverlap(_ lhs: NSRange, _ rhs: NSRange) -> Bool {
+        NSIntersectionRange(lhs, rhs).length > 0
     }
 
     nonisolated private func parseTime(_ text: String) -> (Int, Int)? {
@@ -740,15 +782,4 @@ actor TimesheetScannerManager {
         }
     }
 
-    nonisolated private func firstGroups(in text: String, pattern: String) -> [String]? {
-        guard let regex = try? NSRegularExpression(pattern: pattern),
-              let match = regex.firstMatch(in: text, range: NSRange(text.startIndex..., in: text))
-        else { return nil }
-        var groups: [String] = []
-        for i in 1..<match.numberOfRanges {
-            guard let range = Range(match.range(at: i), in: text) else { continue }
-            groups.append(String(text[range]))
-        }
-        return groups.isEmpty ? nil : groups
-    }
 }
