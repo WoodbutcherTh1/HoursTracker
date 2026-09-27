@@ -50,8 +50,6 @@ targets:
         embed: true
       - package: Supabase
         product: Supabase
-    entitlements:
-      path: HoursTracker/HoursTracker.entitlements
     scheme:
       testTargets:
         - HoursTrackerTests
@@ -180,5 +178,3 @@ targets:
         CODE_SIGN_ENTITLEMENTS: HoursTrackerWidget/HoursTrackerWidget.entitlements
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: FQUC6DU87N
-    entitlements:
-      path: HoursTrackerWidget/HoursTrackerWidget.entitlements
