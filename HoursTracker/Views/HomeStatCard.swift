@@ -6,6 +6,8 @@ import SwiftUI
 /// empty 0% bar).
 struct HomeStatCard: View {
     let title: String
+    /// Spoken instead of `title` when the card shows a shortened one.
+    var accessibilityTitle: String?
     let value: String
     let systemImage: String
     /// 0…1 against the user's own goal (`HomeStatGoals`), or `nil` for no bar.
@@ -53,7 +55,7 @@ struct HomeStatCard: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .dsCard(radius: DS.Radius.md)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(title)
+        .accessibilityLabel(accessibilityTitle ?? title)
         .accessibilityValue(targetText.map { "\(value), \($0)" } ?? value)
     }
 

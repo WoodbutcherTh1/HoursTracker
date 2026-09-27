@@ -386,7 +386,8 @@ struct HomeView: View {
     private func statCard(for kind: HomeStatMetric, metrics: HomeLayoutMetrics) -> some View {
         let goal = statGoal(for: kind)
         return HomeStatCard(
-            title: kind.title,
+            title: kind.shortTitle,
+            accessibilityTitle: kind.title,
             value: statValue(for: kind),
             systemImage: Self.statSymbol(for: kind),
             progress: goal?.progress,

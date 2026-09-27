@@ -23,6 +23,17 @@ enum HomeStatMetric: String, CaseIterable, Codable, Identifiable {
         case .monthPay: return L10n.homeStatMonthPay
         }
     }
+
+    /// For the 3-across card, where "This month" truncates from AX2 on SE and Pro.
+    /// VoiceOver still reads `title`. The pay metrics keep their titles.
+    var shortTitle: String {
+        switch self {
+        case .month: return L10n.homeStatMonthShort
+        case .week: return L10n.homeStatWeekShort
+        case .today: return L10n.homeStatTodayShort
+        case .todayPay, .weekPay, .monthPay: return title
+        }
+    }
 }
 
 /// User-customizable Home screen stat cards: which 3 metrics show, and in what

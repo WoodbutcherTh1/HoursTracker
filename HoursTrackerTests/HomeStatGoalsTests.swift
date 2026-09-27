@@ -62,6 +62,25 @@ final class HomeStatGoalsTests: XCTestCase {
         XCTAssertEqual(HomeStatGoals.progress(-1, target: 8.4), 0)
     }
 
+    // MARK: Short card titles
+
+    /// The 3-across card shows the short title; it must exist in every language and
+    /// never be longer than the full one (which VoiceOver keeps reading).
+    func testShortTitlesAreTranslatedAndNeverLonger() {
+        let keys = [("home.stat.month", "home.stat.month.short"),
+                    ("home.stat.week", "home.stat.week.short"),
+                    ("home.stat.today", "home.stat.today.short")]
+        for language in [AppLocale.Language.english, .hebrew, .arabic] {
+            for (full, short) in keys {
+                let fullText = AppLocale.localizedString(full, language: language)
+                let shortText = AppLocale.localizedString(short, language: language)
+                XCTAssertNotEqual(shortText, short, "\(short) missing in \(language)")
+                XCTAssertLessThanOrEqual(shortText.count, fullText.count, "\(short) is longer than \(full) in \(language)")
+            }
+        }
+        XCTAssertEqual(AppLocale.localizedString("home.stat.month.short", language: .english), "Month")
+    }
+
     // MARK: Reorder without dragging
 
     func testShiftMovesOneSlotAndStopsAtTheEdges() {
