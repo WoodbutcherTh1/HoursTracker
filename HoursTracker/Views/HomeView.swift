@@ -275,23 +275,15 @@ struct HomeView: View {
     }
 
     private func statsRow(metrics: HomeLayoutMetrics) -> some View {
-        VStack(spacing: 6) {
-            HStack(spacing: metrics.statsSpacing) {
-                ForEach(homeStatsLayout.order) { kind in
-                    statCard(for: kind, metrics: metrics)
-                        .draggable(kind.rawValue) {
-                            statCard(for: kind, metrics: metrics)
-                                .frame(width: 96)
-                                .opacity(0.9)
-                        }
-                        .dropDestination(for: String.self) { items, _ in
-                            guard let raw = items.first, let dragged = HomeStatMetric(rawValue: raw) else {
-                                return false
-                            }
-                            homeStatsLayout.move(dragged, onto: kind)
-                            didReorderStats = true
-                            return true
-                        }
+        let wide = dynamicTypeSize >= .accessibility4
+        return VStack(spacing: 6) {
+            if wide {
+                VStack(spacing: 8) {
+                    statCards(metrics: metrics, wide: true)
+                }
+            } else {
+                HStack(spacing: metrics.statsSpacing) {
+                    statCards(metrics: metrics, wide: false)
                 }
             }
 
@@ -300,6 +292,26 @@ struct HomeView: View {
                     .font(.caption2)
                     .foregroundStyle(.white.opacity(0.35))
             }
+        }
+    }
+
+    @ViewBuilder
+    private func statCards(metrics: HomeLayoutMetrics, wide: Bool) -> some View {
+        ForEach(homeStatsLayout.order) { kind in
+            statCard(for: kind, metrics: metrics, wide: wide)
+                .draggable(kind.rawValue) {
+                    statCard(for: kind, metrics: metrics, wide: wide)
+                        .frame(width: wide ? 280 : 96)
+                        .opacity(0.9)
+                }
+                .dropDestination(for: String.self) { items, _ in
+                    guard let raw = items.first, let dragged = HomeStatMetric(rawValue: raw) else {
+                        return false
+                    }
+                    homeStatsLayout.move(dragged, onto: kind)
+                    didReorderStats = true
+                    return true
+                }
         }
     }
 
@@ -317,7 +329,7 @@ struct HomeView: View {
     }
 
     @ViewBuilder
-    private func statCard(for kind: HomeStatMetric, metrics: HomeLayoutMetrics) -> some View {
+    private func statCard(for kind: HomeStatMetric, metrics: HomeLayoutMetrics, wide: Bool) -> some View {
         switch kind {
         case .month:
             HomeNeonStatCard(
@@ -327,6 +339,7 @@ struct HomeView: View {
                 sparkSeed: 0.4,
                 level: Self.normalizedLevel(monthShiftCount, max: Self.monthShiftLevelMax),
                 compact: metrics.isCompact,
+                wide: wide,
                 showSparkline: metrics.showStatSparkline,
                 accent: homeTheme.accent
             )
@@ -338,6 +351,7 @@ struct HomeView: View {
                 sparkSeed: 1.3,
                 level: Self.normalizedLevel(weekHours, max: Self.weekHoursLevelMax),
                 compact: metrics.isCompact,
+                wide: wide,
                 showSparkline: metrics.showStatSparkline,
                 accent: homeTheme.accent
             )
@@ -349,6 +363,7 @@ struct HomeView: View {
                 sparkSeed: 2.2,
                 level: Self.normalizedLevel(todayHours, max: Self.todayHoursLevelMax),
                 compact: metrics.isCompact,
+                wide: wide,
                 showSparkline: metrics.showStatSparkline,
                 accent: homeTheme.accent
             )
@@ -360,6 +375,7 @@ struct HomeView: View {
                 sparkSeed: 2.7,
                 level: Self.normalizedLevel(todayHours, max: Self.todayHoursLevelMax),
                 compact: metrics.isCompact,
+                wide: wide,
                 showSparkline: metrics.showStatSparkline,
                 accent: homeTheme.accent
             )
@@ -371,6 +387,7 @@ struct HomeView: View {
                 sparkSeed: 1.7,
                 level: Self.normalizedLevel(weekHours, max: Self.weekHoursLevelMax),
                 compact: metrics.isCompact,
+                wide: wide,
                 showSparkline: metrics.showStatSparkline,
                 accent: homeTheme.accent
             )
@@ -382,6 +399,7 @@ struct HomeView: View {
                 sparkSeed: 0.9,
                 level: Self.normalizedLevel(monthShiftCount, max: Self.monthShiftLevelMax),
                 compact: metrics.isCompact,
+                wide: wide,
                 showSparkline: metrics.showStatSparkline,
                 accent: homeTheme.accent
             )

@@ -565,20 +565,95 @@ struct HomeNeonStatCard: View {
     /// 0 renders as a flat line, higher values sit higher with more motion.
     var level: Double = 0
     var compact: Bool = false
+    /// Full-width row used from AX4 upward. The three-column card stays the default.
+    var wide: Bool = false
     var showSparkline: Bool = true
     /// User-customizable via the Home color picker; defaults to the original green.
     var accent: Color = HomeNeon.accent
 
+    @ScaledMetric(relativeTo: .caption) private var compactIconHeight: CGFloat = 22
+    @ScaledMetric(relativeTo: .caption) private var regularIconHeight: CGFloat = 28
+    @ScaledMetric(relativeTo: .caption) private var compactSparkHeight: CGFloat = 16
+    @ScaledMetric(relativeTo: .caption) private var regularSparkHeight: CGFloat = 22
+    @ScaledMetric(relativeTo: .body) private var compactVerticalPadding: CGFloat = 8
+    @ScaledMetric(relativeTo: .body) private var regularVerticalPadding: CGFloat = 12
+    @ScaledMetric(relativeTo: .body) private var compactHorizontalPadding: CGFloat = 4
+    @ScaledMetric(relativeTo: .body) private var regularHorizontalPadding: CGFloat = 8
+
     var body: some View {
+        if wide {
+            wideLayout
+        } else {
+            compactLayout
+        }
+    }
+
+    @ViewBuilder
+    private var wideLayout: some View {
+        let iconHeight = compact ? compactIconHeight : regularIconHeight
+        let sparkHeight = compact ? compactSparkHeight : regularSparkHeight
+
+        VStack(alignment: .leading, spacing: 8) {
+            ViewThatFits(in: .horizontal) {
+                HStack(spacing: 8) {
+                    animatedIcon
+                        .frame(width: iconHeight * 1.2, height: iconHeight)
+                    Text(title)
+                        .font(.caption2)
+                        .foregroundStyle(.white.opacity(0.55))
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                    Spacer(minLength: 8)
+                    Text(value)
+                        .font(.callout.weight(.bold).monospacedDigit())
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .fixedSize(horizontal: true, vertical: false)
+                }
+                VStack(alignment: .leading, spacing: 4) {
+                    HStack(spacing: 8) {
+                        animatedIcon
+                            .frame(width: iconHeight * 1.2, height: iconHeight)
+                        Text(title)
+                            .font(.caption2)
+                            .foregroundStyle(.white.opacity(0.55))
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    Text(value)
+                        .font(.callout.weight(.bold).monospacedDigit())
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            }
+            if showSparkline {
+                MiniWaveSparkline(seed: sparkSeed, accent: accent, level: level)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: sparkHeight)
+            }
+        }
+        .padding(.vertical, compact ? compactVerticalPadding : regularVerticalPadding)
+        .padding(.horizontal, compact ? compactHorizontalPadding : regularHorizontalPadding)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(cardSurface)
+    }
+
+    @ViewBuilder
+    private var compactLayout: some View {
+        let iconHeight = compact ? compactIconHeight : regularIconHeight
+        let sparkHeight = compact ? compactSparkHeight : regularSparkHeight
+
         VStack(spacing: compact ? 5 : 8) {
             animatedIcon
-                .frame(height: compact ? 22 : 28)
+                .frame(height: iconHeight)
 
             Text(title)
                 .font(.caption2.weight(.medium))
+                .dynamicTypeSize(...DynamicTypeSize.accessibility3)
                 .foregroundStyle(.white.opacity(0.55))
                 .lineLimit(1)
-                .minimumScaleFactor(0.65)
+                .minimumScaleFactor(0.8)
                 .multilineTextAlignment(.center)
 
             Text(value)
@@ -590,22 +665,24 @@ struct HomeNeonStatCard: View {
 
             if showSparkline {
                 MiniWaveSparkline(seed: sparkSeed, accent: accent, level: level)
-                    .frame(height: compact ? 16 : 22)
+                    .frame(height: sparkHeight)
                     .padding(.top, 2)
             }
         }
-        .padding(.vertical, compact ? 8 : 12)
-        .padding(.horizontal, compact ? 4 : 8)
+        .padding(.vertical, compact ? compactVerticalPadding : regularVerticalPadding)
+        .padding(.horizontal, compact ? compactHorizontalPadding : regularHorizontalPadding)
         .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: compact ? 14 : 16, style: .continuous)
-                .fill(HomeNeon.card.opacity(0.92))
-                .overlay(
-                    RoundedRectangle(cornerRadius: compact ? 14 : 16, style: .continuous)
-                        .stroke(accent.opacity(0.22), lineWidth: 1)
-                )
-                .shadow(color: accent.opacity(0.12), radius: 10, y: 2)
-        )
+        .background(cardSurface)
+    }
+
+    private var cardSurface: some View {
+        RoundedRectangle(cornerRadius: compact ? 14 : 16, style: .continuous)
+            .fill(HomeNeon.card.opacity(0.92))
+            .overlay(
+                RoundedRectangle(cornerRadius: compact ? 14 : 16, style: .continuous)
+                    .stroke(accent.opacity(0.22), lineWidth: 1)
+            )
+            .shadow(color: accent.opacity(0.12), radius: 10, y: 2)
     }
 
     @ViewBuilder
