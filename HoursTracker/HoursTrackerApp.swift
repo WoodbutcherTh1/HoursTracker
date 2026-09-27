@@ -78,6 +78,10 @@ struct HoursTrackerApp: App {
                     showLaunchSplash = false
                 }
             }
+            // Widgets, Live Activity and Watch follow the in-app language.
+            .onChange(of: appLanguage.preference) { _, _ in
+                viewModel.refreshLiveSurfaces()
+            }
             .onChange(of: scenePhase) { _, phase in
                 appLock.handleScenePhase(phase)
                 // Wipe on background only — `.inactive` also fires while the share

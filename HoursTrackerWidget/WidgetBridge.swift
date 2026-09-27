@@ -36,6 +36,9 @@ struct WidgetSettings: Codable, Equatable {
     /// Planned break length for the break countdown. Optional so snapshots written
     /// by an older app build still decode.
     var breakTargetMinutes: Int? = nil
+    /// The in-app language ("en" / "he" / "ar") so the widget speaks the same
+    /// language as the app, not just the device. Optional for older snapshots.
+    var languageCode: String? = nil
 
     static let empty = WidgetSettings(
         hourlyRate: 0,

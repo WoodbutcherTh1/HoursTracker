@@ -17,7 +17,8 @@ extension WidgetBridge {
             currencyCode: settings.currencyCode,
             weeklyStandardHours: settings.weeklyStandardHours,
             weeklyOvertimeCapHours: settings.weeklyOvertimeCapHours,
-            breakTargetMinutes: NotificationPreferences.shared.breakTargetMinutes
+            breakTargetMinutes: NotificationPreferences.shared.breakTargetMinutes,
+            languageCode: AppLocale.current.localeIdentifier
         )
     }
 

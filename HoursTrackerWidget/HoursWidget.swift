@@ -151,7 +151,7 @@ private struct HoursRing: View {
                     .font(.system(size: 18, weight: .heavy, design: .rounded))
                     .foregroundStyle(WidgetTheme.textPrimary)
                     .monospacedDigit()
-                Text("h")
+                Text(verbatim: WidgetL10n.hoursUnit)
                     .font(.system(size: 9, weight: .semibold, design: .rounded))
                     .foregroundStyle(WidgetTheme.textSecondary)
             }
@@ -395,12 +395,13 @@ struct HoursSmallWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: HoursTimelineProvider()) { entry in
             HoursSmallWidgetView(entry: entry)
+                .environment(\.layoutDirection, WidgetL10n.layoutDirection)
                 .containerBackground(for: .widget) {
                     WidgetBackground()
                 }
         }
-        .configurationDisplayName("Hours Tracker")
-        .description("Today's hours and earnings at a glance.")
+        .configurationDisplayName(WidgetL10n.displayName)
+        .description(WidgetL10n.smallDescription)
         .supportedFamilies([.systemSmall])
     }
 }
@@ -428,7 +429,7 @@ struct HoursSmallWidgetView: View {
             // Status bar
             HStack(spacing: 5) {
                 PulseDot(color: session.isOnBreak ? WidgetTheme.coral : WidgetTheme.workingDot, size: 5)
-                Text(session.isOnBreak ? "On break" : "Working")
+                Text(verbatim: session.isOnBreak ? WidgetL10n.onBreak : WidgetL10n.working)
                     .font(.system(size: 10, weight: .bold, design: .rounded))
                     .foregroundStyle(session.isOnBreak ? WidgetTheme.coral : WidgetTheme.accentLight)
                 Spacer()
@@ -457,7 +458,7 @@ struct HoursSmallWidgetView: View {
                     } else if let curve = entry.livePay, !curve.isPaused {
                         paidClockTimer(curve)
                     } else {
-                        Text("today")
+                        Text(verbatim: WidgetL10n.today)
                             .font(.system(size: 8, weight: .semibold, design: .rounded))
                             .foregroundStyle(WidgetTheme.textTertiary)
                             .textCase(.uppercase)
@@ -468,12 +469,12 @@ struct HoursSmallWidgetView: View {
             // Clock out (or back from break) — one tap from the home screen.
             if session.isOnBreak {
                 Button(intent: EndBreakIntent()) {
-                    widgetActionLabel(title: "I'm back", systemImage: "arrow.uturn.backward", isClockIn: true)
+                    widgetActionLabel(title: WidgetL10n.imBack, systemImage: "arrow.uturn.backward", isClockIn: true)
                 }
                 .frame(maxWidth: .infinity)
             } else {
                 Button(intent: ClockOutIntent()) {
-                    widgetActionLabel(title: "Clock Out", systemImage: "stop.fill", isClockIn: false)
+                    widgetActionLabel(title: WidgetL10n.clockOut, systemImage: "stop.fill", isClockIn: false)
                 }
                 .frame(maxWidth: .infinity)
             }
@@ -488,7 +489,7 @@ struct HoursSmallWidgetView: View {
             // Status bar
             HStack(spacing: 5) {
                 PulseDot(color: WidgetTheme.doneDot, size: 5)
-                Text("Done")
+                Text(verbatim: WidgetL10n.done)
                     .font(.system(size: 10, weight: .bold, design: .rounded))
                     .foregroundStyle(WidgetTheme.accent)
                 Spacer()
@@ -510,7 +511,7 @@ struct HoursSmallWidgetView: View {
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.55)
-                    Text("gross")
+                    Text(verbatim: WidgetL10n.gross)
                         .font(.system(size: 8, weight: .semibold, design: .rounded))
                         .foregroundStyle(WidgetTheme.textTertiary)
                         .textCase(.uppercase)
@@ -523,7 +524,7 @@ struct HoursSmallWidgetView: View {
                 Image(systemName: "checkmark.seal.fill")
                     .font(.system(size: 10))
                     .foregroundStyle(WidgetTheme.moneyGreen)
-                Text("Shift complete")
+                Text(verbatim: WidgetL10n.shiftComplete)
                     .font(.system(size: 9, weight: .semibold, design: .rounded))
                     .foregroundStyle(WidgetTheme.textSecondary)
                 Spacer()
@@ -543,11 +544,11 @@ struct HoursSmallWidgetView: View {
             Image(systemName: "bolt.circle.fill")
                 .font(.system(size: 26))
                 .foregroundStyle(WidgetTheme.iconGradient)
-            Text("Start your shift")
+            Text(verbatim: WidgetL10n.startYourShift)
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundStyle(WidgetTheme.textPrimary)
             Button(intent: ClockInIntent()) {
-                widgetActionLabel(title: "Clock In", systemImage: "play.fill", isClockIn: true)
+                widgetActionLabel(title: WidgetL10n.clockIn, systemImage: "play.fill", isClockIn: true)
             }
             Spacer()
         }
@@ -560,7 +561,7 @@ struct HoursSmallWidgetView: View {
     }
 
     private func formattedHours(_ hours: Double) -> String {
-        String(format: "%.1fh", hours)
+        WidgetL10n.hoursShort(hours)
     }
 }
 
@@ -572,12 +573,13 @@ struct HoursMediumWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: HoursTimelineProvider()) { entry in
             HoursHomeWidgetView(entry: entry)
+                .environment(\.layoutDirection, WidgetL10n.layoutDirection)
                 .containerBackground(for: .widget) {
                     WidgetBackground()
                 }
         }
-        .configurationDisplayName("Hours Tracker")
-        .description("Detailed hours and pay breakdown. Interactive buttons let you clock in and out from the home screen.")
+        .configurationDisplayName(WidgetL10n.displayName)
+        .description(WidgetL10n.mediumDescription)
         .supportedFamilies([.systemMedium, .systemLarge])
     }
 }
@@ -612,7 +614,7 @@ struct HoursHomeWidgetView: View {
 
                 HStack(spacing: 5) {
                     PulseDot(color: entry.session?.isOnBreak == true ? WidgetTheme.coral : WidgetTheme.workingDot, size: 4)
-                    Text(entry.session?.isOnBreak == true ? "On break" : "Working")
+                    Text(verbatim: entry.session?.isOnBreak == true ? WidgetL10n.onBreak : WidgetL10n.working)
                         .font(.system(size: 9, weight: .bold, design: .rounded))
                         .foregroundStyle(entry.session?.isOnBreak == true ? WidgetTheme.coral : WidgetTheme.accentLight)
                 }
@@ -633,21 +635,21 @@ struct HoursHomeWidgetView: View {
                 StatCard(
                     icon: "banknote.fill",
                     value: payText(entry.estimatedPay),
-                    label: "Earnings",
+                    label: WidgetL10n.earnings,
                     valueColor: WidgetTheme.moneyGreen,
                     iconColor: WidgetTheme.moneyGreen
                 )
                 StatCard(
                     icon: "clock.fill",
                     value: formattedElapsed(entry.elapsedHours),
-                    label: "Elapsed",
+                    label: WidgetL10n.elapsed,
                     valueColor: WidgetTheme.accentLight,
                     iconColor: WidgetTheme.accent
                 )
                 HStack(spacing: 6) {
                     if entry.session?.isOnBreak == true {
                         Button(intent: EndBreakIntent()) {
-                            widgetActionLabel(title: "Back", systemImage: "arrow.uturn.backward", isClockIn: true)
+                            widgetActionLabel(title: WidgetL10n.back, systemImage: "arrow.uturn.backward", isClockIn: true)
                         }
                     } else {
                         Button(intent: StartBreakIntent()) {
@@ -656,7 +658,7 @@ struct HoursHomeWidgetView: View {
                         .buttonStyle(.plain)
                     }
                     Button(intent: ClockOutIntent()) {
-                        widgetActionLabel(title: "Out", systemImage: "stop.fill", isClockIn: false)
+                        widgetActionLabel(title: WidgetL10n.outShort, systemImage: "stop.fill", isClockIn: false)
                     }
                 }
             }
@@ -674,7 +676,7 @@ struct HoursHomeWidgetView: View {
 
                 HStack(spacing: 5) {
                     PulseDot(color: WidgetTheme.doneDot, size: 4)
-                    Text("Done")
+                    Text(verbatim: WidgetL10n.done)
                         .font(.system(size: 9, weight: .bold, design: .rounded))
                         .foregroundStyle(WidgetTheme.accent)
                 }
@@ -688,14 +690,14 @@ struct HoursHomeWidgetView: View {
                 StatCard(
                     icon: "banknote.fill",
                     value: payText(entry.todayCompletedPay),
-                    label: "Earnings",
+                    label: WidgetL10n.earnings,
                     valueColor: WidgetTheme.moneyGreen,
                     iconColor: WidgetTheme.moneyGreen
                 )
                 StatCard(
                     icon: "clock.fill",
                     value: formattedElapsed(entry.todayCompletedHours),
-                    label: "Hours",
+                    label: WidgetL10n.hours,
                     valueColor: WidgetTheme.accentLight,
                     iconColor: WidgetTheme.accent
                 )
@@ -703,7 +705,7 @@ struct HoursHomeWidgetView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 8))
                         .foregroundStyle(WidgetTheme.moneyGreen)
-                    Text("This week \(formattedElapsed(entry.weeklyHours)) · tap for history")
+                    Text(verbatim: WidgetL10n.thisWeekTapForHistory(formattedElapsed(entry.weeklyHours)))
                         .font(.system(size: 9, weight: .medium, design: .rounded))
                         .foregroundStyle(WidgetTheme.textTertiary)
                 }
@@ -721,17 +723,17 @@ struct HoursHomeWidgetView: View {
                     .font(.system(size: 30))
                     .foregroundStyle(WidgetTheme.iconGradient)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Ready to work?")
+                    Text(verbatim: WidgetL10n.readyToWork)
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(WidgetTheme.textPrimary)
-                    Text("One tap starts today's shift")
+                    Text(verbatim: WidgetL10n.oneTapStarts)
                         .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundStyle(WidgetTheme.textTertiary)
                 }
             }
             Spacer()
             Button(intent: ClockInIntent()) {
-                widgetActionLabel(title: "Clock In", systemImage: "play.fill", isClockIn: true)
+                widgetActionLabel(title: WidgetL10n.clockIn, systemImage: "play.fill", isClockIn: true)
             }
         }
         .padding(16)
@@ -743,13 +745,13 @@ struct HoursHomeWidgetView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 PulseDot(color: entry.isOpen ? WidgetTheme.workingDot : WidgetTheme.doneDot, size: 5)
-                Text(entry.isOpen ? "Working — this week" : "This week")
+                Text(verbatim: entry.isOpen ? WidgetL10n.workingThisWeek : WidgetL10n.thisWeek)
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .foregroundStyle(
                         entry.isOpen ? WidgetTheme.accentLight : WidgetTheme.accent
                     )
                 Spacer()
-                Text("\(formattedElapsed(entry.weeklyHours)) / \(formattedElapsed(entry.settings.weeklyStandardHours))")
+                Text(verbatim: "\(formattedElapsed(entry.weeklyHours)) / \(formattedElapsed(entry.settings.weeklyStandardHours))")
                     .font(.system(size: 12, weight: .bold, design: .rounded))
                     .foregroundStyle(WidgetTheme.textPrimary)
                     .monospacedDigit()
@@ -785,23 +787,23 @@ struct HoursHomeWidgetView: View {
 
             // Week + month totals
             HStack(spacing: 10) {
-                largeStat(label: "This week", value: payText(entry.weeklyPay), color: WidgetTheme.moneyGreen, icon: "banknote.fill")
+                largeStat(label: WidgetL10n.thisWeek, value: payText(entry.weeklyPay), color: WidgetTheme.moneyGreen, icon: "banknote.fill")
                 RoundedRectangle(cornerRadius: 0.5)
                     .fill(WidgetTheme.cardBorder)
                     .frame(width: 1)
-                largeStat(label: "This month", value: payText(entry.monthPay), color: WidgetTheme.accentLight, icon: "calendar")
+                largeStat(label: WidgetL10n.thisMonth, value: payText(entry.monthPay), color: WidgetTheme.accentLight, icon: "calendar")
                 Spacer(minLength: 0)
                 if entry.session?.isOnBreak == true {
                     Button(intent: EndBreakIntent()) {
-                        widgetActionLabel(title: "Back", systemImage: "arrow.uturn.backward", isClockIn: true)
+                        widgetActionLabel(title: WidgetL10n.back, systemImage: "arrow.uturn.backward", isClockIn: true)
                     }
                 } else if entry.isOpen {
                     Button(intent: ClockOutIntent()) {
-                        widgetActionLabel(title: "Out", systemImage: "stop.fill", isClockIn: false)
+                        widgetActionLabel(title: WidgetL10n.outShort, systemImage: "stop.fill", isClockIn: false)
                     }
                 } else {
                     Button(intent: ClockInIntent()) {
-                        widgetActionLabel(title: "In", systemImage: "play.fill", isClockIn: true)
+                        widgetActionLabel(title: WidgetL10n.inShort, systemImage: "play.fill", isClockIn: true)
                     }
                 }
             }
@@ -840,7 +842,7 @@ struct HoursHomeWidgetView: View {
     }
 
     private func formattedElapsed(_ hours: Double) -> String {
-        String(format: "%.1fh", hours)
+        WidgetL10n.hoursShort(hours)
     }
 }
 
@@ -864,6 +866,7 @@ struct HoursLiveActivity: Widget {
                 attributes: context.attributes,
                 state: context.state
             )
+            .environment(\.layoutDirection, WidgetL10n.layoutDirection)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.center) {

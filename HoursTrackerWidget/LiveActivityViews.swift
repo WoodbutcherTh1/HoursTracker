@@ -51,7 +51,7 @@ struct HoursLiveActivityView: View {
                         Text(state.elapsedHours, format: .number.precision(.fractionLength(1)))
                             .font(.system(size: 16, weight: .bold, design: .rounded))
                             .foregroundStyle(LATheme.textPrimary)
-                        + Text("h")
+                        + Text(verbatim: WidgetL10n.hoursUnit)
                             .font(.system(size: 11, weight: .semibold, design: .rounded))
                             .foregroundStyle(LATheme.textSecondary)
                     }
@@ -83,7 +83,7 @@ struct HoursLiveActivityView: View {
                                 .frame(maxWidth: 60, alignment: .trailing)
                         }
 
-                        Text("on break")
+                        Text(verbatim: WidgetL10n.onBreakLower)
                             .font(.system(size: 9, weight: .medium, design: .rounded))
                             .foregroundStyle(LATheme.coral)
                     } else {
@@ -96,7 +96,7 @@ struct HoursLiveActivityView: View {
                                 .foregroundStyle(LATheme.textPrimary)
                         }
 
-                        Text("since \(attributes.clockInTime, style: .time)")
+                        Text("\(WidgetL10n.sincePrefix) \(attributes.clockInTime, style: .time)")
                             .font(.system(size: 9, weight: .medium, design: .rounded))
                             .foregroundStyle(LATheme.textTertiary)
                     }
@@ -172,7 +172,7 @@ struct HoursLiveActivityExpanded: View {
                                 endPoint: .bottomTrailing
                             )
                         )
-                    Text(state.isOnBreak ? "On break" : "Clocked In")
+                    Text(verbatim: state.isOnBreak ? WidgetL10n.onBreak : WidgetL10n.clockedIn)
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundStyle(state.isOnBreak ? LATheme.coral : LATheme.textPrimary)
                 }
@@ -184,7 +184,7 @@ struct HoursLiveActivityExpanded: View {
                         .multilineTextAlignment(.trailing)
                         .frame(maxWidth: 70, alignment: .trailing)
                 } else {
-                    Text("since \(attributes.clockInTime, style: .time)")
+                    Text("\(WidgetL10n.sincePrefix) \(attributes.clockInTime, style: .time)")
                         .font(.system(size: 11, weight: .medium, design: .rounded))
                         .foregroundStyle(LATheme.textSecondary)
                 }
@@ -197,7 +197,7 @@ struct HoursLiveActivityExpanded: View {
                         .font(.system(size: 44, weight: .black, design: .rounded).monospacedDigit())
                         .foregroundStyle(LATheme.textPrimary)
 
-                    Text("elapsed")
+                    Text(verbatim: WidgetL10n.elapsedLower)
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
                         .tracking(0.5)
                         .foregroundStyle(LATheme.textTertiary)
@@ -217,7 +217,7 @@ struct HoursLiveActivityExpanded: View {
                             )
                         )
 
-                    Text(state.payIsNet == true ? "estimated net" : "estimated gross")
+                    Text(verbatim: state.payIsNet == true ? WidgetL10n.estimatedNet : WidgetL10n.estimatedGross)
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
                         .tracking(0.5)
                         .foregroundStyle(LATheme.textTertiary)
@@ -234,13 +234,13 @@ struct HoursLiveActivityExpanded: View {
                     Text(WidgetBridge.format(amount: attributes.hourlyRate, currencyCode: attributes.currencyCode))
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
                         .foregroundStyle(LATheme.textSecondary)
-                    Text("/h")
+                    Text(verbatim: WidgetL10n.perHour)
                         .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundStyle(LATheme.textTertiary)
                 }
                 Spacer()
                 if attributes.standardDayHours > 0 {
-                    Text("\(attributes.standardDayHours, format: .number.precision(.fractionLength(1)))h standard")
+                    Text(verbatim: WidgetL10n.standardDay(String(format: "%.1f", attributes.standardDayHours)))
                         .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundStyle(LATheme.textTertiary)
                 }
@@ -292,15 +292,15 @@ struct LiveActivityControls: View {
         HStack(spacing: 8) {
             if isOnBreak {
                 Button(intent: EndBreakIntent()) {
-                    controlLabel("I'm back", systemImage: "arrow.uturn.backward", fill: LATheme.accent, dark: true)
+                    controlLabel(WidgetL10n.imBack, systemImage: "arrow.uturn.backward", fill: LATheme.accent, dark: true)
                 }
             } else {
                 Button(intent: StartBreakIntent()) {
-                    controlLabel("Break", systemImage: "cup.and.saucer.fill", fill: Color.white.opacity(0.16), dark: false)
+                    controlLabel(WidgetL10n.breakButton, systemImage: "cup.and.saucer.fill", fill: Color.white.opacity(0.16), dark: false)
                 }
             }
             Button(intent: ClockOutIntent()) {
-                controlLabel("Clock Out", systemImage: "stop.fill", fill: LATheme.coral, dark: true)
+                controlLabel(WidgetL10n.clockOut, systemImage: "stop.fill", fill: LATheme.coral, dark: true)
             }
         }
         .buttonStyle(.plain)
