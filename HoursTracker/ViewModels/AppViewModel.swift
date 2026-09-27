@@ -44,6 +44,7 @@ final class AppViewModel: ObservableObject {
     private let locationCapture = LocationCaptureHelper()
     private var successToastTask: Task<Void, Never>?
     private var scannerImportTask: Task<Void, Never>?
+    private var liveActivityRefreshTask: Task<Void, Never>?
 
     /// Set to `true` when `load()` observed that `sessions.json` exists on disk
     /// but could not be read (e.g. Data Protection race just after unlock).
@@ -161,6 +162,11 @@ final class AppViewModel: ObservableObject {
         load()
         refreshReminders()
         refreshLocationPermissionStatuses()
+        startLiveActivityRefreshLoop()
+    }
+
+    deinit {
+        liveActivityRefreshTask?.cancel()
     }
 
     // MARK: - Active Session
@@ -872,6 +878,25 @@ final class AppViewModel: ObservableObject {
         if #available(iOS 16.1, *) {
             if let open = sessions.first(where: { $0.isOpen }) {
                 LiveActivityManager.update(session: open, settings: settings)
+            }
+        }
+    }
+
+    /// Live Activity content (elapsed hours/time, estimated pay) is a static
+    /// snapshot pushed once via `syncWidget()` at clock-in — `LiveActivityManager`
+    /// never updates it again on its own (its displayed timer is plain `Text`,
+    /// not a self-updating `.timer`-style one), so without a periodic push the
+    /// Lock Screen banner freezes at ~0 for the rest of the shift. This loop is
+    /// the "app's timer" `LiveActivityManager.update`'s doc comment expects.
+    /// Runs only while a session is open; otherwise it just idles.
+    private func startLiveActivityRefreshLoop() {
+        liveActivityRefreshTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(60))
+                guard let self, !Task.isCancelled else { return }
+                if self.activeSession != nil {
+                    self.syncWidget()
+                }
             }
         }
     }

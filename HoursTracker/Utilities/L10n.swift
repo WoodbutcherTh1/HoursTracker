@@ -275,6 +275,12 @@ enum L10n {
     static var widgetGuideOpenSettings: String { t("widgetGuide.openSettings") }
     static var accountVerifiedBadge: String { t("account.verifiedBadge") }
     static var accountSignInTitle: String { t("account.signInTitle") }
+    static var accountForgotPassword: String { t("account.forgotPassword") }
+    static var accountResetTitle: String { t("account.resetTitle") }
+    static var accountResetHint: String { t("account.resetHint") }
+    static var accountResetSubmitButton: String { t("account.resetSubmitButton") }
+    static var accountBackToSignIn: String { t("account.backToSignIn") }
+    static var accountSyncBlockedEmptyOverwrite: String { t("account.syncBlockedEmptyOverwrite") }
     static var accountErrorNameRequired: String { t("account.error.nameRequired") }
     static var accountErrorInvalidEmail: String { t("account.error.invalidEmail") }
     static var accountErrorPasswordTooShort: String { t("account.error.passwordTooShort") }
