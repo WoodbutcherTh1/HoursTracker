@@ -332,7 +332,7 @@ struct MainTabView: View {
                 set: { if !$0 { hasSeenOnboarding = true } }
             )
         ) {
-            OnboardingView()
+            OnboardingView(viewModel: viewModel)
         }
     }
 

@@ -900,14 +900,61 @@ enum L10n {
     static var sickDayCapReached: String { t("sickDay.capReached") }
 
     // Onboarding
+    // MARK: Onboarding (setup flow)
+    static var onbBack: String { t("onb.back") }
+    static var onbLanguage: String { t("onb.language") }
+    static func onbProgress(_ v1: CustomStringConvertible, _ v2: CustomStringConvertible) -> String {
+        String(format: t("onb.progress %1$@ %2$@"), "\(v1)", "\(v2)")
+    }
+    static var onbSkip: String { t("onb.skip") }
+    static var onbToday: String { t("onb.today") }
+    static var onbExampleCaption: String { t("onb.exampleCaption") }
+    static var onbWelcomeTitle: String { t("onb.welcome.title") }
+    static var onbWelcomeRow1: String { t("onb.welcome.row1") }
+    static var onbWelcomeRow2: String { t("onb.welcome.row2") }
+    static var onbRateTitle: String { t("onb.rate.title") }
+    static var onbRateSubtitle: String { t("onb.rate.subtitle") }
+    static var onbRateA11y: String { t("onb.rate.a11y") }
+    static var onbRateError: String { t("onb.rate.error") }
+    static var onbWeekTitle: String { t("onb.week.title") }
+    static var onbWeekFive: String { t("onb.week.five") }
+    static var onbWeekFiveSub: String { t("onb.week.fiveSub") }
+    static var onbWeekSix: String { t("onb.week.six") }
+    static var onbWeekSixSub: String { t("onb.week.sixSub") }
+    static var onbWeekVaries: String { t("onb.week.varies") }
+    static var onbWeekVariesSub: String { t("onb.week.variesSub") }
+    static var onbWeekCustom: String { t("onb.week.custom") }
+    static var onbWeekCustomSub: String { t("onb.week.customSub") }
+    static var onbDaysTitle: String { t("onb.days.title") }
+    static var onbDaysSubtitle: String { t("onb.days.subtitle") }
+    static var onbHoursTitle: String { t("onb.hours.title") }
+    static func onbHoursValue(_ value: CustomStringConvertible) -> String {
+        String(format: t("onb.hours.value %@"), "\(value)")
+    }
+    static var onbHoursNote: String { t("onb.hours.note") }
+    static func onbHoursEstimate(_ value: CustomStringConvertible) -> String {
+        String(format: t("onb.hours.estimate %@"), "\(value)")
+    }
+    static var onbEstimateCaption: String { t("onb.estimateCaption") }
+    static var onbResultTitle: String { t("onb.result.title") }
+    static var onbResultCaption: String { t("onb.result.caption") }
+    static var onbResultHours: String { t("onb.result.hours") }
+    static var onbResultPerHour: String { t("onb.result.perHour") }
+    static var onbResultPrivacy: String { t("onb.result.privacy") }
+    static var onbClockInNow: String { t("onb.clockInNow") }
+    static var onbCtaStart: String { t("onb.cta.start") }
+    static var onbCtaShowResult: String { t("onb.cta.showResult") }
+    static func payTier100(_ value: CustomStringConvertible) -> String {
+        String(format: t("pay.tier.100 %@"), "\(value)")
+    }
+    static func payTier125(_ value: CustomStringConvertible) -> String {
+        String(format: t("pay.tier.125 %@"), "\(value)")
+    }
+    static func payTier150(_ value: CustomStringConvertible) -> String {
+        String(format: t("pay.tier.150 %@"), "\(value)")
+    }
     static var onboardingNext: String { t("onboarding.next") }
     static var onboardingStart: String { t("onboarding.start") }
-    static var onboardingStep1Title: String { t("onboarding.step1Title") }
-    static var onboardingStep1Body: String { t("onboarding.step1Body") }
-    static var onboardingStep2Title: String { t("onboarding.step2Title") }
-    static var onboardingStep2Body: String { t("onboarding.step2Body") }
-    static var onboardingStep3Title: String { t("onboarding.step3Title") }
-    static var onboardingStep3Body: String { t("onboarding.step3Body") }
 
     // Monthly trend (History)
     static var historyMonthlyTrend: String { t("history.monthlyTrend") }
