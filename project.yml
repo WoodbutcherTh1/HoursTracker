@@ -53,8 +53,9 @@ targets:
         embed: true
       - package: Supabase
         product: Supabase
-    entitlements:
-      path: HoursTracker/HoursTracker.entitlements
+    # No `entitlements:` block: with a path but no properties, `xcodegen generate`
+    # rewrites that file and drops App Groups / iCloud / aps-environment. The files
+    # are hand-maintained and wired through CODE_SIGN_ENTITLEMENTS above.
     scheme:
       testTargets:
         - HoursTrackerTests
@@ -189,5 +190,3 @@ targets:
         CODE_SIGN_ENTITLEMENTS: HoursTrackerWidget/HoursTrackerWidget.entitlements
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: FQUC6DU87N
-    entitlements:
-      path: HoursTrackerWidget/HoursTrackerWidget.entitlements
