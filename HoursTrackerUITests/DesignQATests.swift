@@ -16,39 +16,48 @@ final class DesignQATests: XCTestCase {
         continueAfterFailure = true
     }
 
+    /// Scenario from the workflow: standard, shabbat, night, variesRateZero, newUser.
+    private var scenario: String { env["QA_SCENARIO"] ?? "standard" }
+
     func testSweepRedesignedScreens() {
-        let app = launch(["UITEST_SCREENSHOTS"])
+        let app = launch(["UITEST_SCREENSHOTS", "UITEST_QA_SCENARIO", scenario])
+
+        // Shabbat / night: the seeded shift's Day Summary opens on launch.
+        if scenario == "shabbat" || scenario == "night" {
+            let seeded = app.scrollViews["daySummary.sheet"]
+            XCTAssertTrue(seeded.waitForExistence(timeout: 30), "Seeded \(scenario) Day Summary never appeared")
+            pause(2)
+            capture(app, "day-summary-\(scenario)")
+            seeded.swipeUp()
+            pause(1)
+            capture(app, "day-summary-\(scenario)-scrolled")
+            dismissSheet(seeded, in: app)
+        }
 
         let clockIn = app.buttons["home.clockIn"]
         XCTAssertTrue(clockIn.waitForExistence(timeout: 30), "Home never appeared")
         pause(2)
-        capture(app, "01_home_clocked_out")
+        capture(app, "home-clocked-out")
 
-        let brand = app.buttons["home.brandMark"]
-        if brand.waitForExistence(timeout: 5) {
-            brand.tap()
-            let about = app.descendants(matching: .any)["about.sheet"]
-            XCTAssertTrue(about.waitForExistence(timeout: 10), "About never opened")
-            pause(1)
-            capture(app, "02_about")
-            dismissSheet(about, in: app)
+        if scenario == "standard" {
+            captureAboutAndPrivacy(app)
         }
 
         clockIn.tap()
         let clockOut = app.buttons["home.clockOut"]
         XCTAssertTrue(clockOut.waitForExistence(timeout: 15), "Clock Out never appeared")
         pause(4)
-        capture(app, "03_home_clocked_in")
+        capture(app, "home-clocked-in")
 
         clockOut.tap()
         let summary = app.scrollViews["daySummary.sheet"]
         XCTAssertTrue(summary.waitForExistence(timeout: 15), "Day Summary never appeared")
         pause(2)
-        capture(app, "04_day_summary")
+        capture(app, "day-summary")
         dismissSheet(summary, in: app)
-        capture(app, "05_home_after_shift")
+        capture(app, "home-after-shift")
 
-        for (index, name) in [(1, "06_history"), (4, "07_settings")] {
+        for (index, name) in [(1, "history"), (4, "settings")] {
             let tab = app.tabBars.firstMatch.buttons.element(boundBy: index)
             if tab.waitForExistence(timeout: 5) {
                 tab.tap()
@@ -58,15 +67,66 @@ final class DesignQATests: XCTestCase {
         }
         app.terminate()
 
-        let onboarding = launch(["UITEST_ONBOARDING_AR"])
-        let primary = onboarding.buttons["onboarding.primary"]
-        XCTAssertTrue(primary.waitForExistence(timeout: 30), "Onboarding never appeared")
-        pause(1)
-        capture(onboarding, "08_onboarding_welcome")
-        primary.tap()
-        if onboarding.textFields["onboarding.rateField"].waitForExistence(timeout: 10) {
+        if env["QA_BACKGROUNDS"] == "1" {
+            captureBackgrounds()
+        }
+
+        if scenario == "standard" || scenario == "newUser" {
+            let onboarding = launch(["UITEST_ONBOARDING_AR"])
+            let primary = onboarding.buttons["onboarding.primary"]
+            XCTAssertTrue(primary.waitForExistence(timeout: 30), "Onboarding never appeared")
             pause(1)
-            capture(onboarding, "09_onboarding_rate")
+            capture(onboarding, "onboarding-welcome")
+            primary.tap()
+            if onboarding.textFields["onboarding.rateField"].waitForExistence(timeout: 10) {
+                pause(1)
+                capture(onboarding, "onboarding-rate")
+            }
+            onboarding.terminate()
+        }
+    }
+
+    private func captureAboutAndPrivacy(_ app: XCUIApplication) {
+        let brand = app.buttons["home.brandMark"]
+        guard brand.waitForExistence(timeout: 5) else { return XCTFail("Brand mark missing") }
+        brand.tap()
+        let about = app.descendants(matching: .any)["about.sheet"]
+        XCTAssertTrue(about.waitForExistence(timeout: 10), "About never opened")
+        pause(1)
+        capture(app, "about")
+
+        let privacyRow = app.buttons["about.privacy"]
+        if privacyRow.waitForExistence(timeout: 5) {
+            privacyRow.tap()
+            let policy = app.scrollViews.firstMatch
+            if policy.waitForExistence(timeout: 10) {
+                pause(1)
+                capture(app, "privacy")
+                policy.swipeUp()
+                policy.swipeUp()
+                pause(1)
+                capture(app, "privacy-scrolled")
+                dismissSheet(policy, in: app)
+            } else {
+                XCTFail("Privacy policy never opened")
+            }
+        } else {
+            XCTFail("Privacy row missing in About")
+        }
+        dismissSheet(about, in: app)
+    }
+
+    /// Home on each of the 5 background presets (the app is dark-only, so these
+    /// replace a light-mode pass).
+    private func captureBackgrounds() {
+        let presets = [("midnight", "0A0D0F"), ("charcoal", "121618"), ("graphite", "131313"),
+                       ("slate", "0D141C"), ("onyx", "000000")]
+        for (name, hex) in presets {
+            let app = launch(["UITEST_SCREENSHOTS", "UITEST_BACKGROUND", hex])
+            XCTAssertTrue(app.buttons["home.clockIn"].waitForExistence(timeout: 30), "Home never appeared on \(name)")
+            pause(2)
+            capture(app, "home-background-\(name)")
+            app.terminate()
         }
     }
 

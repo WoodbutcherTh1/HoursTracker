@@ -71,6 +71,9 @@ targets:
         # Build 15+: do NOT add UIBackgroundModes: location (Guideline 2.5.4).
         # Arrival reminders use CLCircularRegion monitoring only.
         CFBundleVersion: "22"
+        # The app is dark-only (every surface is designed on dark tokens), so system
+        # UI — alerts, share sheets, keyboards — matches it too.
+        UIUserInterfaceStyle: Dark
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations:

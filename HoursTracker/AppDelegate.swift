@@ -65,6 +65,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
            let language = AppLanguageOption(rawValue: arguments[index + 1]) {
             UserDefaults.standard.set(language.rawValue, forKey: AppLanguageOption.storageKey)
         }
+        // Design QA: `UITEST_BACKGROUND <hex>` picks one of the background presets.
+        if let index = arguments.firstIndex(of: "UITEST_BACKGROUND"), arguments.indices.contains(index + 1) {
+            UserDefaults.standard.set(arguments[index + 1], forKey: "appBackgroundColorHex")
+        }
         #endif
         UNUserNotificationCenter.current().delegate = self
         ShiftReminderScheduler.registerCategories()

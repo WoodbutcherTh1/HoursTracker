@@ -57,6 +57,8 @@ struct HomeView: View {
     /// Set once the "Tap to personalize" toast has shown (or the picker was opened).
     @AppStorage("home.themeTipSeen") private var themeTipSeen = false
     @State private var showThemeTip = false
+    /// False while another tab is showing — TabView keeps Home alive off screen.
+    @State private var isHomeVisible = true
     @State private var liveNow = Date()
 
     private var timeFormatter: DateFormatter {
@@ -126,6 +128,8 @@ struct HomeView: View {
                 }
             }
             .task(id: themeTipDueDate) { await runThemeTip() }
+            .onAppear { isHomeVisible = true }
+            .onDisappear { isHomeVisible = false }
             .toolbarBackground(appBackground.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
@@ -273,10 +277,15 @@ struct HomeView: View {
 
     private static let themeTipNewUserWindow: TimeInterval = 30 * 24 * 60 * 60
 
-    /// Anything covering Home — the door stops breathing while it can't be seen.
+    /// Anything hiding Home — the door stops breathing while it can't be seen.
+    ///
+    /// Derived, not tracked: every flag here is the `isPresented` source of truth
+    /// of a sheet that Home (or the view model) owns, read synchronously in the
+    /// same render pass. No notifications or async hops, so a fast open/close can't
+    /// leave it stale — the next render always sees the current flags.
     private var isCovered: Bool {
-        viewModel.showDaySummary || viewModel.showAssistant || showScanner || showForgotClockIn
-            || showThemePicker || showUserGuide || showAbout || showFeedback
+        !isHomeVisible || viewModel.showDaySummary || viewModel.showAssistant || showScanner
+            || showForgotClockIn || showThemePicker || showUserGuide || showAbout || showFeedback
     }
 
     /// Waits for the due time (and for the Day Summary or any picker to close), shows

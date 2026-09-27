@@ -215,6 +215,7 @@ enum L10n {
     static var homeTimerPaused: String { t("home.timer.paused") }
     static var homeHelpFeedback: String { t("home.helpFeedback") }
     static var aboutMadeIn: String { t("about.madeIn") }
+    static var aboutRateThanks: String { t("about.rateThanks") }
     static var homeStatsResetOrder: String { t("home.stats.resetOrder") }
     static var homeStatTodayPay: String { t("home.stat.todayPay") }
     static var homeStatWeekPay: String { t("home.stat.weekPay") }

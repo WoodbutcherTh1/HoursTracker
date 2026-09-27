@@ -14,6 +14,8 @@ struct AboutSheet: View {
     @State private var showUserGuide = false
     @State private var showPrivacy = false
     @State private var showHelp = false
+    @State private var toast: String?
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private static let reviewURL = URL(string: "https://apps.apple.com/app/id6790862413?action=write-review")
 
@@ -28,22 +30,19 @@ struct AboutSheet: View {
             VStack(spacing: DS.Space.lg) {
                 header
 
-                if let url = Self.reviewURL {
-                    Button {
-                        UINotificationFeedbackGenerator().notificationOccurred(.success)
-                        openURL(url)
-                    } label: {
+                if Self.reviewURL != nil {
+                    Button(action: rate) {
                         Label(L10n.settingsRateApp, systemImage: "star.fill")
                     }
                     .buttonStyle(DSPrimaryButtonStyle(accent: theme.accent))
                 }
 
                 VStack(spacing: 0) {
-                    row(L10n.guideTitle, icon: "book.fill") { showUserGuide = true }
+                    row(L10n.guideTitle, icon: "book.fill", id: "about.guide") { showUserGuide = true }
                     divider
-                    row(L10n.privacyTitle, icon: "hand.raised.fill") { showPrivacy = true }
+                    row(L10n.privacyTitle, icon: "hand.raised.fill", id: "about.privacy") { showPrivacy = true }
                     divider
-                    row(L10n.homeHelpFeedback, icon: "bubble.left.and.text.bubble.right.fill") { showHelp = true }
+                    row(L10n.homeHelpFeedback, icon: "bubble.left.and.text.bubble.right.fill", id: "about.help") { showHelp = true }
                 }
                 .dsCard(radius: DS.Radius.lg)
 
@@ -67,7 +66,47 @@ struct AboutSheet: View {
         .sheet(isPresented: $showHelp) {
             ContactSupportSheet(viewModel: viewModel)
         }
+        .overlay(alignment: .bottom) { toastView }
         .accessibilityIdentifier("about.sheet")
+    }
+
+    /// Opens the App Store review page. Where it can't open (the simulator has no
+    /// App Store; a device may refuse), a thank-you toast instead — the button
+    /// never looks broken.
+    private func rate() {
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        #if targetEnvironment(simulator)
+        showToast(L10n.aboutRateThanks)
+        #else
+        guard let url = Self.reviewURL else { return }
+        openURL(url) { accepted in
+            if !accepted { showToast(L10n.aboutRateThanks) }
+        }
+        #endif
+    }
+
+    @ViewBuilder
+    private var toastView: some View {
+        if let toast {
+            Text(toast)
+                .dsFont(.sub, weight: .semibold)
+                .foregroundStyle(DS.Palette.textPrimary)
+                .padding(.horizontal, DS.Space.md)
+                .padding(.vertical, DS.Space.sm)
+                .background(Capsule(style: .continuous).fill(DS.Palette.raised))
+                .padding(.bottom, DS.Space.lg)
+                .transition(.opacity.combined(with: .move(edge: .bottom)))
+                .accessibilityIdentifier("about.toast")
+        }
+    }
+
+    private func showToast(_ text: String) {
+        withAnimation(DS.Motion.animation(DS.Motion.state, reduceMotion: reduceMotion)) { toast = text }
+        UIAccessibility.post(notification: .announcement, argument: text)
+        Task { @MainActor in
+            try? await Task.sleep(for: .seconds(2.5))
+            withAnimation(DS.Motion.animation(DS.Motion.state, reduceMotion: reduceMotion)) { toast = nil }
+        }
     }
 
     private var header: some View {
@@ -96,7 +135,7 @@ struct AboutSheet: View {
         Rectangle().fill(DS.Palette.hairline).frame(height: 1).padding(.leading, 52)
     }
 
-    private func row(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
+    private func row(_ title: String, icon: String, id: String, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             HStack(spacing: DS.Space.sm) {
                 Image(systemName: icon)
@@ -118,5 +157,6 @@ struct AboutSheet: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        .accessibilityIdentifier(id)
     }
 }

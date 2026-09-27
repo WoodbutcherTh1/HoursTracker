@@ -20400,6 +20400,28 @@
           }
         }
       }
+    },
+    "about.rateThanks" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "شكرًا لرغبتك في تقييمنا!"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Thanks for wanting to rate us!"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "תודה שרציתם לדרג אותנו!"
+          }
+        }
+      }
     }
   },
   "version" : "1.1"

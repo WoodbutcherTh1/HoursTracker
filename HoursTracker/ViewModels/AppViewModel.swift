@@ -125,6 +125,10 @@ final class AppViewModel: ObservableObject {
 
     /// Brief green confirmation for successful user actions (save, delete, import).
     func showSuccessToast(_ message: String) {
+        #if DEBUG
+        // Screenshot / Design QA runs are "clean": no toasts over the screens.
+        if ProcessInfo.processInfo.arguments.contains("UITEST_SCREENSHOTS") { return }
+        #endif
         successToastTask?.cancel()
         successToast = message
         successToastTask = Task { @MainActor in
@@ -415,6 +419,18 @@ final class AppViewModel: ObservableObject {
         lastCompletedBreakdown = nil
         lastCompletedSessionID = nil
     }
+
+    #if DEBUG
+    /// Screenshot / Design QA only: open the Day Summary for an existing shift
+    /// (e.g. a seeded Shabbat or night shift), exactly as clocking out would.
+    func presentDaySummaryForScreenshots(clockIn: Date) {
+        guard let session = sessions.first(where: { abs($0.clockIn.timeIntervalSince(clockIn)) < 1 }),
+              session.clockOut != nil else { return }
+        lastCompletedSessionID = session.id
+        lastCompletedBreakdown = OvertimeCalculator.breakdown(for: session, in: sessions, settings: settings)
+        showDaySummary = true
+    }
+    #endif
 
     /// Day type to use for a new session on `date`, honoring a holiday already
     /// marked that day (e.g. via manual entry) instead of letting an automatic

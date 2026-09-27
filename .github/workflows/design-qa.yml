@@ -22,39 +22,19 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # The app is dark-only (UIUserInterfaceStyle = Dark), so there is no light
+        # pass; the 5 background presets are swept instead (15Pro-en-xl... row).
         include:
-          - label: SE-ar-XL-ReduceMotion
-            device: iPhone-SE-3rd-generation
-            lang: arabic
-            size: UICTContentSizeCategoryXL
-            reduce_motion: "true"
-            appearance: dark
-          - label: SE-he-XL-ReduceMotion
-            device: iPhone-SE-3rd-generation
-            lang: hebrew
-            size: UICTContentSizeCategoryXL
-            reduce_motion: "true"
-            appearance: dark
-          - label: 15Pro-ar-XL
-            device: iPhone-15-Pro
-            lang: arabic
-            size: UICTContentSizeCategoryXL
-            reduce_motion: "false"
-            appearance: dark
-          - label: 15Pro-he-XL
-            device: iPhone-15-Pro
-            lang: hebrew
-            size: UICTContentSizeCategoryXL
-            reduce_motion: "false"
-            appearance: dark
-          # Baseline: default text size, and the system in LIGHT mode to prove the
-          # app's dark surfaces don't turn light-on-light.
-          - label: 15Pro-en-default-lightSystem
-            device: iPhone-15-Pro
-            lang: english
-            size: ""
-            reduce_motion: "false"
-            appearance: light
+          - { label: SE-ar-xl-dark-rm, device: iPhone-SE-3rd-generation, lang: arabic, size: UICTContentSizeCategoryXL, reduce_motion: "true", scenario: standard, backgrounds: "0" }
+          - { label: SE-he-xl-dark-rm, device: iPhone-SE-3rd-generation, lang: hebrew, size: UICTContentSizeCategoryXL, reduce_motion: "true", scenario: standard, backgrounds: "0" }
+          - { label: 15Pro-ar-xl-dark, device: iPhone-15-Pro, lang: arabic, size: UICTContentSizeCategoryXL, reduce_motion: "false", scenario: standard, backgrounds: "0" }
+          - { label: 15Pro-he-xl-dark, device: iPhone-15-Pro, lang: hebrew, size: UICTContentSizeCategoryXL, reduce_motion: "false", scenario: standard, backgrounds: "0" }
+          - { label: 15Pro-en-default-dark-bg, device: iPhone-15-Pro, lang: english, size: "", reduce_motion: "false", scenario: standard, backgrounds: "1" }
+          # Data scenarios
+          - { label: SE-he-default-dark-shabbat, device: iPhone-SE-3rd-generation, lang: hebrew, size: "", reduce_motion: "false", scenario: shabbat, backgrounds: "0" }
+          - { label: 15Pro-ar-default-dark-night, device: iPhone-15-Pro, lang: arabic, size: "", reduce_motion: "false", scenario: night, backgrounds: "0" }
+          - { label: 15Pro-he-default-dark-varies-rate0, device: iPhone-15-Pro, lang: hebrew, size: "", reduce_motion: "false", scenario: variesRateZero, backgrounds: "0" }
+          - { label: SE-ar-xl-dark-newuser, device: iPhone-SE-3rd-generation, lang: arabic, size: UICTContentSizeCategoryXL, reduce_motion: "false", scenario: newUser, backgrounds: "0" }
     steps:
       # actions/checkout@v4.2.2
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
@@ -79,7 +59,7 @@ jobs:
           UDID=$(xcrun simctl create "QA ${{ matrix.label }}" "$TYPE" "$RUNTIME")
           xcrun simctl boot "$UDID"
           xcrun simctl bootstatus "$UDID" -b
-          xcrun simctl ui "$UDID" appearance "${{ matrix.appearance }}"
+          xcrun simctl ui "$UDID" appearance dark
           if [ "${{ matrix.reduce_motion }}" = "true" ]; then
             xcrun simctl spawn "$UDID" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true
           fi
@@ -92,6 +72,8 @@ jobs:
           TEST_RUNNER_QA_LABEL: ${{ matrix.label }}
           TEST_RUNNER_QA_LANG: ${{ matrix.lang }}
           TEST_RUNNER_QA_CONTENT_SIZE: ${{ matrix.size }}
+          TEST_RUNNER_QA_SCENARIO: ${{ matrix.scenario }}
+          TEST_RUNNER_QA_BACKGROUNDS: ${{ matrix.backgrounds }}
         run: |
           xcodebuild test \
             -project HoursTracker.xcodeproj \
@@ -100,22 +82,31 @@ jobs:
             -only-testing:HoursTrackerUITests/DesignQATests \
             -resultBundlePath qa.xcresult
 
+      # Named [config]-[screen]-[yyyymmdd].png so the set can be reused later for
+      # App Store screenshots and ads.
       - name: Export screenshots
         if: always()
         run: |
-          mkdir -p raw shots
+          mkdir -p raw design-qa/screenshots
           if [ -d qa.xcresult ]; then
             xcrun xcresulttool export attachments --path qa.xcresult --output-path raw || true
           fi
-          python3 - <<'EOF'
-          import json, os, shutil
+          STAMP=$(date -u +%Y%m%d) python3 - <<'EOF'
+          import json, os, re, shutil
+          stamp = os.environ["STAMP"]
+          out = os.path.join("design-qa", "screenshots")
           manifest = os.path.join("raw", "manifest.json")
           if os.path.exists(manifest):
               for test in json.load(open(manifest)):
                   for item in test.get("attachments", []):
-                      name = item.get("suggestedHumanReadableName") or item["exportedFileName"]
-                      shutil.copy(os.path.join("raw", item["exportedFileName"]), os.path.join("shots", name))
-          print("\n".join(sorted(os.listdir("shots"))))
+                      raw_name = item.get("suggestedHumanReadableName") or item["exportedFileName"]
+                      base = os.path.splitext(raw_name)[0]
+                      # Attachment names are "<config>__<screen>"; xcresulttool may append "_<n>_<uuid>".
+                      base = re.sub(r"_\d+_[0-9A-Fa-f-]{36}$", "", base)
+                      config, _, screen = base.partition("__")
+                      name = f"{config}-{screen or 'screen'}-{stamp}.png"
+                      shutil.copy(os.path.join("raw", item["exportedFileName"]), os.path.join(out, name))
+          print("\n".join(sorted(os.listdir(out))))
           EOF
 
       # actions/upload-artifact@v4.6.2
@@ -123,5 +114,5 @@ jobs:
         if: always()
         with:
           name: design-qa-${{ matrix.label }}
-          path: shots
+          path: design-qa/screenshots
           retention-days: 14
