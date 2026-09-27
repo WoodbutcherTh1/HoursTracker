@@ -494,23 +494,36 @@ struct HomeCompactStatsStrip: View {
     var accent: Color = HomeNeon.accent
     var compact: Bool = false
 
+    @ScaledMetric(relativeTo: .caption2) private var compactTitleSize: CGFloat = 9
+    @ScaledMetric(relativeTo: .caption2) private var regularTitleSize: CGFloat = 10
+    @ScaledMetric(relativeTo: .footnote) private var compactValueSize: CGFloat = 13
+    @ScaledMetric(relativeTo: .footnote) private var regularValueSize: CGFloat = 15
+    @ScaledMetric(relativeTo: .body) private var compactVerticalPadding: CGFloat = 7
+    @ScaledMetric(relativeTo: .body) private var regularVerticalPadding: CGFloat = 9
+    @ScaledMetric(relativeTo: .body) private var horizontalPadding: CGFloat = 8
+    @ScaledMetric(relativeTo: .body) private var dividerHeight: CGFloat = 24
+
     var body: some View {
+        let titleSize = compact ? compactTitleSize : regularTitleSize
+        let valueSize = compact ? compactValueSize : regularValueSize
+        let verticalPadding = compact ? compactVerticalPadding : regularVerticalPadding
+
         HStack(spacing: 0) {
             ForEach(Array(items.enumerated()), id: \.element.id) { index, item in
                 if index > 0 {
                     Rectangle()
                         .fill(Color.white.opacity(0.08))
-                        .frame(width: 1, height: 24)
+                        .frame(width: 1, height: dividerHeight)
                 }
 
                 VStack(spacing: 2) {
                     Text(item.title)
-                        .font(.system(size: compact ? 9 : 10, weight: .medium))
+                        .font(.system(size: titleSize, weight: .medium))
                         .foregroundStyle(.white.opacity(0.45))
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                     Text(item.value)
-                        .font(.system(size: compact ? 13 : 15, weight: .semibold, design: .rounded))
+                        .font(.system(size: valueSize, weight: .semibold, design: .rounded))
                         .monospacedDigit()
                         .foregroundStyle(accent.opacity(0.85))
                         .lineLimit(1)
@@ -522,8 +535,8 @@ struct HomeCompactStatsStrip: View {
                 .accessibilityElement(children: .combine)
             }
         }
-        .padding(.vertical, compact ? 7 : 9)
-        .padding(.horizontal, 8)
+        .padding(.vertical, verticalPadding)
+        .padding(.horizontal, horizontalPadding)
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(HomeNeon.card.opacity(0.55))
