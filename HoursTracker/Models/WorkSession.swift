@@ -32,6 +32,19 @@ enum DayType: String, Codable, CaseIterable, Identifiable {
     }
 }
 
+/// One live break taken during a clocked-in shift ("יצאתי להפסקה" → "חזרתי").
+/// `end == nil` while the worker is still on that break.
+struct BreakInterval: Codable, Equatable, Hashable {
+    var start: Date
+    var end: Date?
+
+    var isOpen: Bool { end == nil }
+
+    func seconds(now: Date = Date()) -> TimeInterval {
+        max(0, (end ?? now).timeIntervalSince(start))
+    }
+}
+
 struct WorkSession: Codable, Identifiable, Equatable {
     let id: UUID
     var date: Date
@@ -40,8 +53,12 @@ struct WorkSession: Codable, Identifiable, Equatable {
     var isManualEntry: Bool
     /// True when imported via the timesheet scanner / OCR flow.
     var isAIImported: Bool
-    /// Unpaid break, deducted from paid hours.
+    /// Unpaid break, deducted from paid hours. When the worker used the live break
+    /// button, this is kept equal to the recorded `breaks` total (see `endBreak`).
     var breakMinutes: Int
+    /// Breaks recorded live with the break button. Empty for manual / imported
+    /// entries and for every session saved before the feature existed.
+    var breaks: [BreakInterval]
     var dayType: DayType
     /// Night shifts have a shorter standard day before overtime starts.
     var isNightShift: Bool
@@ -56,6 +73,7 @@ struct WorkSession: Codable, Identifiable, Equatable {
         isManualEntry: Bool = false,
         isAIImported: Bool = false,
         breakMinutes: Int = 0,
+        breaks: [BreakInterval] = [],
         dayType: DayType = .regular,
         isNightShift: Bool = false,
         notes: String? = nil,
@@ -68,6 +86,7 @@ struct WorkSession: Codable, Identifiable, Equatable {
         self.isManualEntry = isManualEntry
         self.isAIImported = isAIImported
         self.breakMinutes = max(0, breakMinutes)
+        self.breaks = breaks
         self.dayType = dayType
         self.isNightShift = isNightShift
         self.notes = notes
@@ -76,7 +95,7 @@ struct WorkSession: Codable, Identifiable, Equatable {
 
     enum CodingKeys: String, CodingKey {
         case id, date, clockIn, clockOut, isManualEntry, isAIImported
-        case breakMinutes, dayType, isNightShift
+        case breakMinutes, breaks, dayType, isNightShift
         case notes, modifiedAt
     }
 
@@ -89,6 +108,7 @@ struct WorkSession: Codable, Identifiable, Equatable {
         isManualEntry = try c.decode(Bool.self, forKey: .isManualEntry)
         isAIImported = try c.decodeIfPresent(Bool.self, forKey: .isAIImported) ?? false
         breakMinutes = max(0, try c.decodeIfPresent(Int.self, forKey: .breakMinutes) ?? 0)
+        breaks = try c.decodeIfPresent([BreakInterval].self, forKey: .breaks) ?? []
         dayType = try c.decodeIfPresent(DayType.self, forKey: .dayType) ?? .regular
         isNightShift = try c.decodeIfPresent(Bool.self, forKey: .isNightShift) ?? false
         notes = try c.decodeIfPresent(String.self, forKey: .notes)
@@ -103,8 +123,62 @@ struct WorkSession: Codable, Identifiable, Equatable {
     /// carry one. Shared by `AppViewModel.clockOut()` and Home's live pay preview so the
     /// running figure doesn't drop the instant the shift is actually closed.
     mutating func applyDefaultBreakIfNeeded(settings: WorkplaceSettings) {
+        // A break the worker actually recorded with the break button wins over the
+        // workplace default — never deduct both.
+        guard breaks.isEmpty else { return }
         guard settings.defaultBreakMinutes > 0, breakMinutes == 0, totalHours >= 6 else { return }
         breakMinutes = settings.defaultBreakMinutes
+    }
+
+    // MARK: - Live breaks
+
+    /// The break currently in progress, if any.
+    var activeBreak: BreakInterval? {
+        guard isOpen else { return nil }
+        return breaks.last(where: \.isOpen)
+    }
+
+    var isOnBreak: Bool { activeBreak != nil }
+
+    /// Total time spent on recorded breaks, counting a break still in progress up to `now`.
+    func recordedBreakSeconds(now: Date = Date()) -> TimeInterval {
+        breaks.reduce(0) { $0 + $1.seconds(now: now) }
+    }
+
+    /// Starts a break. No-op (returns false) when the shift is closed or a break is
+    /// already running, so a double tap from two devices can't open two breaks.
+    @discardableResult
+    mutating func startBreak(at time: Date = Date()) -> Bool {
+        guard isOpen, !isOnBreak, time >= clockIn else { return false }
+        breaks.append(BreakInterval(start: time, end: nil))
+        return true
+    }
+
+    /// Ends the running break and folds the recorded total into `breakMinutes`.
+    @discardableResult
+    mutating func endBreak(at time: Date = Date()) -> Bool {
+        guard let index = breaks.lastIndex(where: \.isOpen) else { return false }
+        breaks[index].end = max(time, breaks[index].start)
+        syncBreakMinutesFromRecordedBreaks()
+        return true
+    }
+
+    /// Closes a break left running when the shift itself is closed at `time`.
+    mutating func closeOpenBreak(at time: Date) {
+        guard let index = breaks.lastIndex(where: \.isOpen) else { return }
+        breaks[index].end = max(time, breaks[index].start)
+        syncBreakMinutesFromRecordedBreaks()
+    }
+
+    private mutating func syncBreakMinutesFromRecordedBreaks() {
+        guard !breaks.isEmpty else { return }
+        breakMinutes = Int((recordedBreakSeconds() / 60).rounded())
+    }
+
+    /// Paid time elapsed so far on an open shift: wall-clock time minus recorded
+    /// breaks (a running break stops the paid clock).
+    func paidElapsedSeconds(now: Date = Date()) -> TimeInterval {
+        max(0, (clockOut ?? now).timeIntervalSince(clockIn) - recordedBreakSeconds(now: clockOut ?? now))
     }
 
     var isOpen: Bool {
