@@ -1185,6 +1185,12 @@ final class AppViewModel: ObservableObject {
         if #available(iOS 16.1, *) {
             if let open = activeSession {
                 LiveActivityManager.update(session: open, settings: settings, curve: curve, showsNet: showsNet)
+            } else if !sessionsLoadUnavailable {
+                // No open shift (clocked out, closed in the editor, deleted, or closed
+                // on another device): no banner may stay on the Lock Screen. Skipped
+                // while the shifts couldn't be read, so a locked store at a
+                // background launch never ends a real shift's banner.
+                LiveActivityManager.endAll()
             }
         }
     }

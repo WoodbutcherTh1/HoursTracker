@@ -29,6 +29,8 @@ enum LiveActivityManager {
         showsNet: Bool = false
     ) {
         guard ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        // One banner at a time: anything left from an earlier shift goes first.
+        endAll()
         let attributes = HoursActivityAttributes.from(session: session, settings: settings)
         let state = makeState(session: session, settings: settings, curve: curve, showsNet: showsNet)
 
@@ -56,6 +58,13 @@ enum LiveActivityManager {
         showsNet: Bool = false
     ) {
         guard let activity = current else { return }
+        // The clock-in time is part of the activity's fixed attributes, so after the
+        // shift's start is edited (e.g. 7:03 → 7:30) the banner would keep the old
+        // time and pay. Replace it with one built from the edited shift.
+        if abs(activity.attributes.clockInTime.timeIntervalSince(session.clockIn)) > 1 {
+            start(session: session, settings: settings, curve: curve, showsNet: showsNet)
+            return
+        }
         let state = makeState(session: session, settings: settings, curve: curve, showsNet: showsNet)
         Task {
             await activity.update(.init(state: state, staleDate: nil))
@@ -72,20 +81,35 @@ enum LiveActivityManager {
         curve: LivePayCurve? = nil,
         showsNet: Bool = false
     ) {
-        guard let activity = current else { return }
+        let activities = Activity<HoursActivityAttributes>.activities
+        self.activity = nil
+        guard !activities.isEmpty else { return }
         var state = makeState(session: session, settings: settings, curve: curve, showsNet: showsNet)
-        // The shift is over: freeze the banner's clock for its last 30 s on screen.
         state.paidClockStart = nil
         state.breakStart = nil
+        // Gone from the Lock Screen right away. It used to linger 30 s with its Clock
+        // Out and Break buttons, which read as "clock-out didn't work". Every
+        // activity is ended, not just the one this process knows about.
         Task {
-            // `ActivityDismissalPolicy.after` takes a Date (the dismissal time),
-            // not a Duration — keep the live banner on screen for 30s.
-            await activity.end(
-                .init(state: state, staleDate: nil),
-                dismissalPolicy: .after(Date().addingTimeInterval(30))
-            )
+            for activity in activities {
+                await activity.end(.init(state: state, staleDate: nil), dismissalPolicy: .immediate)
+            }
         }
+    }
+
+    /// Ends every HoursTracker Live Activity at once — before a new one starts, and
+    /// when the app sees no open shift but a banner is still up (a shift closed from
+    /// the editor, deleted, or closed on another device).
+    @available(iOS 16.1, *)
+    static func endAll() {
+        let activities = Activity<HoursActivityAttributes>.activities
         self.activity = nil
+        guard !activities.isEmpty else { return }
+        Task {
+            for activity in activities {
+                await activity.end(nil, dismissalPolicy: .immediate)
+            }
+        }
     }
 
     // MARK: - Helpers
