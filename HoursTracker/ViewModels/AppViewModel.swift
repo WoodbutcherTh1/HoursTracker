@@ -357,6 +357,12 @@ final class AppViewModel: ObservableObject {
             settings: settings
         )
         showDaySummary = true
+        // Clocked out from the Lock Screen, a widget or the Watch: the Day Summary
+        // can't be seen, so send it as a notification instead.
+        if UIApplication.shared.applicationState != .active, !AnnouncementCenter.isAutomatedRun,
+           let breakdown = lastCompletedBreakdown {
+            ShiftSummaryNotifier.post(session: sessions[index], breakdown: breakdown, showsNet: livePayShowsNet)
+        }
         persist()
         refreshReminders()
         syncWidget()
@@ -418,6 +424,16 @@ final class AppViewModel: ObservableObject {
         showDaySummary = false
         lastCompletedBreakdown = nil
         lastCompletedSessionID = nil
+        ShiftSummaryNotifier.clear()
+    }
+
+    /// Opens the Day Summary for a finished shift — from the "Shift complete"
+    /// notification, possibly after the app was relaunched.
+    func presentDaySummary(sessionID: UUID) {
+        guard let session = sessions.first(where: { $0.id == sessionID }), session.clockOut != nil else { return }
+        lastCompletedSessionID = session.id
+        lastCompletedBreakdown = OvertimeCalculator.breakdown(for: session, in: sessions, settings: settings)
+        showDaySummary = true
     }
 
     #if DEBUG

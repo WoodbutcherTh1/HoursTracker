@@ -150,7 +150,10 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
             case ShiftReminderScheduler.clockOutAction where !viewModel.canClockIn:
                 viewModel.clockOut()
             default:
-                break
+                if let raw = response.notification.request.content.userInfo[ShiftSummaryNotifier.sessionIDKey] as? String,
+                   let id = UUID(uuidString: raw) {
+                    viewModel.presentDaySummary(sessionID: id)
+                }
             }
             completionHandler()
         }

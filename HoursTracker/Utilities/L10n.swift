@@ -560,6 +560,13 @@ enum L10n {
     static var settingsNotificationsBreakOver: String { t("settings.notifications.breakOver") }
     static var settingsNotificationsShiftStart: String { t("settings.notifications.shiftStart") }
     static var settingsNotificationsShiftEnd: String { t("settings.notifications.shiftEnd") }
+    static var settingsNotificationsShiftSummary: String { t("settings.notifications.shiftSummary") }
+    static func notifShiftSummaryHours(_ hours: String) -> String {
+        String(format: t("notif.shiftSummary.hours %@"), hours)
+    }
+    static func notifShiftSummaryPay(_ amount: String, _ kind: String) -> String {
+        String(format: t("notif.shiftSummary.pay %1$@ %2$@"), amount, kind)
+    }
     static var settingsNotificationsUsualSchedule: String { t("settings.notifications.usualSchedule") }
     static var settingsNotificationsScheduleLearning: String { t("settings.notifications.scheduleLearning") }
     static func settingsNotificationsMinutes(_ minutes: Int) -> String {

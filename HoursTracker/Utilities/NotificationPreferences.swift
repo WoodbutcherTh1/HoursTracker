@@ -22,6 +22,7 @@ final class NotificationPreferences: ObservableObject {
         static let shiftStart = "notifications.shiftStart"
         static let shiftEnd = "notifications.shiftEnd"
         static let announcements = "notifications.announcements"
+        static let shiftSummary = "notifications.shiftSummary"
     }
 
     private let defaults: UserDefaults
@@ -61,6 +62,11 @@ final class NotificationPreferences: ObservableObject {
         didSet { defaults.set(announcementsEnabled, forKey: Key.announcements) }
     }
 
+    /// "Shift complete" summary after a clock-out made outside the app.
+    @Published var shiftSummaryEnabled: Bool {
+        didSet { defaults.set(shiftSummaryEnabled, forKey: Key.shiftSummary) }
+    }
+
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
         breakEndingSoonEnabled = defaults.object(forKey: Key.breakEndingSoon) as? Bool ?? true
@@ -70,6 +76,7 @@ final class NotificationPreferences: ObservableObject {
         shiftStartReminderEnabled = defaults.object(forKey: Key.shiftStart) as? Bool ?? true
         shiftEndReminderEnabled = defaults.object(forKey: Key.shiftEnd) as? Bool ?? true
         announcementsEnabled = defaults.object(forKey: Key.announcements) as? Bool ?? true
+        shiftSummaryEnabled = defaults.object(forKey: Key.shiftSummary) as? Bool ?? true
     }
 
     private static func clampLead(_ value: Int) -> Int {

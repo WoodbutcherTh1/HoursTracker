@@ -483,6 +483,8 @@ struct SettingsView: View {
                 usualScheduleSummary
             }
 
+            Toggle(L10n.settingsNotificationsShiftSummary, isOn: $notificationPrefs.shiftSummaryEnabled)
+
             Toggle(L10n.settingsNotificationsAnnouncements, isOn: $notificationPrefs.announcementsEnabled)
                 .onChange(of: notificationPrefs.announcementsEnabled) { _, _ in
                     AnnouncementCenter.shared.refresh(force: true)
