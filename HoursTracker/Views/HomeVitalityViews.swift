@@ -619,7 +619,9 @@ struct HomeWeekSparkline: View {
         let barHeight = isLiveOpen
             ? CGFloat(liveFill) * barMaxHeight
             : CGFloat(heightFraction) * barMaxHeight
-        let showLabel = hours > 0.01 || isToday
+        // Only days with hours get a value. Today with nothing yet stays marked by its
+        // glowing bar and weekday, not by a lone "00:00" floating over an empty column.
+        let showLabel = hours > 0.01
         let labelText: String = {
             if isLiveOpen { return L10n.homeWeekLoading }
             if showLabel { return HistoryPeriodHelper.formatHoursClock(hours) }
