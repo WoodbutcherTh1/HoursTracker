@@ -454,16 +454,8 @@ struct HomeView: View {
                 compact: metrics.isCompact
             )
 
-            HomeBreakControl(
-                session: session,
-                targetMinutes: notificationPrefs.breakTargetMinutes,
-                isPaid: breaksArePaid,
-                accent: homeTheme.accent,
-                compact: metrics.isCompact || metrics.isShort,
-                onToggle: { viewModel.toggleBreak() }
-            )
-
             if !metrics.pinsDoor {
+                breakControl(session: session, metrics: metrics)
                 clockOutDoor(session: session, metrics: metrics)
             }
 
@@ -494,6 +486,17 @@ struct HomeView: View {
         .background(DSHeroGlow(color: homeTheme.accent))
     }
 
+    private func breakControl(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {
+        HomeBreakControl(
+            session: session,
+            targetMinutes: notificationPrefs.breakTargetMinutes,
+            isPaid: breaksArePaid,
+            accent: homeTheme.accent,
+            compact: metrics.isCompact || metrics.isShort,
+            onToggle: { viewModel.toggleBreak() }
+        )
+    }
+
     private func clockOutDoor(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {
         HomeAnimatedDoorButton(
             mode: .clockOut,
@@ -510,11 +513,17 @@ struct HomeView: View {
     }
 
     /// The door pinned above the tab bar, over a fade so scrolled content slides
-    /// under it instead of cutting off at a hard edge.
+    /// under it instead of cutting off at a hard edge. While clocked in the break
+    /// button is pinned with it — left in the scroll view it sat half-hidden
+    /// behind the door.
     private func pinnedDoor(metrics: HomeLayoutMetrics) -> some View {
         Group {
             if let session = viewModel.activeSession {
-                clockOutDoor(session: session, metrics: metrics)
+                VStack(spacing: metrics.stackSpacing) {
+                    breakControl(session: session, metrics: metrics)
+                        .padding(.horizontal, metrics.horizontalPadding)
+                    clockOutDoor(session: session, metrics: metrics)
+                }
             } else {
                 clockInDoor(metrics: metrics)
             }
