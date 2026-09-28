@@ -2,7 +2,8 @@ import XCTest
 
 /// App Store screenshot automation. Launches the real app in the simulator with a
 /// fully fake, realistic dataset (see `ScreenshotDemoData.swift`, DEBUG-only) and
-/// captures the same 5 screens in English, Hebrew and Arabic to
+/// captures the same 5 screens (Home, Day Summary, History, Export, Settings) in
+/// English, Hebrew and Arabic to
 /// `~/Desktop/AppStoreScreenshots/<language>/` on the Mac.
 ///
 /// Screenshot pixel size follows the simulator: use a 6.9" iPhone (e.g. "iPhone 16
@@ -59,7 +60,7 @@ final class ScreenshotTests: XCTestCase {
         _ = summary.waitForNonExistence(timeout: 5)
 
         // Tab order is fixed: Home, History, Payslips, Export, Settings.
-        for (index, name) in [(1, "03_History"), (2, "04_Payslips"), (4, "05_Settings")] {
+        for (index, name) in [(1, "03_History"), (3, "04_Export"), (4, "05_Settings")] {
             tapTab(app, index: index)
             capture(app, language, name)
         }
