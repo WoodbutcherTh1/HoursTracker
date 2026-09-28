@@ -199,6 +199,7 @@ struct HomeView: View {
 
             if viewModel.shouldOfferForgotClockIn {
                 Button {
+                    UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
                     showForgotClockIn = true
                 } label: {
                     Label(L10n.homeForgotClockIn, systemImage: "clock.badge.questionmark")
@@ -219,6 +220,7 @@ struct HomeView: View {
             }
 
             Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 showScanner = true
             } label: {
                 Label(L10n.gridImportButton, systemImage: "doc.viewfinder")
