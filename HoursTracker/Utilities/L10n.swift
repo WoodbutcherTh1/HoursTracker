@@ -216,6 +216,14 @@ enum L10n {
         String(format: t("home.status.break %@"), "\(time)")
     }
     static var homeTimerPaused: String { t("home.timer.paused") }
+    static var homeRateMissing: String { t("home.rate.missing") }
+    static func homeRateCurrent(_ amount: String) -> String {
+        String(format: t("home.rate.current %@"), amount)
+    }
+    static var homeRateChange: String { t("home.rate.change") }
+    static var homeTrendEmpty: String { t("home.trend.empty") }
+    static var homeNightStartedYesterday: String { t("home.night.startedYesterday") }
+    static var homeTipLockScreen: String { t("home.tip.lockScreen") }
     static var homeHelpFeedback: String { t("home.helpFeedback") }
     static var aboutMadeIn: String { t("about.madeIn") }
     static var aboutRateThanks: String { t("about.rateThanks") }
