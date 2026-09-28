@@ -45,7 +45,11 @@ final class ScreenshotTests: XCTestCase {
         allowSystemPrompt()
 
         let clockOut = app.buttons["home.clockOut"]
-        XCTAssertTrue(clockOut.waitForExistence(timeout: 30), "Home (clocked in) never appeared in \(language)")
+        guard clockOut.waitForExistence(timeout: 30) else {
+            // CI keeps no result bundle: log what is on screen instead of Home.
+            print("SCREENSHOT-DEBUG \(language):\n\(app.debugDescription.prefix(8000))")
+            return XCTFail("Home (clocked in) never appeared in \(language)")
+        }
         pause(3)
         capture(app, language, "01_Home")
 
