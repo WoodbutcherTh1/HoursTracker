@@ -185,6 +185,10 @@ struct HomeView: View {
 
             statsRow(metrics: metrics)
 
+            if showsRateCard {
+                HomeRateCard(viewModel: viewModel, accent: homeTheme.accent)
+            }
+
             Spacer(minLength: 4)
 
             // Hero: the door, static, with the single glow behind it (pinned at the
@@ -653,6 +657,11 @@ struct HomeView: View {
         let today = calendar.startOfDay(for: Date())
         return calendar.isDate(session.date, inSameDayAs: today)
             || calendar.isDate(session.clockIn, inSameDayAs: today)
+    }
+
+    /// New users (no finished shift yet) and anyone without a rate see the rate card.
+    private var showsRateCard: Bool {
+        viewModel.settings.hourlyRate <= 0 || completedSessions.isEmpty
     }
 
     private var completedSessions: [WorkSession] {
