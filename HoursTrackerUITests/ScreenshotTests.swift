@@ -41,13 +41,21 @@ final class ScreenshotTests: XCTestCase {
             "-appLanguagePreference", language,
             "-hasSeenOnboarding.v1", "YES"
         ]
+        // CI once showed the previous language's app (English, already clocked
+        // out) instead of a fresh launch: the old process was still shutting down.
+        // Make sure it is gone before launching the next language.
+        if app.state != .notRunning {
+            app.terminate()
+        }
+        _ = app.wait(for: .notRunning, timeout: 15)
         app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30), "App did not launch in \(language)")
         allowSystemPrompt()
 
         let clockOut = app.buttons["home.clockOut"]
         guard clockOut.waitForExistence(timeout: 30) else {
             // CI keeps no result bundle: log what is on screen instead of Home.
-            print("SCREENSHOT-DEBUG \(language):\n\(app.debugDescription.prefix(8000))")
+            print("SCREENSHOT-DEBUG \(language) state=\(app.state.rawValue):\n\(app.debugDescription.prefix(8000))")
             return XCTFail("Home (clocked in) never appeared in \(language)")
         }
         pause(3)
@@ -69,6 +77,7 @@ final class ScreenshotTests: XCTestCase {
             capture(app, language, name)
         }
         app.terminate()
+        _ = app.wait(for: .notRunning, timeout: 15)
     }
 
     /// The notification permission alert (asked on the first clock-in) belongs to
