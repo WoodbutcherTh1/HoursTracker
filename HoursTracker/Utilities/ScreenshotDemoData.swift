@@ -115,6 +115,14 @@ extension AppViewModel {
         if let summaryClockIn {
             presentDaySummaryForScreenshots(clockIn: summaryClockIn)
         }
+
+        // App Store shots (`UITEST_CLOCKED_IN_MINUTES <n>`): a shift already running
+        // for n minutes, so Home shows a realistic live timer and pay.
+        let args = ProcessInfo.processInfo.arguments
+        if let index = args.firstIndex(of: "UITEST_CLOCKED_IN_MINUTES"), args.indices.contains(index + 1),
+           let minutes = Double(args[index + 1]) {
+            clockIn(at: Date().addingTimeInterval(-minutes * 60))
+        }
     }
 }
 #endif

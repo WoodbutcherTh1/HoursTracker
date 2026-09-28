@@ -2,75 +2,106 @@ import XCTest
 
 /// App Store screenshot automation. Launches the real app in the simulator with a
 /// fully fake, realistic dataset (see `ScreenshotDemoData.swift`, DEBUG-only) and
-/// captures one PNG per key screen straight to `~/Desktop/AppStoreScreenshots/`.
+/// captures the same 5 screens in English, Hebrew and Arabic to
+/// `~/Desktop/AppStoreScreenshots/<language>/` on the Mac.
 ///
-/// Run from Xcode (pick a device first — screenshot pixel size follows the
-/// simulator, so run once per App Store size you need, e.g. "iPhone 16 Pro Max"
-/// for the 6.9" requirement) or from Terminal:
+/// Screenshot pixel size follows the simulator: use a 6.9" iPhone (e.g. "iPhone 16
+/// Pro Max") for the App Store. Optional clean status bar first:
+///
+///   xcrun simctl status_bar booted override --time 9:41 --batteryState charged \
+///     --batteryLevel 100 --cellularBars 4 --wifiBars 3
 ///
 ///   xcodebuild test \
 ///     -scheme HoursTracker \
 ///     -only-testing:HoursTrackerUITests/ScreenshotTests \
 ///     -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max'
-///
-/// To capture Arabic/Hebrew sets too, add `-AppleLanguages "(ar)"` (or `he`) to
-/// `app.launchArguments` below and re-run — output files won't collide since the
-/// name includes no language suffix, so move each language's folder aside first.
 final class ScreenshotTests: XCTestCase {
+    /// The in-app language options (`AppLanguageOption` raw values).
+    private let languages = ["english", "hebrew", "arabic"]
+
     override func setUpWithError() throws {
         continueAfterFailure = false
     }
 
     func testCaptureAppStoreScreenshots() throws {
+        for language in languages {
+            captureSet(language: language)
+        }
+    }
+
+    private func captureSet(language: String) {
         let app = XCUIApplication()
-        app.launchArguments += ["UITEST_SCREENSHOTS", "-AppleLanguages", "(en)", "-AppleLocale", "en_US"]
+        // A shift running for 3h25m. The language goes in both as the hook and as an
+        // argument-domain default: the SwiftUI App reads it before AppDelegate runs.
+        app.launchArguments += [
+            "UITEST_SCREENSHOTS",
+            "UITEST_CLOCKED_IN_MINUTES", "205",
+            "UITEST_LANG", language,
+            "-appLanguagePreference", language,
+            "-hasSeenOnboarding.v1", "YES"
+        ]
         app.launch()
+        allowSystemPrompt()
 
-        // Splash screen + seeded-data reload settle within a couple of seconds.
-        Thread.sleep(forTimeInterval: 3)
+        let clockOut = app.buttons["home.clockOut"]
+        XCTAssertTrue(clockOut.waitForExistence(timeout: 30), "Home (clocked in) never appeared in \(language)")
+        pause(3)
+        capture(app, language, "01_Home")
 
-        // If this fails, the app is stuck on something full-screen (most likely the
-        // onboarding cover) instead of the main tab view — check 01_Home.png first.
-        let tabBar = app.tabBars.firstMatch
-        XCTAssertTrue(tabBar.waitForExistence(timeout: 10), "Tab bar never appeared — see 01_Home.png")
+        clockOut.tap()
+        let summary = app.scrollViews["daySummary.sheet"]
+        XCTAssertTrue(summary.waitForExistence(timeout: 15), "Day Summary never appeared in \(language)")
+        pause(2)
+        capture(app, language, "02_DaySummary")
+        let done = app.buttons["daySummary.done"]
+        XCTAssertTrue(done.waitForExistence(timeout: 5), "Day Summary has no Done button")
+        done.tap()
+        _ = summary.waitForNonExistence(timeout: 5)
 
-        capture(app, "01_Home")
+        // Tab order is fixed: Home, History, Payslips, Export, Settings.
+        for (index, name) in [(1, "03_History"), (2, "04_Payslips"), (4, "05_Settings")] {
+            tapTab(app, index: index)
+            capture(app, language, name)
+        }
+        app.terminate()
+    }
 
-        // Index-based rather than by accessibility identifier: tabItem's identifier
-        // doesn't reliably propagate to the underlying UITabBarItem on every OS/SwiftUI
-        // combo, but tab order (Home, History, Payslips, Export, Settings) is fixed in the app.
-        tapTab(app, index: 1)
-        capture(app, "02_History")
-
-        tapTab(app, index: 2)
-        capture(app, "03_Payslips")
-
-        tapTab(app, index: 3)
-        capture(app, "04_Export")
-
-        tapTab(app, index: 4)
-        capture(app, "05_Settings")
+    /// The notification permission alert (asked on the first clock-in) belongs to
+    /// SpringBoard and covers the screen until answered.
+    private func allowSystemPrompt() {
+        let springboard = XCUIApplication(bundleIdentifier: "com.apple.springboard")
+        for label in ["Allow", "Don’t Allow", "Don't Allow"] {
+            let button = springboard.buttons[label]
+            if button.waitForExistence(timeout: 3) {
+                button.tap()
+                return
+            }
+        }
     }
 
     private func tapTab(_ app: XCUIApplication, index: Int) {
         let button = app.tabBars.firstMatch.buttons.element(boundBy: index)
         XCTAssertTrue(button.waitForExistence(timeout: 5), "Tab at index \(index) never appeared")
         button.tap()
-        Thread.sleep(forTimeInterval: 1)
+        pause(1.5)
     }
 
-    private func capture(_ app: XCUIApplication, _ name: String) {
-        let screenshot = app.screenshot()
-        let outDir = URL(fileURLWithPath: NSHomeDirectory())
-            .appendingPathComponent("Desktop/AppStoreScreenshots")
-        try? FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
-        let url = outDir.appendingPathComponent("\(name).png")
-        try? screenshot.pngRepresentation.write(to: url)
+    private func pause(_ seconds: TimeInterval) {
+        Thread.sleep(forTimeInterval: seconds)
+    }
 
-        // Also attach it to the test result, as a fallback if the direct file
-        // write above is ever blocked by sandboxing on some Xcode/OS combo.
+    private func capture(_ app: XCUIApplication, _ language: String, _ name: String) {
+        let screenshot = app.screenshot()
+        // The test runner lives inside the simulator; SIMULATOR_HOST_HOME is the Mac's home.
+        let home = ProcessInfo.processInfo.environment["SIMULATOR_HOST_HOME"] ?? NSHomeDirectory()
+        let outDir = URL(fileURLWithPath: home)
+            .appendingPathComponent("Desktop/AppStoreScreenshots/\(language)")
+        try? FileManager.default.createDirectory(at: outDir, withIntermediateDirectories: true)
+        try? screenshot.pngRepresentation.write(to: outDir.appendingPathComponent("\(name).png"))
+
+        // Also attached to the test result, in case the direct write is ever blocked.
         let attachment = XCTAttachment(screenshot: screenshot)
-        attachment.name = name
+        attachment.name = "\(language)__\(name)"
         attachment.lifetime = .keepAlways
         add(attachment)
     }
