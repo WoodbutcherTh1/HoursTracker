@@ -96,8 +96,8 @@ jobs:
           EOF
           sips -g pixelWidth -g pixelHeight app-store-screenshots/english/01_Home.png || true
 
-      # JPEG previews in the job log (between QA-IMG markers) for review without
-      # artifact download access.
+      # Full-size JPEG copies in the job log (between QA-IMG markers), so the
+      # marketing frames can be composed without artifact download access.
       - name: Log previews
         if: always()
         run: |
@@ -106,7 +106,7 @@ jobs:
             [ -e "$f" ] || continue
             lang=$(basename "$(dirname "$f")")
             name="$lang-$(basename "$f" .png)"
-            sips -Z 700 -s format jpeg -s formatOptions 60 "$f" --out "previews/$name.jpg" >/dev/null
+            sips -s format jpeg -s formatOptions 90 "$f" --out "previews/$name.jpg" >/dev/null
             echo "=== QA-IMG $name ==="
             base64 -i "previews/$name.jpg" | fold -w 4000
             echo "=== QA-END ==="
