@@ -161,7 +161,8 @@ final class ExportManagerTests: XCTestCase {
         for (language, dayHeader) in [
             (ExportLanguage.english, "Day"),
             (ExportLanguage.hebrew, "יום"),
-            (ExportLanguage.arabic, "اليوم")
+            (ExportLanguage.arabic, "اليوم"),
+            (ExportLanguage.russian, "День")
         ] {
             let report = manager.buildReport(
                 sessions: [TestData.session(day: 1)],
@@ -431,6 +432,7 @@ final class ExportManagerTests: XCTestCase {
         XCTAssertEqual(ExportLanguage.arabic.resolvedLocale.language.languageCode?.identifier, "ar")
         XCTAssertEqual(ExportLanguage.hebrew.resolvedLocale.language.languageCode?.identifier, "he")
         XCTAssertEqual(ExportLanguage.english.resolvedLocale.language.languageCode?.identifier, "en")
+        XCTAssertEqual(ExportLanguage.russian.resolvedLocale.language.languageCode?.identifier, "ru")
     }
 
     func testThisMonthPayrollWindowIncludesOnlySessionsInsidePeriod() {
@@ -490,6 +492,7 @@ final class ExportManagerTests: XCTestCase {
         XCTAssertFalse(ExportLayout.isRTL(language: .english))
         XCTAssertTrue(ExportLayout.isRTL(language: .hebrew))
         XCTAssertTrue(ExportLayout.isRTL(language: .arabic))
+        XCTAssertFalse(ExportLayout.isRTL(language: .russian))
     }
 
     func testHebrewDOCXContainsBidiMarkers() throws {

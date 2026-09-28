@@ -18,7 +18,7 @@ final class PrivacyPolicyTests: XCTestCase {
     ]
 
     func testEverySectionIsTranslatedInAllThreeLanguages() {
-        for language in [AppLocale.Language.english, .hebrew, .arabic] {
+        for language in [AppLocale.Language.english, .hebrew, .arabic, .russian] {
             for key in keys {
                 let value = AppLocale.localizedString(key, language: language)
                 XCTAssertFalse(value.isEmpty, "\(key) is empty in \(language)")
@@ -29,6 +29,7 @@ final class PrivacyPolicyTests: XCTestCase {
         let english = AppLocale.localizedString("privacy.body.data", language: .english)
         XCTAssertNotEqual(AppLocale.localizedString("privacy.body.data", language: .hebrew), english)
         XCTAssertNotEqual(AppLocale.localizedString("privacy.body.data", language: .arabic), english)
+        XCTAssertNotEqual(AppLocale.localizedString("privacy.body.data", language: .russian), english)
     }
 
     /// Builds the real view on a small screen and checks the long text lives in a

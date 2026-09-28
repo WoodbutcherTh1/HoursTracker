@@ -70,7 +70,7 @@ final class HomeStatGoalsTests: XCTestCase {
         let keys = [("home.stat.month", "home.stat.month.short"),
                     ("home.stat.week", "home.stat.week.short"),
                     ("home.stat.today", "home.stat.today.short")]
-        for language in [AppLocale.Language.english, .hebrew, .arabic] {
+        for language in [AppLocale.Language.english, .hebrew, .arabic, .russian] {
             for (full, short) in keys {
                 let fullText = AppLocale.localizedString(full, language: language)
                 let shortText = AppLocale.localizedString(short, language: language)
