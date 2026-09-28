@@ -530,15 +530,25 @@ struct HomeView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, HomeLayoutMetrics.pinnedDoorTopPadding)
+        // Solid behind the pinned controls (content scrolling underneath showed
+        // through the break button), with a short fade just above them.
         .background(
-            LinearGradient(
-                colors: [appBackground.background.opacity(0), appBackground.background],
-                startPoint: .top,
-                endPoint: UnitPoint(x: 0.5, y: 0.35)
-            )
+            VStack(spacing: 0) {
+                LinearGradient(
+                    colors: [appBackground.background.opacity(0), appBackground.background],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: Self.pinnedFadeHeight)
+                .allowsHitTesting(false)
+                appBackground.background
+            }
+            .padding(.top, -Self.pinnedFadeHeight)
             .ignoresSafeArea(edges: .bottom)
         )
     }
+
+    private static let pinnedFadeHeight: CGFloat = 24
 
     // MARK: - Clocked-in hero
 
