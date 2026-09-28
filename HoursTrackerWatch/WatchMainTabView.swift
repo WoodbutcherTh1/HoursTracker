@@ -53,7 +53,7 @@ struct WatchMainTabView: View {
     private var layoutDirection: LayoutDirection {
         switch store.language {
         case .hebrew, .arabic: return .rightToLeft
-        case .english: return .leftToRight
+        case .english, .russian: return .leftToRight
         }
     }
 }

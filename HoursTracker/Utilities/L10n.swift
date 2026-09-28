@@ -621,10 +621,12 @@ enum L10n {
     static var exportLanguageEnglish: String { t("export.language.english") }
     static var exportLanguageHebrew: String { t("export.language.hebrew") }
     static var exportLanguageArabic: String { t("export.language.arabic") }
+    static var exportLanguageRussian: String { t("export.language.russian") }
 
     static var languageNameArabic: String { t("language.name.arabic") }
     static var languageNameHebrew: String { t("language.name.hebrew") }
     static var languageNameEnglish: String { t("language.name.english") }
+    static var languageNameRussian: String { t("language.name.russian") }
 
     // Export report
     static var reportTitle: String { t("report.title") }

@@ -2,11 +2,12 @@ import Foundation
 
 /// Language used for the exported report body (independent of the app UI language).
 enum ExportLanguage: CaseIterable, Identifiable, Equatable {
-    /// Resolve to the phone's preferred language (Arabic / Hebrew / English).
+    /// Resolve to the phone's preferred language (Arabic / Hebrew / English / Russian).
     case phone
     case english
     case hebrew
     case arabic
+    case russian
 
     var id: Self { self }
 
@@ -18,6 +19,7 @@ enum ExportLanguage: CaseIterable, Identifiable, Equatable {
             case .arabic: return Locale(identifier: "ar")
             case .hebrew: return Locale(identifier: "he")
             case .english: return Locale(identifier: "en")
+            case .russian: return Locale(identifier: "ru")
             }
         case .english:
             return Locale(identifier: "en")
@@ -25,6 +27,8 @@ enum ExportLanguage: CaseIterable, Identifiable, Equatable {
             return Locale(identifier: "he")
         case .arabic:
             return Locale(identifier: "ar")
+        case .russian:
+            return Locale(identifier: "ru")
         }
     }
 
@@ -35,6 +39,7 @@ enum ExportLanguage: CaseIterable, Identifiable, Equatable {
         case .english: return .english
         case .hebrew: return .hebrew
         case .arabic: return .arabic
+        case .russian: return .russian
         }
     }
 }

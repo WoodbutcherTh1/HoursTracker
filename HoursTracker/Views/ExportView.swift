@@ -240,6 +240,8 @@ struct ExportView: View {
             return L10n.exportLanguageHebrew
         case .arabic:
             return L10n.exportLanguageArabic
+        case .russian:
+            return L10n.exportLanguageRussian
         }
     }
 

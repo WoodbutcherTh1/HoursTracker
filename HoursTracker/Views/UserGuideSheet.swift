@@ -74,7 +74,7 @@ struct UserGuideSheet: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         let text = copy.pair(for: guideLanguage)
-        let alignment: HorizontalAlignment = guideLanguage == .en ? .leading : .trailing
+        let alignment: HorizontalAlignment = guideLanguage.isRTL ? .trailing : .leading
         return ZStack(alignment: .bottom) {
             content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -88,7 +88,7 @@ struct UserGuideSheet: View {
                     .foregroundStyle(.white.opacity(0.72))
             }
             .frame(maxWidth: .infinity, alignment: alignment == .leading ? .leading : .trailing)
-            .multilineTextAlignment(guideLanguage == .en ? .leading : .trailing)
+            .multilineTextAlignment(guideLanguage.isRTL ? .trailing : .leading)
             .padding(16)
             .background(
                 LinearGradient(
@@ -190,17 +190,19 @@ struct UserGuideSheet: View {
 // MARK: - Guide-local language (independent of the app's own language setting)
 
 private enum GuideLanguage: CaseIterable, Equatable {
-    case en, he, ar
+    case en, he, ar, ru
 
     static func matching(_ preference: AppLanguageOption) -> GuideLanguage {
         switch preference {
         case .english: return .en
         case .hebrew: return .he
         case .arabic: return .ar
+        case .russian: return .ru
         case .system:
             switch AppLocale.language(fromPreferredLanguages: Locale.preferredLanguages) {
             case .hebrew: return .he
             case .arabic: return .ar
+            case .russian: return .ru
             default: return .en
             }
         }
@@ -217,8 +219,11 @@ private enum GuideLanguage: CaseIterable, Equatable {
         case .en: return "EN"
         case .he: return "HE"
         case .ar: return "AR"
+        case .ru: return "RU"
         }
     }
+
+    var isRTL: Bool { self == .he || self == .ar }
 
     /// Maps to `AppLocale`'s language type so guide mockups can resolve
     /// L10n-driven text in the guide's own selected language, instead of
@@ -229,6 +234,7 @@ private enum GuideLanguage: CaseIterable, Equatable {
         case .en: return .english
         case .he: return .hebrew
         case .ar: return .arabic
+        case .ru: return .russian
         }
     }
 
@@ -237,6 +243,7 @@ private enum GuideLanguage: CaseIterable, Equatable {
         case .en: return "User Guide"
         case .he: return "מדריך למשתמש"
         case .ar: return "دليل المستخدم"
+        case .ru: return "Руководство"
         }
     }
 
@@ -245,6 +252,7 @@ private enum GuideLanguage: CaseIterable, Equatable {
         case .en: return "Done"
         case .he: return "סיום"
         case .ar: return "تم"
+        case .ru: return "Готово"
         }
     }
 
@@ -253,6 +261,7 @@ private enum GuideLanguage: CaseIterable, Equatable {
         case .en: return "Next"
         case .he: return "הבא"
         case .ar: return "التالي"
+        case .ru: return "Далее"
         }
     }
 }
@@ -263,12 +272,14 @@ private struct GuideCopy {
     let en: (title: String, subtitle: String)
     let he: (title: String, subtitle: String)
     let ar: (title: String, subtitle: String)
+    let ru: (title: String, subtitle: String)
 
     func pair(for language: GuideLanguage) -> (title: String, subtitle: String) {
         switch language {
         case .en: return en
         case .he: return he
         case .ar: return ar
+        case .ru: return ru
         }
     }
 
@@ -287,13 +298,19 @@ private struct GuideCopy {
             "تسجيل الدخول بلمسة واحدة",
             "يُفتح الباب ويتحول إلى اللون المرجاني — تم تسجيل الدخول. "
                 + "بدّل العدّاد الحي بين الإجمالي والصافي أثناء المناوبة."
+        ),
+        ru: (
+            "Начните смену одним касанием",
+            "Дверь открывается и становится коралловой — смена начата. "
+                + "Во время смены переключайте живой счётчик между брутто и нетто."
         )
     )
 
     static let theme = GuideCopy(
         en: ("Make it yours", "Tap a color — a ring confirms it, and it applies app-wide."),
         he: ("התאימו את האפליקציה", "הקישו על צבע - טבעת מאשרת את הבחירה, והיא חלה בכל האפליקציה."),
-        ar: ("اجعله خاصًا بك", "اضغط على لون — تؤكده حلقة، ويُطبَّق على مستوى التطبيق.")
+        ar: ("اجعله خاصًا بك", "اضغط على لون — تؤكده حلقة، ويُطبَّق على مستوى التطبيق."),
+        ru: ("Под себя", "Нажмите на цвет — кольцо подтвердит выбор, и он применится во всём приложении.")
     )
 
     static let history = GuideCopy(
@@ -311,25 +328,33 @@ private struct GuideCopy {
             "حدد يومًا كعطلة",
             "اختر عطلة كنوع اليوم — تُملأ الساعات تلقائيًا حسب مناوبتك المعتادة. "
                 + "بالأسفل، يعدّ السجل أيام عملك ويعرض ‎+1?‎ أثناء مناوبة مفتوحة."
+        ),
+        ru: (
+            "Отметьте день как праздник",
+            "Выберите «Праздник» как тип дня — часы заполнятся по вашей обычной смене. "
+                + "Внизу история считает отработанные дни и показывает +1?, пока смена открыта."
         )
     )
 
     static let payslips = GuideCopy(
         en: ("Every payslip, organized", "Payslips have their own tab. Tap one to open its PDF, review the extracted details, and confirm or delete it. Full reports live in the Export tab."),
         he: ("כל תלוש, מסודר", "לתלושים יש לשונית משלהם. הקישו על תלוש כדי לפתוח את ה-PDF, לבדוק את הפרטים שחולצו, ולאשר או למחוק. דוחות מלאים נמצאים בלשונית ייצוא."),
-        ar: ("كل قسيمة راتب، منظمة", "لكشوف الرواتب تبويب خاص بها. اضغط على قسيمة لفتح ملف PDF ومراجعة التفاصيل المستخرجة وتأكيدها أو حذفها. التقارير الكاملة في تبويب التصدير.")
+        ar: ("كل قسيمة راتب، منظمة", "لكشوف الرواتب تبويب خاص بها. اضغط على قسيمة لفتح ملف PDF ومراجعة التفاصيل المستخرجة وتأكيدها أو حذفها. التقارير الكاملة في تبويب التصدير."),
+        ru: ("Все расчётные листы по порядку", "У расчётных листов своя вкладка. Нажмите на лист, чтобы открыть PDF, проверить извлечённые данные и подтвердить или удалить его. Полные отчёты — во вкладке «Экспорт».")
     )
 
     static let shiftDetail = GuideCopy(
         en: ("Every shift, itemized", "Regular, overtime, and pay — broken down clearly."),
         he: ("כל משמרת, מפורטת", "שעות רגילות, נוספות ותשלום - בפירוט מלא."),
-        ar: ("كل مناوبة، بالتفصيل", "الساعات العادية والإضافية والأجر — موضحة بدقة.")
+        ar: ("كل مناوبة، بالتفصيل", "الساعات العادية والإضافية والأجر — موضحة بدقة."),
+        ru: ("Каждая смена в деталях", "Обычные часы, сверхурочные и оплата — всё наглядно.")
     )
 
     static let settings = GuideCopy(
         en: ("Your data stays yours", "The scanner works fully on-device unless you turn cloud AI on."),
         he: ("המידע שלכם נשאר שלכם", "הסורק פועל במכשיר בלבד, אלא אם מפעילים AI בענן."),
-        ar: ("بياناتك تبقى لك", "يعمل الماسح على الجهاز فقط ما لم تُفعّل الذكاء الاصطناعي السحابي.")
+        ar: ("بياناتك تبقى لك", "يعمل الماسح على الجهاز فقط ما لم تُفعّل الذكاء الاصطناعي السحابي."),
+        ru: ("Ваши данные — только ваши", "Сканер работает только на устройстве, пока вы не включите облачный ИИ.")
     )
 
     static let assistant = GuideCopy(
@@ -344,6 +369,10 @@ private struct GuideCopy {
         ar: (
             "اسأل مساعدك",
             "اضغط على أيقونة البريق في الشريط العلوي بأي تبويب للساعات أو الإضافي أو قسيمة الراتب — الإجابات من بياناتك الحقيقية فقط."
+        ),
+        ru: (
+            "Спросите помощника",
+            "Нажмите значок с искрами на верхней панели любой вкладки — про часы, сверхурочные или расчётный лист. Ответы основаны только на ваших реальных данных."
         )
     )
 }
