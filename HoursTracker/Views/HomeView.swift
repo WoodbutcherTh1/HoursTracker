@@ -1,3 +1,4 @@
+import ActivityKit
 import SwiftUI
 import UIKit
 
@@ -57,6 +58,9 @@ struct HomeView: View {
     /// Set once the "Tap to personalize" toast has shown (or the picker was opened).
     @AppStorage("home.themeTipSeen") private var themeTipSeen = false
     @State private var showThemeTip = false
+    /// Set once the "Your shift is on the Lock Screen too" toast has shown.
+    @AppStorage("home.lockScreenTipSeen") private var lockScreenTipSeen = false
+    @State private var showLockScreenTip = false
     /// False while another tab is showing — TabView keeps Home alive off screen.
     @State private var isHomeVisible = true
     @State private var liveNow = Date()
@@ -136,6 +140,7 @@ struct HomeView: View {
                 }
             }
             .task(id: themeTipDueDate) { await runThemeTip() }
+            .task(id: viewModel.activeSession?.id) { await runLockScreenTip() }
             .onAppear { isHomeVisible = true }
             .onDisappear { isHomeVisible = false }
             .toolbarBackground(appBackground.background, for: .navigationBar)
@@ -571,20 +576,108 @@ struct HomeView: View {
     private func statusRow(session: WorkSession, color: Color) -> some View {
         let text = session.activeBreak.map { L10n.homeStatusBreak(timeFormatter.string(from: $0.start)) }
             ?? L10n.homeStatusWorking(timeFormatter.string(from: session.clockIn))
-        return HStack(spacing: DS.Space.xs) {
-            Circle()
-                .fill(color)
-                .frame(width: 8, height: 8)
-                .accessibilityHidden(true)
-            Text(text)
-                .dsFont(.headline)
-                .foregroundStyle(DS.Palette.textPrimary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
+        return VStack(spacing: DS.Space.xxs) {
+            HStack(spacing: DS.Space.xs) {
+                Circle()
+                    .fill(color)
+                    .frame(width: 8, height: 8)
+                    .accessibilityHidden(true)
+                Text(text)
+                    .dsFont(.headline)
+                    .foregroundStyle(DS.Palette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            if isNightShiftDisplay(session) {
+                nightShiftLabel(session)
+            }
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
         .animation(DS.Motion.state, value: session.isOnBreak)
+        // The toast sits over the status row and the top of the Pay Card.
+        .overlay(alignment: .top) {
+            if showLockScreenTip {
+                lockScreenTipToast
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .zIndex(1)
+    }
+
+    // MARK: - Night shift
+
+    /// Display only — pay uses `WorkSession.isNightShift`, set at clock-out. A shift
+    /// that started in the evening or at night, or has run past midnight, gets the
+    /// moon so it's clear which day it belongs to: it counts on the day it started.
+    private func isNightShiftDisplay(_ session: WorkSession) -> Bool {
+        let hour = calendar.component(.hour, from: session.clockIn)
+        return hour >= 20 || hour < 5 || !calendar.isDate(session.clockIn, inSameDayAs: liveNow)
+    }
+
+    private func nightShiftLabel(_ session: WorkSession) -> some View {
+        let startedYesterday = !calendar.isDate(session.clockIn, inSameDayAs: liveNow)
+        let text = startedYesterday
+            ? L10n.sessionNightShift + " · " + L10n.homeNightStartedYesterday
+            : L10n.sessionNightShift
+        return HStack(spacing: DS.Space.xxs) {
+            Image(systemName: "moon.stars.fill")
+                .htFont(size: 12, relativeTo: .footnote, weight: .semibold)
+                .foregroundStyle(Self.nightColor)
+                .accessibilityHidden(true)
+            Text(text)
+                .dsFont(.meta, weight: .semibold)
+                .foregroundStyle(DS.Palette.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .padding(.horizontal, DS.Space.sm)
+        .padding(.vertical, 3)
+        .background(Capsule(style: .continuous).fill(Self.nightColor.opacity(0.14)))
+        .accessibilityIdentifier("home.nightShift")
+    }
+
+    private static let nightColor = Color(red: 0.62, green: 0.64, blue: 1.0)
+
+    // MARK: - "Your shift is on the Lock Screen too" tip
+
+    /// Once, on the first clock-in with Live Activities on: two seconds after the
+    /// door opens, for five seconds.
+    @MainActor
+    private func runLockScreenTip() async {
+        guard !lockScreenTipSeen, viewModel.activeSession != nil, !AnnouncementCenter.isAutomatedRun,
+              ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        do {
+            try await Task.sleep(for: .seconds(2))
+        } catch {
+            return
+        }
+        guard viewModel.activeSession != nil, !showThemeTip else { return }
+        withAnimation(DS.Motion.state) { showLockScreenTip = true }
+        lockScreenTipSeen = true
+        try? await Task.sleep(for: .seconds(5))
+        withAnimation(DS.Motion.state) { showLockScreenTip = false }
+    }
+
+    private var lockScreenTipToast: some View {
+        HStack(spacing: DS.Space.xs) {
+            Image(systemName: "lock.iphone")
+                .htFont(size: 14, relativeTo: .footnote, weight: .bold)
+                .accessibilityHidden(true)
+            Text(L10n.homeTipLockScreen)
+                .dsFont(.meta, weight: .semibold)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+        }
+        .foregroundStyle(DS.Palette.ink)
+        .padding(.horizontal, DS.Space.sm)
+        .padding(.vertical, DS.Space.xs)
+        .background(Capsule(style: .continuous).fill(homeTheme.accent))
+        .shadow(color: .black.opacity(0.35), radius: 8, y: 3)
+        .onTapGesture {
+            withAnimation(DS.Motion.state) { showLockScreenTip = false }
+        }
+        .accessibilityIdentifier("home.lockScreenTip")
     }
 
     /// The live shift's Pay Card: timer, live pay, note and the shared Gross | Net
