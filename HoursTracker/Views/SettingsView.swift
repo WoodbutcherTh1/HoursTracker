@@ -21,6 +21,11 @@ struct SettingsView: View {
     @EnvironmentObject private var appLanguage: AppLanguageController
 
     @State private var draft: WorkplaceSettings
+    /// What `draft` and the scanner fields were last loaded from or saved as —
+    /// "unsaved" means different from this, not from the live settings, so a
+    /// change arriving from iCloud doesn't light up Save by itself.
+    @State private var saved: SavedSnapshot
+    @ObservedObject private var unsavedChanges = SettingsUnsavedChanges.shared
     @State private var showAccountSheet = false
     @State private var locationStatus: String = ""
     @State private var showDeleteAllConfirm = false
@@ -48,6 +53,35 @@ struct SettingsView: View {
     init(viewModel: AppViewModel) {
         self.viewModel = viewModel
         _draft = State(initialValue: viewModel.settings)
+        _saved = State(initialValue: SavedSnapshot(settings: viewModel.settings))
+    }
+
+    private struct SavedSnapshot: Equatable {
+        var settings: WorkplaceSettings
+        var scannerCloudEnabled = UserDefaultsSmartScannerCloudPreference.shared.isEnabled
+        var geminiKey = KeychainStore.string(for: .geminiAPIKey) ?? ""
+        var secondaryKey = KeychainStore.string(for: .secondaryAPIKey) ?? ""
+    }
+
+    private var hasUnsavedChanges: Bool {
+        draft != saved.settings
+            || smartScannerCloudEnabled != saved.scannerCloudEnabled
+            || geminiAPIKeyDraft != saved.geminiKey
+            || secondaryAPIKeyDraft != saved.secondaryKey
+    }
+
+    /// Reloads every Save-backed field from what is stored now.
+    private func reloadFromStore() {
+        let snapshot = SavedSnapshot(settings: viewModel.settings)
+        saved = snapshot
+        draft = snapshot.settings
+        smartScannerCloudEnabled = snapshot.scannerCloudEnabled
+        geminiAPIKeyDraft = snapshot.geminiKey
+        secondaryAPIKeyDraft = snapshot.secondaryKey
+    }
+
+    private func discardChanges() {
+        withAnimation(.none) { reloadFromStore() }
     }
 
     /// Icon-led section header: an accent-colored SF Symbol + rounded caps,
@@ -105,10 +139,7 @@ struct SettingsView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.settingsSave) {
-                        saveSettings()
-                    }
-                    .accessibilityIdentifier("settings.save")
+                    saveButton
                 }
                 ToolbarItem(placement: .topBarLeading) {
                     AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
@@ -120,13 +151,20 @@ struct SettingsView: View {
             .onAppear {
                 // withAnimation(.none) prevents conditional rows (tax, location) from
                 // reflowing inside the tab-slide animation context.
-                withAnimation(.none) {
-                    draft = viewModel.settings
+                // Unsaved edits survive leaving the tab or the app; only a clean
+                // screen is refreshed from the store.
+                if !hasUnsavedChanges {
+                    withAnimation(.none) { reloadFromStore() }
                 }
                 viewModel.refreshLocationPermissionStatuses()
-                smartScannerCloudEnabled = UserDefaultsSmartScannerCloudPreference.shared.isEnabled
-                geminiAPIKeyDraft = KeychainStore.string(for: .geminiAPIKey) ?? ""
-                secondaryAPIKeyDraft = KeychainStore.string(for: .secondaryAPIKey) ?? ""
+            }
+            .onChange(of: viewModel.settings) { _, _ in
+                if !hasUnsavedChanges {
+                    withAnimation(.none) { reloadFromStore() }
+                }
+            }
+            .onChange(of: hasUnsavedChanges, initial: true) { _, dirty in
+                unsavedChanges.update(hasChanges: dirty, save: saveSettings, discard: discardChanges)
             }
             .confirmationDialog(
                 L10n.privacyDeleteAllConfirm,
@@ -249,13 +287,43 @@ struct SettingsView: View {
 
     private func saveSettings() {
         viewModel.saveSettings(draft)
-        draft = viewModel.settings
         UserDefaultsSmartScannerCloudPreference.shared.isEnabled = smartScannerCloudEnabled
         let trimmedKey = geminiAPIKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         try? KeychainStore.setString(trimmedKey, for: .geminiAPIKey)
         let trimmedSecondary = secondaryAPIKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         try? KeychainStore.setString(trimmedSecondary, for: .secondaryAPIKey)
+        reloadFromStore()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
         viewModel.showSuccessToast(L10n.settingsSaved)
+    }
+
+    /// Quiet while there is nothing to save; filled with the accent (and a dot) as
+    /// soon as something changed.
+    private var saveButton: some View {
+        Button(action: saveSettings) {
+            HStack(spacing: 5) {
+                if hasUnsavedChanges {
+                    Circle()
+                        .fill(DS.Palette.ink)
+                        .frame(width: 6, height: 6)
+                        .accessibilityHidden(true)
+                }
+                Text(L10n.settingsSave)
+                    .font(.subheadline.weight(.semibold))
+            }
+            .foregroundStyle(hasUnsavedChanges ? DS.Palette.ink : Color.secondary)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(
+                Capsule(style: .continuous)
+                    .fill(hasUnsavedChanges ? homeTheme.accent : Color.white.opacity(0.06))
+            )
+            .animation(DS.Motion.state, value: hasUnsavedChanges)
+        }
+        .buttonStyle(.plain)
+        .disabled(!hasUnsavedChanges)
+        .accessibilityValue(hasUnsavedChanges ? L10n.settingsUnsavedTitle : "")
+        .accessibilityIdentifier("settings.save")
     }
 
     private var smartScannerSection: some View {

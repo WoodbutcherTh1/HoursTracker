@@ -144,6 +144,17 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
                 AnnouncementCenter.shared.refresh(force: true)
             }
             let viewModel = AppViewModel.shared
+            if response.notification.request.identifier == SettingsUnsavedReminder.identifier {
+                if action == SettingsUnsavedReminder.discardActionID {
+                    SettingsUnsavedChanges.shared.discard()
+                } else if action == UNNotificationDefaultActionIdentifier,
+                          let url = URL(string: "hourstracker://tab/settings") {
+                    // Back to Settings, changes still there, to save them.
+                    AppShortcutRouting.route(url)
+                }
+                completionHandler()
+                return
+            }
             switch action {
             case ShiftReminderScheduler.clockInAction where viewModel.canClockIn:
                 viewModel.clockIn()

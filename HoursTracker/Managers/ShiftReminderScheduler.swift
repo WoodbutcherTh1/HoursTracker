@@ -155,7 +155,8 @@ enum ShiftReminderScheduler {
         )
         center.setNotificationCategories([
             UNNotificationCategory(identifier: startCategory, actions: [clockIn], intentIdentifiers: []),
-            UNNotificationCategory(identifier: endCategory, actions: [clockOut], intentIdentifiers: [])
+            UNNotificationCategory(identifier: endCategory, actions: [clockOut], intentIdentifiers: []),
+            SettingsUnsavedReminder.category
         ])
     }
 

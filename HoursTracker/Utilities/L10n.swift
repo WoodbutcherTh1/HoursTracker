@@ -504,6 +504,11 @@ enum L10n {
     static var settingsTitle: String { t("settings.title") }
     static var settingsSave: String { t("settings.save") }
     static var settingsSaved: String { t("settings.saved") }
+    static var settingsUnsavedTitle: String { t("settings.unsaved.title") }
+    static var settingsUnsavedMessage: String { t("settings.unsaved.message") }
+    static var settingsUnsavedDiscard: String { t("settings.unsaved.discard") }
+    static var settingsUnsavedStay: String { t("settings.unsaved.stay") }
+    static var settingsUnsavedNotification: String { t("settings.unsaved.notification") }
     static var settingsWorkerInfo: String { t("settings.workerInfo") }
     static var settingsFullName: String { t("settings.fullName") }
     static var settingsIDNumber: String { t("settings.idNumber") }

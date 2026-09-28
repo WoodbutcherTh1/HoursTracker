@@ -88,6 +88,7 @@ struct HoursTrackerApp: App {
                 // Wipe on background only — `.inactive` also fires while the share
                 // sheet is presented and would delete the file mid-share.
                 if phase == .active {
+                    SettingsUnsavedReminder.cancel()
                     viewModel.retryLoadIfNeeded()
                     viewModel.syncNow()
                     viewModel.refreshShiftReminders()
@@ -98,6 +99,9 @@ struct HoursTrackerApp: App {
                     }
                 } else if phase == .background {
                     ExportTempFileStore.wipeAll()
+                    if SettingsUnsavedChanges.shared.hasChanges {
+                        SettingsUnsavedReminder.schedule()
+                    }
                 }
             }
         }
@@ -135,6 +139,9 @@ struct MainTabView: View {
     @EnvironmentObject private var appLanguage: AppLanguageController
     // Deep links (widget taps / quick actions) switch tabs by name.
     @State private var selectedTab: AppTab = .home
+    /// The tab the user tried to open while Settings had unsaved changes.
+    @State private var pendingTab: AppTab?
+    @ObservedObject private var unsavedSettings = SettingsUnsavedChanges.shared
     @AppStorage("hasSeenOnboarding.v1") private var hasSeenOnboarding = false
     // The Home screen's color picker is app-wide: this drives the tab bar's selected
     // color and every standard button/toggle/link tint across History, Export, and
@@ -166,7 +173,7 @@ struct MainTabView: View {
 
     var body: some View {
         let _ = appLanguage.preference // keep tab labels tied to language changes
-        TabView(selection: $selectedTab) {
+        TabView(selection: tabSelection) {
             HomeView(viewModel: viewModel)
                 .tabItem {
                     Label(L10n.tabHome, systemImage: "clock.fill")
@@ -216,6 +223,28 @@ struct MainTabView: View {
                 .tag(AppTab.settings)
         }
         .tint(homeTheme.accent)
+        // Leaving Settings with unsaved changes: save, discard, or stay.
+        .alert(
+            L10n.settingsUnsavedTitle,
+            isPresented: Binding(
+                get: { pendingTab != nil },
+                set: { if !$0 { pendingTab = nil } }
+            )
+        ) {
+            Button(L10n.settingsSave) {
+                unsavedSettings.save()
+                leaveSettings()
+            }
+            Button(L10n.settingsUnsavedDiscard, role: .destructive) {
+                unsavedSettings.discard()
+                leaveSettings()
+            }
+            Button(L10n.settingsUnsavedStay, role: .cancel) {
+                pendingTab = nil
+            }
+        } message: {
+            Text(L10n.settingsUnsavedMessage)
+        }
         // The assistant lives in each tab root's navigation bar now
         // (`AssistantToolbarButton` in the leading slot), so there is no floating
         // overlay to cover screen content. Below the toast, so a confirmation
@@ -334,6 +363,27 @@ struct MainTabView: View {
         ) {
             OnboardingView(viewModel: viewModel)
         }
+    }
+
+    /// Tab taps go through here so leaving Settings with unsaved changes asks first.
+    private var tabSelection: Binding<AppTab> {
+        Binding(
+            get: { selectedTab },
+            set: { newTab in
+                if selectedTab == .settings, newTab != .settings, unsavedSettings.hasChanges {
+                    pendingTab = newTab
+                } else {
+                    selectedTab = newTab
+                }
+            }
+        )
+    }
+
+    private func leaveSettings() {
+        if let tab = pendingTab {
+            selectedTab = tab
+        }
+        pendingTab = nil
     }
 
     // MARK: - Deep links
