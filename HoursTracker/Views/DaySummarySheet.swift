@@ -19,6 +19,7 @@ struct DaySummarySheet: View {
     @State private var deductionsExpanded = false
     @State private var showCreditPointsInfo = false
     @State private var rateText = ""
+    @FocusState private var rateFocused: Bool
     @State private var appeared = 0
     @State private var toast: String?
     @State private var toastTask: Task<Void, Never>?
@@ -234,17 +235,18 @@ struct DaySummarySheet: View {
                     Text(verbatim: currencySymbol)
                         .dsFont(.numLarge)
                         .foregroundStyle(DS.Palette.textSecondary)
-                    // Same rule as the onboarding rate field: no forced
-                    // `.leftToRight` around a TextField, or RTL hides the digits.
-                    TextField("0", text: $rateText)
-                        .keyboardType(.decimalPad)
-                        .htFont(size: 28, relativeTo: .title, weight: .semibold, design: .rounded)
-                        .monospacedDigit()
-                        .multilineTextAlignment(.leading)
-                        .foregroundStyle(DS.Palette.textPrimary)
-                        .tint(accent)
-                        .accessibilityLabel(L10n.onbRateA11y)
-                        .accessibilityIdentifier("daySummary.rateField")
+                    // Same as the onboarding rate field: the digits are drawn by
+                    // `AmountField` (a plain TextField drew nothing in Hebrew/Arabic).
+                    AmountField(
+                        text: $rateText,
+                        focus: $rateFocused,
+                        size: 28,
+                        textStyle: .title,
+                        weight: .semibold,
+                        accent: accent,
+                        accessibilityLabel: L10n.onbRateA11y,
+                        identifier: "daySummary.rateField"
+                    )
                 }
                 .padding(.horizontal, DS.Space.md)
                 .frame(minHeight: 56)

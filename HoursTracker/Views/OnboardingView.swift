@@ -274,25 +274,22 @@ struct OnboardingView: View {
             stepTitle(L10n.onbRateTitle, subtitle: L10n.onbRateSubtitle)
 
             // Follows the app's direction: [₪][55][✓] in English, ₪ on the right in
-            // Hebrew/Arabic. Do NOT force `.leftToRight` on this row or the field:
-            // a TextField whose layout direction is flipped against the app's RTL
-            // stores the text but doesn't draw it (only the caret shows). The digits
-            // still read left to right on their own (bidi), so "557" never reorders.
+            // Hebrew/Arabic. The digits are drawn by `AmountField` (BUG #1: a plain
+            // TextField stored them but drew nothing in Hebrew/Arabic).
             HStack(spacing: DS.Space.xs) {
                 Text(verbatim: currencySymbol)
                     .dsFont(.numLarge)
                     .foregroundStyle(DS.Palette.textSecondary)
-                TextField("0", text: $rateText)
-                    .keyboardType(.decimalPad)
-                    .focused($rateFocused)
-                    // Not `.dsFont(.numHero)`: that also forces `.leftToRight`.
-                    .htFont(size: 48, relativeTo: .largeTitle, weight: .bold, design: .rounded)
-                    .monospacedDigit()
-                    .multilineTextAlignment(.leading)
-                    .foregroundStyle(DS.Palette.textPrimary)
-                    .tint(accent)
-                    .accessibilityLabel(L10n.onbRateA11y)
-                    .accessibilityIdentifier("onboarding.rateField")
+                AmountField(
+                    text: $rateText,
+                    focus: $rateFocused,
+                    size: 48,
+                    textStyle: .largeTitle,
+                    weight: .bold,
+                    accent: accent,
+                    accessibilityLabel: L10n.onbRateA11y,
+                    identifier: "onboarding.rateField"
+                )
                 // Always in the row (just faded) so the field never resizes and the
                 // typed digits never shift when the value turns valid.
                 Image(systemName: "checkmark.circle.fill")

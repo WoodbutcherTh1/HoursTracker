@@ -146,6 +146,12 @@ Rest days change the pay premium; never bind `WeekPattern` to them.
 - `PayTier` (`Models/PayTier.swift`, display layer) reads the day type and shows the real rate.
 - Never assume `regularHours` == 100%. Always go through `PayTier` when showing rates, tier colours or tier labels. `DaySummaryTests.testShabbatShiftShowsAllHoursAt150Percent` pins this.
 
+## Number Entry in Hebrew/Arabic
+
+- A SwiftUI `TextField` for amounts stored the typed digits but drew nothing in Hebrew/Arabic (only the caret), with or without a forced `.leftToRight` (BUG #1).
+- Use `AmountField` (`Views/AmountField.swift`) for amount entry: the real `TextField` stays for input, focus and VoiceOver with clear text, and the digits and caret are drawn with `Text` on top.
+- `OnboardingRTLUITests` checks the digits are actually drawn (pixels), not only stored.
+
 ## Build Versioning
 
 - Version and build number come from `project.yml` → `settings.base.MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` — one place for the app, widget and Watch. Every Info.plist reads them as `$(MARKETING_VERSION)` / `$(CURRENT_PROJECT_VERSION)`; App Store Connect rejects an upload whose extensions don't match the app.
