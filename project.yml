@@ -112,6 +112,7 @@ targets:
           - en
           - ar
           - he
+          - ru
   HoursTrackerTests:
     type: bundle.unit-test
     platform: iOS
