@@ -1,0 +1,121 @@
+name: App Store Screenshots
+
+# The 5 App Store screens in English, Hebrew and Arabic on a 6.9" iPhone
+# (HoursTrackerUITests/ScreenshotTests.swift), with a clean 9:41 status bar.
+# Full-size PNGs are uploaded as the "app-store-screenshots" artifact.
+#
+# Runs when a pushed commit message contains "[screenshots]", or by hand.
+on:
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  capture:
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[screenshots]')
+    runs-on: macos-26
+    timeout-minutes: 45
+    steps:
+      # actions/checkout@v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Create 6.9-inch simulator
+        id: sim
+        run: |
+          RUNTIME=$(xcrun simctl list runtimes --json \
+            | jq -r '[.runtimes[] | select(.platform == "iOS" and .isAvailable)] | sort_by(.version) | last.identifier')
+          TYPE=""
+          for candidate in iPhone-17-Pro-Max iPhone-16-Pro-Max; do
+            id="com.apple.CoreSimulator.SimDeviceType.$candidate"
+            if xcrun simctl list devicetypes --json | jq -e --arg t "$id" '.devicetypes[] | select(.identifier == $t)' >/dev/null; then
+              TYPE="$id"; break
+            fi
+          done
+          if [ -z "$TYPE" ]; then
+            echo "::error::No 6.9-inch iPhone simulator on this runner"
+            xcrun simctl list devicetypes
+            exit 1
+          fi
+          UDID=$(xcrun simctl create "App Store 6.9" "$TYPE" "$RUNTIME")
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl ui "$UDID" appearance dark
+          xcrun simctl status_bar "$UDID" override --time 9:41 --dataNetwork wifi --wifiMode active \
+            --wifiBars 3 --cellularMode active --cellularBars 4 --batteryState charged --batteryLevel 100
+          echo "Runtime $RUNTIME, device $TYPE, udid $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Capture screenshots
+        run: |
+          xcodebuild test \
+            -project HoursTracker.xcodeproj \
+            -scheme HoursTracker \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -only-testing:HoursTrackerUITests/ScreenshotTests \
+            -resultBundlePath shots.xcresult
+
+      # Attachments are named "<language>__<NN_Screen>" -> app-store-screenshots/<language>/<NN_Screen>.png
+      - name: Export screenshots
+        if: always()
+        run: |
+          mkdir -p raw app-store-screenshots
+          if [ -d shots.xcresult ]; then
+            xcrun xcresulttool export attachments --path shots.xcresult --output-path raw || true
+          fi
+          python3 - <<'EOF'
+          import json, os, re, shutil
+          out = "app-store-screenshots"
+          manifest = os.path.join("raw", "manifest.json")
+          if os.path.exists(manifest):
+              for test in json.load(open(manifest)):
+                  for item in test.get("attachments", []):
+                      raw_name = item.get("suggestedHumanReadableName") or item["exportedFileName"]
+                      if raw_name.startswith("Complete Issue Description"):
+                          print("---- failure ----")
+                          print(open(os.path.join("raw", item["exportedFileName"]), errors="replace").read()[:4000])
+                          continue
+                      if "__" not in raw_name or not raw_name.endswith(".png"):
+                          continue
+                      base = re.sub(r"_\d+_[0-9A-Fa-f-]{36}$", "", os.path.splitext(raw_name)[0])
+                      language, _, screen = base.partition("__")
+                      os.makedirs(os.path.join(out, language), exist_ok=True)
+                      shutil.copy(os.path.join("raw", item["exportedFileName"]),
+                                  os.path.join(out, language, f"{screen}.png"))
+          for root, _, files in sorted(os.walk(out)):
+              for f in sorted(files):
+                  print(os.path.join(root, f))
+          EOF
+          sips -g pixelWidth -g pixelHeight app-store-screenshots/english/01_Home.png || true
+
+      # JPEG previews in the job log (between QA-IMG markers) for review without
+      # artifact download access.
+      - name: Log previews
+        if: always()
+        run: |
+          mkdir -p previews
+          for f in app-store-screenshots/*/*.png; do
+            [ -e "$f" ] || continue
+            lang=$(basename "$(dirname "$f")")
+            name="$lang-$(basename "$f" .png)"
+            sips -Z 700 -s format jpeg -s formatOptions 60 "$f" --out "previews/$name.jpg" >/dev/null
+            echo "=== QA-IMG $name ==="
+            base64 -i "previews/$name.jpg" | fold -w 4000
+            echo "=== QA-END ==="
+          done
+
+      # actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: app-store-screenshots
+          path: app-store-screenshots
+          retention-days: 30
