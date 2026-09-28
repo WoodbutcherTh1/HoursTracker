@@ -39,6 +39,11 @@ struct HomeLayoutMetrics {
     /// + label) plus a small buffer — must stay in sync with that view's own sizing or
     /// the button overflows this frame and overlaps whatever's below it.
     var doorHeight: CGFloat { tight ? 118 : 148 }
+
+    /// Shorter screens pin the door above the tab bar (see `HomeView.pinnedDoor`).
+    var pinsDoor: Bool { isShort }
+    static let pinnedDoorTopPadding: CGFloat = 6
+    var pinnedDoorHeight: CGFloat { doorHeight + Self.pinnedDoorTopPadding }
 }
 
 /// Soft circular pulse rings (the Account sheet's hero; Home no longer uses them).

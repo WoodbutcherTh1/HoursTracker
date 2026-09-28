@@ -93,9 +93,17 @@ struct HomeView: View {
                             }
                         }
                         .padding(.horizontal, metrics.horizontalPadding)
-                        .frame(minHeight: geo.size.height)
+                        .frame(minHeight: geo.size.height - (metrics.pinsDoor ? metrics.pinnedDoorHeight : 0))
                     }
                     .scrollBounceBehavior(.basedOnSize)
+                    // BUG #3: on shorter screens the door (Clock In / Clock Out) ended up
+                    // under the tab bar. There it is pinned above the tab bar and the rest
+                    // scrolls behind it, so the main action is always one tap away.
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        if metrics.pinsDoor {
+                            pinnedDoor(metrics: metrics)
+                        }
+                    }
                 }
             }
             // Two icons at most. The theme picker lives in the greeting row, the
@@ -179,17 +187,11 @@ struct HomeView: View {
 
             Spacer(minLength: 4)
 
-            // Hero: the door, static, with the single glow behind it.
-            HomeAnimatedDoorButton(
-                mode: .clockIn,
-                title: L10n.homeClockIn,
-                compact: metrics.isCompact || metrics.isShort,
-                accent: homeTheme.accent
-            ) {
-                viewModel.clockIn()
+            // Hero: the door, static, with the single glow behind it (pinned at the
+            // bottom instead on shorter screens).
+            if !metrics.pinsDoor {
+                clockInDoor(metrics: metrics)
             }
-            .frame(height: metrics.doorHeight)
-            .background(DSHeroGlow(color: homeTheme.accent))
 
             if viewModel.shouldOfferForgotClockIn {
                 Button {
@@ -461,18 +463,9 @@ struct HomeView: View {
                 onToggle: { viewModel.toggleBreak() }
             )
 
-            HomeAnimatedDoorButton(
-                mode: .clockOut,
-                title: L10n.homeClockOut,
-                compact: metrics.isCompact || metrics.isShort,
-                accent: homeTheme.accent,
-                breathes: true,
-                breathingPaused: isCovered,
-                stateColor: stateColor
-            ) {
-                viewModel.clockOut()
+            if !metrics.pinsDoor {
+                clockOutDoor(session: session, metrics: metrics)
             }
-            .frame(height: metrics.doorHeight)
 
             Spacer(minLength: 4)
 
@@ -484,6 +477,58 @@ struct HomeView: View {
                 accent: HomeNeon.coral
             )
         }
+    }
+
+    // MARK: - Door
+
+    private func clockInDoor(metrics: HomeLayoutMetrics) -> some View {
+        HomeAnimatedDoorButton(
+            mode: .clockIn,
+            title: L10n.homeClockIn,
+            compact: metrics.isCompact || metrics.isShort,
+            accent: homeTheme.accent
+        ) {
+            viewModel.clockIn()
+        }
+        .frame(height: metrics.doorHeight)
+        .background(DSHeroGlow(color: homeTheme.accent))
+    }
+
+    private func clockOutDoor(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {
+        HomeAnimatedDoorButton(
+            mode: .clockOut,
+            title: L10n.homeClockOut,
+            compact: metrics.isCompact || metrics.isShort,
+            accent: homeTheme.accent,
+            breathes: true,
+            breathingPaused: isCovered,
+            stateColor: Self.stateColor(for: session)
+        ) {
+            viewModel.clockOut()
+        }
+        .frame(height: metrics.doorHeight)
+    }
+
+    /// The door pinned above the tab bar, over a fade so scrolled content slides
+    /// under it instead of cutting off at a hard edge.
+    private func pinnedDoor(metrics: HomeLayoutMetrics) -> some View {
+        Group {
+            if let session = viewModel.activeSession {
+                clockOutDoor(session: session, metrics: metrics)
+            } else {
+                clockInDoor(metrics: metrics)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, HomeLayoutMetrics.pinnedDoorTopPadding)
+        .background(
+            LinearGradient(
+                colors: [appBackground.background.opacity(0), appBackground.background],
+                startPoint: .top,
+                endPoint: UnitPoint(x: 0.5, y: 0.35)
+            )
+            .ignoresSafeArea(edges: .bottom)
+        )
     }
 
     // MARK: - Clocked-in hero
