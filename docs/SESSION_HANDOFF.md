@@ -9,8 +9,7 @@ Read this first in a new session. It replaces the long chat history.
 - Version **1.8**, build **26** in `project.yml` (`CURRENT_PROJECT_VERSION`). Every TestFlight upload needs a higher
   build: build 26 is the next upload; after it goes up, the one after must be **27**.
 - Latest code commit: `1579354`. The Siri commit compiled but the app wouldn't install: iOS allows at most 3
-  `INAlternativeAppNames` and there were 4. `1579354` trims them to 3 (ar/he/ru). CI on it had not finished when this was written. **First job in the new session: check CI on the head, fix any compile error,
-  then bump to build 26.**
+  `INAlternativeAppNames` and there were 4. `1579354` trims them to 3 (ar/he/ru). CI passed on it, and on the build-26 bump (`09ac54a`). Build 26 is ready to Archive once the owner says to upload.
 
 ## How to work with the owner (must keep)
 
