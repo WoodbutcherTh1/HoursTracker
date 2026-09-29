@@ -4,6 +4,12 @@ import SwiftUI
 /// consent screen and from Settings → About.
 struct TermsOfUseView: View {
     @ObservedObject private var appBackground = AppBackgroundTheme.shared
+    /// Fixed language (the consent screen's globe picker); `nil` = the app language.
+    var language: AppLocale.Language?
+
+    private func t(_ key: String) -> String {
+        language.map { AppLocale.localizedString(key, language: $0) } ?? AppLocale.tr(key)
+    }
 
     struct Part: Identifiable {
         let titleKey: String
@@ -28,22 +34,22 @@ struct TermsOfUseView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text(AppLocale.tr("terms.title"))
+                Text(t("terms.title"))
                     .font(.title2.weight(.bold))
 
-                Text(L10n.privacyUpdated)
+                Text(t("privacy.updated"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                Text(AppLocale.tr("terms.intro"))
+                Text(t("terms.intro"))
                     .font(.body)
                     .fixedSize(horizontal: false, vertical: true)
 
                 ForEach(Self.sections) { section in
                     VStack(alignment: .leading, spacing: 6) {
-                        Text(AppLocale.tr(section.titleKey))
+                        Text(t(section.titleKey))
                             .font(.headline)
-                        Text(AppLocale.tr(section.bodyKey))
+                        Text(t(section.bodyKey))
                             .font(.body)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -58,7 +64,7 @@ struct TermsOfUseView: View {
         }
         .accessibilityIdentifier("terms.scroll")
         .background(appBackground.background.ignoresSafeArea())
-        .navigationTitle(AppLocale.tr("terms.title"))
+        .navigationTitle(t("terms.title"))
         .navigationBarTitleDisplayMode(.inline)
     }
 }

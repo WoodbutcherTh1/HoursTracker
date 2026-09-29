@@ -9,6 +9,9 @@ struct LegalConsentView: View {
     @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var appBackground = AppBackgroundTheme.shared
 
+    /// The screen opens in English; the globe menu switches the texts (and the
+    /// Terms / Privacy pages opened from here) to another language.
+    @State private var language: AppLocale.Language = .english
     @State private var agreed = false
     @State private var showDeclined = false
     @State private var showExport = false
@@ -24,12 +27,12 @@ struct LegalConsentView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.top, 12)
 
-                    Text(AppLocale.tr(consent.isReconsent ? "legal.gate.titleUpdated" : "legal.gate.title"))
+                    Text(t(consent.isReconsent ? "legal.gate.titleUpdated" : "legal.gate.title"))
                         .font(.title2.weight(.bold))
                         .frame(maxWidth: .infinity)
                         .multilineTextAlignment(.center)
 
-                    Text(AppLocale.tr("legal.gate.body"))
+                    Text(t("legal.gate.body"))
                         .font(.body)
                         .foregroundStyle(.secondary)
                         .frame(maxWidth: .infinity)
@@ -37,9 +40,9 @@ struct LegalConsentView: View {
                         .fixedSize(horizontal: false, vertical: true)
 
                     VStack(alignment: .leading, spacing: 12) {
-                        point("banknote", AppLocale.tr("legal.gate.point.estimates"))
-                        point("iphone", AppLocale.tr("legal.gate.point.data"))
-                        point("square.and.arrow.up.on.square", AppLocale.tr("legal.gate.point.control"))
+                        point("banknote", t("legal.gate.point.estimates"))
+                        point("iphone", t("legal.gate.point.data"))
+                        point("square.and.arrow.up.on.square", t("legal.gate.point.control"))
                     }
                     .padding(16)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -48,16 +51,16 @@ struct LegalConsentView: View {
 
                     VStack(spacing: 0) {
                         NavigationLink {
-                            TermsOfUseView()
+                            TermsOfUseView(language: language)
                         } label: {
-                            linkRow(AppLocale.tr("terms.title"), icon: "doc.text")
+                            linkRow(t("terms.title"), icon: "doc.text")
                         }
                         .accessibilityIdentifier("legal.readTerms")
                         Divider().padding(.leading, 44)
                         NavigationLink {
-                            PrivacyPolicyView()
+                            PrivacyPolicyView(language: language)
                         } label: {
-                            linkRow(L10n.privacyTitle, icon: "hand.raised.fill")
+                            linkRow(t("privacy.title"), icon: "hand.raised.fill")
                         }
                         .accessibilityIdentifier("legal.readPrivacy")
                     }
@@ -72,7 +75,7 @@ struct LegalConsentView: View {
                             Image(systemName: agreed ? "checkmark.square.fill" : "square")
                                 .font(.title3)
                                 .foregroundStyle(agreed ? HomeNeon.accent : .secondary)
-                            Text(AppLocale.tr("legal.gate.checkbox"))
+                            Text(t("legal.gate.checkbox"))
                                 .font(.subheadline.weight(.semibold))
                                 .foregroundStyle(.primary)
                                 .multilineTextAlignment(.leading)
@@ -93,7 +96,7 @@ struct LegalConsentView: View {
                         consent.accept()
                         UINotificationFeedbackGenerator().notificationOccurred(.success)
                     } label: {
-                        Text(AppLocale.tr("legal.gate.accept"))
+                        Text(t("legal.gate.accept"))
                             .font(.headline)
                             .frame(maxWidth: .infinity)
                             .padding(.vertical, 6)
@@ -104,7 +107,7 @@ struct LegalConsentView: View {
                     .disabled(!agreed)
                     .accessibilityIdentifier("legal.accept")
 
-                    Button(AppLocale.tr("legal.gate.decline")) {
+                    Button(t("legal.gate.decline")) {
                         showDeclined = true
                     }
                     .font(.subheadline)
@@ -117,17 +120,74 @@ struct LegalConsentView: View {
                 .background(appBackground.background.opacity(0.96))
             }
             .background(appBackground.background.ignoresSafeArea())
-            .alert(AppLocale.tr("legal.gate.declineTitle"), isPresented: $showDeclined) {
-                Button(AppLocale.tr("legal.gate.readAgain"), role: .cancel) {}
-                Button(L10n.fullExportTitle) { showExport = true }
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    languageMenu
+                }
+            }
+            .alert(t("legal.gate.declineTitle"), isPresented: $showDeclined) {
+                Button(t("legal.gate.readAgain"), role: .cancel) {}
+                Button(t("fullExport.title")) { showExport = true }
             } message: {
-                Text(AppLocale.tr("legal.gate.declineMessage"))
+                Text(t("legal.gate.declineMessage"))
             }
             .sheet(isPresented: $showExport) {
                 FullDataExportSheet(viewModel: viewModel)
             }
         }
+        .environment(\.layoutDirection, Self.isRTL(language) ? .rightToLeft : .leftToRight)
+        .environment(\.locale, Locale(identifier: language.localeIdentifier))
         .interactiveDismissDisabled()
+    }
+
+    private func t(_ key: String) -> String {
+        AppLocale.localizedString(key, language: language)
+    }
+
+    /// Each language in its own name, so anyone can find theirs.
+    struct LanguageOption {
+        let language: AppLocale.Language
+        let name: String
+    }
+
+    static let languages: [LanguageOption] = [
+        LanguageOption(language: .english, name: "English"),
+        LanguageOption(language: .hebrew, name: "עברית"),
+        LanguageOption(language: .arabic, name: "العربية"),
+        LanguageOption(language: .russian, name: "Русский")
+    ]
+
+    static func isRTL(_ language: AppLocale.Language) -> Bool {
+        language == .hebrew || language == .arabic
+    }
+
+    private var languageMenu: some View {
+        Menu {
+            ForEach(Self.languages, id: \.name) { option in
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        language = option.language
+                    }
+                } label: {
+                    if option.language == language {
+                        Label(option.name, systemImage: "checkmark")
+                    } else {
+                        Text(option.name)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: "globe")
+                Text(Self.languages.first { $0.language == language }?.name ?? "English")
+                    .font(.subheadline.weight(.semibold))
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 6)
+            .background(Capsule().fill(Color(.secondarySystemGroupedBackground)))
+        }
+        .accessibilityLabel(t("settings.appLanguage"))
+        .accessibilityIdentifier("legal.language")
     }
 
     private func point(_ icon: String, _ text: String) -> some View {
