@@ -633,6 +633,9 @@ enum L10n {
     static var settingsVersion: String { t("settings.version") }
     static var settingsSupport: String { t("settings.support") }
     static var settingsRateApp: String { t("settings.rateApp") }
+    static var settingsShareApp: String { t("settings.shareApp") }
+    static var settingsShareAppMessage: String { t("settings.shareApp.message") }
+    static var settingsShareAppHint: String { t("settings.shareApp.hint") }
     static var settingsAppLanguage: String { t("settings.appLanguage") }
     static var settingsLanguageSystem: String { t("settings.language.system") }
     static var settingsAppLanguageHint: String { t("settings.appLanguage.hint") }

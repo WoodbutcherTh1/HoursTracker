@@ -22969,6 +22969,93 @@
         }
       }
     },
+    "settings.shareApp" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "شارك HoursTracker"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Share HoursTracker"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שתפו את HoursTracker"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Поделиться HoursTracker"
+          }
+        }
+      }
+    },
+    "settings.shareApp.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أرسل رابط التطبيق في App Store إلى أصدقائك وزملائك في العمل."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Send the App Store link to friends and coworkers."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שלחו את הקישור ל-App Store לחברים ולעמיתים לעבודה."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Отправьте ссылку на App Store друзьям и коллегам."
+          }
+        }
+      }
+    },
+    "settings.shareApp.message" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أتابع ساعات عملي وراتبي مع HoursTracker. جرّبه:"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I track my work hours and pay with HoursTracker. Try it:"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HoursTracker עוזר לי לעקוב אחרי שעות העבודה והשכר. נסו גם:"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Я считаю рабочие часы и зарплату в HoursTracker. Попробуй:"
+          }
+        }
+      }
+    },
     "settings.standardHours" : {
       "extractionState" : "stale",
       "localizations" : {

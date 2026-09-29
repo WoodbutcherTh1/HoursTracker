@@ -123,6 +123,7 @@ struct SettingsView: View {
                 toolsSection
                 languageSection
                 aboutSection
+                shareAppSection
             }
             // Forces the List to fully rebuild whenever the app-wide accent color
             // changes, instead of leaving already-rendered rows (Export/Import/
@@ -1262,6 +1263,24 @@ struct SettingsView: View {
             }
         } header: {
             sectionHeader(L10n.settingsAbout, icon: "info.circle.fill")
+        }
+    }
+
+    /// Last row of Settings: share the App Store link with friends.
+    private var shareAppSection: some View {
+        Section {
+            if let appURL = URL(string: "https://apps.apple.com/app/id6790862413") {
+                ShareLink(
+                    item: appURL,
+                    subject: Text(L10n.brandName),
+                    message: Text(L10n.settingsShareAppMessage)
+                ) {
+                    Label(L10n.settingsShareApp, systemImage: "square.and.arrow.up")
+                }
+                .accessibilityIdentifier("settings.shareApp")
+            }
+        } footer: {
+            Text(L10n.settingsShareAppHint)
         }
     }
 
