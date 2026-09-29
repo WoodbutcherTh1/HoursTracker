@@ -657,6 +657,11 @@ enum L10n {
     static var settingsVersion: String { t("settings.version") }
     static var settingsSupport: String { t("settings.support") }
     static var settingsRateApp: String { t("settings.rateApp") }
+    static var accountDelete: String { t("account.delete") }
+    static var accountDeleteConfirmTitle: String { t("account.delete.confirmTitle") }
+    static var accountDeleteConfirmMessage: String { t("account.delete.confirmMessage") }
+    static var accountDeleted: String { t("account.delete.done") }
+    static var accountDeleteFailed: String { t("account.delete.failed") }
     static var settingsShareApp: String { t("settings.shareApp") }
     static var settingsShareAppMessage: String { t("settings.shareApp.message") }
     static var settingsShareAppHint: String { t("settings.shareApp.hint") }

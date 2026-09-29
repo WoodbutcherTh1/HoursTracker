@@ -12,7 +12,7 @@ Your shifts, notes, workplace settings, marked days and payslips are kept on thi
 
 ## Account and cloud backup
 
-An account is optional. If you create one, we keep your email address, your name and a backup of your settings and shifts (without your national ID) on our server, hosted by Supabase, so you can restore them on another iPhone. The hosting provider may keep the data outside Israel, with appropriate safeguards. You can ask us to delete your account and its backup at any time through Contact Support.
+An account is optional. If you create one, we keep your email address, your name and a backup of your settings and shifts (without your national ID) on our server, hosted by Supabase, so you can restore them on another iPhone. The hosting provider may keep the data outside Israel, with appropriate safeguards. You can delete your account and its backup at any time from the Account screen (Delete account).
 
 ## iCloud sync
 
@@ -64,4 +64,4 @@ When we change this policy in a meaningful way, the app will show you the new ve
 
 ## Contact
 
-The data controller is the developer of HoursTracker. For any privacy question or request, use Contact Support in Settings.
+The data controller is Hmam Kaadna, the developer of HoursTracker. For any privacy question or request, write to info.hourstracker@gmail.com or use Contact Support in Settings.

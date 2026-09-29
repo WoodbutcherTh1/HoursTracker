@@ -1220,6 +1220,151 @@
         }
       }
     },
+    "account.delete" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حذف الحساب"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete account"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מחיקת החשבון"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить аккаунт"
+          }
+        }
+      }
+    },
+    "account.delete.confirmMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سيُحذف حسابك ونسخته الاحتياطية على خادمنا نهائيًا. الورديات على هذا الآيفون تبقى. لا يمكن التراجع عن ذلك."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your account and its backup on our server will be deleted for good. Shifts on this iPhone stay. This cannot be undone."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "החשבון והגיבוי שלו בשרת שלנו יימחקו לצמיתות. המשמרות באייפון הזה יישארו. אי אפשר לבטל את הפעולה."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аккаунт и его копия на нашем сервере будут удалены навсегда. Смены на этом iPhone останутся. Это нельзя отменить."
+          }
+        }
+      }
+    },
+    "account.delete.confirmTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حذف حسابك؟"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete your account?"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "למחוק את החשבון?"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Удалить аккаунт?"
+          }
+        }
+      }
+    },
+    "account.delete.done" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تم حذف الحساب"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account deleted"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "החשבון נמחק"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аккаунт удалён"
+          }
+        }
+      }
+    },
+    "account.delete.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تعذّر حذف الحساب. تحقّق من الاتصال وحاول مرة أخرى."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The account could not be deleted. Check your connection and try again."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לא ניתן היה למחוק את החשבון. בדקו את החיבור ונסו שוב."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось удалить аккаунт. Проверьте подключение и попробуйте снова."
+          }
+        }
+      }
+    },
     "account.emailPlaceholder" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -18872,25 +19017,25 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "الحساب اختياري. إذا أنشأت حسابًا، نحتفظ على خادمنا (المستضاف لدى Supabase) ببريدك الإلكتروني واسمك ونسخة احتياطية من إعداداتك وورديّاتك (بدون رقم الهوية)، لتتمكّن من استعادتها على آيفون آخر. قد يحفظ مزوّد الاستضافة البيانات خارج إسرائيل مع وسائل حماية مناسبة. يمكنك أن تطلب منّا حذف حسابك ونسخته الاحتياطية في أي وقت عبر «تواصل مع الدعم»."
+            "value" : "الحساب اختياري. إذا أنشأت حسابًا، نحتفظ على خادمنا (المستضاف لدى Supabase) ببريدك الإلكتروني واسمك ونسخة احتياطية من إعداداتك وورديّاتك (بدون رقم الهوية)، لتتمكّن من استعادتها على آيفون آخر. قد يحفظ مزوّد الاستضافة البيانات خارج إسرائيل مع وسائل حماية مناسبة. يمكنك حذف حسابك ونسخته الاحتياطية في أي وقت من شاشة الحساب («حذف الحساب»)."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "An account is optional. If you create one, we keep your email address, your name and a backup of your settings and shifts (without your national ID) on our server, hosted by Supabase, so you can restore them on another iPhone. The hosting provider may keep the data outside Israel, with appropriate safeguards. You can ask us to delete your account and its backup at any time through Contact Support."
+            "value" : "An account is optional. If you create one, we keep your email address, your name and a backup of your settings and shifts (without your national ID) on our server, hosted by Supabase, so you can restore them on another iPhone. The hosting provider may keep the data outside Israel, with appropriate safeguards. You can delete your account and its backup at any time from the Account screen (Delete account)."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "חשבון אינו חובה. אם תפתחו חשבון, נשמור בשרת שלנו (המאוחסן אצל Supabase) את כתובת האימייל, השם וגיבוי של ההגדרות והמשמרות (ללא מספר הזהות), כדי שתוכלו לשחזר אותם באייפון אחר. ספק האחסון עשוי לשמור את המידע מחוץ לישראל, עם אמצעי הגנה מתאימים. אפשר לבקש מאיתנו למחוק את החשבון והגיבוי בכל עת דרך \"יצירת קשר עם התמיכה\"."
+            "value" : "חשבון אינו חובה. אם תפתחו חשבון, נשמור בשרת שלנו (המאוחסן אצל Supabase) את כתובת האימייל, השם וגיבוי של ההגדרות והמשמרות (ללא מספר הזהות), כדי שתוכלו לשחזר אותם באייפון אחר. ספק האחסון עשוי לשמור את המידע מחוץ לישראל, עם אמצעי הגנה מתאימים. אפשר למחוק את החשבון והגיבוי בכל עת במסך החשבון (\"מחיקת החשבון\")."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Аккаунт необязателен. Если вы его создадите, мы храним на нашем сервере (хостинг Supabase) ваш e-mail, имя и резервную копию настроек и смен (без номера удостоверения), чтобы их можно было восстановить на другом iPhone. Хостинг-провайдер может хранить данные за пределами Израиля с надлежащей защитой. Вы в любой момент можете попросить удалить аккаунт и копию через «Связаться с поддержкой»."
+            "value" : "Аккаунт необязателен. Если вы его создадите, мы храним на нашем сервере (хостинг Supabase) ваш e-mail, имя и резервную копию настроек и смен (без номера удостоверения), чтобы их можно было восстановить на другом iPhone. Хостинг-провайдер может хранить данные за пределами Израиля с надлежащей защитой. Удалить аккаунт и копию можно в любой момент на экране аккаунта («Удалить аккаунт»)."
           }
         }
       }
@@ -19017,25 +19162,25 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "المسؤول عن البيانات هو مطوّر HoursTracker. لأي سؤال أو طلب يتعلق بالخصوصية، استخدم «تواصل مع الدعم» في الإعدادات."
+            "value" : "المسؤول عن البيانات هو Hmam Kaadna، مطوّر HoursTracker. لأي سؤال أو طلب يتعلق بالخصوصية، راسلنا على info.hourstracker@gmail.com أو استخدم «تواصل مع الدعم» في الإعدادات."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The data controller is the developer of HoursTracker. For any privacy question or request, use Contact Support in Settings."
+            "value" : "The data controller is Hmam Kaadna, the developer of HoursTracker. For any privacy question or request, write to info.hourstracker@gmail.com or use Contact Support in Settings."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "בעל השליטה במאגר המידע הוא מפתח HoursTracker. לכל שאלה או בקשה בנושא פרטיות, השתמשו ב\"יצירת קשר עם התמיכה\" בהגדרות."
+            "value" : "בעל השליטה במאגר המידע הוא Hmam Kaadna, מפתח HoursTracker. לכל שאלה או בקשה בנושא פרטיות, כתבו ל-info.hourstracker@gmail.com או השתמשו ב\"יצירת קשר עם התמיכה\" בהגדרות."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Контролёр данных — разработчик HoursTracker. По любым вопросам и запросам о конфиденциальности пишите через «Связаться с поддержкой» в Настройках."
+            "value" : "Контролёр данных — Hmam Kaadna, разработчик HoursTracker. По любым вопросам и запросам о конфиденциальности пишите на info.hourstracker@gmail.com или через «Связаться с поддержкой» в Настройках."
           }
         }
       }
@@ -27540,25 +27685,25 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "لديك أسئلة حول هذه الشروط؟ استخدم «تواصل مع الدعم» في الإعدادات."
+            "value" : "لديك أسئلة حول هذه الشروط؟ راسلنا على info.hourstracker@gmail.com أو استخدم «تواصل مع الدعم» في الإعدادات."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Questions about these terms? Use Contact Support in Settings."
+            "value" : "Questions about these terms? Write to info.hourstracker@gmail.com or use Contact Support in Settings."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "שאלות על התנאים? השתמשו ב\"יצירת קשר עם התמיכה\" בהגדרות."
+            "value" : "שאלות על התנאים? כתבו ל-info.hourstracker@gmail.com או השתמשו ב\"יצירת קשר עם התמיכה\" בהגדרות."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Вопросы об условиях? Напишите через «Связаться с поддержкой» в Настройках."
+            "value" : "Вопросы об условиях? Пишите на info.hourstracker@gmail.com или через «Связаться с поддержкой» в Настройках."
           }
         }
       }
@@ -27743,25 +27888,25 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "هذه الشروط اتفاق بينك وبين مطوّر HoursTracker (\"نحن\"). يُرجى قراءتها. إذا كنت لا توافق عليها، فلا تستخدم التطبيق."
+            "value" : "هذه الشروط اتفاق بينك وبين Hmam Kaadna، مطوّر HoursTracker (\"نحن\"). يُرجى قراءتها. إذا كنت لا توافق عليها، فلا تستخدم التطبيق."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "These terms are an agreement between you and the developer of HoursTracker (\"we\"). Please read them. If you don't agree, don't use the app."
+            "value" : "These terms are an agreement between you and Hmam Kaadna, the developer of HoursTracker (\"we\"). Please read them. If you don't agree, don't use the app."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "תנאים אלה הם הסכם בינכם לבין מפתח HoursTracker (\"אנחנו\"). אנא קראו אותם. אם אינכם מסכימים, אל תשתמשו באפליקציה."
+            "value" : "תנאים אלה הם הסכם בינכם לבין Hmam Kaadna, מפתח HoursTracker (\"אנחנו\"). אנא קראו אותם. אם אינכם מסכימים, אל תשתמשו באפליקציה."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Эти условия — соглашение между вами и разработчиком HoursTracker («мы»). Прочитайте их. Если вы не согласны, не пользуйтесь приложением."
+            "value" : "Эти условия — соглашение между вами и Hmam Kaadna, разработчиком HoursTracker («мы»). Прочитайте их. Если вы не согласны, не пользуйтесь приложением."
           }
         }
       }

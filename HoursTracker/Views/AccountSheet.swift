@@ -1111,6 +1111,8 @@ private struct AccountSignedInView: View {
     @State private var errorMessage: String?
     @State private var profileName = ""
     @State private var memberSince: Date?
+    @State private var showDeleteAccountConfirm = false
+    @State private var isDeletingAccount = false
     @State private var showPhotoPicker = false
     @State private var showRemovePhotoConfirm = false
     // Change-password fields.
@@ -1193,10 +1195,37 @@ private struct AccountSignedInView: View {
                     .buttonStyle(PremiumSecondaryButtonStyle())
                 }
                 .padding(.horizontal, 20)
+
+                // App Store 5.1.1(v): an account created in the app can be deleted in it.
+                Button(role: .destructive) {
+                    showDeleteAccountConfirm = true
+                } label: {
+                    HStack(spacing: 8) {
+                        if isDeletingAccount {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "person.crop.circle.badge.xmark")
+                        }
+                        Text(L10n.accountDelete)
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                }
+                .disabled(isDeletingAccount)
+                .padding(.horizontal, 20)
+                .accessibilityIdentifier("account.delete")
             }
             .padding(.bottom, 24)
         }
         .scrollDismissesKeyboard(.interactively)
+        .alert(L10n.accountDeleteConfirmTitle, isPresented: $showDeleteAccountConfirm) {
+            Button(L10n.accountDelete, role: .destructive) { deleteAccount() }
+            Button(L10n.editCancel, role: .cancel) {}
+        } message: {
+            Text(L10n.accountDeleteConfirmMessage)
+        }
         .task {
             if let user = auth.client.auth.currentUser {
                 memberSince = user.createdAt
@@ -1360,6 +1389,20 @@ private struct AccountSignedInView: View {
             guard let data = try? await selection.loadTransferable(type: Data.self),
                   let image = UIImage(data: data) else { return }
             profile.save(image)
+        }
+    }
+
+    private func deleteAccount() {
+        errorMessage = nil
+        isDeletingAccount = true
+        Task {
+            do {
+                try await SupabaseAuthManager.shared.deleteAccount()
+                AppViewModel.shared.showSuccessToast(L10n.accountDeleted)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isDeletingAccount = false
         }
     }
 

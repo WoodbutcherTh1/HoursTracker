@@ -257,6 +257,33 @@ final class SupabaseAuthManager: ObservableObject {
         }
     }
 
+    /// Permanently deletes the signed-in account and its server backup (the
+    /// `delete-account` Edge Function cascades to profiles / user_backups), then
+    /// signs out. Data on this iPhone is left as it is.
+    func deleteAccount() async throws {
+        do {
+            // `session` refreshes an expired token first, so the call is authorized.
+            let accessToken = try await client.auth.session.accessToken
+            var request = URLRequest(
+                url: SupabaseConfig.projectURL.appendingPathComponent("functions/v1/delete-account")
+            )
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+            request.setValue(SupabaseConfig.publishableKey, forHTTPHeaderField: "apikey")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = Data("{}".utf8)
+            let (_, response) = try await URLSession.shared.data(for: request)
+            guard let http = response as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                throw AccountAuthError.server(L10n.accountDeleteFailed)
+            }
+        } catch let error as AccountAuthError {
+            throw error
+        } catch {
+            throw AccountAuthError.server(error.localizedDescription)
+        }
+        try? await client.auth.signOut()
+    }
+
     /// Deliberately permissive — real validation is the confirmation email
     /// actually arriving, not a strict regex.
     static func isValidEmail(_ email: String) -> Bool {
