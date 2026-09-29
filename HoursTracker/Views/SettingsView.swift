@@ -1235,6 +1235,21 @@ struct SettingsView: View {
                 Label(L10n.privacyTitle, systemImage: "hand.raised.fill")
             }
 
+            NavigationLink {
+                TermsOfUseView()
+            } label: {
+                Label(AppLocale.tr("terms.title"), systemImage: "doc.text")
+            }
+
+            if let agreedOn = LegalConsent.shared.acceptedAt {
+                Text(String(
+                    format: AppLocale.tr("legal.acceptedOn %@"),
+                    AppLocale.makeDateFormatter(dateStyle: .medium).string(from: agreedOn)
+                ))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
             Button {
                 showContactSupport = true
             } label: {

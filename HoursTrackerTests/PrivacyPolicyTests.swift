@@ -14,8 +14,22 @@ final class PrivacyPolicyTests: XCTestCase {
         "privacy.section.camera", "privacy.body.camera",
         "privacy.section.tracking", "privacy.body.tracking",
         "privacy.section.controls", "privacy.body.controls",
-        "privacy.section.contact", "privacy.body.contact"
-    ]
+        "privacy.section.contact", "privacy.body.contact",
+        "privacy.intro",
+        "privacy.section.account", "privacy.body.account",
+        "privacy.section.ai", "privacy.body.ai",
+        "privacy.section.support", "privacy.body.support",
+        "privacy.section.retention", "privacy.body.retention",
+        "privacy.section.rights", "privacy.body.rights",
+        "privacy.section.security", "privacy.body.security",
+        "privacy.section.children", "privacy.body.children",
+        "privacy.section.changes", "privacy.body.changes",
+        "terms.title", "terms.intro",
+        "legal.gate.title", "legal.gate.titleUpdated", "legal.gate.body",
+        "legal.gate.point.estimates", "legal.gate.point.data", "legal.gate.point.control",
+        "legal.gate.checkbox", "legal.gate.accept", "legal.gate.decline",
+        "legal.gate.declineTitle", "legal.gate.declineMessage", "legal.gate.readAgain"
+    ] + TermsOfUseView.sections.flatMap { [$0.titleKey, $0.bodyKey] }
 
     func testEverySectionIsTranslatedInAllThreeLanguages() {
         for language in [AppLocale.Language.english, .hebrew, .arabic, .russian] {

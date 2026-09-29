@@ -13888,6 +13888,383 @@
         }
       }
     },
+    "legal.acceptedOn %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تمت الموافقة في %@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agreed on %@"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אושר בתאריך %@"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Принято %@"
+          }
+        }
+      }
+    },
+    "legal.gate.accept" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أوافق وأتابع"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agree and continue"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מסכים/ה וממשיכים"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Принять и продолжить"
+          }
+        }
+      }
+    },
+    "legal.gate.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لاستخدام HoursTracker، يُرجى قراءة شروط الاستخدام وسياسة الخصوصية والموافقة عليهما."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "To use HoursTracker, please read and agree to the Terms of Use and the Privacy Policy."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "כדי להשתמש ב-HoursTracker, יש לקרוא את תנאי השימוש ואת מדיניות הפרטיות ולהסכים להם."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Чтобы пользоваться HoursTracker, прочитайте Условия использования и Политику конфиденциальности и согласитесь с ними."
+          }
+        }
+      }
+    },
+    "legal.gate.checkbox" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "قرأت شروط الاستخدام وسياسة الخصوصية وأوافق عليهما"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I have read and agree to the Terms of Use and the Privacy Policy"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "קראתי ואני מסכים/ה לתנאי השימוש ולמדיניות הפרטיות"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Я прочитал(а) и принимаю Условия использования и Политику конфиденциальности"
+          }
+        }
+      }
+    },
+    "legal.gate.decline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لا أوافق"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I don't agree"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אני לא מסכים/ה"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Я не согласен(на)"
+          }
+        }
+      }
+    },
+    "legal.gate.declineMessage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "بياناتك تبقى على هذا الآيفون. يمكنك تصديرها الآن، أو حذف التطبيق، أو العودة والموافقة في أي وقت."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your data stays on this iPhone. You can export it now, delete the app, or come back and agree at any time."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "המידע שלכם נשאר באייפון הזה. אפשר לייצא אותו עכשיו, למחוק את האפליקציה, או לחזור ולהסכים בכל עת."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваши данные остаются на этом iPhone. Можно экспортировать их сейчас, удалить приложение или вернуться и согласиться в любой момент."
+          }
+        }
+      }
+    },
+    "legal.gate.declineTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لا يمكن استخدام HoursTracker دون الموافقة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HoursTracker can't be used without agreeing"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אי אפשר להשתמש ב-HoursTracker בלי להסכים"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Без согласия пользоваться HoursTracker нельзя"
+          }
+        }
+      }
+    },
+    "legal.gate.point.control" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يمكنك تصدير بياناتك أو حذفها في أي وقت."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can export or delete your data at any time."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אפשר לייצא או למחוק את המידע בכל עת."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вы можете экспортировать или удалить свои данные в любой момент."
+          }
+        }
+      }
+    },
+    "legal.gate.point.data" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "بياناتك تبقى على الآيفون، إلا إذا فعّلت نسخًا احتياطيًا أو مزامنة أو ميزة ذكية."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your data stays on your iPhone, unless you turn on a backup, sync or a smart feature."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "המידע נשאר באייפון שלכם, אלא אם תפעילו גיבוי, סנכרון או תכונה חכמה."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Данные остаются на вашем iPhone, если вы не включите копию, синхронизацию или умную функцию."
+          }
+        }
+      }
+    },
+    "legal.gate.point.estimates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مبالغ الراتب تقديرية. قسيمة الراتب والقانون هما ما يحدّد راتبك الفعلي."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pay figures are estimates. Your payslip and the law decide your real pay."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "סכומי השכר הם הערכה. תלוש השכר והחוק קובעים את השכר בפועל."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Суммы зарплаты — оценка. Реальную зарплату определяют расчётный лист и закон."
+          }
+        }
+      }
+    },
+    "legal.gate.readAgain" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "اقرأ مرة أخرى"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read again"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לקרוא שוב"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прочитать снова"
+          }
+        }
+      }
+    },
+    "legal.gate.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "قبل أن تبدأ"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Before you start"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לפני שמתחילים"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прежде чем начать"
+          }
+        }
+      }
+    },
+    "legal.gate.titleUpdated" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حدّثنا الشروط"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We've updated our terms"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "עדכנו את התנאים"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Мы обновили условия"
+          }
+        }
+      }
+    },
     "log.actions" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -18489,31 +18866,147 @@
         }
       }
     },
+    "privacy.body.account" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الحساب اختياري. إذا أنشأت حسابًا، نحتفظ على خادمنا (المستضاف لدى Supabase) ببريدك الإلكتروني واسمك ونسخة احتياطية من إعداداتك وورديّاتك (بدون رقم الهوية)، لتتمكّن من استعادتها على آيفون آخر. قد يحفظ مزوّد الاستضافة البيانات خارج إسرائيل مع وسائل حماية مناسبة. يمكنك أن تطلب منّا حذف حسابك ونسخته الاحتياطية في أي وقت عبر «تواصل مع الدعم»."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "An account is optional. If you create one, we keep your email address, your name and a backup of your settings and shifts (without your national ID) on our server, hosted by Supabase, so you can restore them on another iPhone. The hosting provider may keep the data outside Israel, with appropriate safeguards. You can ask us to delete your account and its backup at any time through Contact Support."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "חשבון אינו חובה. אם תפתחו חשבון, נשמור בשרת שלנו (המאוחסן אצל Supabase) את כתובת האימייל, השם וגיבוי של ההגדרות והמשמרות (ללא מספר הזהות), כדי שתוכלו לשחזר אותם באייפון אחר. ספק האחסון עשוי לשמור את המידע מחוץ לישראל, עם אמצעי הגנה מתאימים. אפשר לבקש מאיתנו למחוק את החשבון והגיבוי בכל עת דרך \"יצירת קשר עם התמיכה\"."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аккаунт необязателен. Если вы его создадите, мы храним на нашем сервере (хостинг Supabase) ваш e-mail, имя и резервную копию настроек и смен (без номера удостоверения), чтобы их можно было восстановить на другом iPhone. Хостинг-провайдер может хранить данные за пределами Израиля с надлежащей защитой. Вы в любой момент можете попросить удалить аккаунт и копию через «Связаться с поддержкой»."
+          }
+        }
+      }
+    },
+    "privacy.body.ai" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "المساعد والماسح الذكي اختياريان. عند استخدامهما، يُرسل نص سؤالك، أو النص المقروء من جدول ساعات أو قسيمة راتب، إلى مزوّد الذكاء الاصطناعي المُعدّ في التطبيق (مثل Google Gemini). يتعامل المزوّد مع النص وفق سياسة الخصوصية الخاصة به. حسابات الراتب تتم على الآيفون الخاص بك. قد تكون إجابات الذكاء الاصطناعي خاطئة، لذلك تحقّق منها دائمًا."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The assistant and the smart scanner are optional. When you use them, the text of your question, or the text read from a timesheet or payslip, is sent to the AI provider set up in the app (such as Google Gemini). That provider handles the text under its own privacy policy. Figures about your pay are calculated on your iPhone. AI answers can be wrong — always check them."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "העוזר והסורק החכם אינם חובה. כשמשתמשים בהם, טקסט השאלה, או הטקסט שנקרא מדוח שעות או מתלוש שכר, נשלח לספק ה-AI שהוגדר באפליקציה (למשל Google Gemini). הספק מטפל בטקסט לפי מדיניות הפרטיות שלו. חישובי השכר נעשים באייפון שלכם. תשובות AI עלולות להיות שגויות — תמיד כדאי לבדוק אותן."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ассистент и умный сканер необязательны. Когда вы ими пользуетесь, текст вопроса или текст, распознанный с табеля или расчётного листа, отправляется ИИ-провайдеру, настроенному в приложении (например, Google Gemini). Провайдер обрабатывает текст по своей политике конфиденциальности. Расчёты зарплаты выполняются на вашем iPhone. Ответы ИИ могут быть ошибочными — всегда проверяйте их."
+          }
+        }
+      }
+    },
     "privacy.body.camera" : {
       "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تُستخدم فقط عند استيراد صورة أو لقطة شاشة لجدول الساعات. المعالجة تتم على الجهاز."
+            "value" : "تُستخدم فقط عند مسح أو استيراد جدول ساعات أو قسيمة راتب. يُقرأ النص على الآيفون، ولا يُرسل إلى مزوّد ذكاء اصطناعي إلا إذا استخدمت الماسح الذكي."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Used only when you import a timesheet photo or screenshot. Processing stays on-device."
+            "value" : "Used only when you scan or import a timesheet or payslip. Text is read on the iPhone; it is sent to an AI provider only if you use the smart scanner."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "בשימוש רק בייבוא תמונה או צילום מסך של דוח שעות. העיבוד נשאר במכשיר."
+            "value" : "בשימוש רק כשסורקים או מייבאים דוח שעות או תלוש שכר. הטקסט נקרא באייפון, ונשלח לספק AI רק אם משתמשים בסורק החכם."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Используется только при импорте фото или скриншота табеля. Обработка происходит на устройстве."
+            "value" : "Используется только при сканировании или импорте табеля или расчётного листа. Текст распознаётся на iPhone и отправляется ИИ-провайдеру, только если вы пользуетесь умным сканером."
+          }
+        }
+      }
+    },
+    "privacy.body.changes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "عندما نغيّر هذه السياسة تغييرًا جوهريًا، سيعرض التطبيق النسخة الجديدة ويطلب موافقتك مرة أخرى قبل المتابعة."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When we change this policy in a meaningful way, the app will show you the new version and ask you to agree again before you continue."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "כשנשנה את המדיניות באופן מהותי, האפליקציה תציג את הגרסה החדשה ותבקש את הסכמתכם שוב לפני שתמשיכו."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Если мы существенно изменим политику, приложение покажет новую версию и снова попросит вашего согласия."
+          }
+        }
+      }
+    },
+    "privacy.body.children" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إذا كان عمرك أقل من 18 عامًا، استخدم HoursTracker بموافقة أحد الوالدين أو الوصيّ."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If you are under 18, use HoursTracker with the consent of a parent or guardian."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אם אתם מתחת לגיל 18, השתמשו ב-HoursTracker בהסכמת הורה או אפוטרופוס."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Если вам меньше 18 лет, пользуйтесь HoursTracker с согласия родителя или опекуна."
           }
         }
       }
@@ -18524,25 +19017,25 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "لأسئلة الخصوصية، استخدم «التواصل مع الدعم» بالإعدادات."
+            "value" : "المسؤول عن البيانات هو مطوّر HoursTracker. لأي سؤال أو طلب يتعلق بالخصوصية، استخدم «تواصل مع الدعم» في الإعدادات."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Questions about privacy? Use Contact Support in Settings."
+            "value" : "The data controller is the developer of HoursTracker. For any privacy question or request, use Contact Support in Settings."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "לשאלות פרטיות, השתמשו ב'יצירת קשר עם התמיכה' בהגדרות."
+            "value" : "בעל השליטה במאגר המידע הוא מפתח HoursTracker. לכל שאלה או בקשה בנושא פרטיות, השתמשו ב\"יצירת קשר עם התמיכה\" בהגדרות."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Вопросы о конфиденциальности? Напишите через «Связаться с поддержкой» в Настройках."
+            "value" : "Контролёр данных — разработчик HoursTracker. По любым вопросам и запросам о конфиденциальности пишите через «Связаться с поддержкой» в Настройках."
           }
         }
       }
@@ -18553,25 +19046,25 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "من الإعدادات يمكنك تعديل الملف، إيقاف تذكيرات الوصول، تفعيل أو إيقاف مزامنة iCloud (وحذف نسخ المزامنة)، حذف الورديات، مسح سجل النشاط أو تصديره، أو حذف كل البيانات على هذا الجهاز وفي iCloud الخاصة بك عند توفر المزامنة."
+            "value" : "من الإعدادات يمكنك تعديل تفاصيلك، وإيقاف تذكيرات الوصول، وتفعيل أو إيقاف مزامنة iCloud (وحذف نسخ iCloud)، وحذف الورديات، ومسح سجل النشاط أو تصديره، وتصدير كل بياناتك، أو حذف كل البيانات على هذا الآيفون وفي iCloud الخاص بك."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "In Settings you can edit profile fields, turn off arrival reminders, turn iCloud sync on or off (and delete iCloud copies), delete shifts, clear or export the activity log, or delete all data on this device and in your private iCloud when sync is available."
+            "value" : "In Settings you can edit your details, turn off arrival reminders, turn iCloud sync on or off (and delete iCloud copies), delete shifts, clear or export the activity log, export all your data, or delete all data on this iPhone and in your private iCloud."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "בהגדרות אפשר לערוך פרופיל, לכבות תזכורות הגעה, להפעיל/לכבות סנכרון iCloud (ולמחוק עותקי iCloud), למחוק משמרות, לנקות/לייצא יומן פעילות, או למחוק את כל הנתונים במכשיר וב‑iCloud הפרטי כשסנכרון זמין."
+            "value" : "בהגדרות אפשר לערוך את הפרטים, לכבות תזכורות הגעה, להפעיל או לכבות סנכרון iCloud (ולמחוק עותקי iCloud), למחוק משמרות, לנקות או לייצא את יומן הפעילות, לייצא את כל הנתונים, או למחוק את כל הנתונים באייפון הזה וב-iCloud הפרטי."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "В Настройках вы можете изменить данные профиля, выключить напоминания о приходе, включить или выключить синхронизацию iCloud (и удалить копии в iCloud), удалять смены, очистить или экспортировать журнал действий, а также удалить все данные на этом устройстве и в вашем личном iCloud, если синхронизация доступна."
+            "value" : "В Настройках вы можете изменить свои данные, выключить напоминания о приходе, включить или выключить синхронизацию iCloud (и удалить копии в iCloud), удалять смены, очистить или экспортировать журнал действий, экспортировать все данные или удалить все данные на этом iPhone и в вашем личном iCloud."
           }
         }
       }
@@ -18582,25 +19075,25 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "يحفظ HoursTracker ملف العامل وإعدادات مكان العمل والورديات على هذا الجهاز. يبقى رقم الهوية في سلسلة مفاتيح الجهاز. لا نبيع البيانات ولا نرسلها إلى خوادمنا. مزامنة iCloud الاختيارية (متوقفة افتراضياً) تخزّن الورديات والإعدادات في قاعدة iCloud الخاصة بك فقط."
+            "value" : "ورديّاتك وملاحظاتك وإعدادات مكان العمل والأيام المحدّدة وقسائم الراتب محفوظة على هذا الآيفون ومحميّة بحماية بيانات iOS. رقم الهوية يُحفظ فقط في Keychain الخاص بالآيفون ولا يُرسل إلى أي مكان. لا نبيع بياناتك ولا نستخدمها للإعلانات."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HoursTracker stores your worker profile, workplace settings, and work sessions on this device. Your national ID stays in the device Keychain. Data is not sold and is not sent to our servers. Optional iCloud sync (off by default) stores sessions and settings in your private iCloud database only."
+            "value" : "Your shifts, notes, workplace settings, marked days and payslips are kept on this iPhone and protected by iOS data protection. Your national ID number is kept only in the iPhone's Keychain and is never sent anywhere. We don't sell your data and don't use it for advertising."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HoursTracker שומרת את פרופיל העובד, הגדרות מקום העבודה והמשמרות במכשיר זה. מספר הזהות נשמר ב‑Keychain של המכשיר. אין מכירת נתונים ואין שליחה לשרתים שלנו. סנכרון iCloud אופציונלי (כבוי כברירת מחדל) שומר משמרות והגדרות רק במסד הנתונים הפרטי שלך ב‑iCloud."
+            "value" : "המשמרות, ההערות, הגדרות מקום העבודה, הימים המסומנים ותלושי השכר נשמרים באייפון הזה ומוגנים בהגנת הנתונים של iOS. מספר תעודת הזהות נשמר רק ב-Keychain של האייפון ולא נשלח לשום מקום. אנחנו לא מוכרים את המידע שלכם ולא משתמשים בו לפרסום."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "HoursTracker хранит ваш профиль работника, настройки места работы и смены на этом устройстве. Номер удостоверения личности хранится в Связке ключей устройства. Данные не продаются и не отправляются на наши серверы. Необязательная синхронизация iCloud (по умолчанию выключена) хранит смены и настройки только в вашей личной базе iCloud."
+            "value" : "Ваши смены, заметки, настройки места работы, отмеченные дни и расчётные листы хранятся на этом iPhone под защитой данных iOS. Номер удостоверения личности хранится только в Keychain iPhone и никуда не отправляется. Мы не продаём ваши данные и не используем их для рекламы."
           }
         }
       }
@@ -18611,25 +19104,25 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "مزامنة iCloud متوقفة افتراضياً. إذا فعّلتها، تُخزَّن الورديات وإعدادات مكان العمل (وليس رقم الهوية) في قاعدة iCloud الخاصة بك تحت حساب Apple. لا ندير خادماً يستلم هذه البيانات."
+            "value" : "مزامنة iCloud متوقفة افتراضيًا. إذا فعّلتها، تُخزَّن ورديّاتك وإعدادات مكان العمل (وليس رقم الهوية) في قاعدة بيانات iCloud الخاصة بك تحت حساب Apple. شركة Apple هي التي تحفظ هذه البيانات، ونحن لا نستطيع رؤيتها."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "iCloud sync is off by default. If you turn it on, sessions and workplace settings (not your national ID) are stored in your private iCloud database under your Apple ID. We do not operate a server that receives this data."
+            "value" : "iCloud sync is off by default. If you turn it on, your shifts and workplace settings (not your national ID) are stored in your private iCloud database under your Apple ID. Apple keeps this data; we can't see it."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "סנכרון iCloud כבוי כברירת מחדל. אם תפעילו אותו, משמרות והגדרות מקום עבודה (לא מספר הזהות) יישמרו במסד הנתונים הפרטי שלכם ב‑iCloud תחת ה‑Apple ID. אין לנו שרת שמקבל את הנתונים."
+            "value" : "סנכרון iCloud כבוי כברירת מחדל. אם תפעילו אותו, המשמרות והגדרות מקום העבודה (לא מספר הזהות) יישמרו במסד הנתונים הפרטי שלכם ב-iCloud תחת ה-Apple ID. Apple שומרת את המידע הזה, ואנחנו לא יכולים לראות אותו."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Синхронизация iCloud по умолчанию выключена. Если её включить, смены и настройки места работы (но не номер удостоверения) хранятся в вашей личной базе iCloud под вашим Apple ID. У нас нет сервера, который получает эти данные."
+            "value" : "Синхронизация iCloud по умолчанию выключена. Если её включить, смены и настройки места работы (но не номер удостоверения) хранятся в вашей личной базе iCloud под вашим Apple ID. Эти данные хранит Apple, мы их не видим."
           }
         }
       }
@@ -18659,6 +19152,122 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Геопозиция «При использовании» нужна только для функции «Задать место». Геопозиция «Всегда» используется, только если вы включите напоминания о приходе, чтобы отслеживать одну геозону места работы. Постоянное фоновое отслеживание не используется."
+          }
+        }
+      }
+    },
+    "privacy.body.retention" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "البيانات على الآيفون تبقى حتى تحذفها. الورديات المحذوفة تبقى في «المحذوفات مؤخراً» 30 يومًا، والنسخ الاحتياطية التلقائية على الآيفون 14 يومًا. تبقى نسخة الحساب على خادمنا حتى تطلب حذف الحساب. نحتفظ برسائل الدعم فقط طالما احتجنا إليها للرد."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data on your iPhone stays until you delete it. Deleted shifts stay in Recently deleted for 30 days, and automatic backups on the iPhone for 14 days. The account backup stays on our server until you ask us to delete the account. Support messages are kept only as long as needed to answer them."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "המידע באייפון נשמר עד שתמחקו אותו. משמרות שנמחקו נשארות ב\"נמחקו לאחרונה\" 30 יום, וגיבויים אוטומטיים באייפון — 14 יום. גיבוי החשבון נשמר בשרת שלנו עד שתבקשו למחוק את החשבון. פניות לתמיכה נשמרות רק כל עוד צריך כדי לענות עליהן."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Данные на iPhone хранятся, пока вы их не удалите. Удалённые смены остаются в «Недавно удалённых» 30 дней, автоматические копии на iPhone — 14 дней. Копия аккаунта хранится на нашем сервере, пока вы не попросите удалить аккаунт. Обращения в поддержку храним, только пока это нужно для ответа."
+          }
+        }
+      }
+    },
+    "privacy.body.rights" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "بحسب القانون الإسرائيلي يحقّ لك الاطّلاع على المعلومات التي نحتفظ بها عنك، وطلب تصحيحها، أو طلب حذفها. يمكنك فعل معظم ذلك بنفسك: «تصدير كل بياناتي»، وتعديل تفاصيلك في الإعدادات، و«حذف كل بياناتي». بالنسبة لأي بيانات على خادمنا، راسلنا عبر «تواصل مع الدعم» وسنرد كما يطلب القانون. ويمكنك أيضًا تقديم شكوى إلى سلطة حماية الخصوصية."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Under Israeli law you may see the information we hold about you, ask us to correct it, or ask us to delete it. Most of this you can do yourself: Export all my data, edit your details in Settings, and Delete all my data. For anything on our server, write to us through Contact Support and we will answer as the law requires. You may also complain to the Privacy Protection Authority."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לפי החוק בישראל אתם רשאים לעיין במידע שאנחנו מחזיקים עליכם, לבקש לתקן אותו או לבקש למחוק אותו. את רוב הדברים אפשר לעשות לבד: \"ייצא את כל הנתונים שלי\", עריכת הפרטים בהגדרות ו\"מחק את כל הנתונים שלי\". לגבי מידע בשרת שלנו, כתבו לנו דרך \"יצירת קשר עם התמיכה\" ונשיב כנדרש בחוק. אפשר גם להגיש תלונה לרשות להגנת הפרטיות."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "По израильскому закону вы можете ознакомиться с информацией о вас, попросить исправить её или удалить. Большую часть можно сделать самостоятельно: «Экспортировать все мои данные», изменить данные в Настройках и «Удалить все мои данные». По данным на нашем сервере напишите нам через «Связаться с поддержкой» — мы ответим, как требует закон. Вы также можете подать жалобу в Управление по защите частной жизни."
+          }
+        }
+      }
+    },
+    "privacy.body.security" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "البيانات على الآيفون مشفّرة بحماية بيانات iOS، ويمكنك قفل التطبيق بـ Face ID. البيانات المرسلة إلى خادمنا تنتقل عبر اتصال مشفّر، وكل حساب يستطيع الوصول إلى نسخته فقط. لا يوجد نظام آمن تمامًا؛ وإذا وقع حادث أمني خطير يمسّ بياناتك فسنتصرّف كما يطلب القانون."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data on the iPhone is encrypted by iOS data protection, and you can lock the app with Face ID. Data sent to our server travels over encrypted connections, and each account can reach only its own backup. No system is perfectly secure; if a serious security incident affects your data, we will act as the law requires."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "המידע באייפון מוצפן בהגנת הנתונים של iOS, ואפשר לנעול את האפליקציה עם Face ID. מידע שנשלח לשרת שלנו עובר בחיבור מוצפן, וכל חשבון יכול לגשת רק לגיבוי שלו. אין מערכת מאובטחת לחלוטין; אם יקרה אירוע אבטחה חמור שנוגע למידע שלכם, נפעל כנדרש בחוק."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Данные на iPhone шифруются защитой данных iOS, а приложение можно заблокировать Face ID. Данные на наш сервер передаются по зашифрованному соединению, и каждый аккаунт видит только свою копию. Абсолютно защищённых систем не бывает; при серьёзном инциденте, затрагивающем ваши данные, мы будем действовать, как требует закон."
+          }
+        }
+      }
+    },
+    "privacy.body.support" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "عندما تتواصل مع الدعم، نستلم رسالتك والبريد الإلكتروني الذي تعطينا إياه وإصدار التطبيق وiOS، وسجل النشاط فقط إذا اخترت ذلك. تصلنا الرسائل عبر خادمنا وخدمة المراسلة Telegram. ولإرسال إعلانات داخل التطبيق، يسجّل التطبيق معرّف تثبيت عشوائيًا ورمز إشعارات ولغته وإصداره، ولا يرسل أبدًا ورديّاتك أو راتبك أو اسمك أو رقم هويتك."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When you contact support, we receive your message, the email you give us, the app and iOS version and, only if you choose, the activity log. Messages reach us through our server and the Telegram messaging service. To send you in-app announcements, the app registers a random install ID, a notification token, its language and version — never your shifts, pay, name or ID number."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "כשפונים לתמיכה, אנחנו מקבלים את ההודעה, את כתובת האימייל שמסרתם, את גרסת האפליקציה וה-iOS, ורק אם תבחרו — גם את יומן הפעילות. ההודעות מגיעות אלינו דרך השרת שלנו ושירות ההודעות Telegram. כדי לשלוח הודעות בתוך האפליקציה, היא רושמת מזהה התקנה אקראי, אסימון התראות, שפה וגרסה — אף פעם לא משמרות, שכר, שם או מספר זהות."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Когда вы пишете в поддержку, мы получаем сообщение, указанный e-mail, версии приложения и iOS и — только по вашему выбору — журнал действий. Сообщения приходят к нам через наш сервер и мессенджер Telegram. Для объявлений в приложении регистрируется случайный ID установки, токен уведомлений, язык и версия — никогда не смены, зарплата, имя или номер удостоверения."
           }
         }
       }
@@ -18779,6 +19388,35 @@
         }
       }
     },
+    "privacy.intro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "توضّح هذه السياسة ما هي المعلومات التي يجمعها HoursTracker (\"نحن\")، ولماذا، وأين تُحفظ، وما هي حقوقك وفق قانون حماية الخصوصية الإسرائيلي لسنة 1981. باستخدامك للتطبيق فأنت توافق على هذه السياسة."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This policy explains what HoursTracker (\"we\") collects, why, where it is kept, and your rights under Israel's Protection of Privacy Law, 5741-1981. By using the app you agree to this policy."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "מדיניות זו מסבירה איזה מידע HoursTracker (\"אנחנו\") אוסף, למה, היכן הוא נשמר ואילו זכויות יש לכם לפי חוק הגנת הפרטיות, התשמ\"א-1981. השימוש באפליקציה מהווה הסכמה למדיניות זו."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Эта политика объясняет, какие данные собирает HoursTracker («мы»), зачем, где они хранятся и какие у вас права по израильскому Закону о защите частной жизни 1981 года. Пользуясь приложением, вы соглашаетесь с этой политикой."
+          }
+        }
+      }
+    },
     "privacy.overlayMessage" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -18808,6 +19446,64 @@
         }
       }
     },
+    "privacy.section.account" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الحساب والنسخ الاحتياطي السحابي"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account and cloud backup"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "חשבון וגיבוי בענן"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аккаунт и облачная копия"
+          }
+        }
+      }
+    },
+    "privacy.section.ai" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الميزات الذكية (الذكاء الاصطناعي)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smart features (AI)"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "תכונות חכמות (AI)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Умные функции (ИИ)"
+          }
+        }
+      }
+    },
     "privacy.section.camera" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -18833,6 +19529,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Камера и фото"
+          }
+        }
+      }
+    },
+    "privacy.section.changes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "التغييرات على هذه السياسة"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes to this policy"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שינויים במדיניות"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Изменения политики"
+          }
+        }
+      }
+    },
+    "privacy.section.children" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "القاصرون"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Minors"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "קטינים"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Несовершеннолетние"
           }
         }
       }
@@ -18982,6 +19736,122 @@
         }
       }
     },
+    "privacy.section.retention" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مدة الاحتفاظ بالبيانات"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How long we keep data"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "כמה זמן המידע נשמר"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сколько хранятся данные"
+          }
+        }
+      }
+    },
+    "privacy.section.rights" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حقوقك"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your rights"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הזכויות שלכם"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваши права"
+          }
+        }
+      }
+    },
+    "privacy.section.security" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أمن المعلومات"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Security"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אבטחת מידע"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Безопасность"
+          }
+        }
+      }
+    },
+    "privacy.section.support" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "رسائل الدعم والإعلانات"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Support messages and announcements"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "פניות לתמיכה והודעות"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Обращения в поддержку и объявления"
+          }
+        }
+      }
+    },
     "privacy.section.tracking" : {
       "extractionState" : "stale",
       "localizations" : {
@@ -19046,25 +19916,25 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "آخر تحديث: 16 تموز 2026"
+            "value" : "آخر تحديث: 29 سبتمبر 2026"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Last updated: 16 July 2026"
+            "value" : "Last updated: 29 September 2026"
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "עודכן לאחרונה: 16 ביולי 2026"
+            "value" : "עודכן לאחרונה: 29 בספטמבר 2026"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Последнее обновление: 16 июля 2026 г."
+            "value" : "Последнее обновление: 29 сентября 2026 г."
           }
         }
       }
@@ -26573,6 +27443,644 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Супруг(а) работает"
+          }
+        }
+      }
+    },
+    "terms.body.account" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "إذا أنشأت حسابًا، استخدم بريدًا إلكترونيًا حقيقيًا واحتفظ بكلمة المرور سرًّا. يحق لنا تعليق أي حساب يُستخدم للإضرار بالخدمة أو بالآخرين."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If you create an account, give a real email address and keep your password secret. We may suspend an account that is used to harm the service or other people."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אם תפתחו חשבון, מסרו כתובת אימייל אמיתית ושמרו את הסיסמה בסוד. אנחנו רשאים להשעות חשבון שמשמש לפגיעה בשירות או באחרים."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Если вы создаёте аккаунт, укажите настоящий e-mail и держите пароль в секрете. Мы можем приостановить аккаунт, который используется во вред сервису или другим людям."
+          }
+        }
+      }
+    },
+    "terms.body.ai" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يعتمد المساعد والماسح الذكي على خدمات ذكاء اصطناعي خارجية. قد تكون إجاباتها وقراءاتها خاطئة أو ناقصة. تحقّق من كل مبلغ ومن كل وردية مستوردة قبل الاعتماد عليها."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The assistant and the smart scanner use outside AI services. Their answers and readings can be wrong or incomplete. Check every figure and every imported shift before you rely on it."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "העוזר והסורק החכם משתמשים בשירותי AI חיצוניים. התשובות והקריאות שלהם עלולות להיות שגויות או חלקיות. בדקו כל סכום וכל משמרת מיובאת לפני שמסתמכים עליהם."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ассистент и умный сканер используют внешние ИИ-сервисы. Их ответы и распознавание могут быть ошибочными или неполными. Проверяйте каждую сумму и каждую импортированную смену, прежде чем на них полагаться."
+          }
+        }
+      }
+    },
+    "terms.body.changes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "قد نغيّر التطبيق أو هذه الشروط. عندما تتغيّر الشروط تغييرًا جوهريًا، سيطلب منك التطبيق الموافقة مرة أخرى. يمكنك التوقف عن استخدام التطبيق في أي وقت وحذف بياناتك."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We may change the app or these terms. When the terms change in a meaningful way, the app will ask you to agree again. You can stop using the app at any time and delete your data."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "אנחנו רשאים לשנות את האפליקציה או את התנאים. כשהתנאים ישתנו באופן מהותי, האפליקציה תבקש את הסכמתכם שוב. אפשר להפסיק להשתמש באפליקציה בכל עת ולמחוק את המידע."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Мы можем изменять приложение и эти условия. При существенных изменениях приложение снова попросит вашего согласия. Вы можете прекратить пользоваться приложением в любой момент и удалить свои данные."
+          }
+        }
+      }
+    },
+    "terms.body.contact" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "لديك أسئلة حول هذه الشروط؟ استخدم «تواصل مع الدعم» في الإعدادات."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Questions about these terms? Use Contact Support in Settings."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שאלות על התנאים? השתמשו ב\"יצירת קשר עם התמיכה\" בהגדרות."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вопросы об условиях? Напишите через «Связаться с поддержкой» в Настройках."
+          }
+        }
+      }
+    },
+    "terms.body.estimates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "مبالغ الراتب والساعات الإضافية والضرائب والخصومات هي تقديرات مبنية على التفاصيل التي أدخلتها وعلى قواعد عامة. ليست استشارة قانونية أو ضريبية أو محاسبية، ولا تحلّ محل قسيمة الراتب. راتبك الفعلي يعتمد على عقد العمل والاتفاقيات الجماعية والقانون ونظام الرواتب لدى صاحب العمل. قبل أن تتصرّف بناءً على أي مبلغ، تحقّق منه مع صاحب العمل أو محاسب أو محامٍ."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pay, overtime, tax and deduction figures are estimates based on the details you enter and on general rules. They are not legal, tax or accounting advice and do not replace your payslip. Your real pay depends on your employment agreement, collective agreements, the law and your employer's payroll. Before acting on a figure, check it with your employer, an accountant or a lawyer."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "סכומי השכר, השעות הנוספות, המס והניכויים הם הערכה המבוססת על הפרטים שהזנתם ועל כללים כלליים. הם אינם ייעוץ משפטי, מיסויי או חשבונאי ואינם מחליפים את תלוש השכר. השכר בפועל תלוי בחוזה העבודה, בהסכמים קיבוציים, בחוק ובמערכת השכר של המעסיק. לפני שפועלים על סמך סכום, כדאי לבדוק אותו מול המעסיק, רואה חשבון או עורך דין."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Суммы зарплаты, сверхурочных, налогов и удержаний — оценка на основе введённых вами данных и общих правил. Это не юридическая, налоговая или бухгалтерская консультация, и она не заменяет расчётный лист. Реальная зарплата зависит от трудового договора, коллективных соглашений, закона и расчётов работодателя. Прежде чем опираться на сумму, проверьте её у работодателя, бухгалтера или юриста."
+          }
+        }
+      }
+    },
+    "terms.body.law" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تخضع هذه الشروط لقوانين دولة إسرائيل، وتختص المحاكم المختصة في إسرائيل وحدها بالنظر في أي نزاع. تسري أيضًا الشروط العامة لشركة Apple لتطبيقات App Store."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These terms are governed by the laws of the State of Israel, and the competent courts in Israel have exclusive jurisdiction. Apple's standard terms for App Store apps also apply."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "על תנאים אלה חלים דיני מדינת ישראל, ולבתי המשפט המוסמכים בישראל סמכות השיפוט הבלעדית. גם התנאים הרגילים של Apple לאפליקציות ב-App Store חלים."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "К этим условиям применяется право Государства Израиль, исключительная подсудность — компетентные суды Израиля. Также действуют стандартные условия Apple для приложений из App Store."
+          }
+        }
+      }
+    },
+    "terms.body.liability" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يُقدَّم التطبيق \"كما هو\". إلى أقصى حد يسمح به القانون، لا نتحمّل المسؤولية عن أي خسارة أو ضرر ينتج عن استخدام التطبيق أو الاعتماد على مبالغه، بما في ذلك مطالبات الراتب أو شؤون الضرائب أو فقدان البيانات. لا شيء في هذه الشروط ينتقص من حقوقك بموجب قانون حماية المستهلك التي لا يمكن التنازل عنها."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The app is provided \"as is\". To the fullest extent the law allows, we are not liable for any loss or damage caused by using the app or relying on its figures, including pay claims, tax matters or lost data. Nothing in these terms limits rights you have under consumer protection law that cannot be waived."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "האפליקציה ניתנת \"כמות שהיא\" (AS IS). במידה המרבית שהחוק מתיר, לא נישא באחריות לכל נזק או הפסד שייגרמו מהשימוש באפליקציה או מהסתמכות על הסכומים שבה, לרבות תביעות שכר, ענייני מס או אובדן מידע. אין בתנאים אלה כדי לגרוע מזכויות שיש לכם לפי דיני הגנת הצרכן ושלא ניתן לוותר עליהן."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Приложение предоставляется «как есть». В максимальной степени, разрешённой законом, мы не несём ответственности за убытки или ущерб от использования приложения или опоры на его расчёты, включая претензии по зарплате, налоговые вопросы или потерю данных. Ничто в этих условиях не ограничивает ваши права по закону о защите прав потребителей, от которых нельзя отказаться."
+          }
+        }
+      }
+    },
+    "terms.body.responsibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "أنت مسؤول عن صحّة التفاصيل التي تدخلها وعن الاحتفاظ بنسخ احتياطية (التصدير أو نسخة الحساب أو iCloud). نبذل جهدًا كبيرًا لحماية بياناتك، لكن لا يمكننا أن نضمن أنها لن تضيع أبدًا."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You are responsible for the details you enter being correct, and for keeping backups (export, account backup or iCloud). We work hard to protect your data but can't promise it will never be lost."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "האחריות לנכונות הפרטים שאתם מזינים ולשמירת גיבויים (ייצוא, גיבוי חשבון או iCloud) היא עליכם. אנחנו עושים מאמץ רב להגן על המידע, אך לא יכולים להבטיח שלעולם לא יאבד."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Вы отвечаете за правильность вводимых данных и за резервные копии (экспорт, копия аккаунта или iCloud). Мы стараемся защитить ваши данные, но не можем гарантировать, что они никогда не будут потеряны."
+          }
+        }
+      }
+    },
+    "terms.body.service" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HoursTracker أداة شخصية لتسجيل ساعات عملك وتقدير راتبك في إسرائيل. لا يرتبط بأي صاحب عمل أو شركة رواتب أو جهة حكومية."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HoursTracker is a personal tool for recording your work hours and estimating your pay in Israel. It is not linked to any employer, payroll company or government body."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HoursTracker הוא כלי אישי לרישום שעות עבודה ולהערכת השכר בישראל. הוא אינו קשור לשום מעסיק, חברת שכר או גוף ממשלתי."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "HoursTracker — личный инструмент для учёта рабочих часов и примерного расчёта зарплаты в Израиле. Он не связан ни с одним работодателем, расчётной компанией или государственным органом."
+          }
+        }
+      }
+    },
+    "terms.body.use" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "استخدم التطبيق فقط لأغراض شخصية وقانونية. لا تحاول اختراق التطبيق أو خادمنا أو نسخه أو تفكيكه أو إرهاقه، ولا تُدخل معلومات شخصية لأشخاص آخرين دون إذنهم."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Use the app only for lawful, personal purposes. Don't try to break, copy, reverse-engineer or overload the app or our server, and don't enter other people's personal information without their permission."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "השתמשו באפליקציה רק למטרות חוקיות ואישיות. אל תנסו לפרוץ, להעתיק, לבצע הנדסה לאחור או להעמיס על האפליקציה או על השרת שלנו, ואל תזינו מידע אישי של אחרים ללא רשותם."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Используйте приложение только в законных личных целях. Не пытайтесь взломать, скопировать, декомпилировать или перегрузить приложение или наш сервер и не вводите чужие персональные данные без разрешения."
+          }
+        }
+      }
+    },
+    "terms.intro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "هذه الشروط اتفاق بينك وبين مطوّر HoursTracker (\"نحن\"). يُرجى قراءتها. إذا كنت لا توافق عليها، فلا تستخدم التطبيق."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "These terms are an agreement between you and the developer of HoursTracker (\"we\"). Please read them. If you don't agree, don't use the app."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "תנאים אלה הם הסכם בינכם לבין מפתח HoursTracker (\"אנחנו\"). אנא קראו אותם. אם אינכם מסכימים, אל תשתמשו באפליקציה."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Эти условия — соглашение между вами и разработчиком HoursTracker («мы»). Прочитайте их. Если вы не согласны, не пользуйтесь приложением."
+          }
+        }
+      }
+    },
+    "terms.section.account" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الحساب"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Account"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "חשבון"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аккаунт"
+          }
+        }
+      }
+    },
+    "terms.section.ai" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الميزات الذكية (الذكاء الاصطناعي)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Smart features (AI)"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "תכונות חכמות (AI)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Умные функции (ИИ)"
+          }
+        }
+      }
+    },
+    "terms.section.changes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "التغييرات وإنهاء الاستخدام"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes and ending use"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שינויים והפסקת שימוש"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Изменения и прекращение использования"
+          }
+        }
+      }
+    },
+    "terms.section.contact" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "التواصل"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contact"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "יצירת קשר"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Связь"
+          }
+        }
+      }
+    },
+    "terms.section.estimates" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تقديرات فقط"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Estimates only"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הערכה בלבד"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Только оценка"
+          }
+        }
+      }
+    },
+    "terms.section.law" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "القانون الساري"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Governing law"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הדין החל"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Применимое право"
+          }
+        }
+      }
+    },
+    "terms.section.liability" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "حدود المسؤولية"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Limitation of liability"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הגבלת אחריות"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ограничение ответственности"
+          }
+        }
+      }
+    },
+    "terms.section.responsibility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "بياناتك ونسخك الاحتياطية"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your data and backups"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "המידע והגיבויים שלכם"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ваши данные и копии"
+          }
+        }
+      }
+    },
+    "terms.section.service" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "التطبيق"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The app"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "האפליקציה"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Приложение"
+          }
+        }
+      }
+    },
+    "terms.section.use" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الاستخدام المقبول"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fair use"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שימוש הוגן"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Допустимое использование"
+          }
+        }
+      }
+    },
+    "terms.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "شروط الاستخدام"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terms of Use"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "תנאי שימוש"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Условия использования"
           }
         }
       }

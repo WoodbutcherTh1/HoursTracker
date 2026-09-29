@@ -20,6 +20,7 @@ Definition-of-done for privacy changes: if a PR stores, logs, exports, or transm
 | Marital status, children, spouse employed | Documents JSON; CloudKit if sync on | File protection | Until delete | Local + cloud purge |
 | `payrollStartDay`, `restDayWeekday`, `arrivalRemindersEnabled` | Documents JSON; CloudKit if sync on | File protection | Until delete | Local + cloud purge |
 | `modifiedAt` | Documents JSON; CloudKit if sync on | File protection | Until delete | Local + cloud purge |
+| `leaveDays` (vacation / recuperation day marks: id, day, kind) — display only, never a pay input | Documents JSON; CloudKit / account backup with the settings | File protection | Until delete | Local + cloud purge |
 
 ## Work history (`work_sessions.json`)
 
@@ -62,6 +63,9 @@ When signed in to an account, the account backup (`user_backups`) is also refres
 | `appLockEnabled` | Optional biometric App Lock (default off) | Standard UserDefaults | Until reset | Not wiped today (preference only; no PII) |
 | `smartScannerCloudEnabled` | User opt-in for cloud LLM document extraction **and** the cloud Assistant (default off) | Standard UserDefaults | Until reset | Not wiped today (preference only; no PII) |
 | `assistantButtonEnabled`, `assistantButtonStyle` | Assistant nav-bar button visibility + icon choice | Standard UserDefaults | Until reset | Not wiped today (preference only; no PII) |
+
+| `legal.acceptedVersion`, `legal.acceptedAt` | Which Terms of Use / Privacy Policy version the user agreed to, and when (consent record) | Standard UserDefaults | Until reset | Not wiped by delete-all (the user must agree again only when the version changes) |
+| `exportIncludeNotes` | Export → Attach notes toggle | Standard UserDefaults | Until reset | Not wiped (preference only) |
 
 Privacy manifest reason: `CA92.1` (see `PrivacyInfo.xcprivacy`).
 

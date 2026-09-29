@@ -6,6 +6,7 @@ struct HoursTrackerApp: App {
     @StateObject private var viewModel = AppViewModel.shared
     @StateObject private var appLock = AppLockController()
     @ObservedObject private var appLanguage = AppLanguageController.shared
+    @ObservedObject private var legal = LegalConsent.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var showLaunchSplash = true
 
@@ -18,6 +19,14 @@ struct HoursTrackerApp: App {
                     // strings refresh. Keep this off the splash/`@State` so changing
                     // language does not replay the launch animation.
                     .id(appLanguage.preference)
+
+                // Terms of Use + Privacy Policy: nothing else is usable until agreed
+                // (onboarding waits for it too, see MainTabView).
+                if !legal.isAccepted {
+                    LegalConsentView(consent: legal, viewModel: viewModel)
+                        .id(appLanguage.preference)
+                        .transition(.opacity)
+                }
 
                 if appLock.isEnabled && appLock.isLocked {
                     AppLockView(controller: appLock)
@@ -37,6 +46,7 @@ struct HoursTrackerApp: App {
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: appLock.isLocked)
+            .animation(.easeInOut(duration: 0.25), value: legal.isAccepted)
             .animation(.easeInOut(duration: 0.15), value: scenePhase)
             .animation(.easeInOut(duration: 0.45), value: showLaunchSplash)
             .environment(\.locale, appLanguage.locale)
@@ -143,6 +153,7 @@ struct MainTabView: View {
     @State private var pendingTab: AppTab?
     @ObservedObject private var unsavedSettings = SettingsUnsavedChanges.shared
     @AppStorage("hasSeenOnboarding.v1") private var hasSeenOnboarding = false
+    @ObservedObject private var legal = LegalConsent.shared
     // The Home screen's color picker is app-wide: this drives the tab bar's selected
     // color and every standard button/toggle/link tint across History, Export, and
     // Settings, not just Home's own neon-styled elements.
@@ -354,10 +365,11 @@ struct MainTabView: View {
                 selectedTab = .export
             }
         }
-        // First-launch onboarding — dismissed permanently once completed.
+        // First-launch onboarding — dismissed permanently once completed. Waits
+        // until the Terms of Use / Privacy Policy are agreed (LegalConsentView).
         .fullScreenCover(
             isPresented: Binding(
-                get: { !hasSeenOnboarding },
+                get: { !hasSeenOnboarding && legal.isAccepted },
                 set: { if !$0 { hasSeenOnboarding = true } }
             )
         ) {
