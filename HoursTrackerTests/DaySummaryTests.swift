@@ -76,7 +76,14 @@ final class DaySummaryTests: XCTestCase {
         UserDefaults.standard.set(PayDisplayMode.net.rawValue, forKey: key)
         viewModel.refreshLiveSurfaces()
 
-        try await Task.sleep(for: .milliseconds(700))
+        // Wait for the debounced push itself (a busy CI simulator can take well over
+        // the 300 ms debounce), then one more debounce window so a second push —
+        // which would mean the taps were not collapsed — has time to show up.
+        let deadline = Date().addingTimeInterval(5)
+        while viewModel.liveSurfacesPushCount == before, Date() < deadline {
+            try await Task.sleep(for: .milliseconds(50))
+        }
+        try await Task.sleep(for: AppViewModel.liveSurfacesDebounce * 2)
 
         XCTAssertEqual(viewModel.liveSurfacesPushCount, before + 1, "Debounce should collapse the two taps")
         XCTAssertEqual(viewModel.lastLiveSurfacesShowsNet, true, "The update must carry the last choice (net)")
