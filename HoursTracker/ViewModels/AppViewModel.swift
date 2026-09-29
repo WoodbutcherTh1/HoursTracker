@@ -325,7 +325,8 @@ final class AppViewModel: ObservableObject {
         return now >= threshold
     }
 
-    func clockOut() {
+    /// `notifySummary: false` when the caller shows the summary itself (Siri speaks it).
+    func clockOut(notifySummary: Bool = true) {
         guard let index = sessions.firstIndex(where: { $0.id == activeSession?.id }) else { return }
         // End Live Activity before the session is modified.
         if #available(iOS 16.1, *) {
@@ -359,7 +360,7 @@ final class AppViewModel: ObservableObject {
         showDaySummary = true
         // Clocked out from the Lock Screen, a widget or the Watch: the Day Summary
         // can't be seen, so send it as a notification instead.
-        if UIApplication.shared.applicationState != .active, !AnnouncementCenter.isAutomatedRun,
+        if notifySummary, UIApplication.shared.applicationState != .active, !AnnouncementCenter.isAutomatedRun,
            let breakdown = lastCompletedBreakdown {
             ShiftSummaryNotifier.post(session: sessions[index], breakdown: breakdown, showsNet: livePayShowsNet)
         }
