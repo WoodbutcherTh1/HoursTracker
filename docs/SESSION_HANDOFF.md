@@ -70,6 +70,35 @@ Read this first in a new session. It replaces the long chat history.
    - A Control Center toggle (iOS 18, `ShiftControl` in the widget), plus SiriReport unit tests.
 9. App Store marketing images for en/he/ar are done in `marketing/app-store/final`.
 
+## Done on 29 Sep (session 2, all pushed; build still 26)
+
+1. Settings → Share HoursTracker (App Store link) at the bottom.
+2. History: date/weekday in a Liquid Glass capsule (`HistoryDateBadge`).
+3. History multi-select delete: tap a date capsule / long-press a day (week strip or full
+   calendar) / row menu → Select; trash asks "Selected shifts: X. Delete them?"; one Undo
+   restores all (`AppViewModel.deleteSessions`).
+4. Export → "לצרף הערות" toggle (CSV column, Notes section in PDF/TXT/MD/DOCX).
+5. Pay summary "Days" card: ימי חג / חופש / הבראה / מחלה (counts only). Vacation /
+   recuperation days are marked on an empty day in History, stored in
+   `WorkplaceSettings.leaveDays` (display only; Settings save keeps the live list).
+6. Terms of Use + rewritten Privacy Policy (en/he/ar/ru) and a blocking consent screen
+   (`LegalConsent`, `LegalConsentView`) before onboarding and for existing users. Bump
+   `LegalConsent.currentVersion` when the texts change meaningfully. UI tests skip it
+   (any `UITEST_` argument) except with `UITEST_LEGAL_CONSENT`.
+
+Legal gaps found (told the owner, need approval):
+- No in-app account deletion although sign-up exists (App Store 5.1.1(v) + privacy law).
+  Needs a `delete-account` Edge Function on Supabase → ask before deploying.
+- "Delete all my data" doesn't delete the Supabase account backup.
+- The texts must be reviewed by an Israeli lawyer; the controller's legal name/contact
+  e-mail are not in the texts yet (owner to decide).
+- App Store Connect → App Privacy answers must match the new policy (owner does this).
+
+Multi-workplace (owner asked, not started): sessions are read in ~115 places incl. sync,
+backup and import. Plan: tag `WorkSession.workplaceID` (nil = main), extra workplaces'
+settings inside the main settings, active-workplace switch; waiting on the owner's
+decisions (see chat) before touching data paths.
+
 ## Waiting / next
 
 - [ ] **CI on the Siri commits** → fix if red → bump build to **26** → tell the owner to Archive and upload. Then give the owner a
