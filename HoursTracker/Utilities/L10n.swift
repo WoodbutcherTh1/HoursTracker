@@ -509,6 +509,50 @@ enum L10n {
     static var settingsUnsavedDiscard: String { t("settings.unsaved.discard") }
     static var settingsUnsavedStay: String { t("settings.unsaved.stay") }
     static var settingsUnsavedNotification: String { t("settings.unsaved.notification") }
+
+    // MARK: Siri
+    static var siriPeriodToday: String { t("siri.period.today") }
+    static var siriPeriodThisWeek: String { t("siri.period.thisWeek") }
+    static var siriPeriodThisMonth: String { t("siri.period.thisMonth") }
+    static var siriPeriodLastMonth: String { t("siri.period.lastMonth") }
+    static func siriTotals(_ period: String, _ hours: String, _ pay: String) -> String {
+        String(format: t("siri.totals %1$@ %2$@ %3$@"), period, hours, pay)
+    }
+    static func siriTotalsNoPay(_ period: String, _ hours: String) -> String {
+        String(format: t("siri.totalsNoPay %1$@ %2$@"), period, hours)
+    }
+    static func siriTotalsEmpty(_ period: String) -> String {
+        String(format: t("siri.totalsEmpty %@"), period)
+    }
+    static func siriClockedIn(_ time: String) -> String {
+        String(format: t("siri.clockedIn %@"), time)
+    }
+    static func siriAlreadyIn(_ time: String, _ elapsed: String) -> String {
+        String(format: t("siri.alreadyIn %1$@ %2$@"), time, elapsed)
+    }
+    static var siriNotClockedIn: String { t("siri.notClockedIn") }
+    static func siriClockedOut(_ hours: String, _ pay: String) -> String {
+        String(format: t("siri.clockedOut %1$@ %2$@"), hours, pay)
+    }
+    static func siriClockedOutNoPay(_ hours: String) -> String {
+        String(format: t("siri.clockedOutNoPay %@"), hours)
+    }
+    static var siriBreakStarted: String { t("siri.breakStarted") }
+    static var siriBreakEnded: String { t("siri.breakEnded") }
+    static var siriAlreadyOnBreak: String { t("siri.alreadyOnBreak") }
+    static var siriNotOnBreak: String { t("siri.notOnBreak") }
+    static func siriStatusWorking(_ time: String, _ elapsed: String) -> String {
+        String(format: t("siri.status.working %1$@ %2$@"), time, elapsed)
+    }
+    static func siriStatusWorkingPay(_ time: String, _ elapsed: String, _ pay: String) -> String {
+        String(format: t("siri.status.workingPay %1$@ %2$@ %3$@"), time, elapsed, pay)
+    }
+    static func siriExportDone(_ period: String) -> String {
+        String(format: t("siri.export.done %@"), period)
+    }
+    static func siriExportEmpty(_ period: String) -> String {
+        String(format: t("siri.export.empty %@"), period)
+    }
     static var settingsWorkerInfo: String { t("settings.workerInfo") }
     static var settingsFullName: String { t("settings.fullName") }
     static var settingsIDNumber: String { t("settings.idNumber") }

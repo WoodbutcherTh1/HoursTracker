@@ -55,6 +55,25 @@
 	     `xcodegen generate` keeps this file in sync. -->
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>INAlternativeAppNames</key>
+	<array>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Hours Tracker</string>
+		</dict>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>هاورز تراكر</string>
+		</dict>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>האוורס טרקר</string>
+		</dict>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Хаурс Трекер</string>
+		</dict>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

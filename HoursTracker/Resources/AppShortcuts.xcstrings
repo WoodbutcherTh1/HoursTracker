@@ -1,0 +1,264 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "Am I clocked in with ${applicationName}" : {
+      "localizations" : {
+        "ar" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "هل أنا بالشغل في ${applicationName}",
+              "من إيمتى أنا بالشغل في ${applicationName}",
+              "${applicationName} حالة الوردية"
+            ]
+          }
+        },
+        "he" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "האם אני במשמרת ב־${applicationName}",
+              "${applicationName} מצב משמרת"
+            ]
+          }
+        },
+        "ru" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Я на смене в ${applicationName}",
+              "${applicationName} статус смены"
+            ]
+          }
+        }
+      }
+    },
+    "Ask ${applicationName}" : {
+      "localizations" : {
+        "ar" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "اسأل ${applicationName}",
+              "عندي سؤال لـ ${applicationName}"
+            ]
+          }
+        },
+        "he" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "שאל את ${applicationName}",
+              "שאלה ל־${applicationName}"
+            ]
+          }
+        },
+        "ru" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Спроси ${applicationName}",
+              "Вопрос для ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "End my break in ${applicationName}" : {
+      "localizations" : {
+        "ar" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "خلّصت الاستراحة في ${applicationName}",
+              "رجعت للشغل في ${applicationName}"
+            ]
+          }
+        },
+        "he" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "חזרתי מהפסקה ב־${applicationName}",
+              "חזרה לעבודה ב־${applicationName}"
+            ]
+          }
+        },
+        "ru" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Закончи перерыв в ${applicationName}",
+              "Вернуться к работе в ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "End my shift in ${applicationName}" : {
+      "localizations" : {
+        "ar" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "خلّص ورديتي في ${applicationName}",
+              "سجّل خروج في ${applicationName}",
+              "${applicationName} إنهاء الوردية"
+            ]
+          }
+        },
+        "he" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "סיים משמרת ב־${applicationName}",
+              "יציאה ב־${applicationName}",
+              "${applicationName} סיים משמרת"
+            ]
+          }
+        },
+        "ru" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Закончи смену в ${applicationName}",
+              "Отметь уход в ${applicationName}",
+              "${applicationName} закончить смену"
+            ]
+          }
+        }
+      }
+    },
+    "Export ${period} report from ${applicationName}" : {
+      "localizations" : {
+        "ar" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "صدّر تقرير ${period} من ${applicationName}",
+              "صدّر ساعاتي من ${applicationName}"
+            ]
+          }
+        },
+        "he" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "ייצא דוח ${period} מ־${applicationName}",
+              "ייצא את השעות שלי מ־${applicationName}"
+            ]
+          }
+        },
+        "ru" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Экспортируй отчёт ${period} из ${applicationName}",
+              "Экспортируй мои часы из ${applicationName}"
+            ]
+          }
+        }
+      }
+    },
+    "How much did I earn ${period} in ${applicationName}" : {
+      "localizations" : {
+        "ar" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "كم طلعت ${period} في ${applicationName}",
+              "ساعاتي ${period} في ${applicationName}",
+              "${applicationName} الأرباح"
+            ]
+          }
+        },
+        "he" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "כמה הרווחתי ${period} ב־${applicationName}",
+              "השעות שלי ${period} ב־${applicationName}",
+              "${applicationName} הכנסות"
+            ]
+          }
+        },
+        "ru" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Мой заработок ${period} в ${applicationName}",
+              "Мои часы ${period} в ${applicationName}",
+              "${applicationName} заработок"
+            ]
+          }
+        }
+      }
+    },
+    "Start a break in ${applicationName}" : {
+      "localizations" : {
+        "ar" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "ابدأ استراحة في ${applicationName}",
+              "${applicationName} استراحة"
+            ]
+          }
+        },
+        "he" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "צא להפסקה ב־${applicationName}",
+              "${applicationName} הפסקה"
+            ]
+          }
+        },
+        "ru" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Начни перерыв в ${applicationName}",
+              "${applicationName} перерыв"
+            ]
+          }
+        }
+      }
+    },
+    "Start my shift in ${applicationName}" : {
+      "localizations" : {
+        "ar" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "ابدأ ورديتي في ${applicationName}",
+              "سجّل دخول في ${applicationName}",
+              "${applicationName} ابدأ الوردية"
+            ]
+          }
+        },
+        "he" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "התחל משמרת ב־${applicationName}",
+              "כניסה ב־${applicationName}",
+              "${applicationName} התחל משמרת"
+            ]
+          }
+        },
+        "ru" : {
+          "stringSet" : {
+            "state" : "translated",
+            "values" : [
+              "Начни смену в ${applicationName}",
+              "Отметь приход в ${applicationName}",
+              "${applicationName} начать смену"
+            ]
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.0"
+}

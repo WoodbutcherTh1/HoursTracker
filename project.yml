@@ -102,6 +102,13 @@ targets:
         # is false and LiveActivityManager.start() silently no-ops, so the Lock Screen banner
         # and Dynamic Island never appear even though the widget extension is otherwise correct.
         NSSupportsLiveActivities: true
+        # Extra names Siri accepts for the app in Siri phrases ("Start my shift in …"),
+        # so Arabic / Hebrew / Russian speakers can say it the way it sounds.
+        INAlternativeAppNames:
+          - INAlternativeAppName: Hours Tracker
+          - INAlternativeAppName: هاورز تراكر
+          - INAlternativeAppName: האוורס טרקר
+          - INAlternativeAppName: Хаурс Трекер
         # Deep links from the widget (interactive buttons + widgetURL) and the
         # home-screen quick actions (long-press icon).
         CFBundleURLTypes:
