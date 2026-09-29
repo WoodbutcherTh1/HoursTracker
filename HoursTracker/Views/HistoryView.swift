@@ -750,7 +750,7 @@ struct HistoryView: View {
 
     /// One shared column geometry for headers and data rows.
     private func historyColumns(
-        date: String,
+        date: HistoryDateBadge,
         clockIn: String,
         clockOut: String,
         hours: String,
@@ -759,7 +759,7 @@ struct HistoryView: View {
         isHeader: Bool = false
     ) -> some View {
         HStack(spacing: 0) {
-            Text(date)
+            date
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text(clockIn)
                 .frame(maxWidth: .infinity, alignment: .center)
@@ -881,7 +881,7 @@ struct HistoryView: View {
         let amount = payMode == .net ? breakdown.netPay : breakdown.grossPay
 
         return historyColumns(
-            date: shortDate(session.date),
+            date: HistoryDateBadge(text: shortDate(session.date)),
             clockIn: timeFormatter.string(from: session.clockIn),
             clockOut: session.clockOut.map { timeFormatter.string(from: $0) } ?? "—",
             hours: HistoryPeriodHelper.formatHoursClock(breakdown.totalHours),
