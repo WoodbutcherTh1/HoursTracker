@@ -115,6 +115,19 @@ enum L10n {
     static var historyEmptyPeriod: String { t("history.emptyPeriod") }
     static var historyEmptyPeriodHint: String { t("history.emptyPeriodHint") }
     static var historyShowAllDays: String { t("history.showAllDays") }
+    static var historySelect: String { t("history.select") }
+    static var historySelectAll: String { t("history.select.all") }
+    static var historySelectHint: String { t("history.select.hint") }
+    static var historySelectDeleteHint: String { t("history.select.deleteHint") }
+    static func historySelectedCount(_ count: Int) -> String {
+        String(format: t("history.select.count %lld"), count)
+    }
+    static func historySelectConfirm(_ count: Int) -> String {
+        String(format: t("history.select.confirm %lld"), count)
+    }
+    static func historyShiftsDeleted(_ count: Int) -> String {
+        String(format: t("history.select.deleted %lld"), count)
+    }
     static var historyPreviousWeek: String { t("history.previousWeek") }
     static var historyNextWeek: String { t("history.nextWeek") }
     static var historyColDate: String { t("history.col.date") }

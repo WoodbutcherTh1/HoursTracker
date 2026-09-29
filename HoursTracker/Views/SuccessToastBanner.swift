@@ -19,11 +19,13 @@ struct SuccessToastBanner: View {
 /// "Shift deleted — Undo" shown for a few seconds after a delete. The shift also
 /// stays in Settings → Recently deleted for 30 days.
 struct UndoDeleteBanner: View {
+    /// Shifts the Undo brings back — more than one after a History multi-delete.
+    var count: Int = 1
     let onUndo: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            Label(L10n.feedbackSessionDeleted, systemImage: "trash")
+            Label(count > 1 ? L10n.historyShiftsDeleted(count) : L10n.feedbackSessionDeleted, systemImage: "trash")
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.white)
             Spacer(minLength: 8)

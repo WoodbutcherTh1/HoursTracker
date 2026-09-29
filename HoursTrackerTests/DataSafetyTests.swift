@@ -59,6 +59,34 @@ final class DataSafetyTests: XCTestCase {
         XCTAssertNil(viewModel.undoableDeletion)
     }
 
+    func testBulkDeleteMovesEveryShiftToRecentlyDeleted() {
+        let keep = completedShift(day: 1)
+        let a = completedShift(day: 2)
+        let b = completedShift(day: 3)
+        let (viewModel, store, trash, _) = makeViewModel(sessions: [keep, a, b])
+
+        viewModel.deleteSessions([a, b])
+
+        XCTAssertEqual(store.storedSessions.map(\.id), [keep.id])
+        XCTAssertEqual(Set(trash.load().map(\.id)), [a.id, b.id])
+        XCTAssertEqual(viewModel.undoableDeletionCount, 2)
+    }
+
+    func testBulkUndoPutsEveryShiftBack() {
+        let keep = completedShift(day: 1)
+        let a = completedShift(day: 2)
+        let b = completedShift(day: 3)
+        let (viewModel, store, trash, _) = makeViewModel(sessions: [keep, a, b])
+
+        viewModel.deleteSessions([a, b])
+        viewModel.undoLastDeletion()
+
+        XCTAssertEqual(Set(store.storedSessions.map(\.id)), [keep.id, a.id, b.id])
+        XCTAssertTrue(trash.load().isEmpty)
+        XCTAssertNil(viewModel.undoableDeletion)
+        XCTAssertEqual(viewModel.undoableDeletionCount, 0)
+    }
+
     func testRestoreFromRecentlyDeleted() {
         let keep = completedShift(day: 2)
         let shift = completedShift(day: 3)

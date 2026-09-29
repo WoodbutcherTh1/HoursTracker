@@ -261,7 +261,7 @@ struct MainTabView: View {
         // "Shift deleted · Undo" for a few seconds after any delete.
         .overlay(alignment: .bottom) {
             if viewModel.undoableDeletion != nil {
-                UndoDeleteBanner { viewModel.undoLastDeletion() }
+                UndoDeleteBanner(count: viewModel.undoableDeletionCount) { viewModel.undoLastDeletion() }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .padding(.bottom, 56)
             }

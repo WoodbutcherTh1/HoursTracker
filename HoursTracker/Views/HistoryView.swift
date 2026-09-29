@@ -33,6 +33,11 @@ struct HistoryView: View {
     @State private var exportError: String?
     @State private var copyToastVisible = false
     @State private var showPayBreakdown = false
+    /// Multi-select delete: entered by tapping a row's date capsule, long-pressing a
+    /// day, or "Select" in a row's menu. Taps then pick shifts / whole days.
+    @State private var isSelecting = false
+    @State private var selectedIDs: Set<UUID> = []
+    @State private var showBulkDeleteConfirm = false
 
     private let calendar = Calendar.current
 
@@ -85,6 +90,9 @@ struct HistoryView: View {
                 if let selectedDay, let holiday = IsraeliHolidayCalendar.holiday(on: selectedDay, calendar: calendar) {
                     holidayBanner(holiday)
                 }
+                if isSelecting {
+                    selectionHintBar
+                }
                 sessionsContent
                 stickySummaryBar
             }
@@ -92,26 +100,44 @@ struct HistoryView: View {
             // never over the period header.
             .frame(maxHeight: .infinity, alignment: .top)
             .background(appBackground.background.ignoresSafeArea())
-            .navigationTitle(L10n.historyTitle)
+            .navigationTitle(isSelecting ? L10n.historySelectedCount(selectedSessions.count) : L10n.historyTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                // App-level entry point on the leading side, consistent with the other
-                // tab roots and clear of this screen's own actions.
-                ToolbarItem(placement: .topBarLeading) {
-                    AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
-                }
-                ToolbarItemGroup(placement: .primaryAction) {
-                    Button {
-                        showScanner = true
-                    } label: {
-                        Image(systemName: "tablecells")
+                if isSelecting {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button(L10n.editCancel) { endSelection() }
+                            .accessibilityIdentifier("phone.history.selectCancel")
                     }
-                    .accessibilityLabel(L10n.gridTitle)
+                    ToolbarItem(placement: .primaryAction) {
+                        Button(role: .destructive) {
+                            showBulkDeleteConfirm = true
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .tint(.red)
+                        .disabled(selectedSessions.isEmpty)
+                        .accessibilityLabel(L10n.editDelete)
+                        .accessibilityIdentifier("phone.history.selectDelete")
+                    }
+                } else {
+                    // App-level entry point on the leading side, consistent with the other
+                    // tab roots and clear of this screen's own actions.
+                    ToolbarItem(placement: .topBarLeading) {
+                        AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
+                    }
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        Button {
+                            showScanner = true
+                        } label: {
+                            Image(systemName: "tablecells")
+                        }
+                        .accessibilityLabel(L10n.gridTitle)
 
-                    Button {
-                        showManualEntry = true
-                    } label: {
-                        Image(systemName: "plus")
+                        Button {
+                            showManualEntry = true
+                        } label: {
+                            Image(systemName: "plus")
+                        }
                     }
                 }
             }
@@ -148,6 +174,18 @@ struct HistoryView: View {
                     workedDayCount: workedDayCount,
                     showsPendingWorkedDay: hasPendingWorkedDay
                 )
+            }
+            .alert(
+                L10n.historySelectConfirm(selectedSessions.count),
+                isPresented: $showBulkDeleteConfirm
+            ) {
+                Button(L10n.editDelete, role: .destructive) {
+                    viewModel.deleteSessions(selectedSessions)  // one Undo banner for all
+                    endSelection()
+                }
+                Button(L10n.editCancel, role: .cancel) {}
+            } message: {
+                Text(L10n.historySelectDeleteHint)
             }
             .alert(
                 L10n.editDeleteConfirm,
@@ -222,6 +260,9 @@ struct HistoryView: View {
             .animation(.easeInOut(duration: 0.2), value: copyToastVisible)
             .onAppear {
                 alignToCurrentPayrollPeriod()
+            }
+            .onDisappear {
+                endSelection()
             }
             .onChange(of: viewModel.settings.payrollStartDay) { _, _ in
                 alignToCurrentPayrollPeriod()
@@ -357,25 +398,34 @@ struct HistoryView: View {
     }
 
     private func dayCell(_ day: PayrollWeekDay, weekdayLetter: String) -> some View {
-        let isSelected = day.isInPeriod
-            && selectedDay.map { calendar.isDate(day.date, inSameDayAs: $0) } == true
+        let isSelected = day.isInPeriod && (isSelecting
+            ? isDayFullyPicked(day.date)
+            : selectedDay.map { calendar.isDate(day.date, inSameDayAs: $0) } == true)
         let hasSession = day.isInPeriod && !sessionsForDay(day.date).isEmpty
         let isToday = calendar.isDateInToday(day.date)
         let number = dayNumberFormatter.string(from: day.date)
         let holiday = day.isInPeriod ? IsraeliHolidayCalendar.holiday(on: day.date, calendar: calendar) : nil
 
-        return Button {
-            guard day.isInPeriod else { return }
-            withAnimation(.easeInOut(duration: 0.2)) {
-                let tapped = calendar.startOfDay(for: day.date)
-                // Tap again to clear day filter → full period list.
-                if let current = selectedDay, calendar.isDate(current, inSameDayAs: tapped) {
-                    selectedDay = nil
-                } else {
-                    selectedDay = tapped
+        return DayCellTapTarget(
+            isEnabled: day.isInPeriod,
+            selectActionName: L10n.historySelect,
+            onTap: {
+                if isSelecting {
+                    toggleDaySelection(day.date)
+                    return
                 }
-            }
-        } label: {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    let tapped = calendar.startOfDay(for: day.date)
+                    // Tap again to clear day filter → full period list.
+                    if let current = selectedDay, calendar.isDate(current, inSameDayAs: tapped) {
+                        selectedDay = nil
+                    } else {
+                        selectedDay = tapped
+                    }
+                }
+            },
+            onLongPress: { beginSelection(withDay: day.date) }
+        ) {
             VStack(spacing: 4) {
                 Text(weekdayLetter)
                     .font(.caption2.weight(.medium))
@@ -407,8 +457,6 @@ struct HistoryView: View {
             .contentShape(Rectangle())
             .opacity(day.isInPeriod ? 1 : 0.28)
         }
-        .buttonStyle(.plain)
-        .disabled(!day.isInPeriod)
         .accessibilityLabel(dayAccessibilityLabel(day.date, hasSession: hasSession, holiday: holiday))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityHidden(!day.isInPeriod)
@@ -574,27 +622,36 @@ struct HistoryView: View {
     }
 
     private func calendarDayCell(_ day: PayrollWeekDay) -> some View {
-        let isSelected = day.isInPeriod
-            && selectedDay.map { calendar.isDate(day.date, inSameDayAs: $0) } == true
+        let isSelected = day.isInPeriod && (isSelecting
+            ? isDayFullyPicked(day.date)
+            : selectedDay.map { calendar.isDate(day.date, inSameDayAs: $0) } == true)
         let isToday = calendar.isDateInToday(day.date)
         let number = dayNumberFormatter.string(from: day.date)
         let amount = day.isInPeriod ? dailyPayTotal(for: day.date) : nil
         let holiday = day.isInPeriod ? IsraeliHolidayCalendar.holiday(on: day.date, calendar: calendar) : nil
 
-        return Button {
-            guard day.isInPeriod else { return }
-            let tapped = calendar.startOfDay(for: day.date)
-            withAnimation(.easeInOut(duration: 0.2)) {
-                // Tap again to clear day filter → full period list.
-                if let current = selectedDay, calendar.isDate(current, inSameDayAs: tapped) {
-                    selectedDay = nil
-                } else {
-                    selectedDay = tapped
+        return DayCellTapTarget(
+            isEnabled: day.isInPeriod,
+            selectActionName: L10n.historySelect,
+            onTap: {
+                if isSelecting {
+                    toggleDaySelection(day.date)
+                    return
                 }
-            }
-            // So the week strip lands on the right page once the user swipes back up.
-            syncWeekPage(to: tapped, animated: false)
-        } label: {
+                let tapped = calendar.startOfDay(for: day.date)
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    // Tap again to clear day filter → full period list.
+                    if let current = selectedDay, calendar.isDate(current, inSameDayAs: tapped) {
+                        selectedDay = nil
+                    } else {
+                        selectedDay = tapped
+                    }
+                }
+                // So the week strip lands on the right page once the user swipes back up.
+                syncWeekPage(to: tapped, animated: false)
+            },
+            onLongPress: { beginSelection(withDay: day.date) }
+        ) {
             VStack(spacing: 3) {
                 Text(number)
                     .font(.subheadline.weight(isSelected ? .bold : .regular).monospacedDigit())
@@ -629,8 +686,6 @@ struct HistoryView: View {
             .contentShape(Rectangle())
             .opacity(day.isInPeriod ? 1 : 0.28)
         }
-        .buttonStyle(.plain)
-        .disabled(!day.isInPeriod)
         .accessibilityLabel(dayAccessibilityLabel(day.date, hasSession: amount != nil, holiday: holiday))
         .accessibilityAddTraits(isSelected ? .isSelected : [])
         .accessibilityHidden(!day.isInPeriod)
@@ -749,8 +804,8 @@ struct HistoryView: View {
     }
 
     /// One shared column geometry for headers and data rows.
-    private func historyColumns(
-        date: HistoryDateBadge,
+    private func historyColumns<DateLabel: View>(
+        date: DateLabel,
         clockIn: String,
         clockOut: String,
         hours: String,
@@ -790,7 +845,11 @@ struct HistoryView: View {
                             .accessibilityIdentifier("history.sessionRow")
                             .contentShape(Rectangle())
                             .onTapGesture {
-                                selectedSession = session
+                                if isSelecting {
+                                    toggleRowSelection(session)
+                                } else {
+                                    selectedSession = session
+                                }
                             }
                             .listRowInsets(EdgeInsets())
                             .listRowSeparator(.hidden)
@@ -830,6 +889,11 @@ struct HistoryView: View {
                                 .tint(.gray)
                             }
                             .contextMenu {
+                                Button {
+                                    beginSelection(with: [session.id])
+                                } label: {
+                                    Label(L10n.historySelect, systemImage: "checkmark.circle")
+                                }
                                 Button {
                                     copySession(session)
                                 } label: {
@@ -879,9 +943,26 @@ struct HistoryView: View {
     private func sessionRow(_ session: WorkSession, striped: Bool) -> some View {
         let breakdown = viewModel.breakdown(for: session)
         let amount = payMode == .net ? breakdown.netPay : breakdown.grossPay
+        let isPicked = isSelecting && selectedIDs.contains(session.id)
+        // Tapping the date capsule starts multi-select (or toggles the row while in it).
+        let dateBadge = HistoryDateBadge(
+            text: shortDate(session.date),
+            isSelecting: isSelecting,
+            isSelected: isPicked
+        )
+        .onTapGesture {
+            if isSelecting {
+                toggleRowSelection(session)
+            } else {
+                beginSelection(with: [session.id])
+            }
+        }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityHint(L10n.historySelect)
+        .accessibilityAddTraits(isPicked ? .isSelected : [])
 
         return historyColumns(
-            date: HistoryDateBadge(text: shortDate(session.date)),
+            date: dateBadge,
             clockIn: timeFormatter.string(from: session.clockIn),
             clockOut: session.clockOut.map { timeFormatter.string(from: $0) } ?? "—",
             hours: HistoryPeriodHelper.formatHoursClock(breakdown.totalHours),
@@ -891,7 +972,9 @@ struct HistoryView: View {
         .padding(.horizontal, historyTableInsets.leading)
         .padding(.vertical, 11)
         .background {
-            if striped {
+            if isPicked {
+                Color.accentColor.opacity(0.14)
+            } else if striped {
                 Color(.secondarySystemGroupedBackground).opacity(0.45)
             }
         }
@@ -1067,6 +1150,99 @@ struct HistoryView: View {
         return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.settings)
     }
 
+    // MARK: - Multi-select delete
+
+    /// Picked shifts that still exist (a sync may have removed some meanwhile).
+    private var selectedSessions: [WorkSession] {
+        viewModel.sessions.filter { selectedIDs.contains($0.id) }
+    }
+
+    private var selectionHintBar: some View {
+        let visibleIDs = Set(filteredSessions.map(\.id))
+        let allVisiblePicked = !visibleIDs.isEmpty && visibleIDs.isSubset(of: selectedIDs)
+        return HStack(spacing: 8) {
+            Image(systemName: "checkmark.circle")
+                .foregroundStyle(Color.accentColor)
+            Text(L10n.historySelectHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .lineLimit(2)
+            Spacer(minLength: 4)
+            if !visibleIDs.isEmpty {
+                Button(allVisiblePicked ? L10n.editCancel : L10n.historySelectAll) {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        if allVisiblePicked {
+                            selectedIDs.subtract(visibleIDs)
+                        } else {
+                            selectedIDs.formUnion(visibleIDs)
+                        }
+                    }
+                    UISelectionFeedbackGenerator().selectionChanged()
+                }
+                .font(.caption.weight(.semibold))
+                .accessibilityIdentifier("phone.history.selectAll")
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 8)
+        .transition(.move(edge: .top).combined(with: .opacity))
+    }
+
+    private func beginSelection(with ids: Set<UUID>) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isSelecting = true
+            selectedIDs = ids
+        }
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+    }
+
+    /// Long-press on a day: start selecting with that day's shifts, and show the
+    /// whole period so every picked row is on screen.
+    private func beginSelection(withDay day: Date) {
+        withAnimation(.easeInOut(duration: 0.2)) {
+            selectedDay = nil
+        }
+        beginSelection(with: Set(sessionsForDay(day).map(\.id)))
+    }
+
+    private func endSelection() {
+        guard isSelecting else { return }
+        withAnimation(.easeInOut(duration: 0.2)) {
+            isSelecting = false
+            selectedIDs = []
+        }
+    }
+
+    private func toggleRowSelection(_ session: WorkSession) {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            if selectedIDs.contains(session.id) {
+                selectedIDs.remove(session.id)
+            } else {
+                selectedIDs.insert(session.id)
+            }
+        }
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
+
+    /// Adds a day's shifts, or removes them if they were all picked already.
+    private func toggleDaySelection(_ day: Date) {
+        let ids = Set(sessionsForDay(day).map(\.id))
+        guard !ids.isEmpty else { return }
+        withAnimation(.easeInOut(duration: 0.15)) {
+            if ids.isSubset(of: selectedIDs) {
+                selectedIDs.subtract(ids)
+            } else {
+                selectedIDs.formUnion(ids)
+            }
+        }
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
+
+    private func isDayFullyPicked(_ day: Date) -> Bool {
+        let ids = Set(sessionsForDay(day).map(\.id))
+        return !ids.isEmpty && ids.isSubset(of: selectedIDs)
+    }
+
     private func sessionsForDay(_ day: Date) -> [WorkSession] {
         viewModel.sessions.filter { calendar.isDate($0.date, inSameDayAs: day) && $0.clockOut != nil }
     }
@@ -1140,5 +1316,38 @@ struct HistoryView: View {
         } catch {
             exportError = error.localizedDescription
         }
+    }
+}
+
+/// A day in the week strip / full calendar: tap and long-press as separate,
+/// exclusive gestures (a `Button` would also fire its tap after a long press).
+/// VoiceOver gets the tap as the default action and "Select" as a named one.
+private struct DayCellTapTarget<Content: View>: View {
+    let isEnabled: Bool
+    let selectActionName: String
+    let onTap: () -> Void
+    let onLongPress: () -> Void
+    @ViewBuilder let content: () -> Content
+
+    var body: some View {
+        content()
+            .onTapGesture {
+                guard isEnabled else { return }
+                onTap()
+            }
+            .onLongPressGesture(minimumDuration: 0.45) {
+                guard isEnabled else { return }
+                onLongPress()
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isButton)
+            .accessibilityAction {
+                guard isEnabled else { return }
+                onTap()
+            }
+            .accessibilityAction(named: Text(selectActionName)) {
+                guard isEnabled else { return }
+                onLongPress()
+            }
     }
 }

@@ -27,6 +27,8 @@ final class AppViewModel: ObservableObject {
     @Published private(set) var liveCurve: LivePayCurve?
     /// The shift just deleted, while its "Undo" banner is on screen.
     @Published private(set) var undoableDeletion: WorkSession?
+    /// Every shift the showing Undo banner restores when it came from a multi-delete.
+    private var undoableBulkIDs: [UUID] = []
 
     /// Background Smart Scanner job — user can dismiss the picker and keep using the app.
     enum ScannerImportPhase: Equatable {
@@ -736,6 +738,37 @@ final class AppViewModel: ObservableObject {
         )
     }
 
+    /// Deletes several shifts at once (History multi-select). Same safety as a
+    /// single delete: each goes into "Recently deleted" for 30 days, and one
+    /// Undo banner puts them all back.
+    func deleteSessions(_ toDelete: [WorkSession]) {
+        guard !toDelete.isEmpty else { return }
+        if toDelete.count == 1 {
+            deleteSession(toDelete[0])
+            return
+        }
+        for session in toDelete {
+            try? deletedSessions.add(session)
+        }
+        let ids = Set(toDelete.map(\.id))
+        sessions.removeAll { ids.contains($0.id) }
+        offerUndo(for: toDelete[0])
+        undoableBulkIDs = toDelete.map(\.id)
+        persist()
+        refreshReminders()
+        syncWidget()
+        ActivityLogStore.shared.log(
+            L10n.logEventSessionDeleted + " ×\(toDelete.count)",
+            level: .warning,
+            category: "session"
+        )
+    }
+
+    /// How many shifts the Undo banner would bring back (1 for a single delete).
+    var undoableDeletionCount: Int {
+        undoableDeletion == nil ? 0 : max(1, undoableBulkIDs.count)
+    }
+
     // MARK: - Recently deleted / undo
 
     /// Shifts deleted in the last 30 days, newest first.
@@ -746,7 +779,27 @@ final class AppViewModel: ObservableObject {
     /// Undo the delete whose banner is showing.
     func undoLastDeletion() {
         guard let session = undoableDeletion else { return }
-        restoreDeletedSession(id: session.id)
+        let bulk = undoableBulkIDs
+        guard bulk.count > 1 else {
+            restoreDeletedSession(id: session.id)
+            return
+        }
+        clearUndo()
+        var restoredIDs: [UUID] = []
+        for id in bulk {
+            guard let entry = try? deletedSessions.remove(id: id),
+                  !sessions.contains(where: { $0.id == id }) else { continue }
+            var restored = entry.session
+            restored.touch()
+            sessions.append(restored)
+            restoredIDs.append(id)
+        }
+        guard !restoredIDs.isEmpty else { return }
+        store.forgetDeletions(ids: Set(restoredIDs))
+        sessions.sort { $0.clockIn < $1.clockIn }
+        persist()
+        syncWidget()
+        ActivityLogStore.shared.log(L10n.logEventSessionRestored, level: .success, category: "session")
     }
 
     /// Puts a deleted shift back (from Undo or the Recently Deleted list).
@@ -771,18 +824,21 @@ final class AppViewModel: ObservableObject {
     }
 
     private func offerUndo(for session: WorkSession) {
+        undoableBulkIDs = []
         undoableDeletion = session
         undoClearTask?.cancel()
         undoClearTask = Task { [weak self] in
             try? await Task.sleep(for: .seconds(8))
             guard !Task.isCancelled else { return }
             self?.undoableDeletion = nil
+            self?.undoableBulkIDs = []
         }
     }
 
     private func clearUndo() {
         undoClearTask?.cancel()
         undoableDeletion = nil
+        undoableBulkIDs = []
     }
 
     // MARK: - Automatic backups
