@@ -103,9 +103,8 @@ targets:
         # and Dynamic Island never appear even though the widget extension is otherwise correct.
         NSSupportsLiveActivities: true
         # Extra names Siri accepts for the app in Siri phrases ("Start my shift in …"),
-        # so Arabic / Hebrew / Russian speakers can say it the way it sounds.
+        # so Arabic / Hebrew / Russian speakers can say it the way it sounds (iOS allows 3 at most).
         INAlternativeAppNames:
-          - INAlternativeAppName: Hours Tracker
           - INAlternativeAppName: هاورز تراكر
           - INAlternativeAppName: האוורס טרקר
           - INAlternativeAppName: Хаурс Трекер
