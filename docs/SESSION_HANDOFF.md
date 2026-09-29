@@ -6,8 +6,8 @@ Read this first in a new session. It replaces the long chat history.
 
 - Repo `WoodbutcherTh1/HoursTracker`, branch **`claude/planning-requests-bb6hz1`**, draft **PR #66** (base `main`).
   Push only to this branch; nothing merges to `main` without the owner's approval.
-- Version **1.8**, build **25** in `project.yml` (`CURRENT_PROJECT_VERSION`). Every TestFlight upload needs a higher
-  build: the next upload must be **26**. Bump it before the owner archives.
+- Version **1.8**, build **26** in `project.yml` (`CURRENT_PROJECT_VERSION`). Every TestFlight upload needs a higher
+  build: build 26 is the next upload; after it goes up, the one after must be **27**.
 - Latest code commit: `1579354`. The Siri commit compiled but the app wouldn't install: iOS allows at most 3
   `INAlternativeAppNames` and there were 4. `1579354` trims them to 3 (ar/he/ru). CI on it had not finished when this was written. **First job in the new session: check CI on the head, fix any compile error,
   then bump to build 26.**
