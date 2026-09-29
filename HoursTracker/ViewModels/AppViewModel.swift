@@ -946,6 +946,26 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Settings
 
+    // MARK: - Leave days (vacation / recuperation)
+
+    /// The vacation / recuperation mark on a day, if any.
+    func leaveKind(on day: Date) -> LeaveKind? {
+        settings.leaveDays.first { Calendar.current.isDate($0.date, inSameDayAs: day) }?.kind
+    }
+
+    /// Marks a day as vacation / recuperation, or clears the mark with `nil`.
+    /// Display only: the pay summary counts these days; pay math never reads them.
+    func setLeave(_ kind: LeaveKind?, on day: Date) {
+        guard leaveKind(on: day) != kind else { return }
+        var updated = settings
+        updated.leaveDays.removeAll { Calendar.current.isDate($0.date, inSameDayAs: day) }
+        if let kind {
+            updated.leaveDays.append(LeaveDay(date: day, kind: kind))
+            updated.leaveDays.sort { $0.date < $1.date }
+        }
+        saveSettings(updated)
+    }
+
     func saveSettings(_ newSettings: WorkplaceSettings) {
         var updated = newSettings
         updated.modifiedAt = Date()

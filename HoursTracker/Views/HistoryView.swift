@@ -172,7 +172,8 @@ struct HistoryView: View {
                 HistoryPayBreakdownSheet(
                     breakdown: periodTotals,
                     workedDayCount: workedDayCount,
-                    showsPendingWorkedDay: hasPendingWorkedDay
+                    showsPendingWorkedDay: hasPendingWorkedDay,
+                    dayCounts: periodDayCounts
                 )
             }
             .alert(
@@ -450,7 +451,12 @@ struct HistoryView: View {
                     }
 
                 Circle()
-                    .fill(hasSession && !isSelected ? Color.accentColor : Color.clear)
+                    .fill(
+                        isSelected ? Color.clear
+                            : hasSession ? Color.accentColor
+                            : (day.isInPeriod && viewModel.leaveKind(on: day.date) != nil) ? Color.teal
+                            : Color.clear
+                    )
                     .frame(width: 4, height: 4)
             }
             .frame(maxWidth: .infinity)
@@ -629,6 +635,7 @@ struct HistoryView: View {
         let number = dayNumberFormatter.string(from: day.date)
         let amount = day.isInPeriod ? dailyPayTotal(for: day.date) : nil
         let holiday = day.isInPeriod ? IsraeliHolidayCalendar.holiday(on: day.date, calendar: calendar) : nil
+        let leave = day.isInPeriod ? viewModel.leaveKind(on: day.date) : nil
 
         return DayCellTapTarget(
             isEnabled: day.isInPeriod,
@@ -675,9 +682,13 @@ struct HistoryView: View {
                 // shift nor a holiday, same as the week strip's plain dot today.
                 // A worked holiday still shows its pay total — the gold ring above
                 // already marks it as a holiday.
-                Text(amount.map(formattedDailyAmount) ?? holiday?.hebrewShortName ?? " ")
+                Text(amount.map(formattedDailyAmount) ?? holiday?.hebrewShortName ?? leave.map(leaveShortName) ?? " ")
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(amount == nil && holiday != nil ? .yellow : (isSelected ? Color.accentColor : .secondary))
+                    .foregroundStyle(
+                        amount == nil && holiday != nil ? .yellow
+                            : amount == nil && leave != nil ? .teal
+                            : (isSelected ? Color.accentColor : .secondary)
+                    )
                     .lineLimit(1)
                     .minimumScaleFactor(0.5)
             }
@@ -993,7 +1004,10 @@ struct HistoryView: View {
                 .foregroundStyle(.secondary)
                 .symbolRenderingMode(.hierarchical)
                 .accessibilityHidden(true)
-            if selectedDay != nil {
+            if let markedDay = selectedDay {
+                leaveMarker(for: markedDay)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 4)
                 Text(L10n.historyEmptyPeriod)
                     .font(.subheadline.weight(.semibold))
                     .multilineTextAlignment(.center)
@@ -1241,6 +1255,67 @@ struct HistoryView: View {
     private func isDayFullyPicked(_ day: Date) -> Bool {
         let ids = Set(sessionsForDay(day).map(\.id))
         return !ids.isEmpty && ids.isSubset(of: selectedIDs)
+    }
+
+    // MARK: - Leave days (vacation / recuperation)
+
+    /// On a day with no shifts: mark it as a vacation or recuperation day (tap the
+    /// selected one again to clear it). Counted in the pay summary only.
+    private func leaveMarker(for day: Date) -> some View {
+        let current = viewModel.leaveKind(on: day)
+        return VStack(spacing: 8) {
+            Text(L10n.leaveMarkTitle)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            HStack(spacing: 8) {
+                ForEach(LeaveKind.allCases) { kind in
+                    let isOn = current == kind
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            viewModel.setLeave(isOn ? nil : kind, on: day)
+                        }
+                        UISelectionFeedbackGenerator().selectionChanged()
+                    } label: {
+                        Label(kind.localizedName, systemImage: isOn ? "checkmark.circle.fill" : kind.systemImage)
+                            .font(.subheadline.weight(.semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.8)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 8)
+                    }
+                    .buttonStyle(.bordered)
+                    .tint(isOn ? .teal : .secondary)
+                    .accessibilityAddTraits(isOn ? .isSelected : [])
+                    .accessibilityIdentifier("history.leave.\(kind.rawValue)")
+                }
+            }
+            Text(L10n.leaveMarkHint)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .multilineTextAlignment(.center)
+        }
+    }
+
+    private func leaveShortName(_ kind: LeaveKind) -> String {
+        switch kind {
+        case .vacation: return L10n.leaveVacationShort
+        case .recuperation: return L10n.leaveRecuperationShort
+        }
+    }
+
+    /// Day counts for the pay summary — same range as its totals (the selected day,
+    /// or the whole payroll period).
+    private var periodDayCounts: PeriodDayCounts {
+        let period = activePeriod
+        let start = selectedDay ?? period.start
+        let end = selectedDay ?? period.end
+        return PeriodDayCounts.count(
+            sessions: viewModel.sessions,
+            leaveDays: viewModel.settings.leaveDays,
+            from: start,
+            through: end,
+            calendar: calendar
+        )
     }
 
     private func sessionsForDay(_ day: Date) -> [WorkSession] {

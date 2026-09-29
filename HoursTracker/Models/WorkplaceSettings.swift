@@ -50,6 +50,9 @@ struct WorkplaceSettings: Codable, Equatable {
     var expectedShiftStartHour: Int
     /// Typical shift start time (minute, 0...59).
     var expectedShiftStartMinute: Int
+    /// Vacation / recuperation days marked in History. Display only (pay summary
+    /// day counts) — no pay input reads this.
+    var leaveDays: [LeaveDay] = []
     var modifiedAt: Date
 
     static let `default` = WorkplaceSettings(
@@ -132,6 +135,7 @@ struct WorkplaceSettings: Codable, Equatable {
         case weeklyStandardHours, weeklyOvertimeCapHours, currencyCode
         case arrivalRemindersEnabled
         case expectedShiftStartHour, expectedShiftStartMinute
+        case leaveDays
         case modifiedAt
     }
 
@@ -231,6 +235,8 @@ struct WorkplaceSettings: Codable, Equatable {
         arrivalRemindersEnabled = try c.decodeIfPresent(Bool.self, forKey: .arrivalRemindersEnabled) ?? false
         expectedShiftStartHour = try c.decodeIfPresent(Int.self, forKey: .expectedShiftStartHour) ?? 8
         expectedShiftStartMinute = try c.decodeIfPresent(Int.self, forKey: .expectedShiftStartMinute) ?? 0
+        // A malformed or unknown entry must never make the whole settings unreadable.
+        leaveDays = (try? c.decodeIfPresent([LeaveDay].self, forKey: .leaveDays)) ?? []
         modifiedAt = try c.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? Date()
         normalizeValidatedFields()
     }

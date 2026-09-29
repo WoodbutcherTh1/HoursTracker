@@ -287,7 +287,11 @@ struct SettingsView: View {
     }
 
     private func saveSettings() {
-        viewModel.saveSettings(draft)
+        // Leave days are marked in History, not here — keep the live ones so a draft
+        // opened earlier can't roll back a day marked meanwhile.
+        var toSave = draft
+        toSave.leaveDays = viewModel.settings.leaveDays
+        viewModel.saveSettings(toSave)
         UserDefaultsSmartScannerCloudPreference.shared.isEnabled = smartScannerCloudEnabled
         let trimmedKey = geminiAPIKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         try? KeychainStore.setString(trimmedKey, for: .geminiAPIKey)

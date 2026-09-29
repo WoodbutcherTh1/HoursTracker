@@ -115,6 +115,17 @@ enum L10n {
     static var historyEmptyPeriod: String { t("history.emptyPeriod") }
     static var historyEmptyPeriodHint: String { t("history.emptyPeriodHint") }
     static var historyShowAllDays: String { t("history.showAllDays") }
+    static var leaveVacation: String { t("leave.vacation") }
+    static var leaveRecuperation: String { t("leave.recuperation") }
+    static var leaveVacationShort: String { t("leave.vacation.short") }
+    static var leaveRecuperationShort: String { t("leave.recuperation.short") }
+    static var leaveMarkTitle: String { t("leave.markTitle") }
+    static var leaveMarkHint: String { t("leave.markHint") }
+    static var dayCountsTitle: String { t("dayCounts.title") }
+    static var dayCountsHoliday: String { t("dayCounts.holiday") }
+    static var dayCountsVacation: String { t("dayCounts.vacation") }
+    static var dayCountsRecuperation: String { t("dayCounts.recuperation") }
+    static var dayCountsSick: String { t("dayCounts.sick") }
     static var historySelect: String { t("history.select") }
     static var historySelectAll: String { t("history.select.all") }
     static var historySelectHint: String { t("history.select.hint") }
