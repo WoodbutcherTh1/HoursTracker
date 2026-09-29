@@ -11,6 +11,9 @@ struct ExportReport {
     let rows: [ExportRow]
     let totals: DayPayBreakdown
     let dateRangeDescription: String
+    /// Export → "Attach notes": adds each shift's note (CSV column, or a Notes
+    /// section after the daily table in the other formats).
+    var includeNotes: Bool = false
 }
 
 enum ExportFormat: CaseIterable, Identifiable {
@@ -95,7 +98,8 @@ final class ExportManager {
         settings: WorkplaceSettings,
         range: ExportDateRange,
         language: ExportLanguage = .phone,
-        dayTypes: Set<DayType>? = nil
+        dayTypes: Set<DayType>? = nil,
+        includeNotes: Bool = false
     ) -> ExportReport {
         apply(language: language)
         let filtered = filter(sessions: sessions, range: range)
@@ -110,7 +114,8 @@ final class ExportManager {
             settings: settings,
             rows: rows,
             totals: totals,
-            dateRangeDescription: rangeDescription(range)
+            dateRangeDescription: rangeDescription(range),
+            includeNotes: includeNotes
         )
     }
 
@@ -455,6 +460,27 @@ final class ExportManager {
                 frame.size.height = 20
                 drawCell(val, in: frame, font: headerFont, color: .white, yOffset: 3)
             }
+            y += 20
+
+            let notes = noteLines(report)
+            if !notes.isEmpty {
+                y += 14
+                if y > pageHeight - 60 {
+                    context.beginPage()
+                    y = margin
+                }
+                drawText(copy.fullExportNotes, font: sectionFont, x: margin, width: contentWidth)
+                y += 18
+                for note in notes {
+                    let height = max(14, wrappedHeight(note, font: bodyFont, width: contentWidth))
+                    if y + height > pageHeight - margin {
+                        context.beginPage()
+                        y = margin
+                    }
+                    drawText(note, font: bodyFont, x: margin, width: contentWidth, height: height)
+                    y += height + 4
+                }
+            }
         }
 
         return try write(data: data, extension: "pdf")
@@ -551,11 +577,18 @@ final class ExportManager {
 
     private func exportCSV(report: ExportReport) throws -> URL {
         // Logical column order (not RTL-mirrored) — spreadsheets are LTR data tables.
-        var lines = [tableColumns().map(ExportSanitizer.csvCell).joined(separator: ",")]
+        let notes = report.includeNotes
+        var header = tableColumns()
+        if notes { header.append(copy.fullExportNotes) }
+        var lines = [header.map(ExportSanitizer.csvCell).joined(separator: ",")]
         for row in report.rows {
-            lines.append(rowValues(row).map(ExportSanitizer.csvCell).joined(separator: ","))
+            var values = rowValues(row)
+            if notes { values.append(noteText(row.session) ?? "") }
+            lines.append(values.map(ExportSanitizer.csvCell).joined(separator: ","))
         }
-        lines.append(totalsValues(report.totals).map(ExportSanitizer.csvCell).joined(separator: ","))
+        var totalCells = totalsValues(report.totals)
+        if notes { totalCells.append("") }
+        lines.append(totalCells.map(ExportSanitizer.csvCell).joined(separator: ","))
 
         // UTF-8 BOM so Excel/Numbers detect Hebrew/Arabic headers correctly.
         var data = Data([0xEF, 0xBB, 0xBF])
@@ -609,6 +642,12 @@ final class ExportManager {
             ExportLayout.visualOrder(totalsValues(report.totals), isRTL: rtl),
             widths: widths
         ))
+        let notes = noteLines(report)
+        if !notes.isEmpty {
+            lines.append("")
+            lines.append(ExportLayout.directedLine(copy.fullExportNotes, isRTL: rtl))
+            lines.append(contentsOf: notes.map { ExportLayout.directedLine($0, isRTL: rtl) })
+        }
         let data = lines.joined(separator: "\n").data(using: .utf8)!
         return try write(data: data, extension: "txt")
     }
@@ -661,6 +700,15 @@ final class ExportManager {
         let totalCells = ExportLayout.visualOrder(totalsValues(report.totals), isRTL: rtl)
             .map(ExportSanitizer.markdownCell)
         lines.append("| " + totalCells.joined(separator: " | ") + " |")
+        let notes = noteLines(report)
+        if !notes.isEmpty {
+            lines.append("")
+            lines.append("## \(ExportLayout.directedLine(copy.fullExportNotes, isRTL: rtl))")
+            lines.append("")
+            for note in notes {
+                lines.append("- \(ExportSanitizer.markdownInline(ExportLayout.directedLine(note, isRTL: rtl)))")
+            }
+        }
         let data = lines.joined(separator: "\n").data(using: .utf8)!
         return try write(data: data, extension: "md")
     }
@@ -679,6 +727,9 @@ final class ExportManager {
         rowsXML += docxRow(totalsValues(report.totals), isHeader: true, isRTL: rtl)
 
         let tblPr = rtl ? "<w:tblPr><w:bidiVisual/></w:tblPr>" : ""
+        let notes = noteLines(report)
+        let notesXML = notes.isEmpty ? "" : ([docxParagraph(copy.fullExportNotes, bold: true, isRTL: rtl)]
+            + notes.map { docxParagraph($0, isRTL: rtl) }).joined(separator: "\n            ")
 
         let documentXML = """
         <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -699,6 +750,7 @@ final class ExportManager {
               \(tblPr)
               \(rowsXML)
             </w:tbl>
+            \(notesXML)
           </w:body>
         </w:document>
         """
@@ -826,6 +878,28 @@ final class ExportManager {
             let bar = String(repeating: "█", count: max(0, count))
                 + String(repeating: "░", count: max(0, maxBars - count))
             return "\(label): \(bar) \(formatValue(value))"
+        }
+    }
+
+    /// The shift's note on one line, or nil when there is none.
+    private func noteText(_ session: WorkSession) -> String? {
+        guard let raw = session.notes else { return nil }
+        let oneLine = raw
+            .components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+            .joined(separator: " · ")
+        return oneLine.isEmpty ? nil : oneLine
+    }
+
+    /// "Sunday 01.09.26 — note" for every exported shift that has a note; empty
+    /// when the user didn't ask for notes.
+    private func noteLines(_ report: ExportReport) -> [String] {
+        guard report.includeNotes else { return [] }
+        return report.rows.compactMap { row in
+            guard let note = noteText(row.session) else { return nil }
+            let day = "\(weekdayFormatter.string(from: row.session.date)) \(dateFormatter.string(from: row.session.date))"
+            return "\(day) — \(note)"
         }
     }
 

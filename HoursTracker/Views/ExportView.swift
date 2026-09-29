@@ -14,6 +14,8 @@ struct ExportView: View {
     @State private var customTo = Date()
     @State private var shareItem: ShareableFile?
     @State private var errorMessage: String?
+    /// "Attach notes" — remembered between exports.
+    @AppStorage("exportIncludeNotes") private var includeNotes = false
 
     /// Menu order is intentional: This month → Specific month → This year → Custom range.
     enum RangeMode: CaseIterable, Identifiable {
@@ -88,6 +90,15 @@ struct ExportView: View {
                             Text(filter.label).tag(filter)
                         }
                     }
+                }
+
+                Section {
+                    Toggle(isOn: $includeNotes) {
+                        Label(L10n.exportIncludeNotes, systemImage: "note.text")
+                    }
+                    .accessibilityIdentifier("export.includeNotes")
+                } footer: {
+                    Text(L10n.exportIncludeNotesHint)
                 }
 
                 Section(L10n.exportLanguage) {
@@ -252,7 +263,8 @@ struct ExportView: View {
                 range: buildRange(),
                 format: selectedFormat,
                 language: selectedLanguage,
-                dayTypes: dayTypeFilter.dayTypes
+                dayTypes: dayTypeFilter.dayTypes,
+                includeNotes: includeNotes
             )
             // Present on the next run loop so the sheet always has a non-nil item
             // (avoids the blank first-presentation SwiftUI race).

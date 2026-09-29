@@ -1152,14 +1152,16 @@ final class AppViewModel: ObservableObject {
         range: ExportDateRange,
         format: ExportFormat,
         language: ExportLanguage = .phone,
-        dayTypes: Set<DayType>? = nil
+        dayTypes: Set<DayType>? = nil,
+        includeNotes: Bool = false
     ) throws -> URL {
         let report = exportManager.buildReport(
             sessions: sessions,
             settings: settings,
             range: range,
             language: language,
-            dayTypes: dayTypes
+            dayTypes: dayTypes,
+            includeNotes: includeNotes
         )
         let url = try exportManager.export(report: report, format: format, language: language)
         ActivityLogStore.shared.log(

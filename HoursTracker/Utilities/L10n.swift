@@ -695,6 +695,8 @@ enum L10n {
     static var exportDayTypeAll: String { t("export.dayType.all") }
 
     static var exportLanguage: String { t("export.language") }
+    static var exportIncludeNotes: String { t("export.includeNotes") }
+    static var exportIncludeNotesHint: String { t("export.includeNotes.hint") }
     static func exportLanguagePhone(_ languageName: String) -> String {
         String(format: t("export.language.phone %@"), languageName)
     }

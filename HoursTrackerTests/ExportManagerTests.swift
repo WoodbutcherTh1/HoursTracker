@@ -179,6 +179,45 @@ final class ExportManagerTests: XCTestCase {
         }
     }
 
+    func testCSVAddsNotesColumnOnlyWhenAsked() throws {
+        var session = TestData.session(day: 5)
+        session.notes = "Covered for Dana"
+        for include in [false, true] {
+            let report = manager.buildReport(
+                sessions: [session],
+                settings: settings,
+                range: .all,
+                language: .english,
+                includeNotes: include
+            )
+            let url = try manager.export(report: report, format: .csv, language: .english)
+            defer { try? FileManager.default.removeItem(at: url) }
+            let contents = String(decoding: try Data(contentsOf: url).dropFirst(3), as: UTF8.self)
+            let lines = contents.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+            XCTAssertEqual(contents.contains("Covered for Dana"), include, contents)
+            // Header, row and totals always keep the same number of cells.
+            XCTAssertEqual(Self.parseCSVLine(lines[0]).count, Self.parseCSVLine(lines[1]).count)
+            XCTAssertEqual(Self.parseCSVLine(lines[0]).count, Self.parseCSVLine(lines[2]).count)
+        }
+    }
+
+    func testTXTListsNotesAfterTheTableWhenAsked() throws {
+        var session = TestData.session(day: 5)
+        session.notes = "Covered for Dana"
+        let report = manager.buildReport(
+            sessions: [session],
+            settings: settings,
+            range: .all,
+            language: .english,
+            includeNotes: true
+        )
+        let url = try manager.export(report: report, format: .txt, language: .english)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let contents = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(contents.contains("Notes"), contents)
+        XCTAssertTrue(contents.contains("05.01.26 — Covered for Dana"), contents)
+    }
+
     func testCSVRowFormatsNumbersDatesAndTimesCorrectly() throws {
         let session = TestData.session(year: 2026, month: 1, day: 5, inHour: 9, outHour: 17, outMinute: 30)
         let report = manager.buildReport(
