@@ -855,6 +855,45 @@ struct HoursWidgetBundle: WidgetBundle {
         HoursMediumWidget()
         HoursLockScreenWidget()
         HoursLiveActivity()
+        if #available(iOS 18.0, *) {
+            ShiftControl()
+        }
+    }
+}
+
+// MARK: - Control Center control (iOS 18)
+
+/// Clock in / out from Control Center, the Lock Screen controls or the Action
+/// Button. On while a shift is open (read from the app's snapshot); tapping
+/// runs `ToggleShiftIntent`, which the app performs in the background.
+@available(iOS 18.0, *)
+struct ShiftControl: ControlWidget {
+    static let kind = "com.hourstracker.app.shiftControl"
+
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: Self.kind, provider: ShiftControlValue()) { isWorking in
+            ControlWidgetToggle(
+                WidgetL10n.displayName,
+                isOn: isWorking,
+                action: ToggleShiftIntent()
+            ) { on in
+                Label(
+                    on ? WidgetL10n.clockOut : WidgetL10n.clockIn,
+                    systemImage: on ? "stop.circle.fill" : "play.circle.fill"
+                )
+            }
+        }
+        .displayName("HoursTracker")
+        .description("Clock in and out")
+    }
+}
+
+@available(iOS 18.0, *)
+struct ShiftControlValue: ControlValueProvider {
+    var previewValue: Bool { false }
+
+    func currentValue() async throws -> Bool {
+        WidgetBridge.openSession(from: WidgetBridge.readSessions()) != nil
     }
 }
 

@@ -65,6 +65,25 @@ struct StartBreakIntent: LiveActivityIntent {
     }
 }
 
+/// The Control Center / Lock Screen control (iOS 18): one toggle, on = clocked in.
+/// Same route as the widget buttons, so it works without opening the app.
+struct ToggleShiftIntent: SetValueIntent, LiveActivityIntent {
+    static var title: LocalizedStringResource = "Clock In / Out"
+    static var description = IntentDescription("Start or end your work shift")
+    static var openAppWhenRun: Bool = false
+
+    @Parameter(title: "Working")
+    var value: Bool
+
+    init() {}
+
+    @MainActor
+    func perform() async throws -> some IntentResult {
+        ShiftIntentRouter.run(value ? .clockIn : .clockOut)
+        return .result()
+    }
+}
+
 struct EndBreakIntent: LiveActivityIntent {
     static var title: LocalizedStringResource = "End Break"
     static var description = IntentDescription("Back to work after a break")

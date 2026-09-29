@@ -81,6 +81,10 @@ extension WidgetBridge {
     /// that only compile the snapshot types (app tests, for example).
     static func reloadWidgetTimelines() {
         WidgetCenter.shared.reloadAllTimelines()
+        // The Control Center clock in/out toggle reads the same snapshot.
+        if #available(iOS 18.0, *) {
+            ControlCenter.shared.reloadAllControls()
+        }
     }
 }
 
