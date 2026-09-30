@@ -28,6 +28,11 @@ final class SettingsQATests: XCTestCase {
         openSettings()
         let rateField = app.textFields["settings.hourlyRate"]
         XCTAssertTrue(rateField.waitForExistence(timeout: 15))
+        // The Workplaces section sits above the pay fields; bring the field clear of
+        // the tab bar before tapping it.
+        for _ in 0..<4 where !rateField.isHittable || rateField.frame.maxY > app.frame.height * 0.7 {
+            app.swipeUp()
+        }
         // The value is trailing-aligned: tap its end so the deletes clear it (a plain
         // tap can leave the caret at the start and the old value survives).
         rateField.coordinate(withNormalizedOffset: CGVector(dx: 0.97, dy: 0.5)).tap()
