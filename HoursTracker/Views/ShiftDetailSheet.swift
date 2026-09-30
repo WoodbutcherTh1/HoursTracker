@@ -312,7 +312,7 @@ struct EditSessionView: View {
             .keyboardDismissible()
             .onChange(of: dayType) { _, newValue in
                 if newValue == .holiday {
-                    let expected = viewModel.settings.expectedShift(on: session.date)
+                    let expected = viewModel.workplaceSettings(for: session.workplaceID).expectedShift(on: session.date)
                     clockIn = expected.clockIn
                     clockOut = expected.clockOut
                 } else if newValue == .sick {

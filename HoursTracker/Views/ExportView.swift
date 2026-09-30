@@ -39,7 +39,7 @@ struct ExportView: View {
     private var currentPayrollPeriod: PayrollPeriod {
         HistoryPeriodHelper.payrollPeriod(
             containing: Date(),
-            startDay: viewModel.settings.payrollStartDay
+            startDay: viewModel.activeSettings.payrollStartDay
         )
     }
 
@@ -120,11 +120,11 @@ struct ExportView: View {
                                 label: L10n.exportPreviewHours
                             )
                             previewStat(
-                                value: PayFormatter.string(summary.gross, currencyCode: viewModel.settings.currencyCode),
+                                value: PayFormatter.string(summary.gross, currencyCode: viewModel.activeSettings.currencyCode),
                                 label: L10n.exportPreviewGross
                             )
                             previewStat(
-                                value: PayFormatter.string(summary.net, currencyCode: viewModel.settings.currencyCode),
+                                value: PayFormatter.string(summary.net, currencyCode: viewModel.activeSettings.currencyCode),
                                 label: L10n.exportPreviewNet
                             )
                         }
@@ -197,7 +197,7 @@ struct ExportView: View {
     private var previewSummary: (dayCount: Int, totalHours: Double, gross: Double, net: Double)? {
         let range = buildRange()
         let calendar = Calendar.current
-        var sessions = viewModel.sessions.filter { $0.clockOut != nil }
+        var sessions = viewModel.workSessions.filter { $0.clockOut != nil }
 
         switch range {
         case .all:
@@ -219,7 +219,7 @@ struct ExportView: View {
         }
         guard !sessions.isEmpty else { return nil }
 
-        let breakdown = OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.settings)
+        let breakdown = OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.activeSettings)
         let dayCount = Set(sessions.map { calendar.startOfDay(for: $0.date) }).count
         return (dayCount, breakdown.totalHours, breakdown.totalPay, breakdown.netPay)
     }

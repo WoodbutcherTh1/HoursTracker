@@ -11,6 +11,9 @@ extension AppViewModel {
     ///   "now" (0 = current). The Watch's History tab pages through periods by asking
     ///   the phone to recompute at a new offset — see `WatchConnectivityManager`.
     func watchSnapshot(historyPeriodOffset: Int = 0) -> WatchSnapshot {
+        // The Watch shows the workplace the phone is showing.
+        let sessions = workSessions
+        let settings = activeSettings
         let calendar = Calendar.current
         let now = Date()
         let today = calendar.startOfDay(for: now)

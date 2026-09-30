@@ -13,6 +13,10 @@ final class AppViewModel: ObservableObject {
 
     @Published private(set) var sessions: [WorkSession] = []
     @Published var settings: WorkplaceSettings = .default
+    /// The workplace the app shows and prices (nil = main). See AppViewModel+Workplaces.
+    @Published var activeWorkplaceID: UUID? = AppViewModel.loadActiveWorkplaceID()
+    /// History's "merge" switch: every workplace's shifts in one list, by color.
+    @Published var showAllWorkplaces: Bool = UserDefaults.standard.bool(forKey: AppViewModel.showAllWorkplacesKey)
     @Published var lastCompletedBreakdown: DayPayBreakdown?
     /// Session that was just clocked out; used by the day-summary sheet to delete only that shift.
     @Published private(set) var lastCompletedSessionID: UUID?
@@ -255,21 +259,22 @@ final class AppViewModel: ObservableObject {
             clockIn: clockInDate,
             clockOut: nil,
             isManualEntry: isManual,
-            dayType: resolvedDayType(for: clockInDate)
+            dayType: resolvedDayType(for: clockInDate),
+            workplaceID: activeWorkplaceKey
         )
         sessions.append(session)
         persist()
         refreshReminders()
         // First clock-in is the natural moment to ask for notification access, if
         // it hasn't been asked yet — the clock-out reminder is about to be useful.
-        ShiftReminderScheduler.reschedule(sessions: sessions, settings: settings, askPermission: true)
+        ShiftReminderScheduler.reschedule(sessions: sessions, settings: activeSettings, askPermission: true)
         syncWidget()
         refreshAppShortcuts()
         // Start Live Activity for the running shift.
         if #available(iOS 16.1, *) {
             LiveActivityManager.start(
                 session: session,
-                settings: settings,
+                settings: activeSettings,
                 curve: refreshLiveCurve(),
                 showsNet: livePayShowsNet
             )
@@ -293,7 +298,7 @@ final class AppViewModel: ObservableObject {
         Self.shouldOfferForgotClockIn(
             now: Date(),
             sessions: sessions,
-            settings: settings
+            settings: activeSettings
         )
     }
 
@@ -330,6 +335,8 @@ final class AppViewModel: ObservableObject {
     /// `notifySummary: false` when the caller shows the summary itself (Siri speaks it).
     func clockOut(notifySummary: Bool = true) {
         guard let index = sessions.firstIndex(where: { $0.id == activeSession?.id }) else { return }
+        // The shift is priced by its own workplace's rules.
+        let settings = workplaceSettings(for: sessions[index].workplaceID)
         // End Live Activity before the session is modified.
         if #available(iOS 16.1, *) {
             LiveActivityManager.end(
@@ -356,7 +363,7 @@ final class AppViewModel: ObservableObject {
         lastCompletedSessionID = sessions[index].id
         lastCompletedBreakdown = OvertimeCalculator.breakdown(
             for: sessions[index],
-            in: sessions,
+            in: workplaceSessions(for: sessions[index].workplaceID),
             settings: settings
         )
         showDaySummary = true
@@ -402,7 +409,8 @@ final class AppViewModel: ObservableObject {
     func endBreak(at date: Date = Date()) {
         guard let id = activeSession?.id,
               let index = sessions.firstIndex(where: { $0.id == id }) else { return }
-        guard sessions[index].endBreak(at: min(date, Date()), deductFromPay: !settings.breaksArePaid) else { return }
+        let breaksArePaid = workplaceSettings(for: sessions[index].workplaceID).breaksArePaid
+        guard sessions[index].endBreak(at: min(date, Date()), deductFromPay: !breaksArePaid) else { return }
         sessions[index].touch()
         persist()
         syncWidget()
@@ -435,7 +443,7 @@ final class AppViewModel: ObservableObject {
     func presentDaySummary(sessionID: UUID) {
         guard let session = sessions.first(where: { $0.id == sessionID }), session.clockOut != nil else { return }
         lastCompletedSessionID = session.id
-        lastCompletedBreakdown = OvertimeCalculator.breakdown(for: session, in: sessions, settings: settings)
+        lastCompletedBreakdown = breakdown(for: session)
         showDaySummary = true
     }
 
@@ -446,7 +454,7 @@ final class AppViewModel: ObservableObject {
         guard let session = sessions.first(where: { abs($0.clockIn.timeIntervalSince(clockIn)) < 1 }),
               session.clockOut != nil else { return }
         lastCompletedSessionID = session.id
-        lastCompletedBreakdown = OvertimeCalculator.breakdown(for: session, in: sessions, settings: settings)
+        lastCompletedBreakdown = breakdown(for: session)
         showDaySummary = true
     }
     #endif
@@ -455,14 +463,14 @@ final class AppViewModel: ObservableObject {
     /// marked that day (e.g. via manual entry) instead of letting an automatic
     /// clock-in or import silently downgrade it back to `.regular`/`.restDay`.
     func resolvedDayType(for date: Date, calendar: Calendar = .current) -> DayType {
-        let hasHolidayMarked = sessions.contains {
+        let hasHolidayMarked = workSessions.contains {
             $0.dayType == .holiday && calendar.isDate($0.date, inSameDayAs: date)
         }
         if hasHolidayMarked { return .holiday }
         // Bundled Israeli holiday calendar — a statutory rest day overrides the
         // regular rest-day auto-tag (and never downgrades a manual marking).
         if IsraeliHolidayCalendar.isHoliday(date, calendar: calendar) { return .holiday }
-        return DayType.automatic(for: date, settings: settings)
+        return DayType.automatic(for: date, settings: activeSettings)
     }
 
     /// What marking `date` as sick would pay, given the worker's existing sick
@@ -470,7 +478,7 @@ final class AppViewModel: ObservableObject {
     /// before saving.
     func sickStreakPreview(for date: Date, calendar: Calendar = .current) -> (dayNumber: Int, percentage: Double) {
         let day = calendar.startOfDay(for: date)
-        var sickDates = Set(sessions.filter { $0.dayType == .sick }.map { calendar.startOfDay(for: $0.date) })
+        var sickDates = Set(workSessions.filter { $0.dayType == .sick }.map { calendar.startOfDay(for: $0.date) })
         sickDates.insert(day)
         let number = OvertimeCalculator.sickStreakDayNumber(for: day, sickDates: sickDates, calendar: calendar)
         return (number, OvertimeCalculator.sickPayPercentage(streakDayNumber: number))
@@ -488,7 +496,7 @@ final class AppViewModel: ObservableObject {
     func addSickDay(date: Date, notes: String?) -> Bool {
         let calendar = Calendar.current
         let day = calendar.startOfDay(for: date)
-        let alreadySickThatDay = sessions.contains {
+        let alreadySickThatDay = workSessions.contains {
             $0.dayType == .sick && calendar.isDate($0.date, inSameDayAs: day)
         }
         guard alreadySickThatDay || sickDaysUsed(inYearOf: day, calendar: calendar) < Self.sickDaysPerYearCap else {
@@ -501,7 +509,8 @@ final class AppViewModel: ObservableObject {
             clockOut: day,
             isManualEntry: true,
             dayType: .sick,
-            notes: notes
+            notes: notes,
+            workplaceID: activeWorkplaceKey
         )
         sessions.append(session)
         persist()
@@ -523,7 +532,7 @@ final class AppViewModel: ObservableObject {
     /// Number of sick days recorded in the calendar year of `date`.
     func sickDaysUsed(inYearOf date: Date, calendar: Calendar = .current) -> Int {
         let year = calendar.dateComponents([.year], from: date).year
-        return sessions.filter {
+        return workSessions.filter {
             $0.dayType == .sick && calendar.dateComponents([.year], from: $0.date).year == year
         }.count
     }
@@ -581,7 +590,8 @@ final class AppViewModel: ObservableObject {
             dayType: dayType ?? resolvedDayType(for: day),
             isNightShift: isNightShift
                 ?? WorkSession.qualifiesAsNightShift(clockIn: resolved.clockIn, clockOut: resolved.clockOut),
-            notes: notes
+            notes: notes,
+            workplaceID: activeWorkplaceKey
         )
         sessions.append(session)
         persist()
@@ -611,7 +621,8 @@ final class AppViewModel: ObservableObject {
             guard resolved.clockOut > resolved.clockIn else { continue }
             let day = calendar.startOfDay(for: draft.date)
             let key = day.timeIntervalSince1970
-            let existing = sessions.filter { calendar.isDate($0.date, inSameDayAs: day) }
+            // Only this workplace's shifts that day count (and may be overwritten).
+            let existing = workSessions.filter { calendar.isDate($0.date, inSameDayAs: day) }
 
             // An active ongoing shift must NEVER be silently overwritten or
             // deleted — not even when the user confirmed an overwrite for that
@@ -624,10 +635,12 @@ final class AppViewModel: ObservableObject {
             }
             if !existing.isEmpty {
                 guard overwriteKeys.contains(key) else { continue }
-                sessions.removeAll { calendar.isDate($0.date, inSameDayAs: day) }
+                let replaced = Set(existing.map(\.id))
+                sessions.removeAll { replaced.contains($0.id) }
             }
 
             var session = draft.toWorkSession(isAIImported: markAsAIImported)
+            session.workplaceID = activeWorkplaceKey
             session.date = day
             session.clockIn = resolved.clockIn
             session.clockOut = resolved.clockOut
@@ -656,7 +669,7 @@ final class AppViewModel: ObservableObject {
 
     func existingCompletedSession(on day: Date) -> WorkSession? {
         let calendar = Calendar.current
-        return sessions.first {
+        return workSessions.first {
             calendar.isDate($0.date, inSameDayAs: day) && $0.clockOut != nil
         }
     }
@@ -669,7 +682,7 @@ final class AppViewModel: ObservableObject {
             let day = calendar.startOfDay(for: draft.date)
             let key = day.timeIntervalSince1970
             guard seen.insert(key).inserted else { continue }
-            if existingCompletedSession(on: day) != nil || sessions.contains(where: { calendar.isDate($0.date, inSameDayAs: day) }) {
+            if existingCompletedSession(on: day) != nil || workSessions.contains(where: { calendar.isDate($0.date, inSameDayAs: day) }) {
                 days.append(day)
             }
         }
@@ -767,6 +780,25 @@ final class AppViewModel: ObservableObject {
     /// How many shifts the Undo banner would bring back (1 for a single delete).
     var undoableDeletionCount: Int {
         undoableDeletion == nil ? 0 : max(1, undoableBulkIDs.count)
+    }
+
+    /// Moves shifts to Recently deleted without an Undo banner (a removed workplace's
+    /// shifts — an Undo would put them back under the main workplace).
+    func trashSessions(_ toTrash: [WorkSession]) {
+        guard !toTrash.isEmpty else { return }
+        for session in toTrash {
+            try? deletedSessions.add(session)
+        }
+        let ids = Set(toTrash.map(\.id))
+        sessions.removeAll { ids.contains($0.id) }
+        persist()
+        refreshReminders()
+        syncWidget()
+        ActivityLogStore.shared.log(
+            L10n.logEventSessionDeleted + " ×\(toTrash.count)",
+            level: .warning,
+            category: "session"
+        )
     }
 
     // MARK: - Recently deleted / undo
@@ -950,20 +982,20 @@ final class AppViewModel: ObservableObject {
 
     /// The vacation / recuperation mark on a day, if any.
     func leaveKind(on day: Date) -> LeaveKind? {
-        settings.leaveDays.first { Calendar.current.isDate($0.date, inSameDayAs: day) }?.kind
+        activeSettings.leaveDays.first { Calendar.current.isDate($0.date, inSameDayAs: day) }?.kind
     }
 
     /// Marks a day as vacation / recuperation, or clears the mark with `nil`.
     /// Display only: the pay summary counts these days; pay math never reads them.
     func setLeave(_ kind: LeaveKind?, on day: Date) {
         guard leaveKind(on: day) != kind else { return }
-        var updated = settings
+        var updated = activeSettings
         updated.leaveDays.removeAll { Calendar.current.isDate($0.date, inSameDayAs: day) }
         if let kind {
             updated.leaveDays.append(LeaveDay(date: day, kind: kind))
             updated.leaveDays.sort { $0.date < $1.date }
         }
-        saveSettings(updated)
+        saveActiveWorkplaceSettings(updated)
     }
 
     func saveSettings(_ newSettings: WorkplaceSettings) {
@@ -1163,7 +1195,12 @@ final class AppViewModel: ObservableObject {
 
     /// Day-aware: same-day sessions share one daily overtime/gas allowance.
     func breakdown(for session: WorkSession) -> DayPayBreakdown {
-        OvertimeCalculator.breakdown(for: session, in: sessions, settings: settings)
+        // Priced within its own workplace (its rules, its week for overtime).
+        OvertimeCalculator.breakdown(
+            for: session,
+            in: workplaceSessions(for: session.workplaceID),
+            settings: workplaceSettings(for: session.workplaceID)
+        )
     }
 
     // MARK: - Export
@@ -1176,8 +1213,8 @@ final class AppViewModel: ObservableObject {
         includeNotes: Bool = false
     ) throws -> URL {
         let report = exportManager.buildReport(
-            sessions: sessions,
-            settings: settings,
+            sessions: workSessions,
+            settings: activeSettings,
             range: range,
             language: language,
             dayTypes: dayTypes,
@@ -1252,34 +1289,34 @@ final class AppViewModel: ObservableObject {
         } catch {
             errorMessage = L10n.errorSaveFailed
         }
-        WidgetBridge.update(settings: WidgetBridge.snapshot(from: settings))
+        WidgetBridge.update(settings: WidgetBridge.snapshot(from: activeSettings))
         WidgetBridge.reloadWidgetTimelines()
         refreshAppShortcuts()
         WatchConnectivityManager.shared.pushSnapshot()
     }
 
-    private func refreshReminders() {
-        locationManager.configure(settings: settings, sessions: sessions)
-        ShiftReminderScheduler.reschedule(sessions: sessions, settings: settings)
+    func refreshReminders() {
+        locationManager.configure(settings: activeSettings, sessions: sessions)
+        ShiftReminderScheduler.reschedule(sessions: sessions, settings: activeSettings)
     }
 
     /// Rebuilds the "clock in / clock out" reminders — after a Notifications toggle
     /// changes, and when the app comes to the foreground (the plan only reaches a
     /// week ahead, so it's topped up whenever the app is used).
     func refreshShiftReminders() {
-        ShiftReminderScheduler.reschedule(sessions: sessions, settings: settings)
+        ShiftReminderScheduler.reschedule(sessions: sessions, settings: activeSettings)
     }
 
     /// Push current sessions and settings to the WidgetKit extension
     /// and update the Live Activity (if one is running).
-    private func syncWidget() {
+    func syncWidget() {
         let curve = refreshLiveCurve()
         let showsNet = livePayShowsNet
-        WidgetBridge.pushUpdate(settings: settings, sessions: sessions, livePay: curve, livePayShowsNet: showsNet)
+        WidgetBridge.pushUpdate(settings: activeSettings, sessions: workSessions, livePay: curve, livePayShowsNet: showsNet)
         WatchConnectivityManager.shared.pushSnapshot()
         if #available(iOS 16.1, *) {
             if let open = activeSession {
-                LiveActivityManager.update(session: open, settings: settings, curve: curve, showsNet: showsNet)
+                LiveActivityManager.update(session: open, settings: workplaceSettings(for: open.workplaceID), curve: curve, showsNet: showsNet)
             } else if !sessionsLoadUnavailable {
                 // No open shift (clocked out, closed in the editor, deleted, or closed
                 // on another device): no banner may stay on the Lock Screen. Skipped
@@ -1318,7 +1355,7 @@ final class AppViewModel: ObservableObject {
             liveCurveInputs = nil
             return nil
         }
-        let inputs = LiveCurveInputs(session: open, settings: settings, sessionCount: sessions.count)
+        let inputs = LiveCurveInputs(session: open, settings: workplaceSettings(for: open.workplaceID), sessionCount: sessions.count)
         if inputs != liveCurveInputs || liveCurve == nil {
             liveCurve = makeLivePayCurve(for: open)
             liveCurveInputs = inputs

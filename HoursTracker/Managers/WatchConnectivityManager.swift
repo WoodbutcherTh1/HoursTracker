@@ -138,7 +138,7 @@ extension WatchConnectivityManager: WCSessionDelegate {
         case "thisYear":
             range = .year(calendar.component(.year, from: Date()))
         default:
-            let period = HistoryPeriodHelper.payrollPeriod(containing: Date(), startDay: viewModel.settings.payrollStartDay)
+            let period = HistoryPeriodHelper.payrollPeriod(containing: Date(), startDay: viewModel.activeSettings.payrollStartDay)
             range = .custom(from: period.start, to: period.end)
         }
         do {

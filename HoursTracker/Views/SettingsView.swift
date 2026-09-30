@@ -50,10 +50,14 @@ struct SettingsView: View {
         AppLocale.makeDateFormatter(dateStyle: .short, timeStyle: .short)
     }
 
+    @State private var showAddWorkplace = false
+    @State private var newWorkplaceName = ""
+    @State private var workplacePendingDelete: AppViewModel.WorkplaceOption?
+
     init(viewModel: AppViewModel) {
         self.viewModel = viewModel
-        _draft = State(initialValue: viewModel.settings)
-        _saved = State(initialValue: SavedSnapshot(settings: viewModel.settings))
+        _draft = State(initialValue: viewModel.activeSettings)
+        _saved = State(initialValue: SavedSnapshot(settings: viewModel.activeSettings))
     }
 
     private struct SavedSnapshot: Equatable {
@@ -72,7 +76,7 @@ struct SettingsView: View {
 
     /// Reloads every Save-backed field from what is stored now.
     private func reloadFromStore() {
-        let snapshot = SavedSnapshot(settings: viewModel.settings)
+        let snapshot = SavedSnapshot(settings: viewModel.activeSettings)
         saved = snapshot
         draft = snapshot.settings
         smartScannerCloudEnabled = snapshot.scannerCloudEnabled
@@ -102,6 +106,7 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 accountSection
+                workplacesSection
                 workerSection
                 workplaceSection
                 paySection
@@ -159,10 +164,14 @@ struct SettingsView: View {
                 }
                 viewModel.refreshLocationPermissionStatuses()
             }
-            .onChange(of: viewModel.settings) { _, _ in
+            .onChange(of: viewModel.activeSettings) { _, _ in
                 if !hasUnsavedChanges {
                     withAnimation(.none) { reloadFromStore() }
                 }
+            }
+            // Switching workplace shows that workplace's own settings.
+            .onChange(of: viewModel.activeWorkplaceID) { _, _ in
+                withAnimation(.none) { reloadFromStore() }
             }
             .onChange(of: hasUnsavedChanges, initial: true) { _, dirty in
                 unsavedChanges.update(hasChanges: dirty, save: saveSettings, discard: discardChanges)
@@ -174,7 +183,7 @@ struct SettingsView: View {
             ) {
                 Button(L10n.privacyDeleteAll, role: .destructive) {
                     viewModel.deleteAllUserData()
-                    draft = viewModel.settings
+                    draft = viewModel.activeSettings
                     viewModel.showSuccessToast(L10n.feedbackDataDeleted)
                 }
                 Button(L10n.editCancel, role: .cancel) {}
@@ -279,7 +288,7 @@ struct SettingsView: View {
         pendingImportDocument = nil
         do {
             try viewModel.importFullDataExport(document, mode: mode)
-            draft = viewModel.settings
+            draft = viewModel.activeSettings
             viewModel.showSuccessToast(L10n.fullImportSuccess)
         } catch {
             importErrorMessage = error.localizedDescription
@@ -290,8 +299,9 @@ struct SettingsView: View {
         // Leave days are marked in History, not here — keep the live ones so a draft
         // opened earlier can't roll back a day marked meanwhile.
         var toSave = draft
-        toSave.leaveDays = viewModel.settings.leaveDays
-        viewModel.saveSettings(toSave)
+        toSave.leaveDays = viewModel.activeSettings.leaveDays
+        // Saves the workplace being shown (main or another one).
+        viewModel.saveActiveWorkplaceSettings(toSave)
         UserDefaultsSmartScannerCloudPreference.shared.isEnabled = smartScannerCloudEnabled
         let trimmedKey = geminiAPIKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         try? KeychainStore.setString(trimmedKey, for: .geminiAPIKey)
@@ -584,7 +594,7 @@ struct SettingsView: View {
     /// worker's own shifts, per weekday — so the reminders never feel random.
     @ViewBuilder
     private var usualScheduleSummary: some View {
-        let schedule = ShiftSchedule.learn(from: viewModel.sessions)
+        let schedule = ShiftSchedule.learn(from: viewModel.workSessions)
         if schedule.windows.isEmpty {
             Text(L10n.settingsNotificationsScheduleLearning)
                 .font(.caption)
@@ -1121,7 +1131,7 @@ struct SettingsView: View {
             .onReceive(viewModel.locationUpdates) { location in
                 guard location != nil else { return }
                 viewModel.applyCapturedLocationIfAvailable()
-                draft = viewModel.settings
+                draft = viewModel.activeSettings
                 locationStatus = L10n.settingsLocationUpdated
             }
             .onReceive(viewModel.locationCaptureErrors) { error in
@@ -1282,6 +1292,72 @@ struct SettingsView: View {
             }
         } header: {
             sectionHeader(L10n.settingsAbout, icon: "info.circle.fill")
+        }
+    }
+
+    // MARK: - Workplaces
+
+    /// Several jobs, each with its own shifts, pay and settings. The settings
+    /// below this section belong to the workplace picked here.
+    private var workplacesSection: some View {
+        Section {
+            if viewModel.hasMultipleWorkplaces {
+                WorkplaceSwitcher(viewModel: viewModel)
+                ForEach(viewModel.workplaceOptions.dropFirst()) { option in
+                    HStack(spacing: 10) {
+                        Circle().fill(option.color).frame(width: 10, height: 10)
+                        Text(option.name)
+                        Spacer()
+                        Button(role: .destructive) {
+                            workplacePendingDelete = option
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(L10n.workplaceDelete)
+                    }
+                }
+            }
+            Button {
+                newWorkplaceName = ""
+                showAddWorkplace = true
+            } label: {
+                Label(L10n.workplaceAdd, systemImage: "plus.circle.fill")
+            }
+            .accessibilityIdentifier("settings.addWorkplace")
+        } header: {
+            sectionHeader(L10n.workplacesTitle, icon: "building.2.crop.circle")
+        } footer: {
+            Text(viewModel.hasMultipleWorkplaces ? L10n.workplacesHintActive : L10n.workplacesHint)
+        }
+        .alert(L10n.workplaceAdd, isPresented: $showAddWorkplace) {
+            TextField(L10n.workplaceNamePlaceholder, text: $newWorkplaceName)
+            Button(L10n.workplaceAddConfirm) {
+                if hasUnsavedChanges { saveSettings() }
+                viewModel.addWorkplace(named: newWorkplaceName)
+            }
+            Button(L10n.editCancel, role: .cancel) {}
+        } message: {
+            Text(L10n.workplaceAddMessage)
+        }
+        .alert(
+            L10n.workplaceDeleteConfirmTitle,
+            isPresented: Binding(
+                get: { workplacePendingDelete != nil },
+                set: { if !$0 { workplacePendingDelete = nil } }
+            )
+        ) {
+            Button(L10n.workplaceDelete, role: .destructive) {
+                if let id = workplacePendingDelete?.workplaceID {
+                    viewModel.deleteWorkplace(id)
+                }
+                workplacePendingDelete = nil
+            }
+            Button(L10n.editCancel, role: .cancel) { workplacePendingDelete = nil }
+        } message: {
+            Text(L10n.workplaceDeleteConfirmMessage(
+                workplacePendingDelete?.workplaceID.map { viewModel.shiftCount(in: $0) } ?? 0
+            ))
         }
     }
 

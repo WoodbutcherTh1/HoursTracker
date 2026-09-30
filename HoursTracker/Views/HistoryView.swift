@@ -54,7 +54,7 @@ struct HistoryView: View {
     private var activePeriod: PayrollPeriod {
         HistoryPeriodHelper.payrollPeriod(
             forMonthAnchor: periodAnchor,
-            startDay: viewModel.settings.payrollStartDay,
+            startDay: viewModel.activeSettings.payrollStartDay,
             calendar: calendar
         )
     }
@@ -265,7 +265,12 @@ struct HistoryView: View {
             .onDisappear {
                 endSelection()
             }
-            .onChange(of: viewModel.settings.payrollStartDay) { _, _ in
+            .onChange(of: viewModel.activeSettings.payrollStartDay) { _, _ in
+                alignToCurrentPayrollPeriod()
+            }
+            // Another workplace has its own payroll period and shifts.
+            .onChange(of: viewModel.activeWorkplaceID) { _, _ in
+                endSelection()
                 alignToCurrentPayrollPeriod()
             }
             .onChange(of: selectedDay) { _, newDay in
@@ -301,6 +306,9 @@ struct HistoryView: View {
         )
 
         return VStack(spacing: 14) {
+            if viewModel.hasMultipleWorkplaces {
+                WorkplaceSwitcher(viewModel: viewModel, showsMergeToggle: true)
+            }
             HStack(spacing: 4) {
                 Button {
                     moveWeek(by: -1)
@@ -714,7 +722,7 @@ struct HistoryView: View {
     }
 
     private func formattedDailyAmount(_ amount: Double) -> String {
-        PayFormatter.string(amount, currencyCode: viewModel.settings.currencyCode)
+        PayFormatter.string(amount, currencyCode: viewModel.activeSettings.currencyCode)
     }
 
     /// Shared insets so column headers and session rows stay locked together.
@@ -992,6 +1000,15 @@ struct HistoryView: View {
         .overlay(alignment: .bottom) {
             Divider().opacity(0.35)
         }
+        .overlay(alignment: .leading) {
+            // Merged view: each workplace's shifts in its own color.
+            if viewModel.isShowingAllWorkplaces {
+                Rectangle()
+                    .fill(viewModel.workplaceOption(for: session.workplaceID).color)
+                    .frame(width: 4)
+                    .accessibilityLabel(viewModel.workplaceOption(for: session.workplaceID).name)
+            }
+        }
         .contentShape(Rectangle())
         .textSelection(.enabled)
     }
@@ -1120,12 +1137,13 @@ struct HistoryView: View {
 
     private var filteredSessions: [WorkSession] {
         let period = activePeriod
+        let shown = sortedHistorySessions
         if let selectedDay {
-            return viewModel.sortedSessions.filter {
+            return shown.filter {
                 calendar.isDate($0.date, inSameDayAs: selectedDay)
             }
         }
-        return viewModel.sortedSessions.filter {
+        return shown.filter {
             period.contains($0.date, calendar: calendar)
         }
     }
@@ -1139,7 +1157,7 @@ struct HistoryView: View {
     /// state — History opens on the current period — that is the current calendar month.
     private var workedDayCount: Int {
         WorkedDaysCounter.distinctWorkedDays(
-            in: viewModel.sessions,
+            in: viewModel.historySessions,
             month: activePeriod.labelMonth,
             calendar: calendar
         )
@@ -1151,7 +1169,7 @@ struct HistoryView: View {
     private var hasPendingWorkedDay: Bool {
         WorkedDaysCounter.openShiftWouldAddADay(
             activeSession: viewModel.activeSession,
-            sessions: viewModel.sessions,
+            sessions: viewModel.historySessions,
             month: activePeriod.labelMonth,
             calendar: calendar
         )
@@ -1160,8 +1178,21 @@ struct HistoryView: View {
     /// Totals for the full custom payroll window (not a calendar month).
     private var periodTotals: DayPayBreakdown {
         let period = activePeriod
-        let sessions = viewModel.sortedSessions.filter { period.contains($0.date, calendar: calendar) }
-        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.settings)
+        guard viewModel.isShowingAllWorkplaces else {
+            let sessions = viewModel.workSessions.filter { $0.clockOut != nil && period.contains($0.date, calendar: calendar) }
+            return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.activeSettings)
+        }
+        // Merged: each workplace priced by its own rules, then added up.
+        let parts = viewModel.workplaceOptions.map { option -> DayPayBreakdown in
+            let sessions = viewModel.workplaceSessions(for: option.workplaceID)
+                .filter { $0.clockOut != nil && period.contains($0.date, calendar: calendar) }
+            return OvertimeCalculator.aggregate(
+                sessions: sessions,
+                settings: viewModel.workplaceSettings(for: option.workplaceID)
+            )
+        }
+        return DayPayBreakdown.combined(parts)
+            ?? OvertimeCalculator.aggregate(sessions: [], settings: viewModel.activeSettings)
     }
 
     // MARK: - Multi-select delete
@@ -1310,16 +1341,23 @@ struct HistoryView: View {
         let start = selectedDay ?? period.start
         let end = selectedDay ?? period.end
         return PeriodDayCounts.count(
-            sessions: viewModel.sessions,
-            leaveDays: viewModel.settings.leaveDays,
+            sessions: viewModel.historySessions,
+            leaveDays: viewModel.activeSettings.leaveDays,
             from: start,
             through: end,
             calendar: calendar
         )
     }
 
+    /// Finished shifts shown in History (active workplace, or all when merged), newest first.
+    private var sortedHistorySessions: [WorkSession] {
+        viewModel.historySessions
+            .filter { $0.clockOut != nil }
+            .sorted { $0.date > $1.date }
+    }
+
     private func sessionsForDay(_ day: Date) -> [WorkSession] {
-        viewModel.sessions.filter { calendar.isDate($0.date, inSameDayAs: day) && $0.clockOut != nil }
+        viewModel.historySessions.filter { calendar.isDate($0.date, inSameDayAs: day) && $0.clockOut != nil }
     }
 
     private func shortDate(_ date: Date) -> String {
@@ -1330,7 +1368,7 @@ struct HistoryView: View {
     private func alignToCurrentPayrollPeriod() {
         let period = HistoryPeriodHelper.payrollPeriod(
             containing: Date(),
-            startDay: viewModel.settings.payrollStartDay,
+            startDay: viewModel.activeSettings.payrollStartDay,
             calendar: calendar
         )
         periodAnchor = period.labelMonth

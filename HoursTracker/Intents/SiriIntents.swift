@@ -129,7 +129,7 @@ struct SiriShiftStatusIntent: AppIntent {
     func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
         let viewModel = loadedViewModel()
         guard let open = viewModel.activeSession else {
-            let report = SiriReport(sessions: viewModel.sessions, settings: viewModel.settings)
+            let report = SiriReport(sessions: viewModel.workSessions, settings: viewModel.activeSettings)
             let today = report.totalsSentence(
                 for: .today, showsNet: viewModel.livePayShowsNet, payHidden: WidgetBridge.hidePay
             )
@@ -138,7 +138,7 @@ struct SiriShiftStatusIntent: AppIntent {
         }
         let now = Date()
         let time = AppLocale.makeDateFormatter(timeStyle: .short).string(from: open.clockIn)
-        let paidSeconds = open.paidElapsedSeconds(now: now, breaksArePaid: viewModel.settings.breaksArePaid)
+        let paidSeconds = open.paidElapsedSeconds(now: now, breaksArePaid: viewModel.workplaceSettings(for: open.workplaceID).breaksArePaid)
         let elapsed = SiriReport.clock(hours: paidSeconds / 3600)
         let breakdown = viewModel.liveBreakdown(for: open, at: now)
         let pay = SiriReport.payText(breakdown, showsNet: viewModel.livePayShowsNet, hidden: WidgetBridge.hidePay)
@@ -191,7 +191,7 @@ struct SiriEarningsIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ProvidesDialog & ShowsSnippetView {
         let viewModel = loadedViewModel()
-        let report = SiriReport(sessions: viewModel.sessions, settings: viewModel.settings)
+        let report = SiriReport(sessions: viewModel.workSessions, settings: viewModel.activeSettings)
         let showsNet = viewModel.livePayShowsNet
         let sentence = report.totalsSentence(for: period.reportPeriod, showsNet: showsNet, payHidden: WidgetBridge.hidePay)
         let totals = report.totals(for: period.reportPeriod)
@@ -242,7 +242,7 @@ struct SiriExportReportIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult & ReturnsValue<IntentFile> & ProvidesDialog {
         let viewModel = loadedViewModel()
-        let report = SiriReport(sessions: viewModel.sessions, settings: viewModel.settings)
+        let report = SiriReport(sessions: viewModel.workSessions, settings: viewModel.activeSettings)
         let name = SiriReport.periodName(period.reportPeriod)
         guard let interval = report.interval(for: period.reportPeriod),
               report.totals(for: period.reportPeriod).shifts > 0 else {
@@ -279,8 +279,8 @@ struct SiriAskIntent: AppIntent {
             let text = L10n.assistantNotConfigured
             return .result(dialog: dialog(text), view: SiriSnippet(title: text, value: nil, rows: []))
         }
-        let settings = viewModel.settings
-        let sessions = viewModel.sessions
+        let settings = viewModel.activeSettings
+        let sessions = viewModel.workSessions
         let answer: AssistantAnswer
         do {
             let plan = try await router.plan(question: question, context: .current())

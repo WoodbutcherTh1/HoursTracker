@@ -13,7 +13,7 @@ struct HomeRateCard: View {
     @State private var rateText = ""
     @FocusState private var rateFocused: Bool
 
-    private var rate: Double { viewModel.settings.hourlyRate }
+    private var rate: Double { viewModel.activeSettings.hourlyRate }
 
     var body: some View {
         Group {
@@ -35,7 +35,7 @@ struct HomeRateCard: View {
                 .htFont(size: 17, relativeTo: .body, weight: .semibold)
                 .foregroundStyle(accent)
                 .accessibilityHidden(true)
-            Text(L10n.homeRateCurrent(PayFormatter.string(rate, currencyCode: viewModel.settings.currencyCode)))
+            Text(L10n.homeRateCurrent(PayFormatter.string(rate, currencyCode: viewModel.activeSettings.currencyCode)))
                 .dsFont(.headline)
                 .foregroundStyle(DS.Palette.textPrimary)
                 .lineLimit(1)
@@ -126,16 +126,16 @@ struct HomeRateCard: View {
     private var currencySymbol: String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
-        formatter.currencyCode = viewModel.settings.currencyCode
+        formatter.currencyCode = viewModel.activeSettings.currencyCode
         formatter.locale = AppLocale.resolvedLocale
         return formatter.currencySymbol ?? "₪"
     }
 
     private func save() {
         guard let value = parsedRate else { return }
-        var settings = viewModel.settings
+        var settings = viewModel.activeSettings
         settings.hourlyRate = value
-        viewModel.saveSettings(settings)
+        viewModel.saveActiveWorkplaceSettings(settings)
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         rateFocused = false
         isEditing = false

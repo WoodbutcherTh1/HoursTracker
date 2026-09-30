@@ -68,8 +68,8 @@ final class AssistantChatViewModel: ObservableObject {
         // Snapshot the data now, on the main actor, so the answer describes the state the
         // question was asked about even if a shift is clocked out while the call is in
         // flight. The engine itself is built after the await, not carried across it.
-        let settings = viewModel.settings
-        let sessions = viewModel.sessions
+        let settings = viewModel.activeSettings
+        let sessions = viewModel.workSessions
         let context = AssistantPlannerContext.current()
         let router = self.router
 

@@ -70,7 +70,7 @@ struct DaySummarySheet: View {
                     header
 
                     Group {
-                        if viewModel.settings.hourlyRate > 0 {
+                        if viewModel.activeSettings.hourlyRate > 0 {
                             payCard
                         } else {
                             rateMissingCard
@@ -79,7 +79,7 @@ struct DaySummarySheet: View {
                     // Behind the card without taking layout space.
                     .background(DSHeroGlow(color: glowColor))
 
-                    if viewModel.settings.hourlyRate > 0 {
+                    if viewModel.activeSettings.hourlyRate > 0 {
                         grossNetSwitch
                         deductionsCard
                     }
@@ -203,7 +203,7 @@ struct DaySummarySheet: View {
         }
         if let minutes = completedSession?.breakMinutes, minutes > 0 {
             let time = HistoryPeriodHelper.formatHoursClock(Double(minutes) / 60)
-            let kind = viewModel.settings.breaksArePaid ? L10n.sumBreakPaid : L10n.sumBreakUnpaid
+            let kind = viewModel.activeSettings.breaksArePaid ? L10n.sumBreakPaid : L10n.sumBreakUnpaid
             rows.append(.init(label: L10n.sumRowBreaks, value: "\(time) · \(kind)"))
         }
         return rows
@@ -291,9 +291,9 @@ struct DaySummarySheet: View {
 
     private func saveRate() {
         guard let rate = parsedRate else { return }
-        var settings = viewModel.settings
+        var settings = viewModel.activeSettings
         settings.hourlyRate = rate
-        viewModel.saveSettings(settings)
+        viewModel.saveActiveWorkplaceSettings(settings)
         refreshBreakdown()
     }
 
@@ -418,9 +418,9 @@ struct DaySummarySheet: View {
         guard let interval = calendar.dateInterval(of: .weekOfYear, for: completedSession?.date ?? Date()) else {
             return nil
         }
-        let week = viewModel.sessions.filter { $0.clockOut != nil && interval.contains($0.date) }
+        let week = viewModel.workSessions.filter { $0.clockOut != nil && interval.contains($0.date) }
         guard week.count >= 3 else { return nil }
-        let totals = OvertimeCalculator.aggregate(sessions: week, settings: viewModel.settings)
+        let totals = OvertimeCalculator.aggregate(sessions: week, settings: viewModel.activeSettings)
         return WeekSummary(
             hours: totals.totalHours,
             pay: payMode == .net ? totals.formattedNetPay : totals.formattedGrossPay
@@ -514,7 +514,7 @@ struct DaySummarySheet: View {
     private var currencySymbol: String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
-        formatter.currencyCode = viewModel.settings.currencyCode
+        formatter.currencyCode = viewModel.activeSettings.currencyCode
         formatter.locale = AppLocale.resolvedLocale
         return formatter.currencySymbol ?? "₪"
     }
@@ -524,7 +524,7 @@ struct DaySummarySheet: View {
             viewModel.dismissDaySummary()
             return
         }
-        breakdown = OvertimeCalculator.breakdown(for: session, in: viewModel.sessions, settings: viewModel.settings)
+        breakdown = viewModel.breakdown(for: session)
     }
 
     private func deleteJustCompletedShift() {

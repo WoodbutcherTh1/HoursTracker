@@ -20,13 +20,14 @@ Definition-of-done for privacy changes: if a PR stores, logs, exports, or transm
 | Marital status, children, spouse employed | Documents JSON; CloudKit if sync on | File protection | Until delete | Local + cloud purge |
 | `payrollStartDay`, `restDayWeekday`, `arrivalRemindersEnabled` | Documents JSON; CloudKit if sync on | File protection | Until delete | Local + cloud purge |
 | `modifiedAt` | Documents JSON; CloudKit if sync on | File protection | Until delete | Local + cloud purge |
+| `additionalWorkplaces` (extra jobs: id, color, full settings with an empty national ID) | Documents JSON; CloudKit / account backup with the settings | File protection | Until delete | Local + cloud purge; removing one moves its shifts to Recently deleted |
 | `leaveDays` (vacation / recuperation day marks: id, day, kind) — display only, never a pay input | Documents JSON; CloudKit / account backup with the settings | File protection | Until delete | Local + cloud purge |
 
 ## Work history (`work_sessions.json`)
 
 | Field | Storage | Protection | Retention | Deleted by |
 |---|---|---|---|---|
-| Session id, dates, clock in/out, break, day type, night flag, notes, `modifiedAt`, import flags | Documents JSON; one CloudKit record per session if sync on | File protection | Until delete | Local + cloud purge |
+| Session id, dates, clock in/out, break, day type, night flag, notes, `modifiedAt`, import flags, optional `workplaceID` (extra workplace; absent = main) | Documents JSON; one CloudKit record per session if sync on | File protection | Until delete | Local + cloud purge |
 | Corrupt decode sidecar | `work_sessions.json.corrupt*` | Same directory | Until delete-all or manual | `wipeQuarantinedSidecars` |
 
 ## Recently deleted & automatic backups (Application Support/HoursTracker)

@@ -17,7 +17,7 @@ struct ForgotClockInSheet: View {
 
     init(viewModel: AppViewModel) {
         self.viewModel = viewModel
-        _arrival = State(initialValue: Self.defaultArrival(settings: viewModel.settings))
+        _arrival = State(initialValue: Self.defaultArrival(settings: viewModel.activeSettings))
     }
 
     private var timeFormatter: DateFormatter {

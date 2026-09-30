@@ -115,6 +115,24 @@ enum L10n {
     static var historyEmptyPeriod: String { t("history.emptyPeriod") }
     static var historyEmptyPeriodHint: String { t("history.emptyPeriodHint") }
     static var historyShowAllDays: String { t("history.showAllDays") }
+    static var workplacesTitle: String { t("workplaces.title") }
+    static var workplacesHint: String { t("workplaces.hint") }
+    static var workplacesHintActive: String { t("workplaces.hintActive") }
+    static var workplaceSwitch: String { t("workplaces.switch") }
+    static var workplaceMerge: String { t("workplaces.merge") }
+    static var workplaceAdd: String { t("workplaces.add") }
+    static var workplaceAddMessage: String { t("workplaces.addMessage") }
+    static var workplaceAddConfirm: String { t("workplaces.addConfirm") }
+    static var workplaceNamePlaceholder: String { t("workplaces.namePlaceholder") }
+    static var workplaceDelete: String { t("workplaces.delete") }
+    static var workplaceDeleteConfirmTitle: String { t("workplaces.deleteConfirmTitle") }
+    static var workplaceSwitchWhileClockedIn: String { t("workplaces.switchWhileClockedIn") }
+    static func workplaceNumbered(_ number: Int) -> String {
+        String(format: t("workplaces.numbered %lld"), number)
+    }
+    static func workplaceDeleteConfirmMessage(_ count: Int) -> String {
+        String(format: t("workplaces.deleteConfirmMessage %lld"), count)
+    }
     static var leaveVacation: String { t("leave.vacation") }
     static var leaveRecuperation: String { t("leave.recuperation") }
     static var leaveVacationShort: String { t("leave.vacation.short") }

@@ -36,7 +36,7 @@ struct MonthlyTrendCard: View {
 
         return months.compactMap { monthStart in
             let interval = calendar.dateInterval(of: .month, for: monthStart)
-            let monthSessions = viewModel.sessions.filter { session in
+            let monthSessions = viewModel.workSessions.filter { session in
                 guard let interval else { return false }
                 return session.clockOut != nil
                     && session.clockIn >= interval.start
@@ -48,7 +48,7 @@ struct MonthlyTrendCard: View {
             let hours = monthSessions.reduce(0) { $0 + $1.effectiveHours }
             let breakdown = OvertimeCalculator.aggregate(
                 sessions: monthSessions,
-                settings: viewModel.settings
+                settings: viewModel.activeSettings
             )
             return MonthlyTrendPoint(
                 id: monthStart,
@@ -169,7 +169,7 @@ struct MonthlyTrendCard: View {
             Spacer()
             trendFootStat(
                 icon: "chart.line.uptrend.xyaxis",
-                value: PayFormatter.string(averageMonthlyPay, currencyCode: viewModel.settings.currencyCode),
+                value: PayFormatter.string(averageMonthlyPay, currencyCode: viewModel.activeSettings.currencyCode),
                 color: homeTheme.accent
             )
         }

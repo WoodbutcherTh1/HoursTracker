@@ -66,6 +66,10 @@ struct WorkSession: Codable, Identifiable, Equatable {
     var isNightShift: Bool
     var notes: String?
     var modifiedAt: Date
+    /// The workplace this shift belongs to — `nil` is the main workplace (every
+    /// shift saved before multiple workplaces existed). An id that no longer
+    /// matches a workplace is treated as the main one (`AppViewModel.workplaceKey`).
+    var workplaceID: UUID?
 
     init(
         id: UUID = UUID(),
@@ -79,7 +83,8 @@ struct WorkSession: Codable, Identifiable, Equatable {
         dayType: DayType = .regular,
         isNightShift: Bool = false,
         notes: String? = nil,
-        modifiedAt: Date = Date()
+        modifiedAt: Date = Date(),
+        workplaceID: UUID? = nil
     ) {
         self.id = id
         self.date = date
@@ -93,12 +98,14 @@ struct WorkSession: Codable, Identifiable, Equatable {
         self.isNightShift = isNightShift
         self.notes = notes
         self.modifiedAt = modifiedAt
+        self.workplaceID = workplaceID
     }
 
     enum CodingKeys: String, CodingKey {
         case id, date, clockIn, clockOut, isManualEntry, isAIImported
         case breakMinutes, breaks, dayType, isNightShift
         case notes, modifiedAt
+        case workplaceID
     }
 
     init(from decoder: Decoder) throws {
@@ -115,6 +122,7 @@ struct WorkSession: Codable, Identifiable, Equatable {
         isNightShift = try c.decodeIfPresent(Bool.self, forKey: .isNightShift) ?? false
         notes = try c.decodeIfPresent(String.self, forKey: .notes)
         modifiedAt = try c.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? Date()
+        workplaceID = try? c.decodeIfPresent(UUID.self, forKey: .workplaceID)
     }
 
     mutating func touch() {

@@ -53,6 +53,10 @@ struct WorkplaceSettings: Codable, Equatable {
     /// Vacation / recuperation days marked in History. Display only (pay summary
     /// day counts) — no pay input reads this.
     var leaveDays: [LeaveDay] = []
+    /// Other jobs, each with its own full settings (only on the main workplace's
+    /// settings; always empty inside an `AdditionalWorkplace`). Shifts point at one
+    /// with `WorkSession.workplaceID`.
+    var additionalWorkplaces: [AdditionalWorkplace] = []
     var modifiedAt: Date
 
     static let `default` = WorkplaceSettings(
@@ -136,6 +140,7 @@ struct WorkplaceSettings: Codable, Equatable {
         case arrivalRemindersEnabled
         case expectedShiftStartHour, expectedShiftStartMinute
         case leaveDays
+        case additionalWorkplaces
         case modifiedAt
     }
 
@@ -237,6 +242,7 @@ struct WorkplaceSettings: Codable, Equatable {
         expectedShiftStartMinute = try c.decodeIfPresent(Int.self, forKey: .expectedShiftStartMinute) ?? 0
         // A malformed or unknown entry must never make the whole settings unreadable.
         leaveDays = (try? c.decodeIfPresent([LeaveDay].self, forKey: .leaveDays)) ?? []
+        additionalWorkplaces = (try? c.decodeIfPresent([AdditionalWorkplace].self, forKey: .additionalWorkplaces)) ?? []
         modifiedAt = try c.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? Date()
         normalizeValidatedFields()
     }

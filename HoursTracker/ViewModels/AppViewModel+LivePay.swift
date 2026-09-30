@@ -28,6 +28,7 @@ extension AppViewModel {
     /// too — the same calls `clockOut()` makes — so the figure doesn't jump the instant
     /// the shift is actually closed.
     func liveBreakdown(for session: WorkSession, at now: Date, calendar: Calendar = .current) -> DayPayBreakdown {
+        let settings = workplaceSettings(for: session.workplaceID)
         var provisional = session
         let end = max(session.clockIn, now)
         provisional.closeOpenBreak(at: end, deductFromPay: !settings.breaksArePaid)
@@ -35,7 +36,7 @@ extension AppViewModel {
         provisional.applyDefaultBreakIfNeeded(settings: settings)
         return OvertimeCalculator.breakdown(
             for: provisional,
-            in: sessions,
+            in: workplaceSessions(for: session.workplaceID),
             settings: settings,
             calendar: calendar
         )
@@ -45,6 +46,7 @@ extension AppViewModel {
     /// the worker keeps working without another break; any change (a break, clock-out,
     /// a settings edit) rebuilds the curve.
     func makeLivePayCurve(for session: WorkSession, now: Date = Date()) -> LivePayCurve {
+        let settings = workplaceSettings(for: session.workplaceID)
         let paidNow = session.paidElapsedSeconds(now: now, breaksArePaid: settings.breaksArePaid)
         let isPaused = session.isOnBreak && !settings.breaksArePaid
         let current = liveBreakdown(for: session, at: now)

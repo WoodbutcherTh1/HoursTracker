@@ -71,7 +71,7 @@ struct HomeView: View {
 
     private let calendar = Calendar.current
 
-    private var breaksArePaid: Bool { viewModel.settings.breaksArePaid }
+    private var breaksArePaid: Bool { viewModel.activeSettings.breaksArePaid }
 
     var body: some View {
         NavigationStack {
@@ -178,7 +178,7 @@ struct HomeView: View {
                 ContactSupportSheet(viewModel: viewModel)
             }
             .sheet(isPresented: $showUserGuide) {
-                UserGuideSheet(workerName: viewModel.settings.workerFullName)
+                UserGuideSheet(workerName: viewModel.activeSettings.workerFullName)
                     .presentationDetents([.medium, .large])
             }
         }
@@ -260,7 +260,7 @@ struct HomeView: View {
 
     private func greetingHeader(metrics: HomeLayoutMetrics) -> some View {
         HomeGreetingRow(
-            name: viewModel.settings.workerFullName,
+            name: viewModel.activeSettings.workerFullName,
             accent: homeTheme.accent,
             compact: metrics.isCompact,
             onBrandTap: { showAbout = true },
@@ -760,11 +760,11 @@ struct HomeView: View {
 
     /// New users (no finished shift yet) and anyone without a rate see the rate card.
     private var showsRateCard: Bool {
-        viewModel.settings.hourlyRate <= 0 || completedSessions.isEmpty
+        viewModel.activeSettings.hourlyRate <= 0 || completedSessions.isEmpty
     }
 
     private var completedSessions: [WorkSession] {
-        viewModel.sessions.filter { $0.clockOut != nil }
+        viewModel.workSessions.filter { $0.clockOut != nil }
     }
 
     private var todayHours: Double {
@@ -799,25 +799,25 @@ struct HomeView: View {
     private var todayPayBreakdown: DayPayBreakdown {
         let today = calendar.startOfDay(for: Date())
         let sessions = completedSessions.filter { calendar.isDate($0.date, inSameDayAs: today) }
-        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.settings)
+        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.activeSettings)
     }
 
     private var weekPayBreakdown: DayPayBreakdown {
         let interval = weekInterval
         let sessions = completedSessions.filter { interval.contains($0.date) }
-        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.settings)
+        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.activeSettings)
     }
 
     private var monthPayBreakdown: DayPayBreakdown {
         let now = Date()
         let sessions = completedSessions.filter { calendar.isDate($0.date, equalTo: now, toGranularity: .month) }
-        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.settings)
+        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.activeSettings)
     }
 
     private var weekDailyHours: [Double] {
         HistoryPeriodHelper.dailyHoursForWeek(
             containing: Date(),
-            sessions: viewModel.sessions,
+            sessions: viewModel.workSessions,
             calendar: calendar
         )
     }
