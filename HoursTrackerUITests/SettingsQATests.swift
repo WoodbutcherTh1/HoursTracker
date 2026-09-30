@@ -30,8 +30,13 @@ final class SettingsQATests: XCTestCase {
         XCTAssertTrue(rateField.waitForExistence(timeout: 15))
         // The Workplaces section sits above the pay fields; bring the field clear of
         // the tab bar before tapping it.
-        for _ in 0..<4 where !rateField.isHittable || rateField.frame.maxY > app.frame.height * 0.7 {
-            app.swipeUp()
+        // Short drags (a full swipe overshoots it under the navigation bar).
+        let height = app.frame.height
+        for _ in 0..<8 where rateField.frame.midY > height * 0.6 || rateField.frame.minY < 160 {
+            let upward = rateField.frame.midY > height * 0.6
+            let start = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: upward ? 0.7 : 0.4))
+            let end = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: upward ? 0.45 : 0.6))
+            start.press(forDuration: 0.05, thenDragTo: end)
         }
         // The value is trailing-aligned: tap its end so the deletes clear it (a plain
         // tap can leave the caret at the start and the old value survives).
