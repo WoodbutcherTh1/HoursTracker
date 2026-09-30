@@ -254,7 +254,6 @@ struct HomeView: View {
             )
             .padding(.bottom, 2)
 
-            MonthlyTrendCard(viewModel: viewModel, showsEmptyState: true)
         }
     }
 
@@ -482,7 +481,6 @@ struct HomeView: View {
                 accent: HomeNeon.coral
             )
 
-            MonthlyTrendCard(viewModel: viewModel, showsEmptyState: true)
         }
     }
 
