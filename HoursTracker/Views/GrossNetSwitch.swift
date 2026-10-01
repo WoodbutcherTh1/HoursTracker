@@ -38,17 +38,31 @@ struct GrossNetSwitch: View {
         }
         .padding(DS.Space.xxs)
         .background { GlassTrack(radius: trackRadius) }
+        // Swipe the thumb across as well as tapping a cell. Local coordinates
+        // follow the layout direction, so "toward trailing" is always Net.
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 12)
+                .onEnded { drag in
+                    let dx = drag.translation.width
+                    guard abs(dx) > 24, abs(dx) > abs(drag.translation.height) else { return }
+                    select(dx > 0 ? .net : .gross)
+                }
+        )
         .sensoryFeedback(.selection, trigger: mode)
+    }
+
+    private func select(_ newMode: PayDisplayMode) {
+        guard mode != newMode else { return }
+        withAnimation(slide) {
+            mode = newMode
+        }
+        onChange(newMode)
     }
 
     private func cell(_ cellMode: PayDisplayMode, title: String, value: String?) -> some View {
         let selected = mode == cellMode
         return Button {
-            guard mode != cellMode else { return }
-            withAnimation(slide) {
-                mode = cellMode
-            }
-            onChange(cellMode)
+            select(cellMode)
         } label: {
             VStack(spacing: DS.Space.xxs) {
                 Text(title)
