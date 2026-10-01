@@ -96,7 +96,7 @@ struct GrossNetSwitch: View {
                         dragX = 0
                         mode = target
                     }
-                    if changed { onChange(target) }
+                    if changed { notifyAfterSlide(target) }
                 }
         )
         .sensoryFeedback(.selection, trigger: mode)
@@ -107,7 +107,16 @@ struct GrossNetSwitch: View {
         withAnimation(slide) {
             mode = newMode
         }
-        onChange(newMode)
+        notifyAfterSlide(newMode)
+    }
+
+    /// The caller's onChange pushes the choice to widgets, Watch and the Live
+    /// Activity. Run it once the spring has settled so that work can't make the
+    /// slide stutter.
+    private func notifyAfterSlide(_ newMode: PayDisplayMode) {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            onChange(newMode)
+        }
     }
 
     private func cell(_ cellMode: PayDisplayMode, title: String, value: String?) -> some View {
@@ -166,7 +175,7 @@ private struct GlassThumb: View {
         Group {
             if #available(iOS 26.0, *) {
                 Color.clear
-                    .glassEffect(.regular.tint(accent.opacity(0.28)).interactive(), in: shape)
+                    .glassEffect(.regular.tint(accent.opacity(0.28)), in: shape)
             } else {
                 shape
                     .fill(.thinMaterial)
