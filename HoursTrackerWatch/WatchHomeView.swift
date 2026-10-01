@@ -48,7 +48,7 @@ struct WatchHomeView: View {
                     Button {
                         store.refresh()
                     } label: {
-                        Label(AppLocale.tr("common.retry"), systemImage: "arrow.clockwise")
+                        Label(AppLocale.tr("watch.refresh"), systemImage: "arrow.clockwise")
                     }
                     .font(.system(size: 10))
                     .buttonStyle(.plain)
