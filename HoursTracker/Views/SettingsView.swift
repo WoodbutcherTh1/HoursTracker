@@ -313,7 +313,8 @@ struct SettingsView: View {
     }
 
     /// Quiet while there is nothing to save; filled with the accent (and a dot) as
-    /// soon as something changed.
+    /// soon as something changed. A prominent system style so the fill covers the
+    /// whole toolbar capsule (on iOS 26 a custom background sat inside the glass).
     private var saveButton: some View {
         Button(action: saveSettings) {
             HStack(spacing: 5) {
@@ -327,15 +328,11 @@ struct SettingsView: View {
                     .font(.subheadline.weight(.semibold))
             }
             .foregroundStyle(hasUnsavedChanges ? DS.Palette.ink : Color.secondary)
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
-            .background(
-                Capsule(style: .continuous)
-                    .fill(hasUnsavedChanges ? homeTheme.accent : Color.white.opacity(0.06))
-            )
             .animation(DS.Motion.state, value: hasUnsavedChanges)
         }
-        .buttonStyle(.plain)
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.capsule)
+        .tint(homeTheme.accent)
         .disabled(!hasUnsavedChanges)
         .accessibilityValue(hasUnsavedChanges ? L10n.settingsUnsavedTitle : "")
         .accessibilityIdentifier("settings.save")
