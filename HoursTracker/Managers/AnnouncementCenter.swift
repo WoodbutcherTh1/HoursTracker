@@ -15,9 +15,10 @@ struct Announcement: Codable, Equatable, Identifiable {
 
 /// What this install tells the `register-device` Edge Function. Deliberately
 /// small: a random install id (not the vendor id), the push token, the in-app
-/// language and app version, and whether a Watch / widget is in use — nothing
-/// about shifts, pay or the user's identity (the account, when signed in, comes
-/// from the session token on the server side only).
+/// language and app version, whether a Watch / widget is in use, and a bare
+/// yes/no "on a shift now" for the owner's live count — no shift times, pay or
+/// the user's identity (the account, when signed in, comes from the session
+/// token on the server side only).
 struct DeviceRegistrationPayload: Encodable, Equatable {
     var action = "register"
     let deviceId: UUID
@@ -30,6 +31,7 @@ struct DeviceRegistrationPayload: Encodable, Equatable {
     let hasWatch: Bool
     let hasWidget: Bool
     let announcementsEnabled: Bool
+    let onShift: Bool
 }
 
 /// Registers this install for owner announcements (push + in-app) and holds the
@@ -52,6 +54,7 @@ final class AnnouncementCenter: ObservableObject {
         static let apnsToken = "announcements.apnsToken"
         static let lastPayload = "announcements.lastPayload"
         static let lastRegistered = "announcements.lastRegistered"
+        static let onShift = "announcements.onShift"
     }
 
     private let defaults: UserDefaults
@@ -88,6 +91,14 @@ final class AnnouncementCenter: ObservableObject {
     }
 
     // MARK: Registration
+
+    /// Clock in / out: re-register right away so the owner's "on a shift now"
+    /// count follows (the payload changes, so the throttle doesn't apply).
+    func setOnShift(_ onShift: Bool) {
+        guard defaults.object(forKey: Key.onShift) as? Bool != onShift else { return }
+        defaults.set(onShift, forKey: Key.onShift)
+        refresh()
+    }
 
     /// Registers (or updates) this device and picks up unseen announcements.
     /// Throttled unless something about the device changed or `force` is set.
@@ -145,7 +156,7 @@ final class AnnouncementCenter: ObservableObject {
     /// so a later registration starts as a brand-new, unlinked device.
     func forget() {
         let deviceId = defaults.string(forKey: Key.installID).flatMap(UUID.init(uuidString:))
-        for key in [Key.installID, Key.apnsToken, Key.lastPayload, Key.lastRegistered] {
+        for key in [Key.installID, Key.apnsToken, Key.lastPayload, Key.lastRegistered, Key.onShift] {
             defaults.removeObject(forKey: key)
         }
         queue = []
@@ -210,7 +221,8 @@ final class AnnouncementCenter: ObservableObject {
             osVersion: UIDevice.current.systemVersion,
             hasWatch: hasWatch,
             hasWidget: hasWidget,
-            announcementsEnabled: NotificationPreferences.shared.announcementsEnabled
+            announcementsEnabled: NotificationPreferences.shared.announcementsEnabled,
+            onShift: defaults.bool(forKey: Key.onShift)
         )
     }
 

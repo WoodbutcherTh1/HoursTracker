@@ -5,6 +5,10 @@ import Foundation
 struct AdminStats: Decodable, Equatable {
     let devices: Int
     let active1d: Int
+    /// Live: devices seen in the last 15 minutes / currently on a shift.
+    /// Optional so an older server response still decodes.
+    let activeNow: Int?
+    let onShiftNow: Int?
     let active7d: Int
     let active30d: Int
     let accounts: Int

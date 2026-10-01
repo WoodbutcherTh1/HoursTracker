@@ -35,6 +35,12 @@ struct AdminDashboardView: View {
     private var statsSection: some View {
         Section {
             if let stats {
+                if let activeNow = stats.activeNow {
+                    statRow(L10n.adminStatActiveNow, activeNow)
+                }
+                if let onShiftNow = stats.onShiftNow {
+                    statRow(L10n.adminStatOnShiftNow, onShiftNow)
+                }
                 statRow(L10n.adminStatDevices, stats.devices)
                 statRow(L10n.adminStatActive1d, stats.active1d)
                 statRow(L10n.adminStatActive7d, stats.active7d)

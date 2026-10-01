@@ -38,6 +38,7 @@ interface RegisterPayload {
   hasWatch?: boolean
   hasWidget?: boolean
   announcementsEnabled?: boolean
+  onShift?: boolean
   seenIds?: string[]
 }
 
@@ -101,6 +102,9 @@ async function register(req: Request, deviceId: string, body: RegisterPayload) {
     has_watch: body.hasWatch === true,
     has_widget: body.hasWidget === true,
     announcements_enabled: body.announcementsEnabled !== false,
+    // Bare yes/no for the owner's live "on a shift now" count; older builds
+    // don't send it and count as not on a shift.
+    on_shift: body.onShift === true,
     last_seen_at: new Date().toISOString(),
   }
   const { error } = await supabase.from("devices").upsert(row, { onConflict: "id" })

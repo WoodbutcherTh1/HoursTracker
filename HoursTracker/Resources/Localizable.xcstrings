@@ -3736,6 +3736,34 @@
         }
       }
     },
+    "admin.stat.activeNow" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🟢 يستخدمون التطبيق الآن"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🟢 Using the app now"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🟢 משתמשים באפליקציה עכשיו"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🟢 Сейчас в приложении"
+          }
+        }
+      }
+    },
     "admin.stat.devices" : {
       "localizations" : {
         "ar" : {
@@ -3788,6 +3816,34 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Язык приложения"
+          }
+        }
+      }
+    },
+    "admin.stat.onShiftNow" : {
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🟢 بوردية الآن"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🟢 On a shift now"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🟢 במשמרת עכשיו"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🟢 Сейчас на смене"
           }
         }
       }

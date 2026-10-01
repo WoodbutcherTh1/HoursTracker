@@ -97,10 +97,10 @@ These are the only outbound network traffic in the app besides CloudKit. Convers
 |---|---|---|---|---|
 | Random install id (`announcements.installID`, UserDefaults) | Device + `devices.id` | Only when signed in (`user_id` from the verified session, never the request body) | Until delete-all | `AnnouncementCenter.forget()` on delete-all (row deleted server-side) |
 | APNs push token | Device + `devices.apns_token` | Same | Cleared when APNs reports it invalid | Same |
-| In-app language, app/build/iOS version, has Watch, has widget, announcements on/off | `devices` | Same | Updated on each registration | Same |
+| In-app language, app/build/iOS version, has Watch, has widget, announcements on/off, on a shift now (yes/no only) | `devices` | Same | Updated on each registration | Same |
 | Which announcements were shown | `announcement_targets.seen_at` | Via device | Cascades with device / announcement | Same |
 
-Never sent: shifts, pay, name, ID number, employer, location. Tables are RLS-locked with no policies; only the `register-device` and `admin-api` Edge Functions (service role) touch them. The admin dashboard gets aggregate counts only (`admin_stats()`); "selected users" targeting resolves emails server-side and returns only a count plus unknown emails. CI / test runs never register (`AnnouncementCenter.isAutomatedRun`).
+Never sent: shift times, pay, name, ID number, employer, location. Tables are RLS-locked with no policies; only the `register-device` and `admin-api` Edge Functions (service role) touch them. The admin dashboard gets aggregate counts only (`admin_stats()`); "selected users" targeting resolves emails server-side and returns only a count plus unknown emails. CI / test runs never register (`AnnouncementCenter.isAutomatedRun`).
 
 ## Tombstones (`session_tombstones.json`)
 

@@ -1314,6 +1314,9 @@ final class AppViewModel: ObservableObject {
         let showsNet = livePayShowsNet
         WidgetBridge.pushUpdate(settings: activeSettings, sessions: workSessions, livePay: curve, livePayShowsNet: showsNet)
         WatchConnectivityManager.shared.pushSnapshot()
+        if !sessionsLoadUnavailable {
+            AnnouncementCenter.shared.setOnShift(activeSession != nil)
+        }
         if #available(iOS 16.1, *) {
             if let open = activeSession {
                 LiveActivityManager.update(session: open, settings: workplaceSettings(for: open.workplaceID), curve: curve, showsNet: showsNet)

@@ -430,6 +430,8 @@ enum L10n {
     static var adminStatsFooter: String { t("admin.statsFooter") }
     static var adminStatDevices: String { t("admin.stat.devices") }
     static var adminStatActive1d: String { t("admin.stat.active1d") }
+    static var adminStatActiveNow: String { t("admin.stat.activeNow") }
+    static var adminStatOnShiftNow: String { t("admin.stat.onShiftNow") }
     static var adminStatActive7d: String { t("admin.stat.active7d") }
     static var adminStatActive30d: String { t("admin.stat.active30d") }
     static var adminStatAccounts: String { t("admin.stat.accounts") }
