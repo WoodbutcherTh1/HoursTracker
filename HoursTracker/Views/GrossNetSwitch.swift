@@ -20,7 +20,10 @@ struct GrossNetSwitch: View {
     var onChange: (PayDisplayMode) -> Void = { _ in }
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Namespace private var thumbSpace
+    @Environment(\.layoutDirection) private var layoutDirection
+    /// Finger offset while dragging the thumb; 0 when at rest.
+    @State private var dragX: CGFloat = 0
+    @State private var cellWidth: CGFloat = 0
 
     private var isCompact: Bool { grossValue == nil }
     private var trackRadius: CGFloat { isCompact ? 22 : DS.Radius.lg + 4 }
@@ -31,21 +34,69 @@ struct GrossNetSwitch: View {
         reduceMotion ? DS.Motion.reduced : .spring(response: 0.38, dampingFraction: 0.82)
     }
 
+    /// Left-to-right order on screen. The switch lays out in LTR internally so the
+    /// drag math is plain; RTL languages get Gross on the right, as before.
+    private var order: [PayDisplayMode] {
+        layoutDirection == .rightToLeft ? [.net, .gross] : [.gross, .net]
+    }
+
+    private var selectedIndex: CGFloat {
+        CGFloat(order.firstIndex(of: mode) ?? 0)
+    }
+
+    /// Thumb's x inside the track, following the finger and clamped to the cells.
+    private var thumbX: CGFloat {
+        min(max(selectedIndex * cellWidth + dragX, 0), cellWidth)
+    }
+
     var body: some View {
         HStack(spacing: 0) {
-            cell(.gross, title: AppLocale.tr("pay.gross"), value: grossValue)
-            cell(.net, title: AppLocale.tr("pay.net"), value: netValue)
+            ForEach(order, id: \.self) { cellMode in
+                if cellMode == .gross {
+                    cell(.gross, title: AppLocale.tr("pay.gross"), value: grossValue)
+                } else {
+                    cell(.net, title: AppLocale.tr("pay.net"), value: netValue)
+                }
+            }
+        }
+        .background(alignment: .leading) {
+            GlassThumb(radius: thumbRadius, accent: accent)
+                .frame(width: cellWidth)
+                .offset(x: thumbX)
+                .opacity(cellWidth > 0 ? 1 : 0)
+        }
+        .background {
+            GeometryReader { proxy in
+                Color.clear
+                    .onAppear { cellWidth = proxy.size.width / 2 }
+                    .onChange(of: proxy.size.width) { _, width in cellWidth = width / 2 }
+            }
         }
         .padding(DS.Space.xxs)
         .background { GlassTrack(radius: trackRadius) }
-        // Swipe the thumb across as well as tapping a cell. Local coordinates
-        // follow the layout direction, so "toward trailing" is always Net.
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 12)
+        .environment(\.layoutDirection, .leftToRight)
+        // Drag the thumb with a finger; it snaps to the nearer cell on release
+        // (a quick flick counts). Taps still go to the cells.
+        .highPriorityGesture(
+            DragGesture(minimumDistance: 8)
+                .onChanged { drag in
+                    guard abs(drag.translation.width) > abs(drag.translation.height) else { return }
+                    dragX = drag.translation.width
+                }
                 .onEnded { drag in
-                    let dx = drag.translation.width
-                    guard abs(dx) > 24, abs(dx) > abs(drag.translation.height) else { return }
-                    select(dx > 0 ? .net : .gross)
+                    guard cellWidth > 0,
+                          abs(drag.translation.width) > abs(drag.translation.height) else {
+                        withAnimation(slide) { dragX = 0 }
+                        return
+                    }
+                    let end = selectedIndex * cellWidth + drag.predictedEndTranslation.width
+                    let target = order[end > cellWidth / 2 ? 1 : 0]
+                    let changed = mode != target
+                    withAnimation(slide) {
+                        dragX = 0
+                        mode = target
+                    }
+                    if changed { onChange(target) }
                 }
         )
         .sensoryFeedback(.selection, trigger: mode)
@@ -79,13 +130,6 @@ struct GrossNetSwitch: View {
                 }
             }
             .frame(maxWidth: .infinity, minHeight: value == nil ? 40 : 60)
-            .background {
-                if selected {
-                    GlassThumb(radius: thumbRadius, accent: accent)
-                        .matchedGeometryEffect(id: "thumb", in: thumbSpace)
-                        .transition(reduceMotion ? .opacity : .identity)
-                }
-            }
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
