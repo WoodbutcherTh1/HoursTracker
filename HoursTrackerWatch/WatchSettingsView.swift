@@ -137,6 +137,11 @@ struct WatchSettingsView: View {
         let formatter = MeasurementFormatter()
         formatter.locale = AppLocale.resolvedLocale
         formatter.unitStyle = .short
+        // Without this, MeasurementFormatter's default .naturalScale is free to
+        // pick whatever unit it thinks looks best for the value — which for
+        // UnitDuration on watchOS unpredictably converts hours down to seconds
+        // instead of respecting the unit actually passed in.
+        formatter.unitOptions = .providedUnit
         formatter.numberFormatter.maximumFractionDigits = decimals
         formatter.numberFormatter.minimumFractionDigits = 0
         return formatter.string(from: Measurement(value: value, unit: UnitDuration.hours))

@@ -1,59 +1,67 @@
 # Privacy Policy — HoursTracker
 
-**Last updated:** 24 July 2026
+**Last updated: 29 September 2026**
 
-HoursTracker (“the App”) is a personal work-hours companion for a single worker. This policy explains what data the App stores and how it is used.
+> Generated from the in-app policy (`privacy.*` keys in `HoursTracker/Resources/Localizable.xcstrings`), which is the authoritative copy and is also shown in Hebrew, Arabic and Russian. Change the catalog first, then regenerate this file; bump `LegalConsent.currentVersion` for a meaningful change.
 
-## Who we are
-HoursTracker is provided by the app developer for personal timesheet and pay estimation use.
+This policy explains what HoursTracker ("we") collects, why, where it is kept, and your rights under Israel's Protection of Privacy Law, 5741-1981. By using the app you agree to this policy.
 
-## Data we store on your device
-The App stores the following on your iPhone/iPad only (unless you explicitly enable iCloud sync in Settings):
+## Data on your device
 
-- Worker profile you enter (name, ID number, employee number)
-- Workplace name, contractor name, pay rates, and tax-related settings you enter
-- Work sessions (clock-in/out times, breaks, notes, day type)
-- Optional workplace coordinates you choose when tapping **Set Location**
-- Timesheet and payslip images you choose to import (processed on-device by default; see **Smart Scanner cloud extraction** below for the optional exception)
-- Payslip files you upload, and the pay figures extracted from them
+Your shifts, notes, workplace settings, marked days and payslips are kept on this iPhone and protected by iOS data protection. Your national ID number is kept only in the iPhone's Keychain and is never sent anywhere. We don't sell your data and don't use it for advertising.
 
-Your national ID number is kept in the device Keychain and is not uploaded to iCloud.
+## Account and cloud backup
 
-## Smart Scanner cloud extraction (optional, off by default)
+An account is optional. If you create one, we keep your email address, your name and a backup of your settings and shifts (without your national ID) on our server, hosted by Supabase, so you can restore them on another iPhone. The hosting provider may keep the data outside Israel, with appropriate safeguards. You can delete your account and its backup at any time from the Account screen (Delete account).
 
-By default, timesheet and payslip scanning happens entirely on-device using Apple's Vision framework and a local heuristic — nothing is uploaded. If you turn on **Smart Scanner cloud extraction** in Settings and provide your own API key, the recognized text (not the image or PDF itself) is sent to a third-party AI provider you choose — **Google Gemini** or an OpenAI-compatible service such as Groq — to more accurately structure the data. This text can include employer name, employee name, and pay figures. It is sent directly from your device to that provider over an encrypted connection; we do not see or store it. Your API key is kept in the device Keychain. This feature stays off until you turn it on.
+## iCloud sync
 
-## iCloud sync (optional)
-iCloud sync is **off by default**. If you turn on **Sync with iCloud** in Settings (only available in builds that include CloudKit), work sessions and workplace settings are stored in **your** private iCloud database under your Apple ID. We do not operate a server that receives this data. Turning sync off offers to delete already-uploaded iCloud copies. **Delete All My Data** also erases local data and, when sync is available, your private iCloud copies.
+iCloud sync is off by default. If you turn it on, your shifts and workplace settings (not your national ID) are stored in your private iCloud database under your Apple ID. Apple keeps this data; we can't see it.
+
+## Smart features (AI)
+
+The assistant and the smart scanner are optional. When you use them, the text of your question, or the text read from a timesheet or payslip, is sent to the AI provider set up in the app (such as Google Gemini). That provider handles the text under its own privacy policy. Figures about your pay are calculated on your iPhone. AI answers can be wrong — always check them.
+
+## Support messages and announcements
+
+When you contact support, we receive your message, the email you give us, the app and iOS version and, only if you choose, the activity log. Messages reach us through our server and the Telegram messaging service. To send you in-app announcements, the app registers a random install ID, a notification token, its language and version — never your shifts, pay, name or ID number.
 
 ## Location
-- **While Using:** used only when you tap **Set Location** to save your workplace.
-- **Always:** used only if you enable **Arrival reminders**. Then the App monitors a single geofence around your saved workplace (region monitoring) to remind you to clock in on arrival. The App does **not** use the continuous background-location mode, does **not** continuously track your movements, and does **not** sell location data.
 
-## Camera & Photos
-Used only when you import a timesheet photo or screenshot. Processing uses Apple’s on-device Vision frameworks.
+While Using location is only for Set Location. Always location is used only if you enable Arrival reminders, to monitor a single workplace geofence. Continuous background tracking is not used.
 
-## Tracking & advertising
-The App does **not** track you across apps or websites, does **not** show ads, and does **not** use third-party analytics SDKs.
+## Camera & photos
 
-## Sharing
-We do not sell your data. Data stays on your device and, only if you enable iCloud sync, in your personal iCloud account under Apple’s terms. If you separately opt into **Smart Scanner cloud extraction**, recognized document text is sent to the third-party AI provider you configure — see above.
+Used only when you scan or import a timesheet or payslip. Text is read on the iPhone; it is sent to an AI provider only if you use the smart scanner.
+
+## Tracking & ads
+
+The app does not track you across apps or websites, does not show ads, and does not use third-party analytics SDKs.
+
+## How long we keep data
+
+Data on your iPhone stays until you delete it. Deleted shifts stay in Recently deleted for 30 days, and automatic backups on the iPhone for 14 days. The account backup stays on our server until you ask us to delete the account. Support messages are kept only as long as needed to answer them.
+
+## Your rights
+
+Under Israeli law you may see the information we hold about you, ask us to correct it, or ask us to delete it. Most of this you can do yourself: Export all my data, edit your details in Settings, and Delete all my data. For anything on our server, write to us through Contact Support and we will answer as the law requires. You may also complain to the Privacy Protection Authority.
+
+## Security
+
+Data on the iPhone is encrypted by iOS data protection, and you can lock the app with Face ID. Data sent to our server travels over encrypted connections, and each account can reach only its own backup. No system is perfectly secure; if a serious security incident affects your data, we will act as the law requires.
 
 ## Your controls
-In **Settings** you can:
 
-- Edit or clear profile fields
-- Turn off arrival reminders
-- Turn iCloud sync on or off (and delete iCloud copies when turning off)
-- Turn Smart Scanner cloud extraction on or off, and remove your saved API key(s)
-- Delete individual shifts
-- Use **Delete All My Data** to erase sessions, settings, logs, and iCloud copies when sync is available
+In Settings you can edit your details, turn off arrival reminders, turn iCloud sync on or off (and delete iCloud copies), delete shifts, clear or export the activity log, export all your data, or delete all data on this iPhone and in your private iCloud.
 
-## Children
-The App is not directed at children under 13.
+## Minors
+
+If you are under 18, use HoursTracker with the consent of a parent or guardian.
+
+## Changes to this policy
+
+When we change this policy in a meaningful way, the app will show you the new version and ask you to agree again before you continue.
 
 ## Contact
-For privacy questions, contact the developer via the support email shown in the App’s Settings → About & Legal section.
 
-## Changes
-We may update this policy. The “Last updated” date above will change when we do.
+The data controller is Hmam Kaadna, the developer of HoursTracker. For any privacy question or request, write to info.hourstracker@gmail.com or use Contact Support in Settings.

@@ -51,12 +51,12 @@ struct UserGuideSheet: View {
             header
 
             TabView(selection: $page) {
-                slide(0, copy: GuideCopy.home) { GuideHomePage(accent: homeTheme.accent) }
+                slide(0, copy: GuideCopy.home) { GuideHomePage(accent: homeTheme.accent, guideLanguage: guideLanguage) }
                 slide(1, copy: GuideCopy.theme) { GuideThemePage() }
-                slide(2, copy: GuideCopy.history) { GuideHistoryPage() }
-                slide(3, copy: GuideCopy.payslips) { GuidePayslipsPage(accent: homeTheme.accent) }
-                slide(4, copy: GuideCopy.shiftDetail) { GuideShiftDetailPage() }
-                slide(5, copy: GuideCopy.settings) { GuideSettingsPage() }
+                slide(2, copy: GuideCopy.history) { GuideHistoryPage(guideLanguage: guideLanguage) }
+                slide(3, copy: GuideCopy.payslips) { GuidePayslipsPage(accent: homeTheme.accent, guideLanguage: guideLanguage) }
+                slide(4, copy: GuideCopy.shiftDetail) { GuideShiftDetailPage(guideLanguage: guideLanguage) }
+                slide(5, copy: GuideCopy.settings) { GuideSettingsPage(guideLanguage: guideLanguage) }
                 slide(6, copy: GuideCopy.assistant) {
                     GuideAssistantPage(accent: homeTheme.accent, workerName: workerName)
                 }
@@ -74,7 +74,7 @@ struct UserGuideSheet: View {
         @ViewBuilder content: () -> Content
     ) -> some View {
         let text = copy.pair(for: guideLanguage)
-        let alignment: HorizontalAlignment = guideLanguage == .en ? .leading : .trailing
+        let alignment: HorizontalAlignment = guideLanguage.isRTL ? .trailing : .leading
         return ZStack(alignment: .bottom) {
             content()
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -88,7 +88,7 @@ struct UserGuideSheet: View {
                     .foregroundStyle(.white.opacity(0.72))
             }
             .frame(maxWidth: .infinity, alignment: alignment == .leading ? .leading : .trailing)
-            .multilineTextAlignment(guideLanguage == .en ? .leading : .trailing)
+            .multilineTextAlignment(guideLanguage.isRTL ? .trailing : .leading)
             .padding(16)
             .background(
                 LinearGradient(
@@ -190,17 +190,19 @@ struct UserGuideSheet: View {
 // MARK: - Guide-local language (independent of the app's own language setting)
 
 private enum GuideLanguage: CaseIterable, Equatable {
-    case en, he, ar
+    case en, he, ar, ru
 
     static func matching(_ preference: AppLanguageOption) -> GuideLanguage {
         switch preference {
         case .english: return .en
         case .hebrew: return .he
         case .arabic: return .ar
+        case .russian: return .ru
         case .system:
             switch AppLocale.language(fromPreferredLanguages: Locale.preferredLanguages) {
             case .hebrew: return .he
             case .arabic: return .ar
+            case .russian: return .ru
             default: return .en
             }
         }
@@ -217,6 +219,22 @@ private enum GuideLanguage: CaseIterable, Equatable {
         case .en: return "EN"
         case .he: return "HE"
         case .ar: return "AR"
+        case .ru: return "RU"
+        }
+    }
+
+    var isRTL: Bool { self == .he || self == .ar }
+
+    /// Maps to `AppLocale`'s language type so guide mockups can resolve
+    /// L10n-driven text in the guide's own selected language, instead of
+    /// the app's actual current language (which is what every `L10n.xxx`
+    /// call reads by default).
+    var appLocaleLanguage: AppLocale.Language {
+        switch self {
+        case .en: return .english
+        case .he: return .hebrew
+        case .ar: return .arabic
+        case .ru: return .russian
         }
     }
 
@@ -225,6 +243,7 @@ private enum GuideLanguage: CaseIterable, Equatable {
         case .en: return "User Guide"
         case .he: return "מדריך למשתמש"
         case .ar: return "دليل المستخدم"
+        case .ru: return "Руководство"
         }
     }
 
@@ -233,6 +252,7 @@ private enum GuideLanguage: CaseIterable, Equatable {
         case .en: return "Done"
         case .he: return "סיום"
         case .ar: return "تم"
+        case .ru: return "Готово"
         }
     }
 
@@ -241,6 +261,7 @@ private enum GuideLanguage: CaseIterable, Equatable {
         case .en: return "Next"
         case .he: return "הבא"
         case .ar: return "التالي"
+        case .ru: return "Далее"
         }
     }
 }
@@ -251,12 +272,14 @@ private struct GuideCopy {
     let en: (title: String, subtitle: String)
     let he: (title: String, subtitle: String)
     let ar: (title: String, subtitle: String)
+    let ru: (title: String, subtitle: String)
 
     func pair(for language: GuideLanguage) -> (title: String, subtitle: String) {
         switch language {
         case .en: return en
         case .he: return he
         case .ar: return ar
+        case .ru: return ru
         }
     }
 
@@ -275,13 +298,19 @@ private struct GuideCopy {
             "تسجيل الدخول بلمسة واحدة",
             "يُفتح الباب ويتحول إلى اللون المرجاني — تم تسجيل الدخول. "
                 + "بدّل العدّاد الحي بين الإجمالي والصافي أثناء المناوبة."
+        ),
+        ru: (
+            "Начните смену одним касанием",
+            "Дверь открывается и становится коралловой — смена начата. "
+                + "Во время смены переключайте живой счётчик между брутто и нетто."
         )
     )
 
     static let theme = GuideCopy(
         en: ("Make it yours", "Tap a color — a ring confirms it, and it applies app-wide."),
         he: ("התאימו את האפליקציה", "הקישו על צבע - טבעת מאשרת את הבחירה, והיא חלה בכל האפליקציה."),
-        ar: ("اجعله خاصًا بك", "اضغط على لون — تؤكده حلقة، ويُطبَّق على مستوى التطبيق.")
+        ar: ("اجعله خاصًا بك", "اضغط على لون — تؤكده حلقة، ويُطبَّق على مستوى التطبيق."),
+        ru: ("Под себя", "Нажмите на цвет — кольцо подтвердит выбор, и он применится во всём приложении.")
     )
 
     static let history = GuideCopy(
@@ -299,25 +328,33 @@ private struct GuideCopy {
             "حدد يومًا كعطلة",
             "اختر عطلة كنوع اليوم — تُملأ الساعات تلقائيًا حسب مناوبتك المعتادة. "
                 + "بالأسفل، يعدّ السجل أيام عملك ويعرض ‎+1?‎ أثناء مناوبة مفتوحة."
+        ),
+        ru: (
+            "Отметьте день как праздник",
+            "Выберите «Праздник» как тип дня — часы заполнятся по вашей обычной смене. "
+                + "Внизу история считает отработанные дни и показывает +1?, пока смена открыта."
         )
     )
 
     static let payslips = GuideCopy(
-        en: ("Every payslip, organized", "Tap a payslip to open its PDF, review the extracted details, and confirm or delete it. Full reports live in the Export tab."),
-        he: ("כל תלוש, מסודר", "הקישו על תלוש כדי לפתוח את ה-PDF, לבדוק את הפרטים שחולצו, ולאשר או למחוק. דוחות מלאים נמצאים בלשונית ייצוא."),
-        ar: ("كل قسيمة راتب، منظمة", "اضغط على قسيمة لفتح ملف PDF ومراجعة التفاصيل المستخرجة وتأكيدها أو حذفها. التقارير الكاملة في تبويب التصدير.")
+        en: ("Every payslip, organized", "Payslips have their own tab. Tap one to open its PDF, review the extracted details, and confirm or delete it. Full reports live in the Export tab."),
+        he: ("כל תלוש, מסודר", "לתלושים יש לשונית משלהם. הקישו על תלוש כדי לפתוח את ה-PDF, לבדוק את הפרטים שחולצו, ולאשר או למחוק. דוחות מלאים נמצאים בלשונית ייצוא."),
+        ar: ("كل قسيمة راتب، منظمة", "لكشوف الرواتب تبويب خاص بها. اضغط على قسيمة لفتح ملف PDF ومراجعة التفاصيل المستخرجة وتأكيدها أو حذفها. التقارير الكاملة في تبويب التصدير."),
+        ru: ("Все расчётные листы по порядку", "У расчётных листов своя вкладка. Нажмите на лист, чтобы открыть PDF, проверить извлечённые данные и подтвердить или удалить его. Полные отчёты — во вкладке «Экспорт».")
     )
 
     static let shiftDetail = GuideCopy(
         en: ("Every shift, itemized", "Regular, overtime, and pay — broken down clearly."),
         he: ("כל משמרת, מפורטת", "שעות רגילות, נוספות ותשלום - בפירוט מלא."),
-        ar: ("كل مناوبة، بالتفصيل", "الساعات العادية والإضافية والأجر — موضحة بدقة.")
+        ar: ("كل مناوبة، بالتفصيل", "الساعات العادية والإضافية والأجر — موضحة بدقة."),
+        ru: ("Каждая смена в деталях", "Обычные часы, сверхурочные и оплата — всё наглядно.")
     )
 
     static let settings = GuideCopy(
         en: ("Your data stays yours", "The scanner works fully on-device unless you turn cloud AI on."),
         he: ("המידע שלכם נשאר שלכם", "הסורק פועל במכשיר בלבד, אלא אם מפעילים AI בענן."),
-        ar: ("بياناتك تبقى لك", "يعمل الماسح على الجهاز فقط ما لم تُفعّل الذكاء الاصطناعي السحابي.")
+        ar: ("بياناتك تبقى لك", "يعمل الماسح على الجهاز فقط ما لم تُفعّل الذكاء الاصطناعي السحابي."),
+        ru: ("Ваши данные — только ваши", "Сканер работает только на устройстве, пока вы не включите облачный ИИ.")
     )
 
     static let assistant = GuideCopy(
@@ -332,6 +369,10 @@ private struct GuideCopy {
         ar: (
             "اسأل مساعدك",
             "اضغط على أيقونة البريق في الشريط العلوي بأي تبويب للساعات أو الإضافي أو قسيمة الراتب — الإجابات من بياناتك الحقيقية فقط."
+        ),
+        ru: (
+            "Спросите помощника",
+            "Нажмите значок с искрами на верхней панели любой вкладки — про часы, сверхурочные или расчётный лист. Ответы основаны только на ваших реальных данных."
         )
     )
 }
@@ -340,20 +381,25 @@ private struct GuideCopy {
 
 private struct GuideHomePage: View {
     let accent: Color
+    let guideLanguage: GuideLanguage
     /// The real gross/net control from the clocked-in screen, not a picture of one.
     @State private var payMode: PayDisplayMode = .gross
+
+    private func t(_ key: String) -> String {
+        AppLocale.localizedString(key, language: guideLanguage.appLocaleLanguage)
+    }
 
     var body: some View {
         VStack(spacing: 18) {
             Spacer()
-            HomeAnimatedDoorButton(mode: .clockIn, title: L10n.homeClockIn, accent: accent) {
+            HomeAnimatedDoorButton(mode: .clockIn, title: t("home.clockIn"), accent: accent) {
                 // Guide demo only — no real session is created.
             }
             .frame(height: 140)
 
             Picker("", selection: $payMode) {
                 ForEach(PayDisplayMode.allCases) { mode in
-                    Text(mode == .net ? L10n.historyPayNet : L10n.historyPayGross).tag(mode)
+                    Text(mode == .net ? t("history.payNet") : t("history.payGross")).tag(mode)
                 }
             }
             .pickerStyle(.segmented)
@@ -420,24 +466,38 @@ private struct GuideThemePage: View {
 // MARK: - Slide 3: History / Holiday — the real DayType picker + auto-fill section
 
 private struct GuideHistoryPage: View {
+    let guideLanguage: GuideLanguage
     @State private var dayType: DayType = .regular
+
+    private func t(_ key: String) -> String {
+        AppLocale.localizedString(key, language: guideLanguage.appLocaleLanguage)
+    }
+
+    private func dayTypeName(_ type: DayType) -> String {
+        switch type {
+        case .regular: return t("dayType.regular")
+        case .restDay: return t("dayType.restDay")
+        case .holiday: return t("dayType.holiday")
+        case .sick: return t("dayType.sick")
+        }
+    }
 
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                Section(L10n.settingsWorkRules) {
-                    Picker(L10n.sessionDayType, selection: $dayType) {
+                Section(t("settings.workRules")) {
+                    Picker(t("session.dayType"), selection: $dayType) {
                         ForEach(DayType.allCases) { type in
-                            Text(type.localizedName).tag(type)
+                            Text(dayTypeName(type)).tag(type)
                         }
                     }
                 }
 
                 if dayType == .holiday {
-                    Section(L10n.manualHolidayAutoFilledTitle) {
-                        LabeledContent(L10n.editClockIn, value: "08:30")
-                        LabeledContent(L10n.editClockOut, value: "17:00")
-                        Text(L10n.manualHolidayAutoFilledHint)
+                    Section(t("manual.holidayAutoFilledTitle")) {
+                        LabeledContent(t("edit.clockIn"), value: "08:30")
+                        LabeledContent(t("edit.clockOut"), value: "17:00")
+                        Text(t("manual.holidayAutoFilledHint"))
                             .font(.footnote)
                             .foregroundStyle(.secondary)
                     }
@@ -457,12 +517,28 @@ private struct GuideHistoryPage: View {
 
 private struct GuidePayslipsPage: View {
     let accent: Color
+    let guideLanguage: GuideLanguage
     @State private var selected: String = ""
 
-    private let sample: [(month: String, amount: String, hex: String)] = [
-        ("July 2026", "₪14,810.00", "6b4a7a"),
-        ("June 2026", "₪15,940.25", "2f4f77")
-    ]
+    /// Sample month labels, generated in the guide's own selected language
+    /// rather than hardcoded English — these are fake demo dates, but the
+    /// month name still needs to match whatever language the guide shows.
+    private var sample: [(month: String, amount: String, hex: String)] {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: guideLanguage.appLocaleLanguage.localeIdentifier)
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.setLocalizedDateFormatFromTemplate("MMMM yyyy")
+        let calendar = Calendar(identifier: .gregorian)
+        var components = DateComponents(year: 2026, day: 1)
+        components.month = 7
+        let july = calendar.date(from: components) ?? Date()
+        components.month = 6
+        let june = calendar.date(from: components) ?? Date()
+        return [
+            (formatter.string(from: july), "₪14,810.00", "6b4a7a"),
+            (formatter.string(from: june), "₪15,940.25", "2f4f77")
+        ]
+    }
 
     var body: some View {
         VStack {
@@ -501,11 +577,17 @@ private struct GuidePayslipsPage: View {
 // MARK: - Slide 5: Shift detail — static breakdown, no interaction
 
 private struct GuideShiftDetailPage: View {
+    let guideLanguage: GuideLanguage
+
+    private func t(_ key: String) -> String {
+        AppLocale.localizedString(key, language: guideLanguage.appLocaleLanguage)
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            row(L10n.payslipHoursRegular, "62.10")
-            row(L10n.payslipHoursOT, "2.00")
-            row(L10n.payslipGross, "₪3,450.25")
+            row(t("payslip.hoursRegular"), "62.10")
+            row(t("payslip.hoursOT"), "2.00")
+            row(t("payslip.gross"), "₪3,450.25")
         }
         .padding(20)
         .background(HomeNeon.card, in: RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -557,13 +639,18 @@ private struct GuideAssistantPage: View {
 // MARK: - Slide 6: Settings — the real cloud-AI toggle and privacy copy
 
 private struct GuideSettingsPage: View {
+    let guideLanguage: GuideLanguage
     @State private var cloudEnabled = false
+
+    private func t(_ key: String) -> String {
+        AppLocale.localizedString(key, language: guideLanguage.appLocaleLanguage)
+    }
 
     var body: some View {
         Form {
             Section {
-                Toggle(L10n.scannerCloudEnabled, isOn: $cloudEnabled.animation())
-                Text(L10n.scannerCloudPrivacyNotice)
+                Toggle(t("scanner.cloudEnabled"), isOn: $cloudEnabled.animation())
+                Text(t("scanner.cloudPrivacyNotice"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

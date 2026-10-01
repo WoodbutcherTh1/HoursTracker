@@ -23,6 +23,17 @@ enum HomeStatMetric: String, CaseIterable, Codable, Identifiable {
         case .monthPay: return L10n.homeStatMonthPay
         }
     }
+
+    /// For the 3-across card, where "This month" truncates from AX2 on SE and Pro.
+    /// VoiceOver still reads `title`. The pay metrics keep their titles.
+    var shortTitle: String {
+        switch self {
+        case .month: return L10n.homeStatMonthShort
+        case .week: return L10n.homeStatWeekShort
+        case .today: return L10n.homeStatTodayShort
+        case .todayPay, .weekPay, .monthPay: return title
+        }
+    }
 }
 
 /// User-customizable Home screen stat cards: which 3 metrics show, and in what
@@ -64,6 +75,20 @@ final class HomeStatsLayout: ObservableObject {
         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
             order.swapAt(from, to)
         }
+    }
+
+    /// Moves `metric` one slot toward the start (`by: -1`) or the end (`by: 1`) — the
+    /// long-press menu and VoiceOver alternative to drag and drop. No-op at the edges.
+    func shift(_ metric: HomeStatMetric, by offset: Int) {
+        guard canShift(metric, by: offset), let from = order.firstIndex(of: metric) else { return }
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+            order.swapAt(from, from + offset)
+        }
+    }
+
+    func canShift(_ metric: HomeStatMetric, by offset: Int) -> Bool {
+        guard let from = order.firstIndex(of: metric) else { return false }
+        return order.indices.contains(from + offset)
     }
 
     /// Assigns `metric` to the card at `index`. If `metric` is already showing in

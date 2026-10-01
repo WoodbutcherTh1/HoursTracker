@@ -1,4 +1,5 @@
 import UIKit
+import UserNotifications
 
 /// Bridges home-screen quick actions (long-press app icon) into the SwiftUI
 /// layer, which owns the tab state and the view model.
@@ -23,9 +24,83 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
             // follow the standard `-AppleLanguages` launch argument — it must be forced
             // directly so screenshots render in English regardless of simulator/device locale.
             UserDefaults.standard.set(AppLanguageOption.english.rawValue, forKey: AppLanguageOption.storageKey)
+            // A typical 5-day / 42h week so the stat cards show their goal bars.
+            DisplayPreferences.shared.weekPattern = .fiveDays
+            DisplayPreferences.shared.weeklyGoalHoursDisplayOnly = 42
+        }
+        // UI tests that need a clean launch without walking the onboarding. Does not
+        // seed demo data or force a language.
+        if ProcessInfo.processInfo.arguments.contains("UITEST_SKIP_ONBOARDING") {
+            UserDefaults.standard.set(true, forKey: "hasSeenOnboarding.v1")
+        }
+        // Onboarding RTL test (HoursTrackerUITests/OnboardingRTLUITests.swift): start the
+        // onboarding fresh, in Arabic, with no saved draft.
+        if ProcessInfo.processInfo.arguments.contains("UITEST_ONBOARDING_AR") {
+            let defaults = UserDefaults.standard
+            defaults.set(false, forKey: "hasSeenOnboarding.v1")
+            defaults.set(AppLanguageOption.arabic.rawValue, forKey: AppLanguageOption.storageKey)
+            for key in ["onboarding.lastStep", "onboarding.draft.rate", "onboarding.draft.pattern",
+                        "onboarding.draft.days", "onboarding.draft.hours"] {
+                defaults.removeObject(forKey: key)
+            }
+        }
+        // Day Summary swipe test (HoursTrackerUITests/DaySummarySwipeUITests.swift): no
+        // onboarding, English, and an empty history so the new shift is the only row.
+        if ProcessInfo.processInfo.arguments.contains("UITEST_DAY_SUMMARY") {
+            UserDefaults.standard.set(true, forKey: "hasSeenOnboarding.v1")
+            UserDefaults.standard.set(AppLanguageOption.english.rawValue, forKey: AppLanguageOption.storageKey)
+            AppViewModel.shared.deleteAllUserData()
+        }
+        // Long-name test (HoursTrackerUITests/HomeGreetingLayoutUITests.swift):
+        // `UITEST_HOME_NAME <name> <english|hebrew|arabic>` — empty history, that worker
+        // name, that language.
+        let arguments = ProcessInfo.processInfo.arguments
+        if let index = arguments.firstIndex(of: "UITEST_HOME_NAME"), arguments.indices.contains(index + 2) {
+            let language = AppLanguageOption(rawValue: arguments[index + 2]) ?? .english
+            UserDefaults.standard.set(true, forKey: "hasSeenOnboarding.v1")
+            UserDefaults.standard.set(language.rawValue, forKey: AppLanguageOption.storageKey)
+            AppViewModel.shared.deleteAllUserData()
+            var settings = AppViewModel.shared.settings
+            settings.workerFullName = arguments[index + 1]
+            AppViewModel.shared.saveSettings(settings)
+        }
+        // Design QA (HoursTrackerUITests/DesignQATests.swift): `UITEST_LANG <option>`
+        // overrides the language any hook above set, e.g. screenshots in Hebrew.
+        if let index = arguments.firstIndex(of: "UITEST_LANG"), arguments.indices.contains(index + 1),
+           let language = AppLanguageOption(rawValue: arguments[index + 1]) {
+            UserDefaults.standard.set(language.rawValue, forKey: AppLanguageOption.storageKey)
+        }
+        // Design QA: `UITEST_BACKGROUND <hex>` picks one of the background presets.
+        if let index = arguments.firstIndex(of: "UITEST_BACKGROUND"), arguments.indices.contains(index + 1) {
+            UserDefaults.standard.set(arguments[index + 1], forKey: "appBackgroundColorHex")
         }
         #endif
+        UNUserNotificationCenter.current().delegate = self
+        ShiftReminderScheduler.registerCategories()
+        // Widget buttons (clock in/out, breaks) are LiveActivityIntents that iOS runs
+        // in this process — possibly a background launch with no UI — so apply them
+        // straight to the shared view model instead of waiting for the app to open.
+        ShiftIntentRouter.applyPending = {
+            AppViewModel.shared.consumeWidgetActionIfNeeded()
+        }
+        // Push token for owner announcements. Alerts still only show once the
+        // user has allowed notifications; the token itself needs no prompt.
+        AnnouncementCenter.shared.requestPushToken()
         return true
+    }
+
+    func application(
+        _ application: UIApplication,
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
+    ) {
+        AnnouncementCenter.shared.didReceivePushToken(deviceToken)
+    }
+
+    func application(
+        _ application: UIApplication,
+        didFailToRegisterForRemoteNotificationsWithError error: Error
+    ) {
+        // No push (e.g. simulator); in-app announcements still arrive on refresh.
     }
 
     func application(
@@ -39,6 +114,60 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         }
         AppShortcutRouting.route(url)
         completionHandler(true)
+    }
+}
+
+extension AppDelegate: UNUserNotificationCenterDelegate {
+    /// Without this, iOS silently drops a local notification that fires while the app
+    /// is open — e.g. "your break is over" while the worker is looking at Home.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        willPresent notification: UNNotification,
+        withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
+    ) {
+        completionHandler([.banner, .list, .sound])
+    }
+
+    /// Clock In / Clock Out buttons on the shift reminders. They run without opening
+    /// the app (the system launches it in the background if needed) through the same
+    /// path as the in-app buttons.
+    nonisolated func userNotificationCenter(
+        _ center: UNUserNotificationCenter,
+        didReceive response: UNNotificationResponse,
+        withCompletionHandler completionHandler: @escaping () -> Void
+    ) {
+        let action = response.actionIdentifier
+        let isAnnouncement = response.notification.request.content.userInfo["announcementId"] != nil
+        Task { @MainActor in
+            if isAnnouncement {
+                // Tapping an owner announcement opens its full text in the app.
+                AnnouncementCenter.shared.refresh(force: true)
+            }
+            let viewModel = AppViewModel.shared
+            if response.notification.request.identifier == SettingsUnsavedReminder.identifier {
+                if action == SettingsUnsavedReminder.discardActionID {
+                    SettingsUnsavedChanges.shared.discard()
+                } else if action == UNNotificationDefaultActionIdentifier,
+                          let url = URL(string: "hourstracker://tab/settings") {
+                    // Back to Settings, changes still there, to save them.
+                    AppShortcutRouting.route(url)
+                }
+                completionHandler()
+                return
+            }
+            switch action {
+            case ShiftReminderScheduler.clockInAction where viewModel.canClockIn:
+                viewModel.clockIn()
+            case ShiftReminderScheduler.clockOutAction where !viewModel.canClockIn:
+                viewModel.clockOut()
+            default:
+                if let raw = response.notification.request.content.userInfo[ShiftSummaryNotifier.sessionIDKey] as? String,
+                   let id = UUID(uuidString: raw) {
+                    viewModel.presentDaySummary(sessionID: id)
+                }
+            }
+            completionHandler()
+        }
     }
 }
 

@@ -17,13 +17,14 @@
 		<string>en</string>
 		<string>ar</string>
 		<string>he</string>
+		<string>ru</string>
 	</array>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.6</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -36,7 +37,7 @@
 		</dict>
 	</array>
 	<key>CFBundleVersion</key>
-	<string>21</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>ITSAppUsesNonExemptEncryption</key>
 	<false/>
 	<key>NSCameraUsageDescription</key>
@@ -54,6 +55,21 @@
 	     `xcodegen generate` keeps this file in sync. -->
 	<key>NSSupportsLiveActivities</key>
 	<true/>
+	<key>INAlternativeAppNames</key>
+	<array>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>هاورز تراكر</string>
+		</dict>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>האוורס טרקר</string>
+		</dict>
+		<dict>
+			<key>INAlternativeAppName</key>
+			<string>Хаурс Трекер</string>
+		</dict>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>
@@ -73,5 +89,7 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>UIUserInterfaceStyle</key>
+	<string>Dark</string>
 </dict>
 </plist>

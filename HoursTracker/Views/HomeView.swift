@@ -1,9 +1,13 @@
+import ActivityKit
 import SwiftUI
 import UIKit
 
 struct LiveTimerView: View {
     let startDate: Date
     var fontSize: CGFloat = 52
+    /// Time to leave out of the count (recorded breaks), so the clock stops while
+    /// the worker is on break and resumes where it left off.
+    var excludedSeconds: ((Date) -> TimeInterval)?
     var onTick: ((Date) -> Void)?
 
     @State private var now = Date()
@@ -24,7 +28,8 @@ struct LiveTimerView: View {
     }
 
     private var elapsedFormatted: String {
-        let elapsed = max(0, Int(now.timeIntervalSince(startDate)))
+        let excluded = excludedSeconds?(now) ?? 0
+        let elapsed = max(0, Int(now.timeIntervalSince(startDate) - excluded))
         let hours = elapsed / 3600
         let minutes = (elapsed % 3600) / 60
         let seconds = elapsed % 60
@@ -36,6 +41,7 @@ struct HomeView: View {
     @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
     @ObservedObject private var homeStatsLayout = HomeStatsLayout.shared
+    @ObservedObject private var notificationPrefs = NotificationPreferences.shared
     @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @AppStorage("homeStatsReorderHintDismissed") private var didReorderStats = false
     /// Gross/net choice for the live pay counter. Its own key rather than History's
@@ -47,6 +53,16 @@ struct HomeView: View {
     @State private var showForgotClockIn = false
     @State private var showThemePicker = false
     @State private var showUserGuide = false
+    @State private var showAbout = false
+    @State private var showFeedback = false
+    /// Set once the "Tap to personalize" toast has shown (or the picker was opened).
+    @AppStorage("home.themeTipSeen") private var themeTipSeen = false
+    @State private var showThemeTip = false
+    /// Set once the "Your shift is on the Lock Screen too" toast has shown.
+    @AppStorage("home.lockScreenTipSeen") private var lockScreenTipSeen = false
+    @State private var showLockScreenTip = false
+    /// False while another tab is showing — TabView keeps Home alive off screen.
+    @State private var isHomeVisible = true
     @State private var liveNow = Date()
 
     private var timeFormatter: DateFormatter {
@@ -55,24 +71,14 @@ struct HomeView: View {
 
     private let calendar = Calendar.current
 
+    private var breaksArePaid: Bool { viewModel.activeSettings.breaksArePaid }
+
     var body: some View {
         NavigationStack {
             ZStack {
+                // No ambient decoration: the one glow sits behind the hero (the door
+                // when clocked out, the live card when clocked in) and follows the state.
                 appBackground.background.ignoresSafeArea()
-
-                // Ambient neon wash
-                Circle()
-                    .fill((viewModel.activeSession == nil ? homeTheme.accent : HomeNeon.coral)
-                        .opacity(viewModel.activeSession == nil ? 0.12 : 0.08))
-                    .frame(width: 320, height: 320)
-                    .blur(radius: 70)
-                    .offset(y: 40)
-                    .allowsHitTesting(false)
-
-                HomeAuroraRibbon(accent: viewModel.activeSession == nil ? homeTheme.accent : HomeNeon.coral)
-                    .frame(maxHeight: 160)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
-                    .padding(.top, 8)
 
                 GeometryReader { geo in
                     let metrics = HomeLayoutMetrics(width: geo.size.width, height: geo.size.height)
@@ -91,46 +97,52 @@ struct HomeView: View {
                             }
                         }
                         .padding(.horizontal, metrics.horizontalPadding)
-                        .frame(minHeight: geo.size.height)
+                        .frame(minHeight: geo.size.height - (metrics.pinsDoor ? metrics.pinnedDoorHeight : 0))
                     }
                     .scrollBounceBehavior(.basedOnSize)
+                    // BUG #3: on shorter screens the door (Clock In / Clock Out) ended up
+                    // under the tab bar. There it is pinned above the tab bar and the rest
+                    // scrolls behind it, so the main action is always one tap away.
+                    .safeAreaInset(edge: .bottom, spacing: 0) {
+                        if metrics.pinsDoor {
+                            pinnedDoor(metrics: metrics)
+                        }
+                    }
                 }
             }
+            // Two icons at most. The theme picker lives in the greeting row, the
+            // scanner behind the "Import timesheet" button on the screen, and the
+            // wordmark in About (the brand mark). SwiftUI mirrors both sides in RTL.
             .toolbar {
-                ToolbarItem(placement: .principal) {
-                    HomeBrandTitle(accent: homeTheme.accent)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showThemePicker = true
-                    } label: {
-                        Image(systemName: "paintpalette")
-                            .foregroundStyle(homeTheme.accent)
-                    }
-                    .accessibilityLabel(L10n.homeThemeTitle)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showScanner = true
-                    } label: {
-                        Image(systemName: "doc.viewfinder")
-                            .foregroundStyle(homeTheme.accent)
-                    }
-                    .accessibilityLabel(L10n.gridTitle)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button {
-                        showUserGuide = true
-                    } label: {
-                        Image(systemName: "questionmark.circle")
-                            .foregroundStyle(homeTheme.accent)
-                    }
-                    .accessibilityLabel(L10n.guideTitle)
-                }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
                 }
+                ToolbarItem(placement: .topBarTrailing) {
+                    Menu {
+                        Button {
+                            showUserGuide = true
+                        } label: {
+                            Label(L10n.guideTitle, systemImage: "questionmark.circle")
+                        }
+                        // One row for support and feedback — the sheet's own picker
+                        // (bug / suggestion / …) says what it's about.
+                        Button {
+                            showFeedback = true
+                        } label: {
+                            Label(L10n.homeHelpFeedback, systemImage: "bubble.left.and.text.bubble.right")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis.circle")
+                            .foregroundStyle(homeTheme.accent)
+                    }
+                    .accessibilityLabel(L10n.homeMore)
+                    .accessibilityIdentifier("home.moreMenu")
+                }
             }
+            .task(id: themeTipDueDate) { await runThemeTip() }
+            .task(id: viewModel.activeSession?.id) { await runLockScreenTip() }
+            .onAppear { isHomeVisible = true }
+            .onDisappear { isHomeVisible = false }
             .toolbarBackground(appBackground.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)
@@ -153,8 +165,20 @@ struct HomeView: View {
                 HomeThemePickerSheet(theme: homeTheme)
                     .presentationDetents([.medium, .large])
             }
+            .onChange(of: showThemePicker) { _, isShowing in
+                guard isShowing else { return }
+                showThemeTip = false
+                themeTipSeen = true
+            }
+            .sheet(isPresented: $showAbout) {
+                AboutSheet(viewModel: viewModel)
+                    .presentationDetents([.medium])
+            }
+            .sheet(isPresented: $showFeedback) {
+                ContactSupportSheet(viewModel: viewModel)
+            }
             .sheet(isPresented: $showUserGuide) {
-                UserGuideSheet(workerName: viewModel.settings.workerFullName)
+                UserGuideSheet(workerName: viewModel.activeSettings.workerFullName)
                     .presentationDetents([.medium, .large])
             }
         }
@@ -166,20 +190,21 @@ struct HomeView: View {
 
             statsRow(metrics: metrics)
 
+            if showsRateCard {
+                HomeRateCard(viewModel: viewModel, accent: homeTheme.accent)
+            }
+
             Spacer(minLength: 4)
 
-            HomeAnimatedDoorButton(
-                mode: .clockIn,
-                title: L10n.homeClockIn,
-                compact: metrics.isCompact || metrics.isShort,
-                accent: homeTheme.accent
-            ) {
-                viewModel.clockIn()
+            // Hero: the door, static, with the single glow behind it (pinned at the
+            // bottom instead on shorter screens).
+            if !metrics.pinsDoor {
+                clockInDoor(metrics: metrics)
             }
-            .frame(height: metrics.doorHeight)
 
             if viewModel.shouldOfferForgotClockIn {
                 Button {
+                    UIImpactFeedbackGenerator(style: .rigid).impactOccurred()
                     showForgotClockIn = true
                 } label: {
                     Label(L10n.homeForgotClockIn, systemImage: "clock.badge.questionmark")
@@ -200,6 +225,7 @@ struct HomeView: View {
             }
 
             Button {
+                UIImpactFeedbackGenerator(style: .light).impactOccurred()
                 showScanner = true
             } label: {
                 Label(L10n.gridImportButton, systemImage: "doc.viewfinder")
@@ -227,59 +253,135 @@ struct HomeView: View {
                 accent: homeTheme.accent
             )
             .padding(.bottom, 2)
+
         }
     }
 
     private func greetingHeader(metrics: HomeLayoutMetrics) -> some View {
-        TimelineView(.periodic(from: .now, by: 60)) { context in
-            let greeting = DaypartGreeting.current(at: context.date, calendar: calendar)
-            let title = greeting.title(withName: viewModel.settings.workerFullName)
-            ZStack {
-                HomeFloatingParticles(accent: homeTheme.accent)
-                    .frame(height: metrics.particleHeight)
-
-                Text(title)
-                    .font(.system(size: metrics.greetingFontSize, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.45)
-                    .contentTransition(.opacity)
-                    .animation(.easeInOut(duration: 0.35), value: title)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 4)
+        HomeGreetingRow(
+            name: viewModel.activeSettings.workerFullName,
+            accent: homeTheme.accent,
+            compact: metrics.isCompact,
+            onBrandTap: { showAbout = true },
+            onThemeTap: { showThemePicker = true }
+        )
+        .padding(.top, DS.Space.xxs)
+        // A toast under the row, over the cards — it never pushes the layout.
+        .overlay(alignment: .bottomTrailing) {
+            if showThemeTip {
+                HomeThemeTipToast(accent: homeTheme.accent) { showThemePicker = true }
+                    .alignmentGuide(.bottom) { $0[.top] - DS.Space.xxs }
+                    .transition(.opacity.combined(with: .move(edge: .top)))
             }
-            .padding(.top, 4)
+        }
+        .zIndex(1)
+    }
+
+    // MARK: - "Tap to personalize" tip
+
+    /// 60 s after the first Clock Out, once — and only for someone new: the picker
+    /// was never used and their first shift is under 30 days old. Long-time users
+    /// are not interrupted by a tip for something they have lived without.
+    private var themeTipDueDate: Date? {
+        guard !themeTipSeen, !HomeAccentTheme.hasSavedChoice, !AnnouncementCenter.isAutomatedRun,
+              let firstClockOut = completedSessions.compactMap(\.clockOut).min(),
+              Date().timeIntervalSince(firstClockOut) < Self.themeTipNewUserWindow else { return nil }
+        return firstClockOut.addingTimeInterval(60)
+    }
+
+    private static let themeTipNewUserWindow: TimeInterval = 30 * 24 * 60 * 60
+
+    /// Anything hiding Home — the door stops breathing while it can't be seen.
+    ///
+    /// Derived, not tracked: every flag here is the `isPresented` source of truth
+    /// of a sheet that Home (or the view model) owns, read synchronously in the
+    /// same render pass. No notifications or async hops, so a fast open/close can't
+    /// leave it stale — the next render always sees the current flags.
+    private var isCovered: Bool {
+        !isHomeVisible || viewModel.showDaySummary || viewModel.showAssistant || showScanner
+            || showForgotClockIn || showThemePicker || showUserGuide || showAbout || showFeedback
+    }
+
+    /// Waits for the due time (and for the Day Summary or any picker to close), shows
+    /// the toast for 5 s, then marks it seen. Opening the picker ends it early.
+    @MainActor
+    private func runThemeTip() async {
+        guard let due = themeTipDueDate else { return }
+        do {
+            let wait = due.timeIntervalSinceNow
+            if wait > 0 { try await Task.sleep(for: .seconds(wait)) }
+            while viewModel.showDaySummary || showThemePicker {
+                try await Task.sleep(for: .seconds(1))
+            }
+        } catch {
+            return
+        }
+        withAnimation(DS.Motion.state) { showThemeTip = true }
+        try? await Task.sleep(for: .seconds(5))
+        withAnimation(DS.Motion.state) { showThemeTip = false }
+        themeTipSeen = true
+    }
+
+    @ViewBuilder
+    private func statsRow(metrics: HomeLayoutMetrics) -> some View {
+        if completedSessions.isEmpty {
+            HomeStatsWelcomeCard(accent: homeTheme.accent)
+        } else {
+            VStack(spacing: DS.Space.xs) {
+                HStack(spacing: metrics.statsSpacing) {
+                    ForEach(homeStatsLayout.order) { kind in
+                        reorderableStatCard(kind, metrics: metrics)
+                    }
+                }
+                .fixedSize(horizontal: false, vertical: true)
+
+                if !didReorderStats {
+                    Text(L10n.homeStatsReorderHint)
+                        .dsFont(.meta)
+                        .foregroundStyle(DS.Palette.textTertiary)
+                }
+            }
         }
     }
 
-    private func statsRow(metrics: HomeLayoutMetrics) -> some View {
-        VStack(spacing: 6) {
-            HStack(spacing: metrics.statsSpacing) {
-                ForEach(homeStatsLayout.order) { kind in
-                    statCard(for: kind, metrics: metrics)
-                        .draggable(kind.rawValue) {
-                            statCard(for: kind, metrics: metrics)
-                                .frame(width: 96)
-                                .opacity(0.9)
-                        }
-                        .dropDestination(for: String.self) { items, _ in
-                            guard let raw = items.first, let dragged = HomeStatMetric(rawValue: raw) else {
-                                return false
-                            }
-                            homeStatsLayout.move(dragged, onto: kind)
-                            didReorderStats = true
-                            return true
-                        }
+    /// Drag and drop for touch; the long-press menu and VoiceOver actions do the
+    /// same one step at a time for anyone who can't drag.
+    private func reorderableStatCard(_ kind: HomeStatMetric, metrics: HomeLayoutMetrics) -> some View {
+        statCard(for: kind, metrics: metrics)
+            .draggable(kind.rawValue) {
+                statCard(for: kind, metrics: metrics)
+                    .frame(width: 110, height: 96)
+                    .opacity(0.9)
+            }
+            .dropDestination(for: String.self) { items, _ in
+                guard let raw = items.first, let dragged = HomeStatMetric(rawValue: raw) else {
+                    return false
+                }
+                homeStatsLayout.move(dragged, onto: kind)
+                didReorderStats = true
+                return true
+            }
+            .contextMenu {
+                if homeStatsLayout.canShift(kind, by: -1) {
+                    Button { shiftStat(kind, by: -1) } label: {
+                        Label(L10n.homeStatsMoveEarlier, systemImage: "arrow.backward")
+                    }
+                }
+                if homeStatsLayout.canShift(kind, by: 1) {
+                    Button { shiftStat(kind, by: 1) } label: {
+                        Label(L10n.homeStatsMoveLater, systemImage: "arrow.forward")
+                    }
                 }
             }
+            .accessibilityAction(named: Text(L10n.homeStatsMoveEarlier)) { shiftStat(kind, by: -1) }
+            .accessibilityAction(named: Text(L10n.homeStatsMoveLater)) { shiftStat(kind, by: 1) }
+    }
 
-            if !didReorderStats {
-                Text(L10n.homeStatsReorderHint)
-                    .font(.caption2)
-                    .foregroundStyle(.white.opacity(0.35))
-            }
-        }
+    private func shiftStat(_ kind: HomeStatMetric, by offset: Int) {
+        guard homeStatsLayout.canShift(kind, by: offset) else { return }
+        UISelectionFeedbackGenerator().selectionChanged()
+        homeStatsLayout.shift(kind, by: offset)
+        didReorderStats = true
     }
 
     /// Display value for a stat, in one place so the full cards (clocked out) and the
@@ -295,171 +397,62 @@ struct HomeView: View {
         }
     }
 
-    @ViewBuilder
     private func statCard(for kind: HomeStatMetric, metrics: HomeLayoutMetrics) -> some View {
+        let goal = statGoal(for: kind)
+        return HomeStatCard(
+            title: kind.shortTitle,
+            accessibilityTitle: kind.title,
+            value: statValue(for: kind),
+            systemImage: Self.statSymbol(for: kind),
+            progress: goal?.progress,
+            targetText: goal.map { L10n.homeStatsGoal($0.label) },
+            accent: homeTheme.accent,
+            compact: metrics.isCompact
+        )
+    }
+
+    private static func statSymbol(for kind: HomeStatMetric) -> String {
         switch kind {
-        case .month:
-            HomeNeonStatCard(
-                title: L10n.homeStatMonth,
-                value: statValue(for: kind),
-                icon: .calendar,
-                sparkSeed: 0.4,
-                level: Self.normalizedLevel(monthShiftCount, max: Self.monthShiftLevelMax),
-                compact: metrics.isCompact,
-                showSparkline: metrics.showStatSparkline,
-                accent: homeTheme.accent
-            )
-        case .week:
-            HomeNeonStatCard(
-                title: L10n.homeStatWeek,
-                value: statValue(for: kind),
-                icon: .chart,
-                sparkSeed: 1.3,
-                level: Self.normalizedLevel(weekHours, max: Self.weekHoursLevelMax),
-                compact: metrics.isCompact,
-                showSparkline: metrics.showStatSparkline,
-                accent: homeTheme.accent
-            )
-        case .today:
-            HomeNeonStatCard(
-                title: L10n.homeStatToday,
-                value: statValue(for: kind),
-                icon: .clock,
-                sparkSeed: 2.2,
-                level: Self.normalizedLevel(todayHours, max: Self.todayHoursLevelMax),
-                compact: metrics.isCompact,
-                showSparkline: metrics.showStatSparkline,
-                accent: homeTheme.accent
-            )
-        case .todayPay:
-            HomeNeonStatCard(
-                title: L10n.homeStatTodayPay,
-                value: statValue(for: kind),
-                icon: .clock,
-                sparkSeed: 2.7,
-                level: Self.normalizedLevel(todayHours, max: Self.todayHoursLevelMax),
-                compact: metrics.isCompact,
-                showSparkline: metrics.showStatSparkline,
-                accent: homeTheme.accent
-            )
-        case .weekPay:
-            HomeNeonStatCard(
-                title: L10n.homeStatWeekPay,
-                value: statValue(for: kind),
-                icon: .chart,
-                sparkSeed: 1.7,
-                level: Self.normalizedLevel(weekHours, max: Self.weekHoursLevelMax),
-                compact: metrics.isCompact,
-                showSparkline: metrics.showStatSparkline,
-                accent: homeTheme.accent
-            )
-        case .monthPay:
-            HomeNeonStatCard(
-                title: L10n.homeStatMonthPay,
-                value: statValue(for: kind),
-                icon: .calendar,
-                sparkSeed: 0.9,
-                level: Self.normalizedLevel(monthShiftCount, max: Self.monthShiftLevelMax),
-                compact: metrics.isCompact,
-                showSparkline: metrics.showStatSparkline,
-                accent: homeTheme.accent
-            )
+        case .month, .monthPay: return "calendar"
+        case .week, .weekPay: return "chart.bar.fill"
+        case .today, .todayPay: return "clock"
         }
     }
 
-    // MARK: - Stat card sparkline levels
-
-    /// Reasonable "full bar" ceilings for each stat, chosen so a typical value sits
-    /// mid-height rather than maxing the line out immediately.
-    private static let monthShiftLevelMax: Double = 24
-    private static let weekHoursLevelMax: Double = 60
-    private static let todayHoursLevelMax: Double = 12
-
-    private static func normalizedLevel(_ value: Double, max: Double) -> Double {
-        guard max > 0 else { return 0 }
-        return Swift.min(Swift.max(value / max, 0), 1)
-    }
-
-    private static func normalizedLevel(_ value: Int, max: Double) -> Double {
-        normalizedLevel(Double(value), max: max)
+    /// Progress against the user's own display-only goal. Pay cards have no target —
+    /// a pay goal would be a pay estimate, and those come from the engine only.
+    private func statGoal(for kind: HomeStatMetric) -> (progress: Double, label: String)? {
+        let goals = HomeStatGoals.current()
+        let now = Date()
+        switch kind {
+        case .today:
+            guard let target = goals.todayHoursTarget(on: now, calendar: calendar),
+                  let progress = HomeStatGoals.progress(todayHours, target: target) else { return nil }
+            return (progress, HistoryPeriodHelper.formatHoursClock(target))
+        case .week:
+            guard let target = goals.weekHoursTarget,
+                  let progress = HomeStatGoals.progress(weekHours, target: target) else { return nil }
+            return (progress, HistoryPeriodHelper.formatHoursClock(target))
+        case .month:
+            guard let target = goals.monthShiftTarget(for: now, calendar: calendar),
+                  let progress = HomeStatGoals.progress(Double(monthShiftCount), target: Double(target)) else {
+                return nil
+            }
+            return (progress, "\(target)")
+        case .todayPay, .weekPay, .monthPay:
+            return nil
+        }
     }
 
     private func clockedInView(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {
-        let live = liveBreakdown(for: session, at: liveNow)
-        let timerSize: CGFloat = metrics.isCompact ? 42 : 52
+        let stateColor = Self.stateColor(for: session)
 
         return VStack(spacing: metrics.stackSpacing) {
-            TimelineView(.periodic(from: .now, by: 60)) { context in
-                let title = DaypartGreeting.current(at: context.date, calendar: calendar)
-                    .title(withName: viewModel.settings.workerFullName)
-                Text(title)
-                    .font(.system(size: metrics.isCompact ? 22 : 26, weight: .bold, design: .rounded))
-                    .foregroundStyle(.white)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(2)
-                    .minimumScaleFactor(0.5)
-                    .frame(maxWidth: .infinity)
-                    .padding(.horizontal, 4)
-            }
+            greetingHeader(metrics: metrics)
 
-            VStack(spacing: 4) {
-                Text(L10n.homeClockedIn)
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.55))
-                    .textCase(.uppercase)
-                    .tracking(0.8)
-                Text(L10n.homeSince(timeFormatter.string(from: session.clockIn)))
-                    .font(.subheadline.weight(.medium))
-                    .foregroundStyle(.white.opacity(0.8))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
+            statusRow(session: session, color: stateColor)
 
-            VStack(spacing: 10) {
-                LiveTimerView(startDate: session.clockIn, fontSize: timerSize) { date in
-                    liveNow = date
-                }
-
-                VStack(spacing: 6) {
-                    Picker("", selection: $livePayMode) {
-                        ForEach(PayDisplayMode.allCases) { mode in
-                            Text(mode == .net ? L10n.historyPayNet : L10n.historyPayGross).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .frame(maxWidth: 150)
-                    // Home is a dark surface whatever the device appearance is, so the
-                    // segmented control has to be told that or it renders light-on-light
-                    // for anyone whose phone is in light mode.
-                    .colorScheme(.dark)
-                    .tint(homeTheme.accent)
-                    .accessibilityLabel(L10n.homeLivePay)
-
-                    Text(livePayMode == .net ? live.formattedNetPay : live.formattedGrossPay)
-                        .font(.headline.monospacedDigit())
-                        .foregroundStyle(homeTheme.accent)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                        .contentTransition(.numericText())
-
-                    Text(L10n.homeLivePayHint)
-                        .font(.caption2)
-                        .foregroundStyle(.white.opacity(0.4))
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.7)
-                }
-            }
-            .padding(.vertical, metrics.isCompact ? 14 : 18)
-            .padding(.horizontal, metrics.isCompact ? 14 : 20)
-            .frame(maxWidth: .infinity)
-            .background(
-                RoundedRectangle(cornerRadius: 18, style: .continuous)
-                    .fill(HomeNeon.card)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 18, style: .continuous)
-                            .stroke(HomeNeon.coral.opacity(0.25), lineWidth: 1)
-                    )
-            )
+            liveCard(session: session, stateColor: stateColor, metrics: metrics)
 
             HomeCompactStatsStrip(
                 items: homeStatsLayout.order.map {
@@ -473,15 +466,10 @@ struct HomeView: View {
                 compact: metrics.isCompact
             )
 
-            HomeAnimatedDoorButton(
-                mode: .clockOut,
-                title: L10n.homeClockOut,
-                compact: metrics.isCompact || metrics.isShort,
-                accent: homeTheme.accent
-            ) {
-                viewModel.clockOut()
+            if !metrics.pinsDoor {
+                breakControl(session: session, metrics: metrics)
+                clockOutDoor(session: session, metrics: metrics)
             }
-            .frame(height: metrics.doorHeight)
 
             Spacer(minLength: 4)
 
@@ -492,28 +480,270 @@ struct HomeView: View {
                 isTodayShiftOpen: hasOpenShiftToday,
                 accent: HomeNeon.coral
             )
+
         }
     }
 
-    /// Pay earned so far in the running shift, priced by the same engine as every other
-    /// figure in the app: the open session is closed off at `now` and handed to
-    /// `OvertimeCalculator` in the context of its own day, so the live number already
-    /// includes the 125%/150% tiers, rest-day and holiday rates, the travel allowance,
-    /// and the tax estimate behind net. The previous "live gross (basic)" label was
-    /// hours × hourly rate and quietly under-reported once a shift ran into overtime.
-    ///
-    /// The default unpaid break is applied here too — the same call `clockOut()` makes —
-    /// so the figure doesn't drop the instant the shift is actually closed.
-    private func liveBreakdown(for session: WorkSession, at now: Date) -> DayPayBreakdown {
-        var provisional = session
-        provisional.clockOut = max(session.clockIn, now)
-        provisional.applyDefaultBreakIfNeeded(settings: viewModel.settings)
-        return OvertimeCalculator.breakdown(
-            for: provisional,
-            in: viewModel.sessions,
-            settings: viewModel.settings,
-            calendar: calendar
+    // MARK: - Door
+
+    private func clockInDoor(metrics: HomeLayoutMetrics) -> some View {
+        HomeAnimatedDoorButton(
+            mode: .clockIn,
+            title: L10n.homeClockIn,
+            compact: metrics.isCompact || metrics.isShort,
+            accent: homeTheme.accent
+        ) {
+            viewModel.clockIn()
+        }
+        .frame(height: metrics.doorHeight)
+        .background(DSHeroGlow(color: homeTheme.accent))
+    }
+
+    private func breakControl(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {
+        HomeBreakControl(
+            session: session,
+            targetMinutes: notificationPrefs.breakTargetMinutes,
+            isPaid: breaksArePaid,
+            accent: homeTheme.accent,
+            compact: metrics.isCompact || metrics.isShort,
+            onToggle: { viewModel.toggleBreak() }
         )
+    }
+
+    private func clockOutDoor(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {
+        HomeAnimatedDoorButton(
+            mode: .clockOut,
+            title: L10n.homeClockOut,
+            compact: metrics.isCompact || metrics.isShort,
+            accent: homeTheme.accent,
+            breathes: true,
+            breathingPaused: isCovered,
+            stateColor: Self.stateColor(for: session)
+        ) {
+            viewModel.clockOut()
+        }
+        .frame(height: metrics.doorHeight)
+    }
+
+    /// The door pinned above the tab bar, over a fade so scrolled content slides
+    /// under it instead of cutting off at a hard edge. While clocked in the break
+    /// button is pinned with it — left in the scroll view it sat half-hidden
+    /// behind the door.
+    private func pinnedDoor(metrics: HomeLayoutMetrics) -> some View {
+        Group {
+            if let session = viewModel.activeSession {
+                VStack(spacing: metrics.stackSpacing) {
+                    breakControl(session: session, metrics: metrics)
+                        .padding(.horizontal, metrics.horizontalPadding)
+                    clockOutDoor(session: session, metrics: metrics)
+                }
+            } else {
+                clockInDoor(metrics: metrics)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, HomeLayoutMetrics.pinnedDoorTopPadding)
+        // Solid behind the pinned controls (content scrolling underneath showed
+        // through the break button), with a short fade just above them.
+        .background(
+            VStack(spacing: 0) {
+                LinearGradient(
+                    colors: [appBackground.background.opacity(0), appBackground.background],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .frame(height: Self.pinnedFadeHeight)
+                .allowsHitTesting(false)
+                appBackground.background
+            }
+            .padding(.top, -Self.pinnedFadeHeight)
+            .ignoresSafeArea(edges: .bottom)
+        )
+    }
+
+    private static let pinnedFadeHeight: CGFloat = 24
+
+    // MARK: - Clocked-in hero
+
+    /// Coral while working, amber on a break — the status dot, the live card's glow
+    /// and the door's Reduce Motion ring all follow it.
+    private static func stateColor(for session: WorkSession) -> Color {
+        session.isOnBreak ? DS.Palette.onBreak : DS.Palette.clockedIn
+    }
+
+    private func statusRow(session: WorkSession, color: Color) -> some View {
+        let text = session.activeBreak.map { L10n.homeStatusBreak(timeFormatter.string(from: $0.start)) }
+            ?? L10n.homeStatusWorking(timeFormatter.string(from: session.clockIn))
+        return VStack(spacing: DS.Space.xxs) {
+            HStack(spacing: DS.Space.xs) {
+                Circle()
+                    .fill(color)
+                    .frame(width: 8, height: 8)
+                    .accessibilityHidden(true)
+                Text(text)
+                    .dsFont(.headline)
+                    .foregroundStyle(DS.Palette.textPrimary)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.8)
+            }
+            if isNightShiftDisplay(session) {
+                nightShiftLabel(session)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        .accessibilityElement(children: .combine)
+        .animation(DS.Motion.state, value: session.isOnBreak)
+        // The toast sits over the status row and the top of the Pay Card.
+        .overlay(alignment: .top) {
+            if showLockScreenTip {
+                lockScreenTipToast
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
+        }
+        .zIndex(1)
+    }
+
+    // MARK: - Night shift
+
+    /// Display only — pay uses `WorkSession.isNightShift`, set at clock-out. A shift
+    /// that started in the evening or at night, or has run past midnight, gets the
+    /// moon so it's clear which day it belongs to: it counts on the day it started.
+    private func isNightShiftDisplay(_ session: WorkSession) -> Bool {
+        let hour = calendar.component(.hour, from: session.clockIn)
+        return hour >= 20 || hour < 5 || !calendar.isDate(session.clockIn, inSameDayAs: liveNow)
+    }
+
+    private func nightShiftLabel(_ session: WorkSession) -> some View {
+        let startedYesterday = !calendar.isDate(session.clockIn, inSameDayAs: liveNow)
+        let text = startedYesterday
+            ? L10n.sessionNightShift + " · " + L10n.homeNightStartedYesterday
+            : L10n.sessionNightShift
+        return HStack(spacing: DS.Space.xxs) {
+            Image(systemName: "moon.stars.fill")
+                .htFont(size: 12, relativeTo: .footnote, weight: .semibold)
+                .foregroundStyle(Self.nightColor)
+                .accessibilityHidden(true)
+            Text(text)
+                .dsFont(.meta, weight: .semibold)
+                .foregroundStyle(DS.Palette.textSecondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
+        }
+        .padding(.horizontal, DS.Space.sm)
+        .padding(.vertical, 3)
+        .background(Capsule(style: .continuous).fill(Self.nightColor.opacity(0.14)))
+        .accessibilityIdentifier("home.nightShift")
+    }
+
+    private static let nightColor = Color(red: 0.62, green: 0.64, blue: 1.0)
+
+    // MARK: - "Your shift is on the Lock Screen too" tip
+
+    /// Once, on the first clock-in with Live Activities on: two seconds after the
+    /// door opens, for five seconds.
+    @MainActor
+    private func runLockScreenTip() async {
+        guard !lockScreenTipSeen, viewModel.activeSession != nil, !AnnouncementCenter.isAutomatedRun,
+              ActivityAuthorizationInfo().areActivitiesEnabled else { return }
+        do {
+            try await Task.sleep(for: .seconds(2))
+        } catch {
+            return
+        }
+        guard viewModel.activeSession != nil, !showThemeTip else { return }
+        withAnimation(DS.Motion.state) { showLockScreenTip = true }
+        lockScreenTipSeen = true
+        try? await Task.sleep(for: .seconds(5))
+        withAnimation(DS.Motion.state) { showLockScreenTip = false }
+    }
+
+    private var lockScreenTipToast: some View {
+        HStack(spacing: DS.Space.xs) {
+            Image(systemName: "lock.iphone")
+                .htFont(size: 14, relativeTo: .footnote, weight: .bold)
+                .accessibilityHidden(true)
+            Text(L10n.homeTipLockScreen)
+                .dsFont(.meta, weight: .semibold)
+                .lineLimit(2)
+                .multilineTextAlignment(.center)
+        }
+        .foregroundStyle(DS.Palette.ink)
+        .padding(.horizontal, DS.Space.sm)
+        .padding(.vertical, DS.Space.xs)
+        .background(Capsule(style: .continuous).fill(homeTheme.accent))
+        .shadow(color: .black.opacity(0.35), radius: 8, y: 3)
+        .onTapGesture {
+            withAnimation(DS.Motion.state) { showLockScreenTip = false }
+        }
+        .accessibilityIdentifier("home.lockScreenTip")
+    }
+
+    /// The live shift's Pay Card: timer, live pay, note and the shared Gross | Net
+    /// switch, with the one glow behind it.
+    private func liveCard(session: WorkSession, stateColor: Color, metrics: HomeLayoutMetrics) -> some View {
+        let isPaused = session.isOnBreak && !breaksArePaid
+        return VStack(spacing: DS.Space.sm) {
+            // An unpaid break stops the clock; say so in words, not only by dimming.
+            Text(L10n.homeTimerPaused)
+                .dsFont(.meta, weight: .semibold)
+                .foregroundStyle(DS.Palette.onBreak)
+                .opacity(isPaused ? 1 : 0)
+                .accessibilityHidden(!isPaused)
+
+            LiveTimerView(
+                startDate: session.clockIn,
+                fontSize: metrics.isCompact ? 42 : 48,
+                excludedSeconds: { breaksArePaid ? 0 : session.recordedBreakSeconds(now: $0) },
+                onTick: { date in liveNow = date }
+            )
+            .environment(\.layoutDirection, .leftToRight)
+            .opacity(isPaused ? 0.45 : 1)
+
+            VStack(spacing: DS.Space.xxs) {
+                Text(verbatim: livePayText(for: session, at: liveNow))
+                    .htFont(size: 28, relativeTo: .title, weight: .semibold, design: .rounded)
+                    .monospacedDigit()
+                    .environment(\.layoutDirection, .leftToRight)
+                    .foregroundStyle(homeTheme.accent)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+                    .contentTransition(.numericText())
+                    .accessibilityLabel(L10n.homeLivePay)
+                    .accessibilityValue(livePayText(for: session, at: liveNow))
+                Text(livePayMode == .net ? L10n.sumNoteNet : L10n.sumNoteGross)
+                    .dsFont(.meta)
+                    .foregroundStyle(DS.Palette.textTertiary)
+            }
+
+            // Widgets, Watch and the Live Activity follow the same choice.
+            GrossNetSwitch(mode: $livePayMode, accent: homeTheme.accent) { _ in
+                viewModel.refreshLiveSurfaces()
+            }
+            .frame(maxWidth: 240)
+        }
+        .padding(.vertical, metrics.isCompact ? DS.Space.md : DS.Space.lg)
+        .padding(.horizontal, metrics.isCompact ? DS.Space.md : DS.Space.lg)
+        .frame(maxWidth: .infinity)
+        .dsCard(radius: DS.Radius.xl)
+        .overlay(
+            RoundedRectangle(cornerRadius: DS.Radius.xl, style: .continuous)
+                .stroke(stateColor.opacity(0.25), lineWidth: 1)
+        )
+        .background(DSHeroGlow(color: stateColor))
+        .animation(DS.Motion.state, value: session.isOnBreak)
+    }
+
+    /// The running shift's pay at `now`, read from the view model's live pay curve —
+    /// the same curve the Watch, widgets and Live Activity read, so all of them show
+    /// the same figure at the same moment. Falls back to pricing the shift directly
+    /// if the curve isn't built yet (or belongs to another session).
+    private func livePayText(for session: WorkSession, at now: Date) -> String {
+        let net = livePayMode == .net
+        if let curve = viewModel.liveCurve, curve.sessionID == session.id {
+            return PayFormatter.string(curve.pay(at: now, net: net), currencyCode: curve.currencyCode)
+        }
+        let breakdown = viewModel.liveBreakdown(for: session, at: now, calendar: calendar)
+        return net ? breakdown.formattedNetPay : breakdown.formattedGrossPay
     }
 
     // MARK: - Stats
@@ -526,8 +756,13 @@ struct HomeView: View {
             || calendar.isDate(session.clockIn, inSameDayAs: today)
     }
 
+    /// New users (no finished shift yet) and anyone without a rate see the rate card.
+    private var showsRateCard: Bool {
+        viewModel.activeSettings.hourlyRate <= 0 || completedSessions.isEmpty
+    }
+
     private var completedSessions: [WorkSession] {
-        viewModel.sessions.filter { $0.clockOut != nil }
+        viewModel.workSessions.filter { $0.clockOut != nil }
     }
 
     private var todayHours: Double {
@@ -562,25 +797,25 @@ struct HomeView: View {
     private var todayPayBreakdown: DayPayBreakdown {
         let today = calendar.startOfDay(for: Date())
         let sessions = completedSessions.filter { calendar.isDate($0.date, inSameDayAs: today) }
-        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.settings)
+        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.activeSettings)
     }
 
     private var weekPayBreakdown: DayPayBreakdown {
         let interval = weekInterval
         let sessions = completedSessions.filter { interval.contains($0.date) }
-        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.settings)
+        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.activeSettings)
     }
 
     private var monthPayBreakdown: DayPayBreakdown {
         let now = Date()
         let sessions = completedSessions.filter { calendar.isDate($0.date, equalTo: now, toGranularity: .month) }
-        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.settings)
+        return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.activeSettings)
     }
 
     private var weekDailyHours: [Double] {
         HistoryPeriodHelper.dailyHoursForWeek(
             containing: Date(),
-            sessions: viewModel.sessions,
+            sessions: viewModel.workSessions,
             calendar: calendar
         )
     }
@@ -648,130 +883,120 @@ struct GrossNetBadge: View {
     }
 }
 
-struct DaySummarySheet: View {
-    @ObservedObject var viewModel: AppViewModel
-    @State private var breakdown: DayPayBreakdown
-    @State private var showDeleteConfirm = false
-    @State private var showEditor = false
-
-    init(viewModel: AppViewModel, breakdown: DayPayBreakdown) {
-        self.viewModel = viewModel
-        _breakdown = State(initialValue: breakdown)
-    }
-
-    private var completedSession: WorkSession? {
-        guard let id = viewModel.lastCompletedSessionID else { return nil }
-        return viewModel.sessions.first { $0.id == id }
-    }
+struct HomeBreakControl: View {
+    let session: WorkSession
+    let targetMinutes: Int
+    /// Paid breaks keep the pay clock running — the card says so, so the worker
+    /// knows this break is a reminder only.
+    let isPaid: Bool
+    let accent: Color
+    let compact: Bool
+    let onToggle: () -> Void
 
     var body: some View {
-        NavigationStack {
-            ScrollView {
-                VStack(spacing: 20) {
-                    Image(systemName: "checkmark.circle.fill")
-                        .font(.system(size: 44))
-                        .foregroundStyle(.green)
+        if let active = session.activeBreak {
+            onBreakCard(active)
+        } else {
+            startButton
+        }
+    }
 
-                    Text(L10n.summaryDayComplete)
-                        .font(.title3.weight(.semibold))
-
-                    VStack(spacing: 12) {
-                        summaryRow(L10n.summaryRegular, value: L10n.hoursLong(breakdown.regularHours))
-                        summaryRow(L10n.summaryOT125, value: L10n.hoursLong(breakdown.ot125Hours))
-                        summaryRow(L10n.summaryOT150, value: L10n.hoursLong(breakdown.ot150Hours))
-                        summaryRow(
-                            AppLocale.tr("shift.gas"),
-                            value: breakdown.formatted(breakdown.gasAllowance)
+    private var startButton: some View {
+        Button(action: toggle) {
+            Label(L10n.homeBreakStart, systemImage: "cup.and.saucer.fill")
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(.white)
+                .frame(maxWidth: .infinity, minHeight: 44)
+                .background(
+                    Capsule(style: .continuous)
+                        .fill(Color.white.opacity(0.08))
+                        .overlay(
+                            Capsule(style: .continuous)
+                                .stroke(accent.opacity(0.45), lineWidth: 1)
                         )
-                        Divider()
-                        GrossNetBadge(breakdown: breakdown)
-                        TaxDeductionsCard(breakdown: breakdown)
-                        summaryRow(
-                            AppLocale.tr("tax.creditPoints"),
-                            value: String(format: "%.2f", breakdown.creditPoints)
-                        )
-                    }
-                    .padding()
-                    .background(Color(.secondarySystemGroupedBackground))
-                    .clipShape(RoundedRectangle(cornerRadius: 12))
-                    .padding(.horizontal)
+                )
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+    }
 
-                    Button(L10n.summaryDeleteThisShift, role: .destructive) {
-                        showDeleteConfirm = true
-                    }
-                    .font(.subheadline.weight(.semibold))
-                    .padding(.top, 4)
+    private func onBreakCard(_ active: BreakInterval) -> some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let elapsed = active.seconds(now: context.date)
+            let target = TimeInterval(max(0, targetMinutes) * 60)
+            let remaining = target - elapsed
+            let isOver = remaining < 0
+            let progress = target > 0 ? min(1, elapsed / target) : 1
+
+            VStack(spacing: compact ? 6 : 8) {
+                HStack {
+                    Label(L10n.homeOnBreak, systemImage: "cup.and.saucer.fill")
+                        .font(.caption.weight(.semibold))
+                        .textCase(.uppercase)
+                        .foregroundStyle(.white.opacity(0.7))
+                    Spacer(minLength: 8)
+                    Text(L10n.homeSince(Self.timeFormatter.string(from: active.start)))
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.55))
                 }
-                .padding(.top, 28)
-                .padding(.bottom, 24)
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .topBarLeading) {
-                    Button {
-                        showEditor = true
-                    } label: {
-                        Image(systemName: "pencil")
-                    }
-                    .accessibilityLabel(L10n.editTitle)
-                    .disabled(completedSession == nil)
+
+                Text(isOver
+                     ? L10n.homeBreakOver(Self.clock(-remaining))
+                     : L10n.homeBreakRemaining(Self.clock(remaining)))
+                    .font(.system(size: compact ? 22 : 26, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(isOver ? HomeNeon.coral : .white)
+                    .contentTransition(.numericText())
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+
+                ProgressView(value: progress)
+                    .tint(isOver ? HomeNeon.coral : accent)
+                    .accessibilityHidden(true)
+
+                Text(verbatim: "\(L10n.homeBreakTarget(targetMinutes)) · \(isPaid ? L10n.homeBreakPaid : L10n.homeBreakUnpaid)")
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.45))
+
+                Button(action: toggle) {
+                    Label(L10n.homeBreakEnd, systemImage: "arrow.uturn.backward")
+                        .font(.subheadline.weight(.bold))
+                        .foregroundStyle(.black)
+                        .frame(maxWidth: .infinity, minHeight: 44)
+                        .background(Capsule(style: .continuous).fill(accent))
+                        .contentShape(Capsule())
                 }
-                ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.summaryDone) {
-                        viewModel.dismissDaySummary()
-                    }
-                }
+                .buttonStyle(.plain)
             }
-            .sheet(isPresented: $showEditor) {
-                if let session = completedSession {
-                    EditSessionView(viewModel: viewModel, session: session)
-                }
-            }
-            // The editor mutates `viewModel.sessions` directly (save or
-            // delete) rather than calling back into this sheet, so refresh
-            // from that instead of a completion closure — this also covers
-            // deleting the shift from inside the editor, which otherwise
-            // would leave a breakdown on screen for a session that's gone.
-            .onChange(of: viewModel.sessions) { _, _ in
-                refreshBreakdown()
-            }
-            .alert(
-                L10n.editDeleteConfirm,
-                isPresented: $showDeleteConfirm
-            ) {
-                Button(L10n.editDelete, role: .destructive) {
-                    deleteJustCompletedShift()
-                }
-                Button(L10n.editCancel, role: .cancel) {}
-            }
+            .padding(compact ? 12 : 14)
+            .background(
+                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                    .fill(HomeNeon.card)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 18, style: .continuous)
+                            .stroke((isOver ? HomeNeon.coral : accent).opacity(0.4), lineWidth: 1)
+                    )
+            )
         }
     }
 
-    private func refreshBreakdown() {
-        guard let session = completedSession else {
-            viewModel.dismissDaySummary()
-            return
-        }
-        breakdown = OvertimeCalculator.breakdown(for: session, in: viewModel.sessions, settings: viewModel.settings)
+    private func toggle() {
+        UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+        onToggle()
     }
 
-    private func deleteJustCompletedShift() {
-        if let id = viewModel.lastCompletedSessionID,
-           let session = viewModel.sessions.first(where: { $0.id == id }) {
-            viewModel.deleteSession(session)
-            viewModel.showSuccessToast(L10n.feedbackSessionDeleted)
-        }
-        viewModel.dismissDaySummary()
+    private static var timeFormatter: DateFormatter {
+        AppLocale.makeDateFormatter(timeStyle: .short)
     }
 
-    private func summaryRow(_ label: String, value: String, bold: Bool = false) -> some View {
-        HStack {
-            Text(label)
-                .font(bold ? .headline : .subheadline)
-            Spacer()
-            Text(value)
-                .font(bold ? .headline : .subheadline)
-                .monospacedDigit()
-        }
+    /// mm:ss (or h:mm:ss past an hour).
+    static func clock(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds.rounded()))
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let secs = total % 60
+        return hours > 0
+            ? String(format: "%d:%02d:%02d", hours, minutes, secs)
+            : String(format: "%02d:%02d", minutes, secs)
     }
 }

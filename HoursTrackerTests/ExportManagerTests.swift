@@ -161,7 +161,8 @@ final class ExportManagerTests: XCTestCase {
         for (language, dayHeader) in [
             (ExportLanguage.english, "Day"),
             (ExportLanguage.hebrew, "יום"),
-            (ExportLanguage.arabic, "اليوم")
+            (ExportLanguage.arabic, "اليوم"),
+            (ExportLanguage.russian, "День")
         ] {
             let report = manager.buildReport(
                 sessions: [TestData.session(day: 1)],
@@ -176,6 +177,45 @@ final class ExportManagerTests: XCTestCase {
             let header = contents.components(separatedBy: "\n").first ?? ""
             XCTAssertTrue(header.contains(dayHeader), "\(language) header missing '\(dayHeader)': \(header)")
         }
+    }
+
+    func testCSVAddsNotesColumnOnlyWhenAsked() throws {
+        var session = TestData.session(day: 5)
+        session.notes = "Covered for Dana"
+        for include in [false, true] {
+            let report = manager.buildReport(
+                sessions: [session],
+                settings: settings,
+                range: .all,
+                language: .english,
+                includeNotes: include
+            )
+            let url = try manager.export(report: report, format: .csv, language: .english)
+            defer { try? FileManager.default.removeItem(at: url) }
+            let contents = String(decoding: try Data(contentsOf: url).dropFirst(3), as: UTF8.self)
+            let lines = contents.split(separator: "\n", omittingEmptySubsequences: true).map(String.init)
+            XCTAssertEqual(contents.contains("Covered for Dana"), include, contents)
+            // Header, row and totals always keep the same number of cells.
+            XCTAssertEqual(Self.parseCSVLine(lines[0]).count, Self.parseCSVLine(lines[1]).count)
+            XCTAssertEqual(Self.parseCSVLine(lines[0]).count, Self.parseCSVLine(lines[2]).count)
+        }
+    }
+
+    func testTXTListsNotesAfterTheTableWhenAsked() throws {
+        var session = TestData.session(day: 5)
+        session.notes = "Covered for Dana"
+        let report = manager.buildReport(
+            sessions: [session],
+            settings: settings,
+            range: .all,
+            language: .english,
+            includeNotes: true
+        )
+        let url = try manager.export(report: report, format: .txt, language: .english)
+        defer { try? FileManager.default.removeItem(at: url) }
+        let contents = try String(contentsOf: url, encoding: .utf8)
+        XCTAssertTrue(contents.contains("Notes"), contents)
+        XCTAssertTrue(contents.contains("05.01.26 — Covered for Dana"), contents)
     }
 
     func testCSVRowFormatsNumbersDatesAndTimesCorrectly() throws {
@@ -431,6 +471,7 @@ final class ExportManagerTests: XCTestCase {
         XCTAssertEqual(ExportLanguage.arabic.resolvedLocale.language.languageCode?.identifier, "ar")
         XCTAssertEqual(ExportLanguage.hebrew.resolvedLocale.language.languageCode?.identifier, "he")
         XCTAssertEqual(ExportLanguage.english.resolvedLocale.language.languageCode?.identifier, "en")
+        XCTAssertEqual(ExportLanguage.russian.resolvedLocale.language.languageCode?.identifier, "ru")
     }
 
     func testThisMonthPayrollWindowIncludesOnlySessionsInsidePeriod() {
@@ -490,6 +531,7 @@ final class ExportManagerTests: XCTestCase {
         XCTAssertFalse(ExportLayout.isRTL(language: .english))
         XCTAssertTrue(ExportLayout.isRTL(language: .hebrew))
         XCTAssertTrue(ExportLayout.isRTL(language: .arabic))
+        XCTAssertFalse(ExportLayout.isRTL(language: .russian))
     }
 
     func testHebrewDOCXContainsBidiMarkers() throws {

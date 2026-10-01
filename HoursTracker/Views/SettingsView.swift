@@ -15,10 +15,17 @@ struct SettingsView: View {
     @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
     @ObservedObject private var accountAuth = SupabaseAuthManager.shared
+    @ObservedObject private var admin = AdminAPIClient.shared
+    @ObservedObject private var notificationPrefs = NotificationPreferences.shared
     @EnvironmentObject private var appLock: AppLockController
     @EnvironmentObject private var appLanguage: AppLanguageController
 
     @State private var draft: WorkplaceSettings
+    /// What `draft` and the scanner fields were last loaded from or saved as —
+    /// "unsaved" means different from this, not from the live settings, so a
+    /// change arriving from iCloud doesn't light up Save by itself.
+    @State private var saved: SavedSnapshot
+    @ObservedObject private var unsavedChanges = SettingsUnsavedChanges.shared
     @State private var showAccountSheet = false
     @State private var locationStatus: String = ""
     @State private var showDeleteAllConfirm = false
@@ -43,15 +50,63 @@ struct SettingsView: View {
         AppLocale.makeDateFormatter(dateStyle: .short, timeStyle: .short)
     }
 
+    @State private var showAddWorkplace = false
+    @State private var newWorkplaceName = ""
+    @State private var workplacePendingDelete: AppViewModel.WorkplaceOption?
+
     init(viewModel: AppViewModel) {
         self.viewModel = viewModel
-        _draft = State(initialValue: viewModel.settings)
+        _draft = State(initialValue: viewModel.activeSettings)
+        _saved = State(initialValue: SavedSnapshot(settings: viewModel.activeSettings))
+    }
+
+    private struct SavedSnapshot: Equatable {
+        var settings: WorkplaceSettings
+        var scannerCloudEnabled = UserDefaultsSmartScannerCloudPreference.shared.isEnabled
+        var geminiKey = KeychainStore.string(for: .geminiAPIKey) ?? ""
+        var secondaryKey = KeychainStore.string(for: .secondaryAPIKey) ?? ""
+    }
+
+    private var hasUnsavedChanges: Bool {
+        draft != saved.settings
+            || smartScannerCloudEnabled != saved.scannerCloudEnabled
+            || geminiAPIKeyDraft != saved.geminiKey
+            || secondaryAPIKeyDraft != saved.secondaryKey
+    }
+
+    /// Reloads every Save-backed field from what is stored now.
+    private func reloadFromStore() {
+        let snapshot = SavedSnapshot(settings: viewModel.activeSettings)
+        saved = snapshot
+        draft = snapshot.settings
+        smartScannerCloudEnabled = snapshot.scannerCloudEnabled
+        geminiAPIKeyDraft = snapshot.geminiKey
+        secondaryAPIKeyDraft = snapshot.secondaryKey
+    }
+
+    private func discardChanges() {
+        withAnimation(.none) { reloadFromStore() }
+    }
+
+    /// Icon-led section header: an accent-colored SF Symbol + rounded caps,
+    /// matching `MonthlyTrendCard` and the Home stat cards (B11).
+    private func sectionHeader(_ title: String, icon: String) -> some View {
+        Label {
+            Text(title.uppercased(with: AppLocale.resolvedLocale))
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .tracking(0.5)
+        } icon: {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(homeTheme.accent)
+        }
     }
 
     var body: some View {
         NavigationStack {
             Form {
                 accountSection
+                workplacesSection
                 workerSection
                 workplaceSection
                 paySection
@@ -59,15 +114,21 @@ struct SettingsView: View {
                 payrollSection
                 taxSection
                 locationSection
+                notificationsSection
                 securitySection
                 widgetPrivacySection
                 smartScannerSection
                 if viewModel.isCloudSyncSupported {
                     syncSection
                 }
+                dataSafetySection
+                if admin.isAdmin {
+                    adminSection
+                }
                 toolsSection
                 languageSection
                 aboutSection
+                shareAppSection
             }
             // Forces the List to fully rebuild whenever the app-wide accent color
             // changes, instead of leaving already-rendered rows (Export/Import/
@@ -84,20 +145,36 @@ struct SettingsView: View {
             .toolbarColorScheme(.dark, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(L10n.settingsSave) {
-                        saveSettings()
-                    }
+                    saveButton
                 }
-                ToolbarItem(placement: .topBarTrailing) {
+                ToolbarItem(placement: .topBarLeading) {
                     AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
                 }
             }
+            // Asks the server whether this account is an admin; the server enforces
+            // it again on every admin call.
+            .task(id: accountAuth.currentUserID) { await admin.checkAccess() }
             .onAppear {
-                draft = viewModel.settings
+                // withAnimation(.none) prevents conditional rows (tax, location) from
+                // reflowing inside the tab-slide animation context.
+                // Unsaved edits survive leaving the tab or the app; only a clean
+                // screen is refreshed from the store.
+                if !hasUnsavedChanges {
+                    withAnimation(.none) { reloadFromStore() }
+                }
                 viewModel.refreshLocationPermissionStatuses()
-                smartScannerCloudEnabled = UserDefaultsSmartScannerCloudPreference.shared.isEnabled
-                geminiAPIKeyDraft = KeychainStore.string(for: .geminiAPIKey) ?? ""
-                secondaryAPIKeyDraft = KeychainStore.string(for: .secondaryAPIKey) ?? ""
+            }
+            .onChange(of: viewModel.activeSettings) { _, _ in
+                if !hasUnsavedChanges {
+                    withAnimation(.none) { reloadFromStore() }
+                }
+            }
+            // Switching workplace shows that workplace's own settings.
+            .onChange(of: viewModel.activeWorkplaceID) { _, _ in
+                withAnimation(.none) { reloadFromStore() }
+            }
+            .onChange(of: hasUnsavedChanges, initial: true) { _, dirty in
+                unsavedChanges.update(hasChanges: dirty, save: saveSettings, discard: discardChanges)
             }
             .confirmationDialog(
                 L10n.privacyDeleteAllConfirm,
@@ -106,7 +183,7 @@ struct SettingsView: View {
             ) {
                 Button(L10n.privacyDeleteAll, role: .destructive) {
                     viewModel.deleteAllUserData()
-                    draft = viewModel.settings
+                    draft = viewModel.activeSettings
                     viewModel.showSuccessToast(L10n.feedbackDataDeleted)
                 }
                 Button(L10n.editCancel, role: .cancel) {}
@@ -211,7 +288,7 @@ struct SettingsView: View {
         pendingImportDocument = nil
         do {
             try viewModel.importFullDataExport(document, mode: mode)
-            draft = viewModel.settings
+            draft = viewModel.activeSettings
             viewModel.showSuccessToast(L10n.fullImportSuccess)
         } catch {
             importErrorMessage = error.localizedDescription
@@ -219,14 +296,46 @@ struct SettingsView: View {
     }
 
     private func saveSettings() {
-        viewModel.saveSettings(draft)
-        draft = viewModel.settings
+        // Leave days are marked in History, not here — keep the live ones so a draft
+        // opened earlier can't roll back a day marked meanwhile.
+        var toSave = draft
+        toSave.leaveDays = viewModel.activeSettings.leaveDays
+        // Saves the workplace being shown (main or another one).
+        viewModel.saveActiveWorkplaceSettings(toSave)
         UserDefaultsSmartScannerCloudPreference.shared.isEnabled = smartScannerCloudEnabled
         let trimmedKey = geminiAPIKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         try? KeychainStore.setString(trimmedKey, for: .geminiAPIKey)
         let trimmedSecondary = secondaryAPIKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
         try? KeychainStore.setString(trimmedSecondary, for: .secondaryAPIKey)
+        reloadFromStore()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
         viewModel.showSuccessToast(L10n.settingsSaved)
+    }
+
+    /// Quiet while there is nothing to save; filled with the accent (and a dot) as
+    /// soon as something changed. A prominent system style so the fill covers the
+    /// whole toolbar capsule (on iOS 26 a custom background sat inside the glass).
+    private var saveButton: some View {
+        Button(action: saveSettings) {
+            HStack(spacing: 5) {
+                if hasUnsavedChanges {
+                    Circle()
+                        .fill(DS.Palette.ink)
+                        .frame(width: 6, height: 6)
+                        .accessibilityHidden(true)
+                }
+                Text(L10n.settingsSave)
+                    .font(.subheadline.weight(.semibold))
+            }
+            .foregroundStyle(hasUnsavedChanges ? DS.Palette.ink : Color.secondary)
+            .animation(DS.Motion.state, value: hasUnsavedChanges)
+        }
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.capsule)
+        .tint(homeTheme.accent)
+        .disabled(!hasUnsavedChanges)
+        .accessibilityValue(hasUnsavedChanges ? L10n.settingsUnsavedTitle : "")
+        .accessibilityIdentifier("settings.save")
     }
 
     private var smartScannerSection: some View {
@@ -265,7 +374,7 @@ struct SettingsView: View {
                     .foregroundStyle(.secondary)
             }
         } header: {
-            Text(L10n.scannerSection)
+            sectionHeader(L10n.scannerSection, icon: "doc.text.viewfinder")
         }
     }
 
@@ -352,11 +461,13 @@ struct SettingsView: View {
     }
 
     private var workerSection: some View {
-        Section(L10n.settingsWorkerInfo) {
+        Section {
             TextField(L10n.settingsFullName, text: $draft.workerFullName)
+                .accessibilityIdentifier("settings.fullName")
             if isEditingIDNumber {
                 TextField(L10n.settingsIDNumber, text: $draft.workerIDNumber)
                     .keyboardType(.numberPad)
+                    .accessibilityIdentifier("settings.idNumber")
                 if IsraeliIDValidator.shouldWarn(for: draft.workerIDNumber) {
                     Text(L10n.settingsIDChecksumWarning)
                         .font(.caption)
@@ -382,6 +493,9 @@ struct SettingsView: View {
                 }
             }
             TextField(L10n.settingsEmployeeNumber, text: $draft.employeeNumber)
+                .accessibilityIdentifier("settings.employeeNumber")
+        } header: {
+            sectionHeader(L10n.settingsWorkerInfo, icon: "person.text.rectangle.fill")
         }
     }
 
@@ -418,6 +532,151 @@ struct SettingsView: View {
         }
     }
 
+    /// One switch per notification-sending feature. These are device preferences
+    /// (UserDefaults), not workplace settings, so they apply immediately — no Save.
+    private var notificationsSection: some View {
+        Section {
+            Picker(L10n.settingsNotificationsBreakLength, selection: $notificationPrefs.breakTargetMinutes) {
+                ForEach(breakTargetChoices, id: \.self) { minutes in
+                    Text(L10n.settingsNotificationsMinutes(minutes)).tag(minutes)
+                }
+            }
+
+            Toggle(L10n.settingsNotificationsBreakEndingSoon, isOn: $notificationPrefs.breakEndingSoonEnabled)
+
+            if notificationPrefs.breakEndingSoonEnabled {
+                Picker(L10n.settingsNotificationsBreakLead, selection: $notificationPrefs.breakLeadMinutes) {
+                    ForEach(NotificationPreferences.breakLeadTimeOptions, id: \.self) { minutes in
+                        Text(L10n.settingsNotificationsMinutes(minutes)).tag(minutes)
+                    }
+                }
+            }
+
+            Toggle(L10n.settingsNotificationsBreakOver, isOn: $notificationPrefs.breakOverEnabled)
+
+            Toggle(L10n.settingsNotificationsShiftStart, isOn: $notificationPrefs.shiftStartReminderEnabled)
+                .onChange(of: notificationPrefs.shiftStartReminderEnabled) { _, _ in viewModel.refreshShiftReminders() }
+            Toggle(L10n.settingsNotificationsShiftEnd, isOn: $notificationPrefs.shiftEndReminderEnabled)
+                .onChange(of: notificationPrefs.shiftEndReminderEnabled) { _, _ in viewModel.refreshShiftReminders() }
+
+            if notificationPrefs.shiftStartReminderEnabled || notificationPrefs.shiftEndReminderEnabled {
+                usualScheduleSummary
+            }
+
+            Toggle(L10n.settingsNotificationsShiftSummary, isOn: $notificationPrefs.shiftSummaryEnabled)
+
+            Toggle(L10n.settingsNotificationsAnnouncements, isOn: $notificationPrefs.announcementsEnabled)
+                .onChange(of: notificationPrefs.announcementsEnabled) { _, _ in
+                    AnnouncementCenter.shared.refresh(force: true)
+                }
+
+            if viewModel.areLocationNotificationsDenied {
+                Text(L10n.settingsNotificationsDenied)
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                Button(L10n.settingsOpenSystemSettings) {
+                    if let url = URL(string: UIApplication.openSettingsURLString) {
+                        UIApplication.shared.open(url)
+                    }
+                }
+            }
+        } header: {
+            sectionHeader(L10n.settingsNotificationsSection, icon: "bell.badge.fill")
+        } footer: {
+            Text(L10n.settingsNotificationsHint)
+        }
+    }
+
+    /// What the shift reminders are timed against — the usual hours learned from the
+    /// worker's own shifts, per weekday — so the reminders never feel random.
+    @ViewBuilder
+    private var usualScheduleSummary: some View {
+        let schedule = ShiftSchedule.learn(from: viewModel.workSessions)
+        if schedule.windows.isEmpty {
+            Text(L10n.settingsNotificationsScheduleLearning)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            VStack(alignment: .leading, spacing: 4) {
+                Text(L10n.settingsNotificationsUsualSchedule)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+                ForEach(orderedWeekdays(in: schedule), id: \.self) { weekday in
+                    if let window = schedule.windows[weekday] {
+                        HStack {
+                            Text(weekdayName(weekday))
+                            Spacer()
+                            Text(usualHoursLabel(window))
+                                .monospacedDigit()
+                                .foregroundStyle(.secondary)
+                        }
+                        .font(.caption)
+                    }
+                }
+            }
+        }
+    }
+
+    /// Learned weekdays in the locale's week order.
+    private func orderedWeekdays(in schedule: ShiftSchedule) -> [Int] {
+        let first = Calendar.current.firstWeekday
+        return (0..<7).map { (first - 1 + $0) % 7 + 1 }.filter { schedule.windows[$0] != nil }
+    }
+
+    private func weekdayName(_ weekday: Int) -> String {
+        let symbols = AppLocale.makeDateFormatter().weekdaySymbols ?? Calendar.current.weekdaySymbols
+        return symbols.indices.contains(weekday - 1) ? symbols[weekday - 1] : ""
+    }
+
+    private func usualHoursLabel(_ window: ShiftSchedule.Window) -> String {
+        let formatter = AppLocale.makeDateFormatter(timeStyle: .short)
+        let day = Calendar.current.startOfDay(for: Date())
+        let start = day.addingTimeInterval(TimeInterval(window.startMinutes * 60))
+        let end = start.addingTimeInterval(TimeInterval(window.durationMinutes * 60))
+        return "\(formatter.string(from: start)) – \(formatter.string(from: end))"
+    }
+
+    /// Offered break lengths, plus the stored value if it's a custom one.
+    private var breakTargetChoices: [Int] {
+        let options = NotificationPreferences.breakTargetOptions
+        let current = notificationPrefs.breakTargetMinutes
+        return options.contains(current) ? options : (options + [current]).sorted()
+    }
+
+    /// Recently deleted shifts (30 days) and the automatic daily backups (14 days).
+    private var dataSafetySection: some View {
+        Section {
+            NavigationLink {
+                RecentlyDeletedView(viewModel: viewModel)
+            } label: {
+                Label(L10n.dataSafetyRecentlyDeleted, systemImage: "trash")
+            }
+            NavigationLink {
+                LocalBackupsView(viewModel: viewModel)
+            } label: {
+                Label(L10n.dataSafetyBackups, systemImage: "clock.arrow.circlepath")
+            }
+        } header: {
+            sectionHeader(L10n.dataSafetySection, icon: "externaldrive.badge.checkmark")
+        } footer: {
+            Text(L10n.dataSafetyHint)
+        }
+    }
+
+    private var adminSection: some View {
+        Section {
+            NavigationLink {
+                AdminDashboardView()
+            } label: {
+                Label(L10n.adminSettingsEntry, systemImage: "crown")
+            }
+        } header: {
+            sectionHeader(L10n.adminTitle, icon: "crown.fill")
+        } footer: {
+            Text(L10n.adminSettingsFooter)
+        }
+    }
+
     private var securitySection: some View {
         Section {
             Toggle(L10n.appLockEnabled, isOn: $appLock.isEnabled)
@@ -425,7 +684,7 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } header: {
-            Text(L10n.appLockSection)
+            sectionHeader(L10n.appLockSection, icon: "lock.shield.fill")
         }
     }
 
@@ -445,13 +704,9 @@ struct SettingsView: View {
                     get: { WidgetBridge.hidePay },
                     set: { newValue in
                         WidgetBridge.hidePay = newValue
-                        WidgetBridge.reloadWidgetTimelines()
-                        // Live Activity updates push fresh (masked) content.
-                        if let open = viewModel.sessions.first(where: \.isOpen) {
-                            if #available(iOS 16.1, *) {
-                                LiveActivityManager.update(session: open, settings: viewModel.settings)
-                            }
-                        }
+                        // Widgets, Watch and the Live Activity re-render with the
+                        // (masked) figures.
+                        viewModel.refreshLiveSurfaces()
                     }
                 )
             )
@@ -459,22 +714,26 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } header: {
-            Text(L10n.settingsHideWidgetPaySection)
+            sectionHeader(L10n.settingsHideWidgetPaySection, icon: "square.grid.2x2.fill")
         }
     }
 
     private var workplaceSection: some View {
-        Section(L10n.settingsWorkplace) {
+        Section {
             TextField(L10n.settingsWorkplaceName, text: $draft.workplaceName)
+                .accessibilityIdentifier("settings.workplaceName")
             TextField(L10n.settingsContractor, text: Binding(
                 get: { draft.contractorName ?? "" },
                 set: { draft.contractorName = $0.isEmpty ? nil : $0 }
             ))
+            .accessibilityIdentifier("settings.contractor")
+        } header: {
+            sectionHeader(L10n.settingsWorkplace, icon: "building.2.fill")
         }
     }
 
     private var paySection: some View {
-        Section(L10n.settingsPayHours) {
+        Section {
             HStack {
                 Text(L10n.settingsHourlyRate)
                 Spacer()
@@ -482,6 +741,7 @@ struct SettingsView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
+                    .accessibilityIdentifier("settings.hourlyRate")
                 Text(PayFormatter.symbol(for: draft.currencyCode))
             }
             HStack {
@@ -491,6 +751,7 @@ struct SettingsView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
+                    .accessibilityIdentifier("settings.gasAllowance")
                 Text(PayFormatter.symbol(for: draft.currencyCode))
             }
             HStack {
@@ -500,6 +761,7 @@ struct SettingsView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
+                    .accessibilityIdentifier("settings.standardDayHours")
             }
             HStack {
                 Text(L10n.settingsOTCap)
@@ -508,6 +770,7 @@ struct SettingsView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
+                    .accessibilityIdentifier("settings.ot125Cap")
             }
             HStack {
                 Text(L10n.settingsWeeklyStandardHours)
@@ -516,6 +779,7 @@ struct SettingsView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
+                    .accessibilityIdentifier("settings.weeklyStandardHours")
             }
             HStack {
                 Text(L10n.settingsWeeklyOTCap)
@@ -524,7 +788,10 @@ struct SettingsView: View {
                     .keyboardType(.decimalPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
+                    .accessibilityIdentifier("settings.weeklyOvertimeCap")
             }
+        } header: {
+            sectionHeader(L10n.settingsPayHours, icon: "banknote.fill")
         }
     }
 
@@ -549,7 +816,7 @@ struct SettingsView: View {
     }
 
     private var workRulesSection: some View {
-        Section(L10n.settingsWorkRules) {
+        Section {
             Picker(L10n.settingsRestDay, selection: $draft.restDayWeekday) {
                 ForEach(1...7, id: \.self) { weekday in
                     Text(Calendar.current.weekdaySymbols[weekday - 1]).tag(weekday)
@@ -576,15 +843,26 @@ struct SettingsView: View {
                 }
             }
 
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text(L10n.settingsDefaultBreak)
-                    Spacer()
-                    breakMinutesStepper
-                }
-                breakMinutesQuickPicks
+            VStack(alignment: .leading, spacing: 4) {
+                Toggle(L10n.settingsBreaksArePaid, isOn: $draft.breaksArePaid)
+                Text(draft.breaksArePaid ? L10n.settingsBreaksArePaidOnHint : L10n.settingsBreaksArePaidOffHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-            .padding(.vertical, 2)
+
+            // The automatic break is an unpaid deduction — meaningless when the
+            // workplace pays for breaks.
+            if !draft.breaksArePaid {
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack {
+                        Text(L10n.settingsDefaultBreak)
+                        Spacer()
+                        breakMinutesStepper
+                    }
+                    breakMinutesQuickPicks
+                }
+                .padding(.vertical, 2)
+            }
 
             DatePicker(
                 L10n.settingsExpectedShiftStart,
@@ -597,6 +875,7 @@ struct SettingsView: View {
                     Text("\(code) (\(PayFormatter.symbol(for: code)))").tag(code)
                 }
             }
+            .accessibilityIdentifier("settings.currency")
 
             DisclosureGroup(L10n.settingsWorkRulesNoteTitle) {
                 Text(L10n.settingsWorkRulesNote)
@@ -605,6 +884,8 @@ struct SettingsView: View {
                     .padding(.top, 2)
             }
             .font(.caption)
+        } header: {
+            sectionHeader(L10n.settingsWorkRules, icon: "clock.badge.checkmark.fill")
         }
     }
 
@@ -709,7 +990,7 @@ struct SettingsView: View {
             .font(.caption)
             .foregroundStyle(.secondary)
         } header: {
-            Text(AppLocale.tr("payroll.section"))
+            sectionHeader(AppLocale.tr("payroll.section"), icon: "calendar.badge.clock")
         }
     }
 
@@ -768,7 +1049,7 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         } header: {
-            Text(AppLocale.tr("tax.section"))
+            sectionHeader(AppLocale.tr("tax.section"), icon: "percent")
         }
     }
 
@@ -789,6 +1070,7 @@ struct SettingsView: View {
                     }
                 }
             ))
+            .accessibilityIdentifier("settings.arrivalReminders")
 
             Text(L10n.settingsArrivalHint)
                 .font(.caption)
@@ -823,6 +1105,7 @@ struct SettingsView: View {
                     .keyboardType(.numberPad)
                     .multilineTextAlignment(.trailing)
                     .frame(width: 80)
+                    .accessibilityIdentifier("settings.locationRadius")
                 Text("m")
             }
 
@@ -845,7 +1128,7 @@ struct SettingsView: View {
             .onReceive(viewModel.locationUpdates) { location in
                 guard location != nil else { return }
                 viewModel.applyCapturedLocationIfAvailable()
-                draft = viewModel.settings
+                draft = viewModel.activeSettings
                 locationStatus = L10n.settingsLocationUpdated
             }
             .onReceive(viewModel.locationCaptureErrors) { error in
@@ -869,7 +1152,7 @@ struct SettingsView: View {
                     )
             }
         } header: {
-            Text(L10n.settingsLocationReminders)
+            sectionHeader(L10n.settingsLocationReminders, icon: "location.fill")
         }
     }
 
@@ -918,17 +1201,19 @@ struct SettingsView: View {
                 }
             }
         } header: {
-            Text(L10n.syncSection)
+            sectionHeader(L10n.syncSection, icon: "icloud.fill")
         }
     }
 
     private var toolsSection: some View {
-        Section(L10n.settingsTools) {
+        Section {
             NavigationLink {
                 ActivityLogView(viewModel: viewModel)
             } label: {
                 Label(L10n.logTitle, systemImage: "list.bullet.rectangle")
             }
+        } header: {
+            sectionHeader(L10n.settingsTools, icon: "wrench.and.screwdriver.fill")
         }
     }
 
@@ -939,21 +1224,37 @@ struct SettingsView: View {
                     Text(option.pickerLabel).tag(option)
                 }
             }
+            .accessibilityIdentifier("settings.appLanguage")
         } header: {
-            Text(L10n.settingsAppLanguage)
+            sectionHeader(L10n.settingsAppLanguage, icon: "globe")
         } footer: {
             Text(L10n.settingsAppLanguageHint)
         }
     }
 
     private var aboutSection: some View {
-        Section(L10n.settingsAbout) {
+        Section {
             LabeledContent(L10n.settingsVersion, value: appVersionString)
 
             NavigationLink {
                 PrivacyPolicyView()
             } label: {
                 Label(L10n.privacyTitle, systemImage: "hand.raised.fill")
+            }
+
+            NavigationLink {
+                TermsOfUseView()
+            } label: {
+                Label(AppLocale.tr("terms.title"), systemImage: "doc.text")
+            }
+
+            if let agreedOn = LegalConsent.shared.acceptedAt {
+                Text(String(
+                    format: AppLocale.tr("legal.acceptedOn %@"),
+                    AppLocale.makeDateFormatter(dateStyle: .medium).string(from: agreedOn)
+                ))
+                .font(.caption)
+                .foregroundStyle(.secondary)
             }
 
             Button {
@@ -986,6 +1287,92 @@ struct SettingsView: View {
             } label: {
                 Label(L10n.privacyDeleteAll, systemImage: "trash")
             }
+        } header: {
+            sectionHeader(L10n.settingsAbout, icon: "info.circle.fill")
+        }
+    }
+
+    // MARK: - Workplaces
+
+    /// Several jobs, each with its own shifts, pay and settings. The settings
+    /// below this section belong to the workplace picked here.
+    private var workplacesSection: some View {
+        Section {
+            if viewModel.hasMultipleWorkplaces {
+                WorkplaceSwitcher(viewModel: viewModel)
+                ForEach(viewModel.workplaceOptions.dropFirst()) { option in
+                    HStack(spacing: 10) {
+                        Circle().fill(option.color).frame(width: 10, height: 10)
+                        Text(option.name)
+                        Spacer()
+                        Button(role: .destructive) {
+                            workplacePendingDelete = option
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(L10n.workplaceDelete)
+                    }
+                }
+            }
+            Button {
+                newWorkplaceName = ""
+                showAddWorkplace = true
+            } label: {
+                Label(L10n.workplaceAdd, systemImage: "plus.circle.fill")
+            }
+            .accessibilityIdentifier("settings.addWorkplace")
+        } header: {
+            sectionHeader(L10n.workplacesTitle, icon: "building.2.crop.circle")
+        } footer: {
+            Text(viewModel.hasMultipleWorkplaces ? L10n.workplacesHintActive : L10n.workplacesHint)
+        }
+        .alert(L10n.workplaceAdd, isPresented: $showAddWorkplace) {
+            TextField(L10n.workplaceNamePlaceholder, text: $newWorkplaceName)
+            Button(L10n.workplaceAddConfirm) {
+                if hasUnsavedChanges { saveSettings() }
+                viewModel.addWorkplace(named: newWorkplaceName)
+            }
+            Button(L10n.editCancel, role: .cancel) {}
+        } message: {
+            Text(L10n.workplaceAddMessage)
+        }
+        .alert(
+            L10n.workplaceDeleteConfirmTitle,
+            isPresented: Binding(
+                get: { workplacePendingDelete != nil },
+                set: { if !$0 { workplacePendingDelete = nil } }
+            )
+        ) {
+            Button(L10n.workplaceDelete, role: .destructive) {
+                if let id = workplacePendingDelete?.workplaceID {
+                    viewModel.deleteWorkplace(id)
+                }
+                workplacePendingDelete = nil
+            }
+            Button(L10n.editCancel, role: .cancel) { workplacePendingDelete = nil }
+        } message: {
+            Text(L10n.workplaceDeleteConfirmMessage(
+                workplacePendingDelete?.workplaceID.map { viewModel.shiftCount(in: $0) } ?? 0
+            ))
+        }
+    }
+
+    /// Last row of Settings: share the App Store link with friends.
+    private var shareAppSection: some View {
+        Section {
+            if let appURL = URL(string: "https://apps.apple.com/app/id6790862413") {
+                ShareLink(
+                    item: appURL,
+                    subject: Text(L10n.brandName),
+                    message: Text(L10n.settingsShareAppMessage)
+                ) {
+                    Label(L10n.settingsShareApp, systemImage: "square.and.arrow.up")
+                }
+                .accessibilityIdentifier("settings.shareApp")
+            }
+        } footer: {
+            Text(L10n.settingsShareAppHint)
         }
     }
 

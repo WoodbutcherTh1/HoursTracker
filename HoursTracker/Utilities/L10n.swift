@@ -11,6 +11,7 @@ enum L10n {
     // Tabs
     static var tabHome: String { t("tab.home") }
     static var tabHistory: String { t("tab.history") }
+    static var tabPayslips: String { t("tab.payslips") }
     static var tabExport: String { t("tab.export") }
     static var tabSettings: String { t("tab.settings") }
 
@@ -41,6 +42,20 @@ enum L10n {
     static func homeSince(_ time: String) -> String {
         String(format: t("home.since %@"), time)
     }
+    static var homeBreakStart: String { t("home.break.start") }
+    static var homeBreakEnd: String { t("home.break.end") }
+    static var homeOnBreak: String { t("home.break.onBreak") }
+    static var homeBreakPaid: String { t("home.break.paid") }
+    static var homeBreakUnpaid: String { t("home.break.unpaid") }
+    static func homeBreakRemaining(_ time: String) -> String {
+        String(format: t("home.break.remaining %@"), time)
+    }
+    static func homeBreakOver(_ time: String) -> String {
+        String(format: t("home.break.over %@"), time)
+    }
+    static func homeBreakTarget(_ minutes: Int) -> String {
+        String(format: t("home.break.target %@"), "\(minutes)")
+    }
     static var homeLiveGrossBasic: String { t("home.liveGrossBasic") }
     static var homeLivePay: String { t("home.livePay") }
     static var homeLivePayHint: String { t("home.livePayHint") }
@@ -60,6 +75,32 @@ enum L10n {
 
     // Summary
     static var summaryDayComplete: String { t("summary.dayComplete") }
+    // MARK: Day Summary (Pay Card)
+    static var sumTitle: String { t("sum.title") }
+    static var sumNoteGross: String { t("sum.noteGross") }
+    static var sumNoteNet: String { t("sum.noteNet") }
+    static var sumRowRegular: String { t("sum.rowRegular") }
+    static var sumRowBreaks: String { t("sum.rowBreaks") }
+    static func sumRowOvertime(_ percent: CustomStringConvertible) -> String {
+        String(format: t("sum.rowOvertime %@"), "\(percent)")
+    }
+    static var sumNew: String { t("sum.new") }
+    static func payTierAt(_ hours: CustomStringConvertible, _ percent: CustomStringConvertible) -> String {
+        String(format: t("pay.tierAt %1$@ %2$@"), "\(hours)", "\(percent)")
+    }
+    static var sumBreakPaid: String { t("sum.breakPaid") }
+    static var sumBreakUnpaid: String { t("sum.breakUnpaid") }
+    static func sumDeductions(_ value: CustomStringConvertible) -> String {
+        String(format: t("sum.deductions %@"), "\(value)")
+    }
+    static var sumCreditPointsInfo: String { t("sum.creditPointsInfo") }
+    static func sumWeek(_ v1: CustomStringConvertible, _ v2: CustomStringConvertible) -> String {
+        String(format: t("sum.week %1$@ %2$@"), "\(v1)", "\(v2)")
+    }
+    static var sumHomeSyncNet: String { t("sum.homeSyncNet") }
+    static var sumHomeSyncGross: String { t("sum.homeSyncGross") }
+    static var sumRateMissing: String { t("sum.rateMissing") }
+    static var sumRateSave: String { t("sum.rateSave") }
     static var summaryRegular: String { t("summary.regular") }
     static var summaryOT125: String { t("summary.ot125") }
     static var summaryOT150: String { t("summary.ot150") }
@@ -74,6 +115,50 @@ enum L10n {
     static var historyEmptyPeriod: String { t("history.emptyPeriod") }
     static var historyEmptyPeriodHint: String { t("history.emptyPeriodHint") }
     static var historyShowAllDays: String { t("history.showAllDays") }
+    static var workplacesTitle: String { t("workplaces.title") }
+    static var workplacesHint: String { t("workplaces.hint") }
+    static var workplacesHintActive: String { t("workplaces.hintActive") }
+    static var workplaceSwitch: String { t("workplaces.switch") }
+    static var workplaceMerge: String { t("workplaces.merge") }
+    static var workplaceAdd: String { t("workplaces.add") }
+    static var workplaceAddMessage: String { t("workplaces.addMessage") }
+    static var workplaceAddConfirm: String { t("workplaces.addConfirm") }
+    static var workplaceNamePlaceholder: String { t("workplaces.namePlaceholder") }
+    static var workplaceDelete: String { t("workplaces.delete") }
+    static var workplaceDeleteConfirmTitle: String { t("workplaces.deleteConfirmTitle") }
+    static var workplaceSwitchWhileClockedIn: String { t("workplaces.switchWhileClockedIn") }
+    static func workplaceNumbered(_ number: Int) -> String {
+        String(format: t("workplaces.numbered %lld"), number)
+    }
+    static func workplaceDeleteConfirmMessage(_ count: Int) -> String {
+        String(format: t("workplaces.deleteConfirmMessage %lld"), count)
+    }
+    static var leaveVacation: String { t("leave.vacation") }
+    static var leaveRecuperation: String { t("leave.recuperation") }
+    static var leaveVacationShort: String { t("leave.vacation.short") }
+    static var leaveRecuperationShort: String { t("leave.recuperation.short") }
+    static var leaveMarkTitle: String { t("leave.markTitle") }
+    static var leaveMarkHint: String { t("leave.markHint") }
+    static var dayCountsTitle: String { t("dayCounts.title") }
+    static var dayCountsHoliday: String { t("dayCounts.holiday") }
+    static var dayCountsVacation: String { t("dayCounts.vacation") }
+    static var dayCountsRecuperation: String { t("dayCounts.recuperation") }
+    static var dayCountsSick: String { t("dayCounts.sick") }
+    static var historySelect: String { t("history.select") }
+    static var historySelectAll: String { t("history.select.all") }
+    static var historySelectHint: String { t("history.select.hint") }
+    static var historySelectDeleteHint: String { t("history.select.deleteHint") }
+    static func historySelectedCount(_ count: Int) -> String {
+        String(format: t("history.select.count %lld"), count)
+    }
+    static func historySelectConfirm(_ count: Int) -> String {
+        String(format: t("history.select.confirm %lld"), count)
+    }
+    static func historyShiftsDeleted(_ count: Int) -> String {
+        String(format: t("history.select.deleted %lld"), count)
+    }
+    static var historyPreviousWeek: String { t("history.previousWeek") }
+    static var historyNextWeek: String { t("history.nextWeek") }
     static var historyColDate: String { t("history.col.date") }
     static var historyColIn: String { t("history.col.in") }
     static var historyColOut: String { t("history.col.out") }
@@ -153,6 +238,37 @@ enum L10n {
     static var homeThemeWordmarkPlaceholder: String { t("home.theme.wordmarkPlaceholder") }
     static var homeThemeWordmarkHint: String { t("home.theme.wordmarkHint") }
     static var homeStatsReorderHint: String { t("home.stats.reorderHint") }
+    static var homeStatMonthShort: String { t("home.stat.month.short") }
+    static var homeStatWeekShort: String { t("home.stat.week.short") }
+    static var homeStatTodayShort: String { t("home.stat.today.short") }
+    static var homeStatsWelcomeTitle: String { t("home.stats.welcomeTitle") }
+    static var homeStatsWelcomeBody: String { t("home.stats.welcomeBody") }
+    static func homeStatsGoal(_ target: CustomStringConvertible) -> String {
+        String(format: t("home.stats.goal %@"), "\(target)")
+    }
+    static var homeStatsMoveEarlier: String { t("home.stats.moveEarlier") }
+    static var homeStatsMoveLater: String { t("home.stats.moveLater") }
+    static var homeThemeTip: String { t("home.theme.tip") }
+    static var homeMore: String { t("home.more") }
+    static var homeAboutOpen: String { t("home.about.open") }
+    static func homeStatusWorking(_ time: CustomStringConvertible) -> String {
+        String(format: t("home.status.working %@"), "\(time)")
+    }
+    static func homeStatusBreak(_ time: CustomStringConvertible) -> String {
+        String(format: t("home.status.break %@"), "\(time)")
+    }
+    static var homeTimerPaused: String { t("home.timer.paused") }
+    static var homeRateMissing: String { t("home.rate.missing") }
+    static func homeRateCurrent(_ amount: String) -> String {
+        String(format: t("home.rate.current %@"), amount)
+    }
+    static var homeRateChange: String { t("home.rate.change") }
+    static var homeTrendEmpty: String { t("home.trend.empty") }
+    static var homeNightStartedYesterday: String { t("home.night.startedYesterday") }
+    static var homeTipLockScreen: String { t("home.tip.lockScreen") }
+    static var homeHelpFeedback: String { t("home.helpFeedback") }
+    static var aboutMadeIn: String { t("about.madeIn") }
+    static var aboutRateThanks: String { t("about.rateThanks") }
     static var homeStatsResetOrder: String { t("home.stats.resetOrder") }
     static var homeStatTodayPay: String { t("home.stat.todayPay") }
     static var homeStatWeekPay: String { t("home.stat.weekPay") }
@@ -245,6 +361,7 @@ enum L10n {
     }
     static var accountCodePlaceholder: String { t("account.codePlaceholder") }
     static var accountVerifyButton: String { t("account.verifyButton") }
+    static var accountCheckSpamHint: String { t("account.checkSpamHint") }
     static var accountResendCode: String { t("account.resendCode") }
     static var accountResendSent: String { t("account.resendSent") }
     static var accountProfileSection: String { t("account.profileSection") }
@@ -275,6 +392,12 @@ enum L10n {
     static var widgetGuideOpenSettings: String { t("widgetGuide.openSettings") }
     static var accountVerifiedBadge: String { t("account.verifiedBadge") }
     static var accountSignInTitle: String { t("account.signInTitle") }
+    static var accountForgotPassword: String { t("account.forgotPassword") }
+    static var accountResetTitle: String { t("account.resetTitle") }
+    static var accountResetHint: String { t("account.resetHint") }
+    static var accountResetSubmitButton: String { t("account.resetSubmitButton") }
+    static var accountBackToSignIn: String { t("account.backToSignIn") }
+    static var accountSyncBlockedEmptyOverwrite: String { t("account.syncBlockedEmptyOverwrite") }
     static var accountErrorNameRequired: String { t("account.error.nameRequired") }
     static var accountErrorInvalidEmail: String { t("account.error.invalidEmail") }
     static var accountErrorPasswordTooShort: String { t("account.error.passwordTooShort") }
@@ -298,6 +421,102 @@ enum L10n {
     static var feedbackSessionSaved: String { t("feedback.sessionSaved") }
     static var feedbackSessionUpdated: String { t("feedback.sessionUpdated") }
     static var feedbackSessionDeleted: String { t("feedback.sessionDeleted") }
+    static var undoDelete: String { t("undo.delete") }
+    // MARK: Admin (owner dashboard)
+    static var adminTitle: String { t("admin.title") }
+    static var adminSettingsEntry: String { t("admin.settingsEntry") }
+    static var adminSettingsFooter: String { t("admin.settingsFooter") }
+    static var adminStats: String { t("admin.stats") }
+    static var adminStatsFooter: String { t("admin.statsFooter") }
+    static var adminStatDevices: String { t("admin.stat.devices") }
+    static var adminStatActive1d: String { t("admin.stat.active1d") }
+    static var adminStatActiveNow: String { t("admin.stat.activeNow") }
+    static var adminStatOnShiftNow: String { t("admin.stat.onShiftNow") }
+    static var adminStatActive7d: String { t("admin.stat.active7d") }
+    static var adminStatActive30d: String { t("admin.stat.active30d") }
+    static var adminStatAccounts: String { t("admin.stat.accounts") }
+    static var adminStatPush: String { t("admin.stat.push") }
+    static var adminStatWatch: String { t("admin.stat.watch") }
+    static var adminStatWidget: String { t("admin.stat.widget") }
+    static var adminStatLanguages: String { t("admin.stat.languages") }
+    static var adminStatVersions: String { t("admin.stat.versions") }
+    static var adminAnnouncements: String { t("admin.announcements") }
+    static var adminCompose: String { t("admin.compose") }
+    static var adminHistory: String { t("admin.history") }
+    static var adminHistoryEmpty: String { t("admin.history.empty") }
+    static func adminHistoryCounts(_ v1: CustomStringConvertible, _ v2: CustomStringConvertible, _ v3: CustomStringConvertible) -> String {
+        String(format: t("admin.history.counts %1$@ %2$@ %3$@"), "\(v1)", "\(v2)", "\(v3)")
+    }
+    static var adminMessage: String { t("admin.message") }
+    static var adminLanguage: String { t("admin.language") }
+    static var adminTitleField: String { t("admin.titleField") }
+    static var adminBodyField: String { t("admin.bodyField") }
+    static func adminTranslate(_ value: CustomStringConvertible) -> String {
+        String(format: t("admin.translate %@"), "\(value)")
+    }
+    static var adminTranslateHint: String { t("admin.translateHint") }
+    static var adminTranslateNeedsKey: String { t("admin.translateNeedsKey") }
+    static func adminMissingLanguages(_ value: CustomStringConvertible) -> String {
+        String(format: t("admin.missingLanguages %@"), "\(value)")
+    }
+    static var adminAudience: String { t("admin.audience") }
+    static var adminAudienceAll: String { t("admin.audience.all") }
+    static var adminAudienceLanguage: String { t("admin.audience.language") }
+    static var adminAudienceVersion: String { t("admin.audience.version") }
+    static var adminAudienceUsers: String { t("admin.audience.users") }
+    static var adminVersionsField: String { t("admin.versionsField") }
+    static var adminEmailsField: String { t("admin.emailsField") }
+    static func adminAudienceCount(_ v1: CustomStringConvertible, _ v2: CustomStringConvertible) -> String {
+        String(format: t("admin.audienceCount %1$@ %2$@"), "\(v1)", "\(v2)")
+    }
+    static func adminUnmatchedEmails(_ value: CustomStringConvertible) -> String {
+        String(format: t("admin.unmatchedEmails %@"), "\(value)")
+    }
+    static var adminNoRecipients: String { t("admin.noRecipients") }
+    static var adminDelivery: String { t("admin.delivery") }
+    static var adminDeliverPush: String { t("admin.deliverPush") }
+    static var adminDeliverInApp: String { t("admin.deliverInApp") }
+    static var adminSend: String { t("admin.send") }
+    static func adminConfirmTitle(_ value: CustomStringConvertible) -> String {
+        String(format: t("admin.confirmTitle %@"), "\(value)")
+    }
+    static func adminConfirmMessage(_ value: CustomStringConvertible) -> String {
+        String(format: t("admin.confirmMessage %@"), "\(value)")
+    }
+    static var adminSentTitle: String { t("admin.sentTitle") }
+    static func adminSentMessage(_ v1: CustomStringConvertible, _ v2: CustomStringConvertible, _ v3: CustomStringConvertible) -> String {
+        String(format: t("admin.sentMessage %1$@ %2$@ %3$@"), "\(v1)", "\(v2)", "\(v3)")
+    }
+    static func adminSentPushNotConfigured(_ value: CustomStringConvertible) -> String {
+        String(format: t("admin.sentPushNotConfigured %@"), "\(value)")
+    }
+    static var adminErrorNotSignedIn: String { t("admin.error.notSignedIn") }
+    static var adminErrorForbidden: String { t("admin.error.forbidden") }
+    static var adminErrorRateLimited: String { t("admin.error.rateLimited") }
+    static func adminErrorServer(_ value: CustomStringConvertible) -> String {
+        String(format: t("admin.error.server %@"), "\(value)")
+    }
+    static var settingsNotificationsAnnouncements: String { t("settings.notifications.announcements") }
+    static var announcementHeader: String { t("announcement.header") }
+    static var announcementDismiss: String { t("announcement.dismiss") }
+    static var dataSafetySection: String { t("dataSafety.section") }
+    static var dataSafetyHint: String { t("dataSafety.hint") }
+    static var dataSafetyRecentlyDeleted: String { t("dataSafety.recentlyDeleted") }
+    static var dataSafetyRecentlyDeletedEmpty: String { t("dataSafety.recentlyDeleted.empty") }
+    static var dataSafetyBackups: String { t("dataSafety.backups") }
+    static var dataSafetyBackupsEmpty: String { t("dataSafety.backups.empty") }
+    static var dataSafetyBackupsPreRestore: String { t("dataSafety.backups.preRestore") }
+    static var dataSafetyBackupsConfirmTitle: String { t("dataSafety.backups.confirmTitle") }
+    static var dataSafetyBackupsConfirmMessage: String { t("dataSafety.backups.confirmMessage") }
+    static var dataSafetyRestore: String { t("dataSafety.restore") }
+    static var dataSafetyRestored: String { t("dataSafety.restored") }
+    static var dataSafetyDeleteForever: String { t("dataSafety.deleteForever") }
+    static func dataSafetyDeletedOn(_ date: String) -> String {
+        String(format: t("dataSafety.deletedOn %@"), date)
+    }
+    static func dataSafetyBackupsShifts(_ count: Int) -> String {
+        String(format: t("dataSafety.backups.shifts %@"), "\(count)")
+    }
     static var feedbackDataDeleted: String { t("feedback.dataDeleted") }
     static var feedbackLogCleared: String { t("feedback.logCleared") }
     static func feedbackImported(_ count: Int) -> String {
@@ -329,6 +548,55 @@ enum L10n {
     static var settingsTitle: String { t("settings.title") }
     static var settingsSave: String { t("settings.save") }
     static var settingsSaved: String { t("settings.saved") }
+    static var settingsUnsavedTitle: String { t("settings.unsaved.title") }
+    static var settingsUnsavedMessage: String { t("settings.unsaved.message") }
+    static var settingsUnsavedDiscard: String { t("settings.unsaved.discard") }
+    static var settingsUnsavedStay: String { t("settings.unsaved.stay") }
+    static var settingsUnsavedNotification: String { t("settings.unsaved.notification") }
+
+    // MARK: Siri
+    static var siriPeriodToday: String { t("siri.period.today") }
+    static var siriPeriodThisWeek: String { t("siri.period.thisWeek") }
+    static var siriPeriodThisMonth: String { t("siri.period.thisMonth") }
+    static var siriPeriodLastMonth: String { t("siri.period.lastMonth") }
+    static func siriTotals(_ period: String, _ hours: String, _ pay: String) -> String {
+        String(format: t("siri.totals %1$@ %2$@ %3$@"), period, hours, pay)
+    }
+    static func siriTotalsNoPay(_ period: String, _ hours: String) -> String {
+        String(format: t("siri.totalsNoPay %1$@ %2$@"), period, hours)
+    }
+    static func siriTotalsEmpty(_ period: String) -> String {
+        String(format: t("siri.totalsEmpty %@"), period)
+    }
+    static func siriClockedIn(_ time: String) -> String {
+        String(format: t("siri.clockedIn %@"), time)
+    }
+    static func siriAlreadyIn(_ time: String, _ elapsed: String) -> String {
+        String(format: t("siri.alreadyIn %1$@ %2$@"), time, elapsed)
+    }
+    static var siriNotClockedIn: String { t("siri.notClockedIn") }
+    static func siriClockedOut(_ hours: String, _ pay: String) -> String {
+        String(format: t("siri.clockedOut %1$@ %2$@"), hours, pay)
+    }
+    static func siriClockedOutNoPay(_ hours: String) -> String {
+        String(format: t("siri.clockedOutNoPay %@"), hours)
+    }
+    static var siriBreakStarted: String { t("siri.breakStarted") }
+    static var siriBreakEnded: String { t("siri.breakEnded") }
+    static var siriAlreadyOnBreak: String { t("siri.alreadyOnBreak") }
+    static var siriNotOnBreak: String { t("siri.notOnBreak") }
+    static func siriStatusWorking(_ time: String, _ elapsed: String) -> String {
+        String(format: t("siri.status.working %1$@ %2$@"), time, elapsed)
+    }
+    static func siriStatusWorkingPay(_ time: String, _ elapsed: String, _ pay: String) -> String {
+        String(format: t("siri.status.workingPay %1$@ %2$@ %3$@"), time, elapsed, pay)
+    }
+    static func siriExportDone(_ period: String) -> String {
+        String(format: t("siri.export.done %@"), period)
+    }
+    static func siriExportEmpty(_ period: String) -> String {
+        String(format: t("siri.export.empty %@"), period)
+    }
     static var settingsWorkerInfo: String { t("settings.workerInfo") }
     static var settingsFullName: String { t("settings.fullName") }
     static var settingsIDNumber: String { t("settings.idNumber") }
@@ -374,6 +642,29 @@ enum L10n {
     static var settingsLocationFailed: String { t("settings.locationFailed") }
     static var settingsLocationDenied: String { t("settings.locationDenied") }
     static var settingsNotificationsDenied: String { t("settings.notificationsDenied") }
+    static var settingsNotificationsSection: String { t("settings.notifications.section") }
+    static var settingsBreaksArePaid: String { t("settings.breaksArePaid") }
+    static var settingsBreaksArePaidOnHint: String { t("settings.breaksArePaid.onHint") }
+    static var settingsBreaksArePaidOffHint: String { t("settings.breaksArePaid.offHint") }
+    static var settingsNotificationsHint: String { t("settings.notifications.hint") }
+    static var settingsNotificationsBreakLength: String { t("settings.notifications.breakLength") }
+    static var settingsNotificationsBreakEndingSoon: String { t("settings.notifications.breakEndingSoon") }
+    static var settingsNotificationsBreakLead: String { t("settings.notifications.breakLead") }
+    static var settingsNotificationsBreakOver: String { t("settings.notifications.breakOver") }
+    static var settingsNotificationsShiftStart: String { t("settings.notifications.shiftStart") }
+    static var settingsNotificationsShiftEnd: String { t("settings.notifications.shiftEnd") }
+    static var settingsNotificationsShiftSummary: String { t("settings.notifications.shiftSummary") }
+    static func notifShiftSummaryHours(_ hours: String) -> String {
+        String(format: t("notif.shiftSummary.hours %@"), hours)
+    }
+    static func notifShiftSummaryPay(_ amount: String, _ kind: String) -> String {
+        String(format: t("notif.shiftSummary.pay %1$@ %2$@"), amount, kind)
+    }
+    static var settingsNotificationsUsualSchedule: String { t("settings.notifications.usualSchedule") }
+    static var settingsNotificationsScheduleLearning: String { t("settings.notifications.scheduleLearning") }
+    static func settingsNotificationsMinutes(_ minutes: Int) -> String {
+        String(format: t("settings.notifications.minutes %@"), "\(minutes)")
+    }
     static var settingsOpenSystemSettings: String { t("settings.openSystemSettings") }
     static var settingsArrivalReminders: String { t("settings.arrivalReminders") }
     static var settingsArrivalHint: String { t("settings.arrivalHint") }
@@ -386,6 +677,14 @@ enum L10n {
     static var settingsVersion: String { t("settings.version") }
     static var settingsSupport: String { t("settings.support") }
     static var settingsRateApp: String { t("settings.rateApp") }
+    static var accountDelete: String { t("account.delete") }
+    static var accountDeleteConfirmTitle: String { t("account.delete.confirmTitle") }
+    static var accountDeleteConfirmMessage: String { t("account.delete.confirmMessage") }
+    static var accountDeleted: String { t("account.delete.done") }
+    static var accountDeleteFailed: String { t("account.delete.failed") }
+    static var settingsShareApp: String { t("settings.shareApp") }
+    static var settingsShareAppMessage: String { t("settings.shareApp.message") }
+    static var settingsShareAppHint: String { t("settings.shareApp.hint") }
     static var settingsAppLanguage: String { t("settings.appLanguage") }
     static var settingsLanguageSystem: String { t("settings.language.system") }
     static var settingsAppLanguageHint: String { t("settings.appLanguage.hint") }
@@ -432,16 +731,20 @@ enum L10n {
     static var exportDayTypeAll: String { t("export.dayType.all") }
 
     static var exportLanguage: String { t("export.language") }
+    static var exportIncludeNotes: String { t("export.includeNotes") }
+    static var exportIncludeNotesHint: String { t("export.includeNotes.hint") }
     static func exportLanguagePhone(_ languageName: String) -> String {
         String(format: t("export.language.phone %@"), languageName)
     }
     static var exportLanguageEnglish: String { t("export.language.english") }
     static var exportLanguageHebrew: String { t("export.language.hebrew") }
     static var exportLanguageArabic: String { t("export.language.arabic") }
+    static var exportLanguageRussian: String { t("export.language.russian") }
 
     static var languageNameArabic: String { t("language.name.arabic") }
     static var languageNameHebrew: String { t("language.name.hebrew") }
     static var languageNameEnglish: String { t("language.name.english") }
+    static var languageNameRussian: String { t("language.name.russian") }
 
     // Export report
     static var reportTitle: String { t("report.title") }
@@ -553,6 +856,11 @@ enum L10n {
     static var logFormatMarkdown: String { t("log.format.markdown") }
     static var logEventClockIn: String { t("log.event.clockIn") }
     static var logEventClockOut: String { t("log.event.clockOut") }
+    static var logEventBreakStart: String { t("log.event.breakStart") }
+    static var logEventBreakEnd: String { t("log.event.breakEnd") }
+    static var logEventSessionRestored: String { t("log.event.sessionRestored") }
+    static var logEventBackupRestored: String { t("log.event.backupRestored") }
+    static var logEventAutoBackupSkipped: String { t("log.event.autoBackupSkipped") }
     static var logEventManualEntry: String { t("log.event.manualEntry") }
     static func logEventImport(_ count: Int) -> String {
         String(format: t("log.event.import %lld"), count)
@@ -600,7 +908,6 @@ enum L10n {
     static var logEventFullDataImport: String { t("log.event.fullDataImport") }
 
     // Payslips (Chunk 4 upload + review)
-    static var payslipSectionTitle: String { t("payslip.sectionTitle") }
     static var payslipUploadAction: String { t("payslip.upload.action") }
     static var payslipUploadEntryFooter: String { t("payslip.upload.entryFooter") }
     static var payslipUploadTitle: String { t("payslip.upload.title") }
@@ -650,7 +957,6 @@ enum L10n {
     static var payslipSortByDate: String { t("payslip.sort.byDate") }
     static var payslipSortByAmount: String { t("payslip.sort.byAmount") }
     static var payslipSortAccessibility: String { t("payslip.sort.accessibility") }
-    static var payslipLibraryEntrySubtitle: String { t("payslip.library.entrySubtitle") }
     static var payslipLibraryEmptyTitle: String { t("payslip.library.emptyTitle") }
     static var payslipLibraryEmptySubtitle: String { t("payslip.library.emptySubtitle") }
     static var payslipNetUnavailable: String { t("payslip.netUnavailable") }
@@ -733,13 +1039,16 @@ enum L10n {
     static func assistantScopeBefore(_ time: String) -> String {
         String(format: t("assistant.scope.before %@"), time)
     }
+    static func assistantScopeMinHours(_ hours: String) -> String {
+        String(format: t("assistant.scope.minHours %@"), hours)
+    }
+    static func assistantScopeMaxHours(_ hours: String) -> String {
+        String(format: t("assistant.scope.maxHours %@"), hours)
+    }
     static var assistantClear: String { t("assistant.clear") }
     static var assistantSettingsTitle: String { t("assistant.settings.title") }
     static var assistantSettingsEnabled: String { t("assistant.settings.enabled") }
     static var assistantSettingsStyle: String { t("assistant.settings.style") }
-    static var assistantSettingsResetPosition: String { t("assistant.settings.resetPosition") }
-    static var assistantHideButton: String { t("assistant.hideButton") }
-    static var assistantHiddenToast: String { t("assistant.hiddenToast") }
     static var assistantStyleSpark: String { t("assistant.style.spark") }
     static var assistantStyleChat: String { t("assistant.style.chat") }
     static var assistantStyleClock: String { t("assistant.style.clock") }
@@ -760,14 +1069,52 @@ enum L10n {
     static var sickDayCapReached: String { t("sickDay.capReached") }
 
     // Onboarding
+    // MARK: Onboarding (setup flow)
+    static var onbBack: String { t("onb.back") }
+    static var onbLanguage: String { t("onb.language") }
+    static func onbProgress(_ v1: CustomStringConvertible, _ v2: CustomStringConvertible) -> String {
+        String(format: t("onb.progress %1$@ %2$@"), "\(v1)", "\(v2)")
+    }
+    static var onbSkip: String { t("onb.skip") }
+    static var onbToday: String { t("onb.today") }
+    static var onbExampleCaption: String { t("onb.exampleCaption") }
+    static var onbWelcomeTitle: String { t("onb.welcome.title") }
+    static var onbWelcomeRow1: String { t("onb.welcome.row1") }
+    static var onbWelcomeRow2: String { t("onb.welcome.row2") }
+    static var onbRateTitle: String { t("onb.rate.title") }
+    static var onbRateSubtitle: String { t("onb.rate.subtitle") }
+    static var onbRateA11y: String { t("onb.rate.a11y") }
+    static var onbRateError: String { t("onb.rate.error") }
+    static var onbWeekTitle: String { t("onb.week.title") }
+    static var onbWeekFive: String { t("onb.week.five") }
+    static var onbWeekFiveSub: String { t("onb.week.fiveSub") }
+    static var onbWeekSix: String { t("onb.week.six") }
+    static var onbWeekSixSub: String { t("onb.week.sixSub") }
+    static var onbWeekVaries: String { t("onb.week.varies") }
+    static var onbWeekVariesSub: String { t("onb.week.variesSub") }
+    static var onbWeekCustom: String { t("onb.week.custom") }
+    static var onbWeekCustomSub: String { t("onb.week.customSub") }
+    static var onbDaysTitle: String { t("onb.days.title") }
+    static var onbDaysSubtitle: String { t("onb.days.subtitle") }
+    static var onbHoursTitle: String { t("onb.hours.title") }
+    static func onbHoursValue(_ value: CustomStringConvertible) -> String {
+        String(format: t("onb.hours.value %@"), "\(value)")
+    }
+    static var onbHoursNote: String { t("onb.hours.note") }
+    static func onbHoursEstimate(_ value: CustomStringConvertible) -> String {
+        String(format: t("onb.hours.estimate %@"), "\(value)")
+    }
+    static var onbEstimateCaption: String { t("onb.estimateCaption") }
+    static var onbResultTitle: String { t("onb.result.title") }
+    static var onbResultCaption: String { t("onb.result.caption") }
+    static var onbResultHours: String { t("onb.result.hours") }
+    static var onbResultPerHour: String { t("onb.result.perHour") }
+    static var onbResultPrivacy: String { t("onb.result.privacy") }
+    static var onbClockInNow: String { t("onb.clockInNow") }
+    static var onbCtaStart: String { t("onb.cta.start") }
+    static var onbCtaShowResult: String { t("onb.cta.showResult") }
     static var onboardingNext: String { t("onboarding.next") }
     static var onboardingStart: String { t("onboarding.start") }
-    static var onboardingStep1Title: String { t("onboarding.step1Title") }
-    static var onboardingStep1Body: String { t("onboarding.step1Body") }
-    static var onboardingStep2Title: String { t("onboarding.step2Title") }
-    static var onboardingStep2Body: String { t("onboarding.step2Body") }
-    static var onboardingStep3Title: String { t("onboarding.step3Title") }
-    static var onboardingStep3Body: String { t("onboarding.step3Body") }
 
     // Monthly trend (History)
     static var historyMonthlyTrend: String { t("history.monthlyTrend") }

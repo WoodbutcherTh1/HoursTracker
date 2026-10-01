@@ -9,7 +9,8 @@ enum HomeNeon {
     static let accent = Color(red: 0.15, green: 0.95, blue: 0.45)
     static let accentDeep = Color(red: 0.05, green: 0.55, blue: 0.28)
     static let card = Color(red: 0.09, green: 0.10, blue: 0.12)
-    static let coral = Color(red: 0.95, green: 0.28, blue: 0.35)
+    /// The clocked-in state colour — same value as `DS.Palette.clockedIn`.
+    static let coral = DS.Palette.clockedIn
     static let coralDeep = Color(red: 0.72, green: 0.12, blue: 0.22)
 }
 
@@ -33,102 +34,19 @@ struct HomeLayoutMetrics {
 
     var horizontalPadding: CGFloat { isVeryCompact ? 12 : (isCompact ? 14 : 18) }
     var stackSpacing: CGFloat { tight ? 10 : 13 }
-    var greetingFontSize: CGFloat { isVeryCompact ? 24 : (tight ? 27 : 31) }
     var statsSpacing: CGFloat { isCompact ? 6 : 10 }
     /// Matches `HomeAnimatedDoorButton(compact:)`'s real rendered height (door + spacing
     /// + label) plus a small buffer — must stay in sync with that view's own sizing or
     /// the button overflows this frame and overlaps whatever's below it.
     var doorHeight: CGFloat { tight ? 118 : 148 }
-    var showStatSparkline: Bool { !isVeryCompact }
-    var particleHeight: CGFloat { tight ? 44 : 56 }
+
+    /// Shorter screens pin the door above the tab bar (see `HomeView.pinnedDoor`).
+    var pinsDoor: Bool { isShort }
+    static let pinnedDoorTopPadding: CGFloat = 6
+    var pinnedDoorHeight: CGFloat { doorHeight + Self.pinnedDoorTopPadding }
 }
 
-/// Soft drifting aurora band across the top of Home.
-struct HomeAuroraRibbon: View {
-    var accent: Color = HomeNeon.accent
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-            HomeAuroraCanvas(date: timeline.date, accent: accent)
-        }
-        .blur(radius: 10)
-        .opacity(0.9)
-        .allowsHitTesting(false)
-    }
-}
-
-private struct HomeAuroraCanvas: View {
-    let date: Date
-    var accent: Color = HomeNeon.accent
-
-    var body: some View {
-        Canvas { context, size in
-            let t = date.timeIntervalSinceReferenceDate
-            let drift = CGFloat(t.truncatingRemainder(dividingBy: 8) / 8)
-            for i in 0..<3 {
-                let offset = (drift + CGFloat(i) * 0.22).truncatingRemainder(dividingBy: 1)
-                var path = Path()
-                let yBase = size.height * (0.35 + CGFloat(i) * 0.18)
-                path.move(to: CGPoint(x: -size.width * 0.2, y: yBase))
-                path.addCurve(
-                    to: CGPoint(x: size.width * 1.2, y: yBase + 8),
-                    control1: CGPoint(x: size.width * (0.25 + offset * 0.3), y: yBase - 28),
-                    control2: CGPoint(x: size.width * (0.55 + offset * 0.25), y: yBase + 34)
-                )
-                let colors: [Color] = [
-                    accent.opacity(0),
-                    accent.opacity(0.55 - Double(i) * 0.12),
-                    Color.mint.opacity(0.35),
-                    accent.opacity(0)
-                ]
-                context.stroke(
-                    path,
-                    with: .linearGradient(
-                        Gradient(colors: colors),
-                        startPoint: CGPoint(x: 0, y: yBase),
-                        endPoint: CGPoint(x: size.width, y: yBase)
-                    ),
-                    style: StrokeStyle(lineWidth: 18 - CGFloat(i) * 4, lineCap: .round)
-                )
-            }
-        }
-    }
-}
-
-/// Floating luminous dots near the greeting.
-struct HomeFloatingParticles: View {
-    var accent: Color = HomeNeon.accent
-
-    private let dots: [(x: CGFloat, y: CGFloat, size: CGFloat, speed: Double)] = [
-        (0.12, 0.25, 5, 2.8),
-        (0.28, 0.70, 3.5, 3.4),
-        (0.55, 0.20, 4, 2.2),
-        (0.78, 0.55, 3, 3.1),
-        (0.90, 0.30, 4.5, 2.6)
-    ]
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            GeometryReader { geo in
-                ForEach(Array(dots.enumerated()), id: \.offset) { index, dot in
-                    let wave = sin(t * (1.1 + Double(index) * 0.35) / dot.speed)
-                    Circle()
-                        .fill(accent.opacity(0.35 + 0.25 * (wave + 1) / 2))
-                        .frame(width: dot.size, height: dot.size)
-                        .blur(radius: 0.4)
-                        .position(
-                            x: geo.size.width * dot.x,
-                            y: geo.size.height * dot.y + CGFloat(wave) * 6
-                        )
-                }
-            }
-        }
-        .allowsHitTesting(false)
-    }
-}
-
-/// Soft circular pulse rings behind the hero clock button.
+/// Soft circular pulse rings (the Account sheet's hero; Home no longer uses them).
 struct HomePulseRings: View {
     var color: Color = HomeNeon.accent
     var size: CGFloat = 132
@@ -173,8 +91,16 @@ struct HomeAnimatedDoorButton: View {
     /// The "closed" (clock-in) door color — user-customizable. The "open" (clock-out /
     /// active-session) coral stays fixed since it's a semantic state color, not decor.
     var accent: Color = HomeNeon.accent
+    /// Clock Out only: the door breathes (1.0 ↔ 1.03 over 3 s) to say the shift is
+    /// running. Under Reduce Motion it stands still inside a thin ring of `stateColor`.
+    var breathes: Bool = false
+    /// A sheet covers Home — hold still (the ring, if any, stays).
+    var breathingPaused: Bool = false
+    /// Coral while working, amber on a break.
+    var stateColor: Color = HomeNeon.coral
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     @State private var isOpen: Bool
     @State private var isBusy = false
@@ -187,11 +113,23 @@ struct HomeAnimatedDoorButton: View {
     private var doorWidth: CGFloat { compact ? 60 : 72 }
     private var doorHeight: CGFloat { compact ? 70 : 86 }
 
-    init(mode: Mode, title: String, compact: Bool = false, accent: Color = HomeNeon.accent, action: @escaping () -> Void) {
+    init(
+        mode: Mode,
+        title: String,
+        compact: Bool = false,
+        accent: Color = HomeNeon.accent,
+        breathes: Bool = false,
+        breathingPaused: Bool = false,
+        stateColor: Color = HomeNeon.coral,
+        action: @escaping () -> Void
+    ) {
         self.mode = mode
         self.title = title
         self.compact = compact
         self.accent = accent
+        self.breathes = breathes
+        self.breathingPaused = breathingPaused
+        self.stateColor = stateColor
         self.action = action
         _isOpen = State(initialValue: mode == .clockOut)
     }
@@ -208,7 +146,11 @@ struct HomeAnimatedDoorButton: View {
         Button {
             guard !isBusy else { return }
             isBusy = true
-            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+            // Clock Out's one haptic is the Day Summary's success tap when it appears —
+            // a second buzz here would crowd it.
+            if mode == .clockIn {
+                UINotificationFeedbackGenerator().notificationOccurred(.success)
+            }
 
             let duration: TimeInterval = reduceMotion ? 0.2 : 0.55
             withAnimation(.spring(response: duration, dampingFraction: 0.78)) {
@@ -230,11 +172,18 @@ struct HomeAnimatedDoorButton: View {
         } label: {
             VStack(spacing: compact ? 6 : 10) {
                 ZStack {
-                    HomePulseRings(color: glowColor, size: compact ? 66 : 78)
+                    if breathes && reduceMotion {
+                        RoundedRectangle(cornerRadius: 12, style: .continuous)
+                            .stroke(stateColor, lineWidth: 2)
+                            .frame(width: doorWidth + 12, height: doorHeight + 12)
+                    }
 
-                    doorScene
-                        .frame(width: doorWidth, height: doorHeight)
-                        .shadow(color: glowColor.opacity(0.4), radius: 12, y: 5)
+                    TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isBreathing)) { context in
+                        doorScene
+                            .frame(width: doorWidth, height: doorHeight)
+                            .shadow(color: glowColor.opacity(0.3), radius: 10, y: 4)
+                            .scaleEffect(breathingScale(at: context.date))
+                    }
                 }
                 .frame(width: doorWidth + (compact ? 44 : 56), height: doorHeight + (compact ? 22 : 28))
 
@@ -247,10 +196,24 @@ struct HomeAnimatedDoorButton: View {
         .buttonStyle(ScalePressButtonStyle())
         .disabled(isBusy)
         .accessibilityLabel(title)
+        .accessibilityIdentifier(mode == .clockIn ? "home.clockIn" : "home.clockOut")
         .onChange(of: mode) { _, newMode in
             isOpen = (newMode == .clockOut)
             isBusy = false
         }
+    }
+
+    /// Breathing runs only while a shift is running AND the app is in front AND no
+    /// sheet covers Home AND Reduce Motion is off. Anything else holds it at 1.0.
+    private var isBreathing: Bool {
+        breathes && !breathingPaused && scenePhase == .active && !reduceMotion
+    }
+
+    /// 1.0 → 1.03 → 1.0 every 3 s; 1 when not breathing.
+    private func breathingScale(at date: Date) -> CGFloat {
+        guard isBreathing else { return 1 }
+        let phase = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3) / 3
+        return 1 + 0.015 * (1 - cos(phase * 2 * .pi))
     }
 
     private var doorScene: some View {
@@ -505,14 +468,15 @@ struct HomeCompactStatsStrip: View {
 
                 VStack(spacing: 2) {
                     Text(item.title)
-                        .font(.system(size: compact ? 9 : 10, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.45))
+                        .dsFont(.meta, weight: .medium)
+                        .foregroundStyle(DS.Palette.textSecondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                     Text(item.value)
-                        .font(.system(size: compact ? 13 : 15, weight: .semibold, design: .rounded))
+                        .htFont(size: 15, relativeTo: .subheadline, weight: .semibold, design: .rounded)
                         .monospacedDigit()
-                        .foregroundStyle(accent.opacity(0.85))
+                        .environment(\.layoutDirection, .leftToRight)
+                        .foregroundStyle(accent)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
                         .contentTransition(.numericText())
@@ -532,245 +496,6 @@ struct HomeCompactStatsStrip: View {
                         .stroke(Color.white.opacity(0.06), lineWidth: 1)
                 )
         )
-    }
-}
-
-enum HomeStatIconKind {
-    case calendar
-    case chart
-    case clock
-}
-
-/// Compact neon stats card with animated icon + mini waving sparkline.
-struct HomeNeonStatCard: View {
-    let title: String
-    let value: String
-    let icon: HomeStatIconKind
-    var sparkSeed: Double = 0
-    /// This card's value normalized to 0...1 against a reasonable max, so the mini
-    /// sparkline's height reflects the real number instead of animating decoratively —
-    /// 0 renders as a flat line, higher values sit higher with more motion.
-    var level: Double = 0
-    var compact: Bool = false
-    var showSparkline: Bool = true
-    /// User-customizable via the Home color picker; defaults to the original green.
-    var accent: Color = HomeNeon.accent
-
-    var body: some View {
-        VStack(spacing: compact ? 5 : 8) {
-            animatedIcon
-                .frame(height: compact ? 22 : 28)
-
-            Text(title)
-                .font(.caption2.weight(.medium))
-                .foregroundStyle(.white.opacity(0.55))
-                .lineLimit(1)
-                .minimumScaleFactor(0.65)
-                .multilineTextAlignment(.center)
-
-            Text(value)
-                .font((compact ? Font.callout : Font.title3).weight(.bold).monospacedDigit())
-                .foregroundStyle(.white)
-                .minimumScaleFactor(0.55)
-                .lineLimit(1)
-                .multilineTextAlignment(.center)
-
-            if showSparkline {
-                MiniWaveSparkline(seed: sparkSeed, accent: accent, level: level)
-                    .frame(height: compact ? 16 : 22)
-                    .padding(.top, 2)
-            }
-        }
-        .padding(.vertical, compact ? 8 : 12)
-        .padding(.horizontal, compact ? 4 : 8)
-        .frame(maxWidth: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: compact ? 14 : 16, style: .continuous)
-                .fill(HomeNeon.card.opacity(0.92))
-                .overlay(
-                    RoundedRectangle(cornerRadius: compact ? 14 : 16, style: .continuous)
-                        .stroke(accent.opacity(0.22), lineWidth: 1)
-                )
-                .shadow(color: accent.opacity(0.12), radius: 10, y: 2)
-        )
-    }
-
-    @ViewBuilder
-    private var animatedIcon: some View {
-        switch icon {
-        case .calendar:
-            AnimatedCalendarIcon(accent: accent)
-        case .chart:
-            AnimatedChartIcon(accent: accent)
-        case .clock:
-            AnimatedClockIcon(accent: accent)
-        }
-    }
-}
-
-/// Month digits flip inside a calendar outline.
-struct AnimatedCalendarIcon: View {
-    var accent: Color = HomeNeon.accent
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            let cycle = (t * 1.2).truncatingRemainder(dividingBy: 12)
-            let idx = Int(cycle)
-            let frac = cycle - Double(idx)
-            let current = (idx % 12) + 1
-            let next = ((idx + 1) % 12) + 1
-
-            ZStack {
-                RoundedRectangle(cornerRadius: 4, style: .continuous)
-                    .stroke(accent, lineWidth: 1.5)
-                    .frame(width: 22, height: 20)
-                // Binding nubs
-                HStack(spacing: 8) {
-                    Capsule().fill(accent).frame(width: 2.5, height: 5)
-                    Capsule().fill(accent).frame(width: 2.5, height: 5)
-                }
-                .offset(y: -11)
-
-                Capsule()
-                    .fill(accent.opacity(0.7))
-                    .frame(width: 14, height: 1)
-                    .offset(y: -5)
-
-                ZStack {
-                    Text("\(current)")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
-                        .foregroundStyle(accent.opacity(1 - frac))
-                        .offset(y: -CGFloat(frac) * 8)
-                    Text("\(next)")
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
-                        .foregroundStyle(accent.opacity(frac))
-                        .offset(y: (1 - CGFloat(frac)) * 8)
-                }
-                .frame(width: 14, height: 10)
-                .clipped()
-                .offset(y: 2)
-            }
-        }
-        .accessibilityHidden(true)
-    }
-}
-
-/// Bars bounce inside a chart outline.
-struct AnimatedChartIcon: View {
-    var accent: Color = HomeNeon.accent
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            HStack(alignment: .bottom, spacing: 3) {
-                ForEach(0..<3, id: \.self) { i in
-                    let h = 6 + 5 * (0.5 + 0.5 * sin(t * 2.8 + Double(i) * 1.1))
-                    RoundedRectangle(cornerRadius: 1)
-                        .fill(accent)
-                        .frame(width: 4, height: h)
-                }
-            }
-            .frame(width: 22, height: 18, alignment: .bottom)
-        }
-        .accessibilityHidden(true)
-    }
-}
-
-/// Clock hands keep ticking inside the circle.
-struct AnimatedClockIcon: View {
-    var accent: Color = HomeNeon.accent
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            ZStack {
-                Circle()
-                    .stroke(accent, lineWidth: 1.5)
-                    .frame(width: 20, height: 20)
-
-                // Hour hand
-                Capsule()
-                    .fill(accent)
-                    .frame(width: 1.5, height: 5)
-                    .offset(y: -2)
-                    .rotationEffect(.radians(t * 0.35))
-
-                // Minute hand
-                Capsule()
-                    .fill(accent)
-                    .frame(width: 1.2, height: 7)
-                    .offset(y: -3)
-                    .rotationEffect(.radians(t * 1.8))
-
-                Circle()
-                    .fill(.white)
-                    .frame(width: 2.5, height: 2.5)
-            }
-        }
-        .accessibilityHidden(true)
-    }
-}
-
-/// Tiny mountain line for each stats card — its height and liveliness now track a real
-/// metric instead of being purely decorative. `level` is the value normalized to 0...1
-/// (0 = nothing recorded, flat straight line; 1 = at/above the card's reasonable max,
-/// tall and animated). Height and wiggle amplitude both scale with `level`, so "0 hours"
-/// reads as a still, flat line and higher values sit visibly higher with more motion.
-struct MiniWaveSparkline: View {
-    let seed: Double
-    var accent: Color = HomeNeon.accent
-    var level: Double = 0
-
-    private var clampedLevel: Double { min(max(level, 0), 1) }
-
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            let level = clampedLevel
-            Canvas { context, size in
-                var path = Path()
-                let steps = 24
-                for i in 0...steps {
-                    let u = CGFloat(i) / CGFloat(steps)
-                    let x = u * size.width
-                    let y = size.height - CGFloat(Self.ridge(u: Double(u), t: t, seed: seed, level: level)) * size.height
-                    if i == 0 { path.move(to: CGPoint(x: x, y: y)) }
-                    else { path.addLine(to: CGPoint(x: x, y: y)) }
-                }
-                context.stroke(
-                    path,
-                    with: .color(accent.opacity(0.85)),
-                    style: StrokeStyle(lineWidth: 1.6, lineCap: .round, lineJoin: .round)
-                )
-
-                // Traveling glow dot only makes sense once there's something to trace;
-                // at level 0 the line has just a subtle idle wobble, so skip the dot.
-                guard level > 0.02 else { return }
-                let progress = (t * 0.45 + seed * 0.1).truncatingRemainder(dividingBy: 1)
-                let px = CGFloat(progress) * size.width
-                let py = size.height - CGFloat(Self.ridge(u: progress, t: t, seed: seed, level: level)) * size.height
-                let glow = Path(ellipseIn: CGRect(x: px - 2.5, y: py - 2.5, width: 5, height: 5))
-                context.fill(glow, with: .color(.white))
-            }
-        }
-        .allowsHitTesting(false)
-    }
-
-    /// Small always-present wobble amplitude, independent of `level` — a 0-hours day
-    /// still reads as "alive" instead of a dead flat line.
-    private static let idleAmplitude = 0.035
-
-    /// Normalized (0...1) line height at horizontal position `u`. `level` scales the
-    /// baseline height and adds extra wiggle/wave amplitude on top of the idle motion,
-    /// so level 0 is a subtle gentle wobble and higher levels build into a full wave.
-    private static func ridge(u: Double, t: Double, seed: Double, level: Double) -> Double {
-        let baseline = 0.08 + level * 0.58
-        let idleWiggle = idleAmplitude * sin(u * .pi * 2.2 + seed)
-        let idleWave = idleAmplitude * 0.6 * sin(t * 2.0 + seed * 1.7)
-        let levelWiggle = level * (0.16 * sin(u * .pi * 2.4 + seed) + 0.08 * sin(u * .pi * 5 + seed * 1.4))
-        let levelWave = level * 0.10 * sin(u * .pi * 3.2 - t * 3.8 + seed)
-        return baseline + idleWiggle + idleWave + levelWiggle + levelWave
     }
 }
 
@@ -801,6 +526,11 @@ struct HomeWeekSparkline: View {
         hours.reduce(0, +)
     }
 
+    static func liveOpenHeightFraction(pulseTime t: Double, index: Int, isToday: Bool) -> Double {
+        let pulse = liveOpenPulse(pulseTime: t, index: index, isToday: isToday)
+        return 0.28 + 0.42 * pulse
+    }
+
     var body: some View {
         VStack(spacing: 7) {
             chart
@@ -828,8 +558,9 @@ struct HomeWeekSparkline: View {
 
             TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
                 let t = timeline.date.timeIntervalSinceReferenceDate
+                let ridgeHeights = ridgeHeightFractions(baseHeights: barHeights, pulseTime: t)
                 let tops = barTopPoints(
-                    heights: barHeights,
+                    heights: ridgeHeights,
                     columnWidth: columnWidth,
                     barMaxHeight: barMaxHeight,
                     chartHeight: geo.size.height
@@ -852,7 +583,7 @@ struct HomeWeekSparkline: View {
                         }
                     }
 
-                    if tops.count > 1, barHeights.contains(where: { $0 > 0 }) {
+                    if tops.count > 1, ridgeHeights.contains(where: { $0 > 0 }) {
                         ridge
                             .stroke(accent.opacity(0.22), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
 
@@ -887,13 +618,15 @@ struct HomeWeekSparkline: View {
     ) -> some View {
         let isToday = highlightedDayIndex == index
         let isLiveOpen = isToday && isTodayShiftOpen
-        let pulse = (sin(t * (isToday ? 3.4 : 2.2) + Double(index) * 0.7) + 1) / 2
+        let pulse = Self.liveOpenPulse(pulseTime: t, index: index, isToday: isToday)
         // Open shift today: breathe the bar instead of showing a misleading empty/00:00 value.
-        let liveFill = 0.28 + 0.42 * pulse
+        let liveFill = Self.liveOpenHeightFraction(pulseTime: t, index: index, isToday: isToday)
         let barHeight = isLiveOpen
             ? CGFloat(liveFill) * barMaxHeight
             : CGFloat(heightFraction) * barMaxHeight
-        let showLabel = hours > 0.01 || isToday
+        // Only days with hours get a value. Today with nothing yet stays marked by its
+        // glowing bar and weekday, not by a lone "00:00" floating over an empty column.
+        let showLabel = hours > 0.01
         let labelText: String = {
             if isLiveOpen { return L10n.homeWeekLoading }
             if showLabel { return HistoryPeriodHelper.formatHoursClock(hours) }
@@ -905,17 +638,18 @@ struct HomeWeekSparkline: View {
                 if isLiveOpen {
                     Text(labelText)
                         .font(.system(size: 7, weight: .bold, design: .rounded))
+                        .foregroundStyle(accent.opacity(0.55 + 0.1 * pulse))
                 } else {
                     Text(labelText)
                         .font(.system(size: 8, weight: isToday ? .bold : .semibold, design: .rounded))
                         .monospacedDigit()
+                        .foregroundStyle(
+                            isToday
+                                ? accent.opacity(0.85 + 0.15 * pulse)
+                                : Color.white.opacity(hours > 0.01 ? 0.55 : 0.2)
+                        )
                 }
             }
-                .foregroundStyle(
-                    isToday
-                        ? accent.opacity(0.85 + 0.15 * pulse)
-                        : Color.white.opacity(hours > 0.01 ? 0.55 : 0.2)
-                )
                 .lineLimit(1)
                 .minimumScaleFactor(0.45)
                 .frame(maxWidth: .infinity)
@@ -927,10 +661,15 @@ struct HomeWeekSparkline: View {
             RoundedRectangle(cornerRadius: 4, style: .continuous)
                 .fill(
                     LinearGradient(
-                        colors: [
-                            accent.opacity(isToday ? 0.95 : 0.55),
-                            accent.opacity(isToday ? 0.45 : 0.18)
-                        ],
+                        colors: isLiveOpen
+                            ? [
+                                accent.opacity(0.45),
+                                accent.opacity(0.18)
+                            ]
+                            : [
+                                accent.opacity(isToday ? 0.95 : 0.55),
+                                accent.opacity(isToday ? 0.45 : 0.18)
+                            ],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -939,13 +678,17 @@ struct HomeWeekSparkline: View {
                     width: isToday ? 12 : 9,
                     height: max(barHeight, (hours > 0.01 || isLiveOpen) ? 3 : 2)
                 )
-                .opacity(hours > 0.01 || isLiveOpen ? 1 : 0.25)
+                // Open today: translucent (~0.45) so it never matches finished days.
+                .opacity(isLiveOpen ? 0.45 : (hours > 0.01 ? 1 : 0.25))
                 .shadow(
-                    color: isToday ? accent.opacity(0.55 * pulse) : .clear,
-                    radius: isToday ? 6 : 0
+                    color: isLiveOpen
+                        ? accent.opacity(0.2 * pulse)
+                        : (isToday ? accent.opacity(0.55 * pulse) : .clear),
+                    radius: isToday ? (isLiveOpen ? 3 : 6) : 0
                 )
         }
         .frame(maxHeight: .infinity)
+        .opacity(isLiveOpen ? 0.85 : 1)
     }
 
     private var weekdayRow: some View {
@@ -1019,6 +762,17 @@ struct HomeWeekSparkline: View {
     }
 
     /// Tops of bars in chart coordinates (label row sits above the bars).
+    private func ridgeHeightFractions(baseHeights: [Double], pulseTime t: Double) -> [Double] {
+        guard isTodayShiftOpen, let highlightedDayIndex, baseHeights.indices.contains(highlightedDayIndex) else {
+            return baseHeights
+        }
+
+        return baseHeights.enumerated().map { index, fraction in
+            guard index == highlightedDayIndex else { return fraction }
+            return Self.liveOpenHeightFraction(pulseTime: t, index: index, isToday: true)
+        }
+    }
+
     private func barTopPoints(
         heights: [Double],
         columnWidth: CGFloat,
@@ -1047,6 +801,10 @@ struct HomeWeekSparkline: View {
             }
         }
         return path
+    }
+
+    private static func liveOpenPulse(pulseTime t: Double, index: Int, isToday: Bool) -> Double {
+        (sin(t * (isToday ? 3.4 : 2.2) + Double(index) * 0.7) + 1) / 2
     }
 
     private func pointAlongPolyline(_ points: [CGPoint], progress: CGFloat) -> CGPoint? {

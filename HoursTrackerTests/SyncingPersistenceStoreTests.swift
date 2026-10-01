@@ -20,6 +20,22 @@ final class SyncingPersistenceStoreTests: XCTestCase {
         )
     }
 
+    /// A shift saved while a sync is waiting on the network must survive: the sync
+    /// result was computed from the older snapshot and would otherwise overwrite it.
+    func testLocalSaveDuringSyncIsNotOverwritten() async throws {
+        let existing = TestData.session(day: 1)
+        try store.saveSessions([existing])
+        let clockedDuringSync = TestData.session(day: 2)
+        cloud.duringSync = { [store] in
+            try? store?.saveSessions([existing, clockedDuringSync])
+        }
+
+        let result = try await store.syncNow()
+
+        XCTAssertEqual(Set(local.storedSessions.map(\.id)), [existing.id, clockedDuringSync.id])
+        XCTAssertEqual(Set(result?.sessions.map(\.id) ?? []), [existing.id, clockedDuringSync.id])
+    }
+
     func testFirstSaveUploadsAllSessions() throws {
         let sessions = [TestData.session(day: 1), TestData.session(day: 2)]
         let uploaded = expectation(description: "uploaded")
@@ -107,6 +123,29 @@ final class SyncingPersistenceStoreTests: XCTestCase {
         XCTAssertEqual(cloud.purgeCallCount, 1)
         XCTAssertEqual(cloud.lastPurgedSessionIDs, ids)
         XCTAssertEqual(tombstones.tombstoneIDs, ids)
+    }
+
+    func testHungCloudSyncSurfacesAsFailedWithinTimeout() async {
+        cloud.hangIndefinitely = true
+        let timeoutStore = SyncingPersistenceStore(
+            local: local,
+            cloud: cloud,
+            syncPreference: InMemoryCloudSyncPreference(isEnabled: true),
+            tombstones: tombstones,
+            syncTimeoutNanoseconds: 200_000_000 // 0.2s, so the test stays fast
+        )
+
+        do {
+            _ = try await timeoutStore.syncNow()
+            XCTFail("expected the hung sync to time out and throw")
+        } catch {
+            XCTAssertTrue(error is SyncTimeoutError)
+        }
+
+        guard case .failed = timeoutStore.syncState else {
+            XCTFail("expected syncState to be .failed, got \(timeoutStore.syncState)")
+            return
+        }
     }
 
     func testLocalDeletionRecordsTombstoneEvenWhenSyncDisabled() throws {

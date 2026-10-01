@@ -3,9 +3,10 @@ import SwiftUI
 @main
 struct HoursTrackerApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
-    @StateObject private var viewModel = AppViewModel()
+    @StateObject private var viewModel = AppViewModel.shared
     @StateObject private var appLock = AppLockController()
     @ObservedObject private var appLanguage = AppLanguageController.shared
+    @ObservedObject private var legal = LegalConsent.shared
     @Environment(\.scenePhase) private var scenePhase
     @State private var showLaunchSplash = true
 
@@ -18,6 +19,14 @@ struct HoursTrackerApp: App {
                     // strings refresh. Keep this off the splash/`@State` so changing
                     // language does not replay the launch animation.
                     .id(appLanguage.preference)
+
+                // Terms of Use + Privacy Policy: nothing else is usable until agreed
+                // (onboarding waits for it too, see MainTabView).
+                if !legal.isAccepted {
+                    LegalConsentView(consent: legal, viewModel: viewModel)
+                        .id(appLanguage.preference)
+                        .transition(.opacity)
+                }
 
                 if appLock.isEnabled && appLock.isLocked {
                     AppLockView(controller: appLock)
@@ -37,6 +46,7 @@ struct HoursTrackerApp: App {
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: appLock.isLocked)
+            .animation(.easeInOut(duration: 0.25), value: legal.isAccepted)
             .animation(.easeInOut(duration: 0.15), value: scenePhase)
             .animation(.easeInOut(duration: 0.45), value: showLaunchSplash)
             .environment(\.locale, appLanguage.locale)
@@ -53,6 +63,7 @@ struct HoursTrackerApp: App {
             .onAppear {
                 ExportTempFileStore.wipeAll()
                 PayslipStore.shared.sweepOrphanedFiles()
+                viewModel.retryLoadIfNeeded()
                 WatchConnectivityManager.shared.configure(viewModel: viewModel, appLock: appLock)
                 #if DEBUG
                 if ProcessInfo.processInfo.arguments.contains("UITEST_SCREENSHOTS") {
@@ -69,6 +80,7 @@ struct HoursTrackerApp: App {
                 WidgetActionBroadcaster.shared.installIfNeeded()
                 viewModel.consumeWidgetActionIfNeeded()
                 viewModel.refreshAppShortcuts()
+                AnnouncementCenter.shared.refresh()
                 if appLock.isEnabled {
                     Task { await appLock.unlock() }
                 }
@@ -77,17 +89,29 @@ struct HoursTrackerApp: App {
                     showLaunchSplash = false
                 }
             }
+            // Widgets, Live Activity and Watch follow the in-app language.
+            .onChange(of: appLanguage.preference) { _, _ in
+                viewModel.refreshLiveSurfaces()
+            }
             .onChange(of: scenePhase) { _, phase in
                 appLock.handleScenePhase(phase)
                 // Wipe on background only — `.inactive` also fires while the share
                 // sheet is presented and would delete the file mid-share.
                 if phase == .active {
+                    SettingsUnsavedReminder.cancel()
+                    viewModel.retryLoadIfNeeded()
                     viewModel.syncNow()
+                    viewModel.refreshShiftReminders()
+                    viewModel.takeDailyBackupIfNeeded()
+                    AnnouncementCenter.shared.refresh()
                     if appLock.isEnabled && appLock.isLocked {
                         Task { await appLock.unlock() }
                     }
                 } else if phase == .background {
                     ExportTempFileStore.wipeAll()
+                    if SettingsUnsavedChanges.shared.hasChanges {
+                        SettingsUnsavedReminder.schedule()
+                    }
                 }
             }
         }
@@ -115,6 +139,7 @@ private enum MainSheetRoute: Identifiable, Hashable {
 private enum AppTab: String {
     case home
     case history
+    case payslips
     case export
     case settings
 }
@@ -124,11 +149,16 @@ struct MainTabView: View {
     @EnvironmentObject private var appLanguage: AppLanguageController
     // Deep links (widget taps / quick actions) switch tabs by name.
     @State private var selectedTab: AppTab = .home
+    /// The tab the user tried to open while Settings had unsaved changes.
+    @State private var pendingTab: AppTab?
+    @ObservedObject private var unsavedSettings = SettingsUnsavedChanges.shared
     @AppStorage("hasSeenOnboarding.v1") private var hasSeenOnboarding = false
+    @ObservedObject private var legal = LegalConsent.shared
     // The Home screen's color picker is app-wide: this drives the tab bar's selected
     // color and every standard button/toggle/link tint across History, Export, and
     // Settings, not just Home's own neon-styled elements.
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
+    @ObservedObject private var announcements = AnnouncementCenter.shared
 
     /// A scan that completes while the assistant is already open stays queued rather
     /// than yanking the assistant away mid-conversation: the existing "ready for review"
@@ -154,7 +184,7 @@ struct MainTabView: View {
 
     var body: some View {
         let _ = appLanguage.preference // keep tab labels tied to language changes
-        TabView(selection: $selectedTab) {
+        TabView(selection: tabSelection) {
             HomeView(viewModel: viewModel)
                 .tabItem {
                     Label(L10n.tabHome, systemImage: "clock.fill")
@@ -182,6 +212,13 @@ struct MainTabView: View {
                 }
                 .tag(AppTab.history)
 
+            PayslipsTabView(viewModel: viewModel)
+                .tabItem {
+                    Label(L10n.tabPayslips, systemImage: "doc.text.viewfinder")
+                        .accessibilityIdentifier("tab.payslips")
+                }
+                .tag(AppTab.payslips)
+
             ExportView(viewModel: viewModel)
                 .tabItem {
                     Label(L10n.tabExport, systemImage: "square.and.arrow.up")
@@ -197,10 +234,32 @@ struct MainTabView: View {
                 .tag(AppTab.settings)
         }
         .tint(homeTheme.accent)
+        // Leaving Settings with unsaved changes: save, discard, or stay.
+        .alert(
+            L10n.settingsUnsavedTitle,
+            isPresented: Binding(
+                get: { pendingTab != nil },
+                set: { if !$0 { pendingTab = nil } }
+            )
+        ) {
+            Button(L10n.settingsSave) {
+                unsavedSettings.save()
+                leaveSettings()
+            }
+            Button(L10n.settingsUnsavedDiscard, role: .destructive) {
+                unsavedSettings.discard()
+                leaveSettings()
+            }
+            Button(L10n.settingsUnsavedStay, role: .cancel) {
+                pendingTab = nil
+            }
+        } message: {
+            Text(L10n.settingsUnsavedMessage)
+        }
         // The assistant lives in each tab root's navigation bar now
-        // (`assistantToolbarEntry`), so there is no floating overlay to cover
-        // screen content. Below the toast, so a confirmation banner is never
-        // hidden behind anything.
+        // (`AssistantToolbarButton` in the leading slot), so there is no floating
+        // overlay to cover screen content. Below the toast, so a confirmation
+        // banner is never hidden behind anything.
         .overlay(alignment: .bottom) {
             if let message = viewModel.successToast {
                 SuccessToastBanner(message: message)
@@ -210,6 +269,26 @@ struct MainTabView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.successToast)
+        // "Shift deleted · Undo" for a few seconds after any delete.
+        .overlay(alignment: .bottom) {
+            if viewModel.undoableDeletion != nil {
+                UndoDeleteBanner(count: viewModel.undoableDeletionCount) { viewModel.undoLastDeletion() }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .padding(.bottom, 56)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: viewModel.undoableDeletion?.id)
+        // Owner announcements (in the user's language), one at a time, until "Got it".
+        .overlay(alignment: .top) {
+            if let announcement = announcements.current {
+                AnnouncementBanner(announcement: announcement) {
+                    announcements.dismissCurrent()
+                }
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: announcements.current?.id)
         // A single routed sheet — see `MainSheetRoute` — rather than one
         // `.sheet(isPresented:)` per case, so the assistant and the scanner-review sheet
         // (which a background scan can request at any moment) can never both be live at
@@ -286,15 +365,37 @@ struct MainTabView: View {
                 selectedTab = .export
             }
         }
-        // First-launch onboarding — dismissed permanently once completed.
+        // First-launch onboarding — dismissed permanently once completed. Waits
+        // until the Terms of Use / Privacy Policy are agreed (LegalConsentView).
         .fullScreenCover(
             isPresented: Binding(
-                get: { !hasSeenOnboarding },
+                get: { !hasSeenOnboarding && legal.isAccepted },
                 set: { if !$0 { hasSeenOnboarding = true } }
             )
         ) {
-            OnboardingView()
+            OnboardingView(viewModel: viewModel)
         }
+    }
+
+    /// Tab taps go through here so leaving Settings with unsaved changes asks first.
+    private var tabSelection: Binding<AppTab> {
+        Binding(
+            get: { selectedTab },
+            set: { newTab in
+                if selectedTab == .settings, newTab != .settings, unsavedSettings.hasChanges {
+                    pendingTab = newTab
+                } else {
+                    selectedTab = newTab
+                }
+            }
+        )
+    }
+
+    private func leaveSettings() {
+        if let tab = pendingTab {
+            selectedTab = tab
+        }
+        pendingTab = nil
     }
 
     // MARK: - Deep links

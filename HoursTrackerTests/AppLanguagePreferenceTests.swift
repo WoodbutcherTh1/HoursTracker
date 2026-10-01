@@ -19,6 +19,10 @@ final class AppLanguagePreferenceTests: XCTestCase {
             AppLocale.resolve(preference: .system, preferredLanguages: ["ar-SA"]),
             .arabic
         )
+        XCTAssertEqual(
+            AppLocale.resolve(preference: .system, preferredLanguages: ["ru-IL"]),
+            .russian
+        )
     }
 
     func testOverrideWinsOverSystemPreferredLanguages() {
@@ -33,6 +37,10 @@ final class AppLanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(
             AppLocale.resolve(preference: .arabic, preferredLanguages: ["en"]),
             .arabic
+        )
+        XCTAssertEqual(
+            AppLocale.resolve(preference: .russian, preferredLanguages: ["he-IL"]),
+            .russian
         )
     }
 
@@ -74,6 +82,7 @@ final class AppLanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(AppLanguageOption.english.layoutDirection, .leftToRight)
         XCTAssertEqual(AppLanguageOption.hebrew.layoutDirection, .rightToLeft)
         XCTAssertEqual(AppLanguageOption.arabic.layoutDirection, .rightToLeft)
+        XCTAssertEqual(AppLanguageOption.russian.layoutDirection, .leftToRight)
     }
 
     func testLocalizedStringsComeFromLanguageSpecificLproj() {
@@ -84,6 +93,8 @@ final class AppLanguagePreferenceTests: XCTestCase {
         XCTAssertEqual(english, "Home")
         XCTAssertEqual(hebrew, "בית")
         XCTAssertEqual(arabic, "الرئيسية")
+        XCTAssertEqual(AppLocale.localizedString("tab.home", language: .russian), "Главная")
+        XCTAssertEqual(AppLocale.localizedString("home.clockIn", language: .russian), "Начать смену")
         XCTAssertNotEqual(english, hebrew)
         XCTAssertNotEqual(english, arabic)
 

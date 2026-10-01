@@ -151,7 +151,7 @@ private struct HoursRing: View {
                     .font(.system(size: 18, weight: .heavy, design: .rounded))
                     .foregroundStyle(WidgetTheme.textPrimary)
                     .monospacedDigit()
-                Text("h")
+                Text(verbatim: WidgetL10n.hoursUnit)
                     .font(.system(size: 9, weight: .semibold, design: .rounded))
                     .foregroundStyle(WidgetTheme.textSecondary)
             }
@@ -159,37 +159,79 @@ private struct HoursRing: View {
     }
 }
 
-/// Rounded interactive button used across widget sizes — a solid Aurora-gradient
-/// capsule (cool green→cyan→purple for Clock In, warm coral→amber for Clock Out)
-/// with dark text for contrast and a soft matching glow.
+/// Shared visual styling for the widget's Clock In/Out capsule — a solid
+/// Aurora-gradient capsule (cool green→cyan→purple for Clock In, warm
+/// coral→amber for Clock Out) with dark text for contrast and a soft
+/// matching glow.
 ///
-/// Generic over a concrete `AppIntent` type rather than `any AppIntent`: WidgetKit's
-/// interactive buttons are wired up by a build-time "AppIntents metadata extraction"
-/// step that statically scans for `Button(intent:)` call sites, and needs the intent
-/// type to be concrete at that call site. Boxing it as `any AppIntent` and recovering
-/// the concrete type at runtime via `as?` (the previous approach here) compiles fine
-/// but defeats that static scan, so the button renders but never actually registers
-/// as interactive — this is why tapping it did nothing.
-private struct WidgetActionButton<Intent: AppIntent>: View {
-    let title: String
-    let systemImage: String
-    let intent: Intent
-    let isClockIn: Bool
+/// Deliberately NOT a generic wrapper around `Button(intent:)`. WidgetKit's
+/// interactive buttons are wired up by a build-time "AppIntents metadata
+/// extraction" step that statically scans source for `Button(intent:)` call
+/// sites with a concrete intent literal. A previous version here boxed the
+/// intent as `any AppIntent` — that defeated the scan outright. Switching to
+/// a generic `<Intent: AppIntent>` wrapper (storing `intent: Intent` and
+/// forwarding it as `Button(intent: intent)`) still isn't enough: the intent
+/// at that inner call site is a generic property, not a literal concrete
+/// type, which the scanner can also fail to pick up — the button renders but
+/// never registers as interactive, and every tap falls through to the
+/// widget's `.widgetURL` instead. Each call site below must spell out
+/// `Button(intent: ClockInIntent())` / `Button(intent: ClockOutIntent())`
+/// literally; only the label styling is shared.
+private func widgetActionLabel(title: String, systemImage: String, isClockIn: Bool) -> some View {
+    Label(title, systemImage: systemImage)
+        .font(.system(size: 12, weight: .heavy, design: .rounded))
+        .foregroundStyle(Color.black.opacity(0.82))
+        // Never "יצי…": one line, shrinks a little, and the capsule takes the
+        // whole width it's given instead of hugging the text.
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .background(
+            isClockIn ? WidgetTheme.auroraButtonGradient : WidgetTheme.stopButtonGradient,
+            in: Capsule()
+        )
+        .shadow(color: (isClockIn ? WidgetTheme.moneyGreen : WidgetTheme.coral).opacity(0.4), radius: 8, y: 2)
+}
 
-    var body: some View {
-        Button(intent: intent) {
-            Label(title, systemImage: systemImage)
-                .font(.system(size: 12, weight: .heavy, design: .rounded))
-                .foregroundStyle(Color.black.opacity(0.82))
-                .padding(.horizontal, 14)
-                .padding(.vertical, 8)
-                .background(
-                    isClockIn ? WidgetTheme.auroraButtonGradient : WidgetTheme.stopButtonGradient,
-                    in: Capsule()
-                )
-                .shadow(color: (isClockIn ? WidgetTheme.moneyGreen : WidgetTheme.coral).opacity(0.4), radius: 8, y: 2)
-        }
-    }
+/// Round coffee-cup button face for "start break" (label only — each call site
+/// spells out `Button(intent: StartBreakIntent())` literally, see above).
+private var widgetBreakIcon: some View {
+    Image(systemName: "cup.and.saucer.fill")
+        .font(.system(size: 11, weight: .heavy))
+        .foregroundStyle(WidgetTheme.textPrimary)
+        .frame(width: 28, height: 28)
+        .background(Color.white.opacity(0.14), in: Circle())
+}
+
+/// End of the planned break for an on-break session (nil when working).
+private func plannedBreakEnd(for session: WidgetSession) -> Date? {
+    guard let start = session.breakStart else { return nil }
+    let minutes = WidgetBridge.readSettings().breakTargetMinutes ?? 30
+    return start.addingTimeInterval(TimeInterval(max(1, minutes) * 60))
+}
+
+/// System-driven countdown to the end of the planned break — ticks by itself on
+/// the home screen without timeline reloads. Stops at 0:00 once the break is over.
+private func breakCountdown(start: Date, end: Date) -> some View {
+    Text(timerInterval: min(start, end)...end, countsDown: true)
+        .font(.system(size: 11, weight: .bold, design: .rounded))
+        .monospacedDigit()
+        .foregroundStyle(WidgetTheme.coral)
+        .multilineTextAlignment(.trailing)
+        .lineLimit(1)
+}
+
+/// Paid shift time ticking every second on the home screen — a system timer from the
+/// app's live pay curve, so it matches Home, the Watch and the Lock Screen.
+private func paidClockTimer(_ curve: LivePayCurve) -> some View {
+    Text(timerInterval: curve.paidClockStart...Date.distantFuture, countsDown: false)
+        .font(.system(size: 11, weight: .bold, design: .rounded))
+        .monospacedDigit()
+        .foregroundStyle(WidgetTheme.accentLight)
+        .multilineTextAlignment(.trailing)
+        .lineLimit(1)
 }
 
 // MARK: - Timeline Entry
@@ -215,6 +257,10 @@ struct HoursEntry: TimelineEntry {
     let monthPay: Double
     let weekBars: [DayBar]
     let settings: WidgetSettings
+    /// Live pay curve of the open shift (same figures as the app), when available.
+    var livePay: LivePayCurve? = nil
+    /// Whether `estimatedPay` is net — follows the app's gross/net choice.
+    var payIsNet: Bool = false
 }
 
 // MARK: - Timeline Provider
@@ -245,11 +291,21 @@ struct HoursTimelineProvider: TimelineProvider {
     }
 
     func getTimeline(in context: Context, completion: @escaping (Timeline<HoursEntry>) -> Void) {
-        let entry = buildEntry()
+        let now = Date()
+        let entry = buildEntry(at: now)
+        // While the paid clock runs, lay out one entry per minute for the next hour
+        // from the app's live pay curve: the money ticks up minute by minute with no
+        // app involvement (the hours tick by themselves via a system timer). Entries
+        // are free; only reloads count against WidgetKit's budget.
+        if entry.isOpen, let curve = entry.livePay, !curve.isPaused {
+            let entries = [entry] + (1...60).map { minute in
+                buildEntry(at: now.addingTimeInterval(TimeInterval(minute * 60)))
+            }
+            completion(Timeline(entries: entries, policy: .atEnd))
+            return
+        }
         let refreshInterval: TimeInterval = entry.isOpen ? 180 : 900
-        let nextUpdate = Date().addingTimeInterval(refreshInterval)
-        let timeline = Timeline(entries: [entry], policy: .after(nextUpdate))
-        completion(timeline)
+        completion(Timeline(entries: [entry], policy: .after(now.addingTimeInterval(refreshInterval))))
     }
 
     private var sampleBars: [DayBar] {
@@ -258,10 +314,11 @@ struct HoursTimelineProvider: TimelineProvider {
         return labels.enumerated().map { DayBar(id: $0.offset, label: $0.element, hours: hours[$0.offset]) }
     }
 
-    private func buildEntry() -> HoursEntry {
+    private func buildEntry(at date: Date = Date()) -> HoursEntry {
         let settings = WidgetBridge.readSettings()
         let sessions = WidgetBridge.readSessions()
         let calendar = Calendar.current
+        let showsNet = WidgetBridge.livePayShowsNet
 
         let todayCompleted = WidgetBridge.todayCompletedSessions(from: sessions, calendar: calendar)
         let completedHours = todayCompleted.reduce(0) { $0 + $1.effectiveHours }
@@ -284,19 +341,25 @@ struct HoursTimelineProvider: TimelineProvider {
         let bars = weekBars(from: sessions, calendar: calendar)
 
         if let open = WidgetBridge.openSession(from: sessions) {
-            let elapsed = open.effectiveHours
-            let pay = WidgetBridge.estimatePay(elapsedHours: elapsed, settings: settings)
+            // Prefer the app's live curve (real pay engine: tiers, rest-day rates, net)
+            // so the widget shows exactly what Home shows; fall back to the quick
+            // estimate if the app hasn't written one yet.
+            let curve = WidgetBridge.readLivePay().flatMap { $0.sessionID == open.id ? $0 : nil }
+            let elapsed = curve?.paidHours(at: date) ?? open.effectiveHours
+            let pay = curve?.pay(at: date, net: showsNet)
+                ?? WidgetBridge.estimatePay(elapsedHours: elapsed, settings: settings)
             return HoursEntry(
-                date: Date(), isOpen: true, session: open,
+                date: date, isOpen: true, session: open,
                 elapsedHours: elapsed, estimatedPay: pay,
                 todayCompletedHours: completedHours, todayCompletedPay: completedPay,
                 weeklyHours: weeklyHours, weeklyPay: weeklyPay,
                 monthHours: monthHours, monthPay: monthPay,
-                weekBars: bars, settings: settings
+                weekBars: bars, settings: settings,
+                livePay: curve, payIsNet: curve != nil && showsNet
             )
         } else {
             return HoursEntry(
-                date: Date(), isOpen: false, session: nil,
+                date: date, isOpen: false, session: nil,
                 elapsedHours: 0, estimatedPay: 0,
                 todayCompletedHours: completedHours, todayCompletedPay: completedPay,
                 weeklyHours: weeklyHours, weeklyPay: weeklyPay,
@@ -337,12 +400,13 @@ struct HoursSmallWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: HoursTimelineProvider()) { entry in
             HoursSmallWidgetView(entry: entry)
+                .environment(\.layoutDirection, WidgetL10n.layoutDirection)
                 .containerBackground(for: .widget) {
                     WidgetBackground()
                 }
         }
-        .configurationDisplayName("Hours Tracker")
-        .description("Today's hours and earnings at a glance.")
+        .configurationDisplayName(WidgetL10n.displayName)
+        .description(WidgetL10n.smallDescription)
         .supportedFamilies([.systemSmall])
     }
 }
@@ -369,14 +433,17 @@ struct HoursSmallWidgetView: View {
         VStack(alignment: .leading, spacing: 8) {
             // Status bar
             HStack(spacing: 5) {
-                PulseDot(color: WidgetTheme.workingDot, size: 5)
-                Text("Working")
+                PulseDot(color: session.isOnBreak ? WidgetTheme.coral : WidgetTheme.workingDot, size: 5)
+                Text(verbatim: session.isOnBreak ? WidgetL10n.onBreak : WidgetL10n.working)
                     .font(.system(size: 10, weight: .bold, design: .rounded))
-                    .foregroundStyle(WidgetTheme.accentLight)
+                    .foregroundStyle(session.isOnBreak ? WidgetTheme.coral : WidgetTheme.accentLight)
                 Spacer()
-                Text(session.clockIn, style: .time)
-                    .font(.system(size: 9, weight: .medium, design: .rounded))
-                    .foregroundStyle(WidgetTheme.textTertiary)
+                if !session.isOnBreak {
+                    Button(intent: StartBreakIntent()) {
+                        widgetBreakIcon
+                    }
+                    .buttonStyle(.plain)
+                }
             }
 
             // Hours ring + pay
@@ -391,21 +458,31 @@ struct HoursSmallWidgetView: View {
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.55)
-                    Text("today")
-                        .font(.system(size: 8, weight: .semibold, design: .rounded))
-                        .foregroundStyle(WidgetTheme.textTertiary)
-                        .textCase(.uppercase)
+                    if let breakEnd = plannedBreakEnd(for: session) {
+                        breakCountdown(start: session.breakStart ?? entry.date, end: breakEnd)
+                    } else if let curve = entry.livePay, !curve.isPaused {
+                        paidClockTimer(curve)
+                    } else {
+                        Text(verbatim: WidgetL10n.today)
+                            .font(.system(size: 8, weight: .semibold, design: .rounded))
+                            .foregroundStyle(WidgetTheme.textTertiary)
+                            .textCase(.uppercase)
+                    }
                 }
             }
 
-            // Clock out — the whole point: one tap from the home screen.
-            WidgetActionButton(
-                title: "Clock Out",
-                systemImage: "stop.fill",
-                intent: ClockOutIntent(),
-                isClockIn: false
-            )
-            .frame(maxWidth: .infinity)
+            // Clock out (or back from break) — one tap from the home screen.
+            if session.isOnBreak {
+                Button(intent: EndBreakIntent()) {
+                    widgetActionLabel(title: WidgetL10n.imBack, systemImage: "arrow.uturn.backward", isClockIn: true)
+                }
+                .frame(maxWidth: .infinity)
+            } else {
+                Button(intent: ClockOutIntent()) {
+                    widgetActionLabel(title: WidgetL10n.clockOut, systemImage: "stop.fill", isClockIn: false)
+                }
+                .frame(maxWidth: .infinity)
+            }
         }
         .padding(12)
     }
@@ -417,7 +494,7 @@ struct HoursSmallWidgetView: View {
             // Status bar
             HStack(spacing: 5) {
                 PulseDot(color: WidgetTheme.doneDot, size: 5)
-                Text("Done")
+                Text(verbatim: WidgetL10n.done)
                     .font(.system(size: 10, weight: .bold, design: .rounded))
                     .foregroundStyle(WidgetTheme.accent)
                 Spacer()
@@ -439,7 +516,7 @@ struct HoursSmallWidgetView: View {
                         .monospacedDigit()
                         .lineLimit(1)
                         .minimumScaleFactor(0.55)
-                    Text("gross")
+                    Text(verbatim: WidgetL10n.gross)
                         .font(.system(size: 8, weight: .semibold, design: .rounded))
                         .foregroundStyle(WidgetTheme.textTertiary)
                         .textCase(.uppercase)
@@ -452,7 +529,7 @@ struct HoursSmallWidgetView: View {
                 Image(systemName: "checkmark.seal.fill")
                     .font(.system(size: 10))
                     .foregroundStyle(WidgetTheme.moneyGreen)
-                Text("Shift complete")
+                Text(verbatim: WidgetL10n.shiftComplete)
                     .font(.system(size: 9, weight: .semibold, design: .rounded))
                     .foregroundStyle(WidgetTheme.textSecondary)
                 Spacer()
@@ -472,15 +549,12 @@ struct HoursSmallWidgetView: View {
             Image(systemName: "bolt.circle.fill")
                 .font(.system(size: 26))
                 .foregroundStyle(WidgetTheme.iconGradient)
-            Text("Start your shift")
+            Text(verbatim: WidgetL10n.startYourShift)
                 .font(.system(size: 12, weight: .semibold, design: .rounded))
                 .foregroundStyle(WidgetTheme.textPrimary)
-            WidgetActionButton(
-                title: "Clock In",
-                systemImage: "play.fill",
-                intent: ClockInIntent(),
-                isClockIn: true
-            )
+            Button(intent: ClockInIntent()) {
+                widgetActionLabel(title: WidgetL10n.clockIn, systemImage: "play.fill", isClockIn: true)
+            }
             Spacer()
         }
         .frame(maxWidth: .infinity)
@@ -492,7 +566,7 @@ struct HoursSmallWidgetView: View {
     }
 
     private func formattedHours(_ hours: Double) -> String {
-        String(format: "%.1fh", hours)
+        WidgetL10n.hoursShort(hours)
     }
 }
 
@@ -504,12 +578,13 @@ struct HoursMediumWidget: Widget {
     var body: some WidgetConfiguration {
         StaticConfiguration(kind: kind, provider: HoursTimelineProvider()) { entry in
             HoursHomeWidgetView(entry: entry)
+                .environment(\.layoutDirection, WidgetL10n.layoutDirection)
                 .containerBackground(for: .widget) {
                     WidgetBackground()
                 }
         }
-        .configurationDisplayName("Hours Tracker")
-        .description("Detailed hours and pay breakdown. Interactive buttons let you clock in and out from the home screen.")
+        .configurationDisplayName(WidgetL10n.displayName)
+        .description(WidgetL10n.mediumDescription)
         .supportedFamilies([.systemMedium, .systemLarge])
     }
 }
@@ -543,10 +618,16 @@ struct HoursHomeWidgetView: View {
                     .frame(width: 66, height: 66)
 
                 HStack(spacing: 5) {
-                    PulseDot(color: WidgetTheme.workingDot, size: 4)
-                    Text("Working")
+                    PulseDot(color: entry.session?.isOnBreak == true ? WidgetTheme.coral : WidgetTheme.workingDot, size: 4)
+                    Text(verbatim: entry.session?.isOnBreak == true ? WidgetL10n.onBreak : WidgetL10n.working)
                         .font(.system(size: 9, weight: .bold, design: .rounded))
-                        .foregroundStyle(WidgetTheme.accentLight)
+                        .foregroundStyle(entry.session?.isOnBreak == true ? WidgetTheme.coral : WidgetTheme.accentLight)
+                }
+
+                if let session = entry.session, let breakEnd = plannedBreakEnd(for: session) {
+                    breakCountdown(start: session.breakStart ?? entry.date, end: breakEnd)
+                } else if let curve = entry.livePay, !curve.isPaused {
+                    paidClockTimer(curve)
                 }
             }
 
@@ -559,23 +640,32 @@ struct HoursHomeWidgetView: View {
                 StatCard(
                     icon: "banknote.fill",
                     value: payText(entry.estimatedPay),
-                    label: "Earnings",
+                    label: WidgetL10n.earnings,
                     valueColor: WidgetTheme.moneyGreen,
                     iconColor: WidgetTheme.moneyGreen
                 )
                 StatCard(
                     icon: "clock.fill",
                     value: formattedElapsed(entry.elapsedHours),
-                    label: "Elapsed",
+                    label: WidgetL10n.elapsed,
                     valueColor: WidgetTheme.accentLight,
                     iconColor: WidgetTheme.accent
                 )
-                WidgetActionButton(
-                    title: "Clock Out",
-                    systemImage: "stop.fill",
-                    intent: ClockOutIntent(),
-                    isClockIn: false
-                )
+                HStack(spacing: 6) {
+                    if entry.session?.isOnBreak == true {
+                        Button(intent: EndBreakIntent()) {
+                            widgetActionLabel(title: WidgetL10n.back, systemImage: "arrow.uturn.backward", isClockIn: true)
+                        }
+                    } else {
+                        Button(intent: StartBreakIntent()) {
+                            widgetBreakIcon
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    Button(intent: ClockOutIntent()) {
+                        widgetActionLabel(title: WidgetL10n.outShort, systemImage: "stop.fill", isClockIn: false)
+                    }
+                }
             }
         }
         .padding(14)
@@ -591,7 +681,7 @@ struct HoursHomeWidgetView: View {
 
                 HStack(spacing: 5) {
                     PulseDot(color: WidgetTheme.doneDot, size: 4)
-                    Text("Done")
+                    Text(verbatim: WidgetL10n.done)
                         .font(.system(size: 9, weight: .bold, design: .rounded))
                         .foregroundStyle(WidgetTheme.accent)
                 }
@@ -605,14 +695,14 @@ struct HoursHomeWidgetView: View {
                 StatCard(
                     icon: "banknote.fill",
                     value: payText(entry.todayCompletedPay),
-                    label: "Earnings",
+                    label: WidgetL10n.earnings,
                     valueColor: WidgetTheme.moneyGreen,
                     iconColor: WidgetTheme.moneyGreen
                 )
                 StatCard(
                     icon: "clock.fill",
                     value: formattedElapsed(entry.todayCompletedHours),
-                    label: "Hours",
+                    label: WidgetL10n.hours,
                     valueColor: WidgetTheme.accentLight,
                     iconColor: WidgetTheme.accent
                 )
@@ -620,7 +710,7 @@ struct HoursHomeWidgetView: View {
                     Image(systemName: "checkmark.circle.fill")
                         .font(.system(size: 8))
                         .foregroundStyle(WidgetTheme.moneyGreen)
-                    Text("This week \(formattedElapsed(entry.weeklyHours)) · tap for history")
+                    Text(verbatim: WidgetL10n.thisWeekTapForHistory(formattedElapsed(entry.weeklyHours)))
                         .font(.system(size: 9, weight: .medium, design: .rounded))
                         .foregroundStyle(WidgetTheme.textTertiary)
                 }
@@ -638,21 +728,18 @@ struct HoursHomeWidgetView: View {
                     .font(.system(size: 30))
                     .foregroundStyle(WidgetTheme.iconGradient)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text("Ready to work?")
+                    Text(verbatim: WidgetL10n.readyToWork)
                         .font(.system(size: 14, weight: .semibold, design: .rounded))
                         .foregroundStyle(WidgetTheme.textPrimary)
-                    Text("One tap starts today's shift")
+                    Text(verbatim: WidgetL10n.oneTapStarts)
                         .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundStyle(WidgetTheme.textTertiary)
                 }
             }
             Spacer()
-            WidgetActionButton(
-                title: "Clock In",
-                systemImage: "play.fill",
-                intent: ClockInIntent(),
-                isClockIn: true
-            )
+            Button(intent: ClockInIntent()) {
+                widgetActionLabel(title: WidgetL10n.clockIn, systemImage: "play.fill", isClockIn: true)
+            }
         }
         .padding(16)
     }
@@ -663,13 +750,13 @@ struct HoursHomeWidgetView: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 6) {
                 PulseDot(color: entry.isOpen ? WidgetTheme.workingDot : WidgetTheme.doneDot, size: 5)
-                Text(entry.isOpen ? "Working — this week" : "This week")
+                Text(verbatim: entry.isOpen ? WidgetL10n.workingThisWeek : WidgetL10n.thisWeek)
                     .font(.system(size: 13, weight: .bold, design: .rounded))
                     .foregroundStyle(
                         entry.isOpen ? WidgetTheme.accentLight : WidgetTheme.accent
                     )
                 Spacer()
-                Text("\(formattedElapsed(entry.weeklyHours)) / \(formattedElapsed(entry.settings.weeklyStandardHours))")
+                Text(verbatim: "\(formattedElapsed(entry.weeklyHours)) / \(formattedElapsed(entry.settings.weeklyStandardHours))")
                     .font(.system(size: 12, weight: .bold, design: .rounded))
                     .foregroundStyle(WidgetTheme.textPrimary)
                     .monospacedDigit()
@@ -705,26 +792,24 @@ struct HoursHomeWidgetView: View {
 
             // Week + month totals
             HStack(spacing: 10) {
-                largeStat(label: "This week", value: payText(entry.weeklyPay), color: WidgetTheme.moneyGreen, icon: "banknote.fill")
+                largeStat(label: WidgetL10n.thisWeek, value: payText(entry.weeklyPay), color: WidgetTheme.moneyGreen, icon: "banknote.fill")
                 RoundedRectangle(cornerRadius: 0.5)
                     .fill(WidgetTheme.cardBorder)
                     .frame(width: 1)
-                largeStat(label: "This month", value: payText(entry.monthPay), color: WidgetTheme.accentLight, icon: "calendar")
+                largeStat(label: WidgetL10n.thisMonth, value: payText(entry.monthPay), color: WidgetTheme.accentLight, icon: "calendar")
                 Spacer(minLength: 0)
-                if entry.isOpen {
-                    WidgetActionButton(
-                        title: "Out",
-                        systemImage: "stop.fill",
-                        intent: ClockOutIntent(),
-                        isClockIn: false
-                    )
+                if entry.session?.isOnBreak == true {
+                    Button(intent: EndBreakIntent()) {
+                        widgetActionLabel(title: WidgetL10n.back, systemImage: "arrow.uturn.backward", isClockIn: true)
+                    }
+                } else if entry.isOpen {
+                    Button(intent: ClockOutIntent()) {
+                        widgetActionLabel(title: WidgetL10n.outShort, systemImage: "stop.fill", isClockIn: false)
+                    }
                 } else {
-                    WidgetActionButton(
-                        title: "In",
-                        systemImage: "play.fill",
-                        intent: ClockInIntent(),
-                        isClockIn: true
-                    )
+                    Button(intent: ClockInIntent()) {
+                        widgetActionLabel(title: WidgetL10n.inShort, systemImage: "play.fill", isClockIn: true)
+                    }
                 }
             }
         }
@@ -762,7 +847,7 @@ struct HoursHomeWidgetView: View {
     }
 
     private func formattedElapsed(_ hours: Double) -> String {
-        String(format: "%.1fh", hours)
+        WidgetL10n.hoursShort(hours)
     }
 }
 
@@ -773,7 +858,47 @@ struct HoursWidgetBundle: WidgetBundle {
     var body: some Widget {
         HoursSmallWidget()
         HoursMediumWidget()
+        HoursLockScreenWidget()
         HoursLiveActivity()
+        if #available(iOS 18.0, *) {
+            ShiftControl()
+        }
+    }
+}
+
+// MARK: - Control Center control (iOS 18)
+
+/// Clock in / out from Control Center, the Lock Screen controls or the Action
+/// Button. On while a shift is open (read from the app's snapshot); tapping
+/// runs `ToggleShiftIntent`, which the app performs in the background.
+@available(iOS 18.0, *)
+struct ShiftControl: ControlWidget {
+    static let kind = "com.hourstracker.app.shiftControl"
+
+    var body: some ControlWidgetConfiguration {
+        StaticControlConfiguration(kind: Self.kind, provider: ShiftControlValue()) { isWorking in
+            ControlWidgetToggle(
+                WidgetL10n.displayName,
+                isOn: isWorking,
+                action: ToggleShiftIntent()
+            ) { on in
+                Label(
+                    on ? WidgetL10n.clockOut : WidgetL10n.clockIn,
+                    systemImage: on ? "stop.circle.fill" : "play.circle.fill"
+                )
+            }
+        }
+        .displayName("HoursTracker")
+        .description("Clock in and out")
+    }
+}
+
+@available(iOS 18.0, *)
+struct ShiftControlValue: ControlValueProvider {
+    var previewValue: Bool { false }
+
+    func currentValue() async throws -> Bool {
+        WidgetBridge.openSession(from: WidgetBridge.readSessions()) != nil
     }
 }
 
@@ -786,6 +911,7 @@ struct HoursLiveActivity: Widget {
                 attributes: context.attributes,
                 state: context.state
             )
+            .environment(\.layoutDirection, WidgetL10n.layoutDirection)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.center) {
@@ -800,12 +926,21 @@ struct HoursLiveActivity: Widget {
                     state: context.state
                 )
             } compactTrailing: {
-                Text(livePayText(context.state.estimatedPay, currency: context.attributes.currencyCode))
-                    .font(.system(size: 12, weight: .bold, design: .rounded))
-                    .foregroundStyle(WidgetTheme.moneyGreen)
+                if let breakStart = context.state.breakStart, let breakEnd = context.state.breakEnd {
+                    // Break countdown, driven by the system clock (no app pushes needed).
+                    Text(timerInterval: min(breakStart, breakEnd)...breakEnd, countsDown: true)
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(WidgetTheme.coral)
+                        .frame(maxWidth: 52)
+                } else {
+                    Text(livePayText(context.state.estimatedPay, currency: context.attributes.currencyCode))
+                        .font(.system(size: 12, weight: .bold, design: .rounded))
+                        .foregroundStyle(WidgetTheme.moneyGreen)
+                }
             } minimal: {
-                Image(systemName: "clock.fill")
-                    .foregroundStyle(WidgetTheme.accent)
+                Image(systemName: context.state.isOnBreak ? "cup.and.saucer.fill" : "clock.fill")
+                    .foregroundStyle(context.state.isOnBreak ? WidgetTheme.coral : WidgetTheme.accent)
             }
         }
     }

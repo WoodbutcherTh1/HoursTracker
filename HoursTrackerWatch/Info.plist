@@ -21,6 +21,7 @@
 		<string>en</string>
 		<string>ar</string>
 		<string>he</string>
+		<string>ru</string>
 	</array>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
@@ -29,9 +30,9 @@
 	<!-- Must always match CFBundleShortVersionString/CFBundleVersion in project.yml's
 	     HoursTracker target (App Store rejects a mismatched companion app version). -->
 	<key>CFBundleShortVersionString</key>
-	<string>1.6</string>
+	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>21</string>
+	<string>$(CURRENT_PROJECT_VERSION)</string>
 	<key>WKApplication</key>
 	<true/>
 	<key>WKCompanionAppBundleIdentifier</key>

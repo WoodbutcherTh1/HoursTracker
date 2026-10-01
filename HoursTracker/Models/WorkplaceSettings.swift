@@ -30,6 +30,11 @@ struct WorkplaceSettings: Codable, Equatable {
     var secondRestDayWeekday: Int?
     /// Unpaid break applied automatically to shifts of 6 hours or more.
     var defaultBreakMinutes: Int
+    /// Whether this workplace pays for breaks. Some Israeli workplaces deduct break
+    /// time (and its pay) from the worker, others don't. When `true`, breaks recorded
+    /// with the break button are reminders only: the paid clock keeps running and
+    /// nothing is deducted.
+    var breaksArePaid: Bool
     /// Standard day for night shifts before overtime starts (Hours of Work and Rest Law).
     var nightStandardDayHours: Double
     /// Standard work-week hours before weekly overtime kicks in (Israeli law: 42h).
@@ -45,6 +50,13 @@ struct WorkplaceSettings: Codable, Equatable {
     var expectedShiftStartHour: Int
     /// Typical shift start time (minute, 0...59).
     var expectedShiftStartMinute: Int
+    /// Vacation / recuperation days marked in History. Display only (pay summary
+    /// day counts) — no pay input reads this.
+    var leaveDays: [LeaveDay] = []
+    /// Other jobs, each with its own full settings (only on the main workplace's
+    /// settings; always empty inside an `AdditionalWorkplace`). Shifts point at one
+    /// with `WorkSession.workplaceID`.
+    var additionalWorkplaces: [AdditionalWorkplace] = []
     var modifiedAt: Date
 
     static let `default` = WorkplaceSettings(
@@ -123,10 +135,12 @@ struct WorkplaceSettings: Codable, Equatable {
         case hourlyRate, dailyGasAllowance, standardDayHours, ot125HoursCap
         case locationLatitude, locationLongitude, locationRadiusMeters
         case maritalStatus, hasChildren, numberOfChildren, spouseEmployed, birthDate, payrollStartDay
-        case restDayWeekday, secondRestDayWeekday, defaultBreakMinutes, nightStandardDayHours
+        case restDayWeekday, secondRestDayWeekday, defaultBreakMinutes, breaksArePaid, nightStandardDayHours
         case weeklyStandardHours, weeklyOvertimeCapHours, currencyCode
         case arrivalRemindersEnabled
         case expectedShiftStartHour, expectedShiftStartMinute
+        case leaveDays
+        case additionalWorkplaces
         case modifiedAt
     }
 
@@ -152,6 +166,7 @@ struct WorkplaceSettings: Codable, Equatable {
         restDayWeekday: Int = 7,
         secondRestDayWeekday: Int? = nil,
         defaultBreakMinutes: Int = 0,
+        breaksArePaid: Bool = false,
         nightStandardDayHours: Double = 7.0,
         weeklyStandardHours: Double = 42.0,
         weeklyOvertimeCapHours: Double = 12.0,
@@ -182,6 +197,7 @@ struct WorkplaceSettings: Codable, Equatable {
         self.restDayWeekday = restDayWeekday
         self.secondRestDayWeekday = secondRestDayWeekday
         self.defaultBreakMinutes = defaultBreakMinutes
+        self.breaksArePaid = breaksArePaid
         self.nightStandardDayHours = nightStandardDayHours
         self.weeklyStandardHours = weeklyStandardHours
         self.weeklyOvertimeCapHours = weeklyOvertimeCapHours
@@ -216,6 +232,7 @@ struct WorkplaceSettings: Codable, Equatable {
         restDayWeekday = try c.decodeIfPresent(Int.self, forKey: .restDayWeekday) ?? 7
         secondRestDayWeekday = try c.decodeIfPresent(Int.self, forKey: .secondRestDayWeekday)
         defaultBreakMinutes = try c.decodeIfPresent(Int.self, forKey: .defaultBreakMinutes) ?? 0
+        breaksArePaid = try c.decodeIfPresent(Bool.self, forKey: .breaksArePaid) ?? false
         nightStandardDayHours = try c.decodeIfPresent(Double.self, forKey: .nightStandardDayHours) ?? 7.0
         weeklyStandardHours = try c.decodeIfPresent(Double.self, forKey: .weeklyStandardHours) ?? 42.0
         weeklyOvertimeCapHours = try c.decodeIfPresent(Double.self, forKey: .weeklyOvertimeCapHours) ?? 12.0
@@ -223,6 +240,9 @@ struct WorkplaceSettings: Codable, Equatable {
         arrivalRemindersEnabled = try c.decodeIfPresent(Bool.self, forKey: .arrivalRemindersEnabled) ?? false
         expectedShiftStartHour = try c.decodeIfPresent(Int.self, forKey: .expectedShiftStartHour) ?? 8
         expectedShiftStartMinute = try c.decodeIfPresent(Int.self, forKey: .expectedShiftStartMinute) ?? 0
+        // A malformed or unknown entry must never make the whole settings unreadable.
+        leaveDays = (try? c.decodeIfPresent([LeaveDay].self, forKey: .leaveDays)) ?? []
+        additionalWorkplaces = (try? c.decodeIfPresent([AdditionalWorkplace].self, forKey: .additionalWorkplaces)) ?? []
         modifiedAt = try c.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? Date()
         normalizeValidatedFields()
     }

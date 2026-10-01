@@ -110,7 +110,8 @@ struct ManualEntryView: View {
         }
         .onAppear {
             syncTimesToDate()
-            breakMinutes = viewModel.settings.defaultBreakMinutes
+            // Paid-break workplaces never deduct a break, so don't pre-fill one.
+            breakMinutes = viewModel.activeSettings.breaksArePaid ? 0 : viewModel.activeSettings.defaultBreakMinutes
             dayType = viewModel.resolvedDayType(for: selectedDate)
             applyHolidayAutoFillIfNeeded()
         }
@@ -133,7 +134,7 @@ struct ManualEntryView: View {
     /// typical shift, since a holiday isn't a day anyone actually clocked.
     private func applyHolidayAutoFillIfNeeded() {
         guard dayType == .holiday else { return }
-        let expected = viewModel.settings.expectedShift(on: selectedDate)
+        let expected = viewModel.activeSettings.expectedShift(on: selectedDate)
         clockIn = expected.clockIn
         clockOut = expected.clockOut
         useDirectHours = false

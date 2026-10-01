@@ -14,7 +14,7 @@ struct WidgetInstallGuideView: View {
         NavigationStack {
             ScrollView {
                 VStack(alignment: .leading, spacing: 18) {
-                    if let installedCount {
+                    if installedCount != nil {
                         Label(L10n.widgetGuideInstalled, systemImage: "checkmark.seal.fill")
                             .font(.subheadline.weight(.semibold))
                             .foregroundStyle(.green)

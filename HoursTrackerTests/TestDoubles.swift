@@ -144,6 +144,12 @@ final class RecordingCloud: CloudSyncing {
     var purgeError: Error?
     var onUpload: (() -> Void)?
     var onDelete: (() -> Void)?
+    /// When set, `sync(...)` never returns on its own — simulates a hung
+    /// CloudKit operation so callers can verify their timeout kicks in.
+    var hangIndefinitely = false
+    /// Runs while `sync(...)` is "on the network" — lets a test save locally
+    /// mid-sync to exercise the overwrite race.
+    var duringSync: (() -> Void)?
 
     func checkAvailability() async -> Bool {
         true
@@ -154,6 +160,10 @@ final class RecordingCloud: CloudSyncing {
         localSettings: WorkplaceSettings,
         tombstoneIDs: Set<UUID>
     ) async throws -> SyncResult {
+        if hangIndefinitely {
+            try await Task.sleep(nanoseconds: .max)
+        }
+        duringSync?()
         let sessions = CloudKitSyncManager.mergeSessions(
             local: localSessions,
             remote: [],

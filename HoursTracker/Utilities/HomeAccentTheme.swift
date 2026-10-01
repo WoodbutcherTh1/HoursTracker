@@ -61,6 +61,12 @@ final class HomeAccentTheme: ObservableObject {
         accent = Color(hex: Self.defaultHex)
     }
 
+    /// True once a colour was ever saved — i.e. the picker has been used, even
+    /// before `home.themeTipSeen` existed.
+    static var hasSavedChoice: Bool {
+        UserDefaults.standard.object(forKey: storageKey) != nil
+    }
+
     /// Curated presets so most people never need the full picker.
     static let presets: [(name: String, hex: String)] = [
         ("Green", "26F273"),

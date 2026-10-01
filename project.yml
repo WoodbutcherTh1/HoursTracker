@@ -9,6 +9,11 @@ options:
   xcodeVersion: "26.0"
 settings:
   base:
+    # THE version and build number for every target (app, widget, Watch). The
+    # Info.plists read them as $(MARKETING_VERSION) / $(CURRENT_PROJECT_VERSION);
+    # never type a version anywhere else (AI_AGENT_BRIEF → Build Versioning).
+    MARKETING_VERSION: "1.8"
+    CURRENT_PROJECT_VERSION: "27"
     SWIFT_VERSION: "5.9"
     DEVELOPMENT_LANGUAGE: en
     LOCALIZATION_PREFERS_STRING_CATALOGS: YES
@@ -31,6 +36,9 @@ targets:
       # Shared widget bridge — compiled into BOTH the app and the widget
       # extension so ActivityKit + App Group data types are identical.
       - path: HoursTrackerWidget/WidgetBridge.swift
+      # Widget button intents — also in the app so iOS can run them in the app's
+      # process (LiveActivityIntent) without opening it.
+      - path: HoursTrackerWidget/ShiftIntents.swift
     resources:
       - path: HoursTracker/Resources
     settings:
@@ -50,8 +58,9 @@ targets:
         embed: true
       - package: Supabase
         product: Supabase
-    entitlements:
-      path: HoursTracker/HoursTracker.entitlements
+    # No `entitlements:` block: with a path but no properties, `xcodegen generate`
+    # rewrites that file and drops App Groups / iCloud / aps-environment. The files
+    # are hand-maintained and wired through CODE_SIGN_ENTITLEMENTS above.
     scheme:
       testTargets:
         - HoursTrackerTests
@@ -64,10 +73,13 @@ targets:
         # already has a 1.5 entry on record — each pre-release train is permanently
         # closed to new TestFlight builds once superseded, so any new submission needs
         # a higher marketing version even if it's otherwise a minor update.
-        CFBundleShortVersionString: "1.6"
+        CFBundleShortVersionString: "$(MARKETING_VERSION)"
         # Build 15+: do NOT add UIBackgroundModes: location (Guideline 2.5.4).
         # Arrival reminders use CLCircularRegion monitoring only.
-        CFBundleVersion: "21"
+        CFBundleVersion: "$(CURRENT_PROJECT_VERSION)"
+        # The app is dark-only (every surface is designed on dark tokens), so system
+        # UI — alerts, share sheets, keyboards — matches it too.
+        UIUserInterfaceStyle: Dark
         UILaunchScreen:
           UIColorName: LaunchBackground
         UISupportedInterfaceOrientations:
@@ -90,6 +102,12 @@ targets:
         # is false and LiveActivityManager.start() silently no-ops, so the Lock Screen banner
         # and Dynamic Island never appear even though the widget extension is otherwise correct.
         NSSupportsLiveActivities: true
+        # Extra names Siri accepts for the app in Siri phrases ("Start my shift in …"),
+        # so Arabic / Hebrew / Russian speakers can say it the way it sounds (iOS allows 3 at most).
+        INAlternativeAppNames:
+          - INAlternativeAppName: هاورز تراكر
+          - INAlternativeAppName: האוורס טרקר
+          - INAlternativeAppName: Хаурс Трекер
         # Deep links from the widget (interactive buttons + widgetURL) and the
         # home-screen quick actions (long-press icon).
         CFBundleURLTypes:
@@ -100,6 +118,7 @@ targets:
           - en
           - ar
           - he
+          - ru
   HoursTrackerTests:
     type: bundle.unit-test
     platform: iOS
@@ -133,6 +152,7 @@ targets:
       # Shared wire format for phone <-> Watch state (see WatchConnectivityManager) —
       # compiled into both the app and the Watch app, same pattern as WidgetBridge.swift.
       - path: HoursTracker/Shared/WatchSnapshot.swift
+      - path: HoursTracker/Shared/LivePayCurve.swift
       # Shared language stack so the Watch resolves the SAME localized strings as the
       # phone (AppLocale reads the phone-mirrored language choice; L10n keys come from
       # the app's String Catalog via the app bundle's lproj resources below) — plus
@@ -145,9 +165,17 @@ targets:
     resources:
       - path: HoursTrackerWatch/Assets.xcassets
       # The source String Catalog the Watch's L10n lookups resolve against (en/he/ar).
-      # Listed here so Xcode compiles it into the Watch target's own bundle, same as
-      # it does for the phone app's copy via HoursTracker/Resources below.
-      - path: HoursTracker/Resources/Localizable.xcstrings
+      # This used to point directly at HoursTracker/Resources/Localizable.xcstrings
+      # (outside this target's own folder), which Xcode compiled fine for the phone
+      # app but silently produced an EMPTY catalog for the Watch target — every
+      # L10n lookup fell through to AppLocale's raw-key fallback ("home.greeting.night"
+      # printed literally). Xcode's String Catalog compiler is unreliable when the
+      # same .xcstrings file is shared into a second target from outside that
+      # target's own directory tree. A symlink at HoursTrackerWatch/Resources/
+      # Localizable.xcstrings (pointing at the real file, kept as the single
+      # source of truth) gives the Watch target a same-directory resource to
+      # compile normally, matching how Assets.xcassets already works here.
+      - path: HoursTrackerWatch/Resources/Localizable.xcstrings
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hourstracker.app.watchkitapp
@@ -165,6 +193,8 @@ targets:
         excludes:
           # Design mockup for the widget UI — not part of the extension.
           - Mockup.html
+      # Live pay curve shared with the app and Watch (same figure everywhere).
+      - path: HoursTracker/Shared/LivePayCurve.swift
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.hourstracker.app.widget
@@ -172,5 +202,3 @@ targets:
         CODE_SIGN_ENTITLEMENTS: HoursTrackerWidget/HoursTrackerWidget.entitlements
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: FQUC6DU87N
-    entitlements:
-      path: HoursTrackerWidget/HoursTrackerWidget.entitlements

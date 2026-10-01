@@ -2,30 +2,56 @@ import SwiftUI
 
 struct PrivacyPolicyView: View {
     @ObservedObject private var appBackground = AppBackgroundTheme.shared
+    /// Fixed language (the consent screen's globe picker); `nil` = the app language.
+    var language: AppLocale.Language?
+
+    /// `privacy.section.<key>` / `privacy.body.<key>`, in reading order.
+    static let sectionKeys = [
+        "data",
+        "account",
+        "icloud",
+        "ai",
+        "support",
+        "location",
+        "camera",
+        "tracking",
+        "retention",
+        "rights",
+        "security",
+        "controls",
+        "children",
+        "changes",
+        "contact"
+    ]
+
+    private func t(_ key: String) -> String {
+        language.map { AppLocale.localizedString(key, language: $0) } ?? AppLocale.tr(key)
+    }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text(L10n.privacyTitle)
+                Text(t("privacy.title"))
                     .font(.title2.weight(.bold))
 
-                Text(L10n.privacyUpdated)
+                Text(t("privacy.updated"))
                     .font(.caption)
                     .foregroundStyle(.secondary)
 
-                group(L10n.privacySectionData, L10n.privacyBodyData)
-                group(L10n.privacySectionICloud, L10n.privacyBodyICloud)
-                group(L10n.privacySectionLocation, L10n.privacyBodyLocation)
-                group(L10n.privacySectionCamera, L10n.privacyBodyCamera)
-                group(L10n.privacySectionTracking, L10n.privacyBodyTracking)
-                group(L10n.privacySectionControls, L10n.privacyBodyControls)
-                group(L10n.privacySectionContact, L10n.privacyBodyContact)
+                Text(t("privacy.intro"))
+                    .font(.body)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                ForEach(Self.sectionKeys, id: \.self) { key in
+                    group(t("privacy.section.\(key)"), t("privacy.body.\(key)"))
+                }
             }
             .padding(20)
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .accessibilityIdentifier("privacy.scroll")
         .background(appBackground.background.ignoresSafeArea())
-        .navigationTitle(L10n.privacyTitle)
+        .navigationTitle(t("privacy.title"))
         .navigationBarTitleDisplayMode(.inline)
     }
 

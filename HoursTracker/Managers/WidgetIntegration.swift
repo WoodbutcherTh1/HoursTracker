@@ -16,23 +16,39 @@ extension WidgetBridge {
             breakMinutes: settings.defaultBreakMinutes,
             currencyCode: settings.currencyCode,
             weeklyStandardHours: settings.weeklyStandardHours,
-            weeklyOvertimeCapHours: settings.weeklyOvertimeCapHours
+            weeklyOvertimeCapHours: settings.weeklyOvertimeCapHours,
+            breakTargetMinutes: NotificationPreferences.shared.breakTargetMinutes,
+            languageCode: AppLocale.current.localeIdentifier
         )
     }
 
-    static func snapshot(from session: WorkSession) -> WidgetSession {
-        WidgetSession(
+    static func snapshot(from session: WorkSession, breaksArePaid: Bool = false) -> WidgetSession {
+        let active = session.activeBreak
+        // A paid break doesn't stop the paid clock, so there's nothing to leave out.
+        let closedSeconds = breaksArePaid ? 0 : session.breaks
+            .filter { !$0.isOpen }
+            .reduce(0.0) { $0 + $1.seconds() }
+        return WidgetSession(
             id: session.id,
             clockIn: session.clockIn,
             clockOut: session.clockOut,
             breakMinutes: session.breakMinutes,
-            isNightShift: session.isNightShift
+            isNightShift: session.isNightShift,
+            breakStart: active?.start,
+            closedBreakSeconds: session.isOpen ? closedSeconds : nil,
+            breakIsPaid: active == nil ? nil : breaksArePaid
         )
     }
 
-    static func pushUpdate(settings: WorkplaceSettings, sessions: [WorkSession]) {
+    static func pushUpdate(
+        settings: WorkplaceSettings,
+        sessions: [WorkSession],
+        livePay: LivePayCurve? = nil,
+        livePayShowsNet: Bool = false
+    ) {
+        update(livePay: livePay, showsNet: livePayShowsNet)
         update(settings: snapshot(from: settings))
-        update(sessions: sessions.map(snapshot(from:)))
+        update(sessions: sessions.map { snapshot(from: $0, breaksArePaid: settings.breaksArePaid) })
         reloadWidgetTimelines()
     }
 }
@@ -65,6 +81,10 @@ extension WidgetBridge {
     /// that only compile the snapshot types (app tests, for example).
     static func reloadWidgetTimelines() {
         WidgetCenter.shared.reloadAllTimelines()
+        // The Control Center clock in/out toggle reads the same snapshot.
+        if #available(iOS 18.0, *) {
+            ControlCenter.shared.reloadAllControls()
+        }
     }
 }
 

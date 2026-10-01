@@ -11,6 +11,9 @@ extension AppViewModel {
     ///   "now" (0 = current). The Watch's History tab pages through periods by asking
     ///   the phone to recompute at a new offset — see `WatchConnectivityManager`.
     func watchSnapshot(historyPeriodOffset: Int = 0) -> WatchSnapshot {
+        // The Watch shows the workplace the phone is showing.
+        let sessions = workSessions
+        let settings = activeSettings
         let calendar = Calendar.current
         let now = Date()
         let today = calendar.startOfDay(for: now)
@@ -125,6 +128,16 @@ extension AppViewModel {
         return WatchSnapshot(
             isClockedIn: isClockedIn,
             clockInTime: activeSession?.clockIn,
+            breakStart: activeSession?.activeBreak?.start,
+            breakTargetMinutes: NotificationPreferences.shared.breakTargetMinutes,
+            closedBreakSeconds: activeSession.map { session in
+                settings.breaksArePaid
+                    ? 0
+                    : session.breaks.filter { !$0.isOpen }.reduce(0.0) { $0 + $1.seconds() }
+            },
+            breaksArePaid: settings.breaksArePaid,
+            livePay: refreshLiveCurve(),
+            livePayIsNet: livePayShowsNet,
             todayHours: max(0, todayHours),
             todayNetPay: todayBreakdown.netPay,
             todayGrossPay: todayBreakdown.grossPay,

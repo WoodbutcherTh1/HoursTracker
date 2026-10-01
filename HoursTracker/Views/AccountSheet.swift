@@ -4,11 +4,13 @@ import PhotosUI
 /// Which screen of the sign-up / sign-in flow is showing. Kept as one sheet
 /// with an internal step, rather than a `NavigationStack` push per step, so
 /// the whole flow can Cancel from a single toolbar button at any point.
-private enum AccountFlowStep: Equatable {
+private enum AccountFlowStep: Hashable {
     case welcome
     case signUp
     case verify(email: String, fullName: String, familyName: String)
     case signIn
+    case forgotPassword
+    case resetPassword(email: String)
 }
 
 /// Entry point from Settings' Account section. Shows the sign-up/sign-in
@@ -53,6 +55,19 @@ private struct AccountFlowView: View {
     @State private var step: AccountFlowStep = .welcome
 
     var body: some View {
+        ZStack {
+            stepView
+                .id(step)
+                .transition(.asymmetric(
+                    insertion: .move(edge: .trailing).combined(with: .opacity),
+                    removal: .move(edge: .leading).combined(with: .opacity)
+                ))
+        }
+        .animation(.spring(response: 0.42, dampingFraction: 0.88), value: step)
+    }
+
+    @ViewBuilder
+    private var stepView: some View {
         switch step {
         case .welcome:
             AccountWelcomeView(
@@ -71,17 +86,25 @@ private struct AccountFlowView: View {
                 familyName: familyName
             )
         case .signIn:
-            SignInFormView(viewModel: viewModel)
+            SignInFormView(viewModel: viewModel, onForgotPassword: { step = .forgotPassword })
+        case .forgotPassword:
+            ForgotPasswordFormView(
+                onCodeSent: { email in step = .resetPassword(email: email) },
+                onBack: { step = .signIn }
+            )
+        case .resetPassword(let email):
+            ResetPasswordView(email: email)
         }
     }
 }
 
 // MARK: - Shared premium components
 
-/// A dark, rounded, icon-led field matching the rest of the app's card
-/// styling instead of a plain system row — the field glows with the accent
-/// color while focused, which is most of what makes a field "feel premium"
-/// without the complexity of a fully animated floating label.
+/// A dark, rounded, icon-led field with a floating label: the placeholder sits
+/// inside the empty field and glides up into a small caption above the text
+/// once the field is focused or filled, so it never disappears while typing.
+/// Focus is shown by an accent border and a soft glow that stays in place
+/// (no lift or jump).
 private struct AccountTextField: View {
     let icon: String
     let placeholder: String
@@ -95,6 +118,8 @@ private struct AccountTextField: View {
     @ObservedObject private var theme = HomeAccentTheme.shared
     @State private var isSecureVisible = false
 
+    private var isFloating: Bool { isFocused || !text.isEmpty }
+
     var body: some View {
         HStack(spacing: 12) {
             Image(systemName: icon)
@@ -102,20 +127,32 @@ private struct AccountTextField: View {
                 .foregroundStyle(isFocused ? theme.accent : .white.opacity(0.35))
                 .frame(width: 20)
 
-            Group {
-                if isSecure && !isSecureVisible {
-                    SecureField("", text: $text, prompt: placeholderText)
-                } else {
-                    TextField("", text: $text, prompt: placeholderText)
+            ZStack(alignment: .leading) {
+                Text(placeholder)
+                    .font(isFloating ? .caption2.weight(.semibold) : .body)
+                    .foregroundStyle(isFocused ? theme.accent.opacity(0.9) : .white.opacity(isFloating ? 0.45 : 0.32))
+                    .offset(y: isFloating ? -12 : 0)
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
+
+                Group {
+                    if isSecure && !isSecureVisible {
+                        SecureField("", text: $text)
+                    } else {
+                        TextField("", text: $text)
+                    }
                 }
+                .focused($isFocused)
+                .foregroundStyle(.white)
+                .tint(theme.accent)
+                .textInputAutocapitalization(autocapitalization)
+                .autocorrectionDisabled()
+                .keyboardType(keyboardType)
+                .textContentType(textContentType)
+                .offset(y: isFloating ? 7 : 0)
+                .accessibilityLabel(placeholder)
             }
-            .focused($isFocused)
-            .foregroundStyle(.white)
-            .tint(theme.accent)
-            .textInputAutocapitalization(autocapitalization)
-            .autocorrectionDisabled()
-            .keyboardType(keyboardType)
-            .textContentType(textContentType)
+            .frame(height: 28)
 
             if isSecure {
                 Button {
@@ -129,7 +166,9 @@ private struct AccountTextField: View {
             }
         }
         .padding(.horizontal, 16)
-        .padding(.vertical, 15)
+        .padding(.vertical, 14)
+        .contentShape(Rectangle())
+        .onTapGesture { isFocused = true }
         .background(
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .fill(Color(red: 0.11, green: 0.11, blue: 0.12))
@@ -138,12 +177,147 @@ private struct AccountTextField: View {
             RoundedRectangle(cornerRadius: 14, style: .continuous)
                 .stroke(isFocused ? theme.accent : Color.white.opacity(0.08), lineWidth: isFocused ? 1.5 : 1)
         )
-        .shadow(color: isFocused ? theme.accent.opacity(0.18) : .clear, radius: 10, y: 3)
-        .animation(.easeOut(duration: 0.15), value: isFocused)
+        .shadow(color: isFocused ? theme.accent.opacity(0.16) : .clear, radius: 8)
+        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: isFloating)
+        .animation(.easeOut(duration: 0.18), value: isFocused)
+    }
+}
+
+/// Eight separate digit boxes for the emailed code. A single hidden field
+/// receives the input (so paste and the keyboard's one-time-code suggestion
+/// still work); the boxes only draw it. The next empty box is highlighted, each
+/// digit pops in, and a wrong code shakes the row.
+private struct OneTimeCodeField: View {
+    @Binding var code: String
+    var length: Int = 8
+    /// Bump to shake (after a rejected code).
+    var shakeTrigger: Int = 0
+    var autoFocus: Bool = true
+
+    @FocusState private var isFocused: Bool
+    @ObservedObject private var theme = HomeAccentTheme.shared
+
+    var body: some View {
+        ZStack {
+            TextField("", text: $code)
+                .keyboardType(.numberPad)
+                .textContentType(.oneTimeCode)
+                .focused($isFocused)
+                .foregroundStyle(.clear)
+                .tint(.clear)
+                .frame(width: 1, height: 1)
+                .opacity(0.02)
+                .accessibilityLabel(L10n.accountCodePlaceholder)
+                .onChange(of: code) { _, newValue in
+                    let digits = String(newValue.filter(\.isNumber).prefix(length))
+                    if digits != newValue { code = digits }
+                }
+
+            HStack(spacing: 6) {
+                ForEach(0..<length, id: \.self) { index in
+                    box(at: index)
+                }
+            }
+            .contentShape(Rectangle())
+            .onTapGesture { isFocused = true }
+            .modifier(ShakeEffect(animatableData: CGFloat(shakeTrigger)))
+            .animation(.linear(duration: 0.35), value: shakeTrigger)
+            .accessibilityHidden(true)
+        }
+        // Codes read left-to-right in Hebrew and Arabic too.
+        .environment(\.layoutDirection, .leftToRight)
+        .onAppear {
+            if autoFocus { isFocused = true }
+        }
     }
 
-    private var placeholderText: Text {
-        Text(placeholder).foregroundStyle(.white.opacity(0.32))
+    private func box(at index: Int) -> some View {
+        let characters = Array(code)
+        let digit = index < characters.count ? String(characters[index]) : ""
+        let isCurrent = isFocused && index == min(characters.count, length - 1)
+            && (characters.count < length || index == length - 1)
+        let isFilled = !digit.isEmpty
+        return ZStack {
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .fill(Color(red: 0.11, green: 0.11, blue: 0.12))
+            RoundedRectangle(cornerRadius: 10, style: .continuous)
+                .stroke(
+                    isCurrent ? theme.accent : (isFilled ? theme.accent.opacity(0.45) : Color.white.opacity(0.1)),
+                    lineWidth: isCurrent ? 1.6 : 1
+                )
+            if isFilled {
+                Text(verbatim: digit)
+                    .font(.system(size: 22, weight: .bold, design: .rounded).monospacedDigit())
+                    .foregroundStyle(.white)
+                    .transition(.scale(scale: 0.5).combined(with: .opacity))
+            } else if isCurrent {
+                BlinkingCaret(color: theme.accent)
+            }
+        }
+        .frame(maxWidth: 44)
+        .frame(height: 52)
+        .shadow(color: isCurrent ? theme.accent.opacity(0.25) : .clear, radius: 8)
+        .animation(.spring(response: 0.28, dampingFraction: 0.7), value: digit)
+        .animation(.easeOut(duration: 0.15), value: isCurrent)
+    }
+}
+
+private struct BlinkingCaret: View {
+    let color: Color
+    @State private var visible = true
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 1)
+            .fill(color)
+            .frame(width: 2, height: 22)
+            .opacity(visible ? 1 : 0.1)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.55).repeatForever(autoreverses: true)) {
+                    visible = false
+                }
+            }
+    }
+}
+
+/// Horizontal shake used when a code is rejected.
+private struct ShakeEffect: GeometryEffect {
+    var animatableData: CGFloat
+
+    func effectValue(size: CGSize) -> ProjectionTransform {
+        ProjectionTransform(CGAffineTransform(translationX: 8 * sin(animatableData * .pi * 4), y: 0))
+    }
+}
+
+/// "Didn't get it? Check spam" — held back until the email has had time to
+/// arrive, and only while nothing has been typed, so it helps the people who
+/// are actually waiting instead of cluttering the screen for everyone.
+/// Restarts its wait after a resend.
+private struct DelayedSpamHint: View {
+    let isWaiting: Bool
+    var restartToken: Int = 0
+    static let delay: Duration = .seconds(8)
+
+    @State private var isShown = false
+
+    var body: some View {
+        // A VStack (not a Group) so the view — and its timer task — exists even
+        // while the hint is hidden.
+        VStack(spacing: 0) {
+            if isShown && isWaiting {
+                Label(L10n.accountCheckSpamHint, systemImage: "tray.full")
+                    .font(.caption)
+                    .foregroundStyle(.white.opacity(0.55))
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal, 28)
+                    .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.easeOut(duration: 0.35), value: isShown && isWaiting)
+        .task(id: restartToken) {
+            isShown = false
+            try? await Task.sleep(for: Self.delay)
+            isShown = true
+        }
     }
 }
 
@@ -397,7 +571,8 @@ private struct VerifyCodeView: View {
     @State private var isVerified = false
     @State private var errorMessage: String?
     @State private var resendMessage: String?
-    @FocusState private var isCodeFocused: Bool
+    @State private var resendCount = 0
+    @State private var rejectedCount = 0
 
     var body: some View {
         ScrollView {
@@ -409,31 +584,13 @@ private struct VerifyCodeView: View {
                         .foregroundStyle(.white.opacity(0.65))
                         .multilineTextAlignment(.center)
                         .padding(.horizontal, 28)
+                    // The code can land in spam, especially the first time.
+                    DelayedSpamHint(isWaiting: code.isEmpty, restartToken: resendCount)
                 }
                 .padding(.top, 12)
 
                 VStack(spacing: 8) {
-                    TextField("", text: $code, prompt: Text(L10n.accountCodePlaceholder).foregroundStyle(.white.opacity(0.3)))
-                        .keyboardType(.numberPad)
-                        .textContentType(.oneTimeCode)
-                        .focused($isCodeFocused)
-                        .font(.system(size: 28, weight: .bold, design: .rounded).monospacedDigit())
-                        .foregroundStyle(.white)
-                        .tint(theme.accent)
-                        .multilineTextAlignment(.center)
-                        .padding(.vertical, 16)
-                        .background(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .fill(Color(red: 0.11, green: 0.11, blue: 0.12))
-                        )
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 16, style: .continuous)
-                                .stroke(isCodeFocused ? theme.accent : Color.white.opacity(0.08), lineWidth: isCodeFocused ? 1.5 : 1)
-                        )
-                        .shadow(color: isCodeFocused ? theme.accent.opacity(0.2) : .clear, radius: 12, y: 4)
-                        .onChange(of: code) { _, newValue in
-                            code = String(newValue.filter(\.isNumber).prefix(8))
-                        }
+                    OneTimeCodeField(code: $code, shakeTrigger: rejectedCount)
 
                     if let errorMessage {
                         Text(errorMessage).font(.caption).foregroundStyle(.red)
@@ -506,6 +663,7 @@ private struct VerifyCodeView: View {
                     // resubmitting it — clearing it stops a stale code from
                     // silently being retried after a resend.
                     code = ""
+                    rejectedCount += 1
                 }
             }
         }
@@ -519,6 +677,7 @@ private struct VerifyCodeView: View {
                 try await SupabaseAuthManager.shared.resendSignUpCode(email: email)
                 await MainActor.run {
                     resendMessage = L10n.accountResendSent
+                    resendCount += 1
                     // The old code is now invalid the moment a new one is
                     // issued — force fresh entry instead of leaving the
                     // stale value sitting there to be resubmitted by mistake.
@@ -537,6 +696,7 @@ private struct SignInFormView: View {
     @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var theme = HomeAccentTheme.shared
     @Environment(\.dismiss) private var dismiss
+    let onForgotPassword: () -> Void
 
     @State private var email = ""
     @State private var password = ""
@@ -577,6 +737,11 @@ private struct SignInFormView: View {
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .padding(.horizontal, 4)
                     }
+
+                    Button(L10n.accountForgotPassword, action: onForgotPassword)
+                        .font(.caption.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.5))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 .padding(.horizontal, 20)
 
@@ -631,6 +796,250 @@ private struct SignInFormView: View {
                     isSigningIn = false
                     errorMessage = error.localizedDescription
                 }
+            }
+        }
+    }
+}
+
+// MARK: - Forgot password
+
+private struct ForgotPasswordFormView: View {
+    @ObservedObject private var theme = HomeAccentTheme.shared
+    let onCodeSent: (_ email: String) -> Void
+    let onBack: () -> Void
+
+    @State private var email = ""
+    @State private var isSending = false
+    @State private var errorMessage: String?
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 22) {
+                GlowIconBadge(systemName: "key.fill", accent: theme.accent, size: 60)
+                    .padding(.top, 8)
+
+                VStack(spacing: 6) {
+                    Text(L10n.accountResetTitle)
+                        .font(.title2.weight(.bold))
+                        .foregroundStyle(.white)
+                    Text(L10n.accountResetHint)
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.55))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
+                }
+
+                VStack(spacing: 12) {
+                    AccountTextField(
+                        icon: "envelope.fill",
+                        placeholder: L10n.accountEmailPlaceholder,
+                        text: $email,
+                        keyboardType: .emailAddress,
+                        textContentType: .username,
+                        autocapitalization: .never
+                    )
+                    if let errorMessage {
+                        Text(errorMessage)
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 4)
+                    }
+                }
+                .padding(.horizontal, 20)
+
+                VStack(spacing: 12) {
+                    Button {
+                        sendCode()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isSending {
+                                ProgressView().tint(.black)
+                            }
+                            Text(L10n.accountSendCodeButton)
+                        }
+                    }
+                    .buttonStyle(PremiumPrimaryButtonStyle(
+                        accent: theme.accent,
+                        isDisabled: !SupabaseAuthManager.isValidEmail(email) || isSending
+                    ))
+                    .disabled(!SupabaseAuthManager.isValidEmail(email) || isSending)
+
+                    Button(L10n.accountBackToSignIn, action: onBack)
+                        .font(.footnote.weight(.medium))
+                        .foregroundStyle(.white.opacity(0.5))
+                }
+                .padding(.horizontal, 20)
+            }
+            .padding(.bottom, 24)
+        }
+        .scrollDismissesKeyboard(.interactively)
+    }
+
+    private func sendCode() {
+        errorMessage = nil
+        isSending = true
+        let trimmedEmail = email.trimmingCharacters(in: .whitespacesAndNewlines)
+        Task {
+            do {
+                try await SupabaseAuthManager.shared.beginPasswordReset(email: trimmedEmail)
+                await MainActor.run {
+                    isSending = false
+                    onCodeSent(trimmedEmail)
+                }
+            } catch {
+                await MainActor.run {
+                    isSending = false
+                    errorMessage = error.localizedDescription
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Reset password (verify code + set new password)
+
+private struct ResetPasswordView: View {
+    @ObservedObject private var theme = HomeAccentTheme.shared
+    @Environment(\.dismiss) private var dismiss
+    let email: String
+
+    @State private var code = ""
+    @State private var newPassword = ""
+    @State private var confirmPassword = ""
+    @State private var isSubmitting = false
+    @State private var isDone = false
+    @State private var errorMessage: String?
+    @State private var resendMessage: String?
+    @State private var resendCount = 0
+    @State private var rejectedCount = 0
+
+    private var isFormValid: Bool {
+        code.count == 8 && newPassword.count >= 6 && newPassword == confirmPassword
+    }
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 18) {
+                VStack(spacing: 10) {
+                    GlowIconBadge(systemName: "envelope.badge.shield.half.filled", accent: theme.accent, size: 52, pulse: false)
+                    Text(L10n.accountVerifyHint(email))
+                        .font(.subheadline)
+                        .foregroundStyle(.white.opacity(0.65))
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal, 28)
+                    // The code can land in spam, especially the first time.
+                    DelayedSpamHint(isWaiting: code.isEmpty, restartToken: resendCount)
+                }
+                .padding(.top, 12)
+
+                VStack(spacing: 12) {
+                    OneTimeCodeField(code: $code, shakeTrigger: rejectedCount)
+                        .padding(.bottom, 4)
+
+                    AccountTextField(
+                        icon: "lock.fill",
+                        placeholder: L10n.accountNewPassword,
+                        text: $newPassword,
+                        isSecure: true,
+                        textContentType: .newPassword,
+                        autocapitalization: .never
+                    )
+                    AccountTextField(
+                        icon: "lock.rotation",
+                        placeholder: L10n.accountConfirmPassword,
+                        text: $confirmPassword,
+                        isSecure: true,
+                        textContentType: .newPassword,
+                        autocapitalization: .never
+                    )
+
+                    if let errorMessage {
+                        Text(errorMessage).font(.caption).foregroundStyle(.red)
+                    } else if let resendMessage {
+                        Text(resendMessage).font(.caption).foregroundStyle(.green)
+                    } else {
+                        Text(L10n.accountPasswordRule)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.4))
+                    }
+                }
+                .padding(.horizontal, 20)
+
+                VStack(spacing: 12) {
+                    Button {
+                        submit()
+                    } label: {
+                        HStack(spacing: 8) {
+                            if isSubmitting {
+                                ProgressView().tint(.black)
+                            } else if isDone {
+                                Image(systemName: "checkmark")
+                            }
+                            Text(isDone ? L10n.accountVerifiedBadge : L10n.accountResetSubmitButton)
+                        }
+                    }
+                    .buttonStyle(PremiumPrimaryButtonStyle(
+                        accent: isDone ? .green : theme.accent,
+                        isDisabled: !isFormValid || isSubmitting || isDone
+                    ))
+                    .disabled(!isFormValid || isSubmitting || isDone)
+
+                    Button(L10n.accountResendCode) {
+                        resend()
+                    }
+                    .font(.footnote.weight(.medium))
+                    .foregroundStyle(.white.opacity(0.5))
+                    .disabled(isSubmitting)
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 4)
+            }
+            .padding(.bottom, 24)
+        }
+        .scrollDismissesKeyboard(.interactively)
+    }
+
+    private func submit() {
+        errorMessage = nil
+        isSubmitting = true
+        Task {
+            do {
+                try await SupabaseAuthManager.shared.verifyPasswordReset(email: email, code: code)
+                try await SupabaseAuthManager.shared.updatePassword(newPassword)
+                await MainActor.run {
+                    isSubmitting = false
+                    isDone = true
+                }
+                try? await Task.sleep(for: .seconds(0.6))
+                await MainActor.run { dismiss() }
+            } catch {
+                await MainActor.run {
+                    isSubmitting = false
+                    errorMessage = error.localizedDescription
+                    // Whatever was just rejected can never become valid by
+                    // resubmitting it — clearing it stops a stale code from
+                    // silently being retried after a resend.
+                    code = ""
+                    rejectedCount += 1
+                }
+            }
+        }
+    }
+
+    private func resend() {
+        errorMessage = nil
+        resendMessage = nil
+        Task {
+            do {
+                try await SupabaseAuthManager.shared.beginPasswordReset(email: email)
+                await MainActor.run {
+                    resendMessage = L10n.accountResendSent
+                    resendCount += 1
+                    code = ""
+                }
+            } catch {
+                await MainActor.run { errorMessage = error.localizedDescription }
             }
         }
     }
@@ -702,6 +1111,8 @@ private struct AccountSignedInView: View {
     @State private var errorMessage: String?
     @State private var profileName = ""
     @State private var memberSince: Date?
+    @State private var showDeleteAccountConfirm = false
+    @State private var isDeletingAccount = false
     @State private var showPhotoPicker = false
     @State private var showRemovePhotoConfirm = false
     // Change-password fields.
@@ -784,10 +1195,37 @@ private struct AccountSignedInView: View {
                     .buttonStyle(PremiumSecondaryButtonStyle())
                 }
                 .padding(.horizontal, 20)
+
+                // App Store 5.1.1(v): an account created in the app can be deleted in it.
+                Button(role: .destructive) {
+                    showDeleteAccountConfirm = true
+                } label: {
+                    HStack(spacing: 8) {
+                        if isDeletingAccount {
+                            ProgressView()
+                        } else {
+                            Image(systemName: "person.crop.circle.badge.xmark")
+                        }
+                        Text(L10n.accountDelete)
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(.red)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                }
+                .disabled(isDeletingAccount)
+                .padding(.horizontal, 20)
+                .accessibilityIdentifier("account.delete")
             }
             .padding(.bottom, 24)
         }
         .scrollDismissesKeyboard(.interactively)
+        .alert(L10n.accountDeleteConfirmTitle, isPresented: $showDeleteAccountConfirm) {
+            Button(L10n.accountDelete, role: .destructive) { deleteAccount() }
+            Button(L10n.editCancel, role: .cancel) {}
+        } message: {
+            Text(L10n.accountDeleteConfirmMessage)
+        }
         .task {
             if let user = auth.client.auth.currentUser {
                 memberSince = user.createdAt
@@ -951,6 +1389,20 @@ private struct AccountSignedInView: View {
             guard let data = try? await selection.loadTransferable(type: Data.self),
                   let image = UIImage(data: data) else { return }
             profile.save(image)
+        }
+    }
+
+    private func deleteAccount() {
+        errorMessage = nil
+        isDeletingAccount = true
+        Task {
+            do {
+                try await SupabaseAuthManager.shared.deleteAccount()
+                AppViewModel.shared.showSuccessToast(L10n.accountDeleted)
+            } catch {
+                errorMessage = error.localizedDescription
+            }
+            isDeletingAccount = false
         }
     }
 

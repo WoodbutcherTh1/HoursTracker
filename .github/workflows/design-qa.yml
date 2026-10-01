@@ -1,0 +1,141 @@
+name: Design QA
+
+# Screenshot sweep of the redesigned screens across devices, languages, text
+# sizes and Reduce Motion (HoursTrackerUITests/DesignQATests.swift). Simulator
+# only — it complements, not replaces, a check on a real iPhone.
+#
+# Runs when a pushed commit message contains "[design-qa]", or by hand.
+on:
+  push:
+    branches-ignore: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sweep:
+    name: ${{ matrix.label }}
+    if: github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[design-qa]')
+    runs-on: macos-26
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        # The app is dark-only (UIUserInterfaceStyle = Dark), so there is no light
+        # pass; the 5 background presets are swept instead (15Pro-en-xl... row).
+        include:
+          - { label: SE-ar-xl-dark-rm, device: iPhone-SE-3rd-generation, lang: arabic, size: UICTContentSizeCategoryXL, reduce_motion: "true", scenario: standard, backgrounds: "0" }
+          - { label: SE-he-xl-dark-rm, device: iPhone-SE-3rd-generation, lang: hebrew, size: UICTContentSizeCategoryXL, reduce_motion: "true", scenario: standard, backgrounds: "0" }
+          - { label: 15Pro-ar-xl-dark, device: iPhone-15-Pro, lang: arabic, size: UICTContentSizeCategoryXL, reduce_motion: "false", scenario: standard, backgrounds: "0" }
+          - { label: 15Pro-he-xl-dark, device: iPhone-15-Pro, lang: hebrew, size: UICTContentSizeCategoryXL, reduce_motion: "false", scenario: standard, backgrounds: "0" }
+          - { label: 15Pro-en-default-dark-bg, device: iPhone-15-Pro, lang: english, size: "", reduce_motion: "false", scenario: standard, backgrounds: "1" }
+          # Data scenarios
+          - { label: SE-he-default-dark-shabbat, device: iPhone-SE-3rd-generation, lang: hebrew, size: "", reduce_motion: "false", scenario: shabbat, backgrounds: "0" }
+          - { label: 15Pro-ar-default-dark-night, device: iPhone-15-Pro, lang: arabic, size: "", reduce_motion: "false", scenario: night, backgrounds: "0" }
+          - { label: 15Pro-he-default-dark-varies-rate0, device: iPhone-15-Pro, lang: hebrew, size: "", reduce_motion: "false", scenario: variesRateZero, backgrounds: "0" }
+          - { label: SE-ar-xl-dark-newuser, device: iPhone-SE-3rd-generation, lang: arabic, size: UICTContentSizeCategoryXL, reduce_motion: "false", scenario: newUser, backgrounds: "0" }
+    steps:
+      # actions/checkout@v4.2.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Install XcodeGen
+        run: brew install xcodegen
+
+      - name: Generate project
+        run: xcodegen generate
+
+      - name: Create and configure simulator
+        id: sim
+        run: |
+          RUNTIME=$(xcrun simctl list runtimes --json \
+            | jq -r '[.runtimes[] | select(.platform == "iOS" and .isAvailable)] | sort_by(.version) | last.identifier')
+          TYPE="com.apple.CoreSimulator.SimDeviceType.${{ matrix.device }}"
+          if ! xcrun simctl list devicetypes --json | jq -e --arg t "$TYPE" '.devicetypes[] | select(.identifier == $t)' >/dev/null; then
+            echo "::error::Device type $TYPE is not available on this runner"
+            xcrun simctl list devicetypes
+            exit 1
+          fi
+          UDID=$(xcrun simctl create "QA ${{ matrix.label }}" "$TYPE" "$RUNTIME")
+          xcrun simctl boot "$UDID"
+          xcrun simctl bootstatus "$UDID" -b
+          xcrun simctl ui "$UDID" appearance dark
+          if [ "${{ matrix.reduce_motion }}" = "true" ]; then
+            xcrun simctl spawn "$UDID" defaults write com.apple.Accessibility ReduceMotionEnabled -bool true
+          fi
+          echo "Runtime $RUNTIME, device $TYPE, udid $UDID"
+          echo "udid=$UDID" >> "$GITHUB_OUTPUT"
+
+      - name: Run Design QA sweep
+        env:
+          TEST_RUNNER_DESIGN_QA: "1"
+          TEST_RUNNER_QA_LABEL: ${{ matrix.label }}
+          TEST_RUNNER_QA_LANG: ${{ matrix.lang }}
+          TEST_RUNNER_QA_CONTENT_SIZE: ${{ matrix.size }}
+          TEST_RUNNER_QA_SCENARIO: ${{ matrix.scenario }}
+          TEST_RUNNER_QA_BACKGROUNDS: ${{ matrix.backgrounds }}
+        run: |
+          xcodebuild test \
+            -project HoursTracker.xcodeproj \
+            -scheme HoursTracker \
+            -destination "platform=iOS Simulator,id=${{ steps.sim.outputs.udid }}" \
+            -only-testing:HoursTrackerUITests/DesignQATests \
+            -resultBundlePath qa.xcresult
+
+      # Named [config]-[screen]-[yyyymmdd].png so the set can be reused later for
+      # App Store screenshots and ads.
+      - name: Export screenshots
+        if: always()
+        run: |
+          mkdir -p raw design-qa/screenshots
+          if [ -d qa.xcresult ]; then
+            xcrun xcresulttool export attachments --path qa.xcresult --output-path raw || true
+          fi
+          STAMP=$(date -u +%Y%m%d) python3 - <<'EOF'
+          import json, os, re, shutil
+          stamp = os.environ["STAMP"]
+          out = os.path.join("design-qa", "screenshots")
+          manifest = os.path.join("raw", "manifest.json")
+          if os.path.exists(manifest):
+              for test in json.load(open(manifest)):
+                  for item in test.get("attachments", []):
+                      raw_name = item.get("suggestedHumanReadableName") or item["exportedFileName"]
+                      if raw_name.startswith("Complete Issue Description"):
+                          print("---- failure ----")
+                          print(open(os.path.join("raw", item["exportedFileName"]), errors="replace").read()[:4000])
+                          continue
+                      # Only our screenshots ("<config>__<screen>"), not XCTest's own
+                      # hierarchy dumps, UI snapshots or screen recordings.
+                      if "__" not in raw_name or not raw_name.endswith(".png"):
+                          continue
+                      base = os.path.splitext(raw_name)[0]
+                      # Attachment names are "<config>__<screen>"; xcresulttool may append "_<n>_<uuid>".
+                      base = re.sub(r"_\d+_[0-9A-Fa-f-]{36}$", "", base)
+                      config, _, screen = base.partition("__")
+                      name = f"{config}-{screen or 'screen'}-{stamp}.png"
+                      shutil.copy(os.path.join("raw", item["exportedFileName"]), os.path.join(out, name))
+          print("\n".join(sorted(os.listdir(out))))
+          EOF
+
+      # Small JPEG previews in the job log (between QA-IMG markers), so a reviewer
+      # without artifact download access can still see every screen.
+      - name: Log previews
+        if: always()
+        run: |
+          mkdir -p previews
+          for f in design-qa/screenshots/*.png; do
+            [ -e "$f" ] || continue
+            name=$(basename "$f" .png)
+            sips -Z 420 -s format jpeg -s formatOptions 50 "$f" --out "previews/$name.jpg" >/dev/null
+            echo "=== QA-IMG $name ==="
+            base64 -i "previews/$name.jpg" | fold -w 4000
+            echo "=== QA-END ==="
+          done
+
+      # actions/upload-artifact@v4.6.2
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: design-qa-${{ matrix.label }}
+          path: design-qa/screenshots
+          retention-days: 14

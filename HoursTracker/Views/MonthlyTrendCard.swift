@@ -15,6 +15,9 @@ private struct MonthlyTrendPoint: Identifiable {
 /// caps and gas allowances are included.
 struct MonthlyTrendCard: View {
     @ObservedObject var viewModel: AppViewModel
+    /// Home shows the card from day one; with no finished shift in the six months
+    /// it says where the trend will appear instead of drawing six empty bars.
+    var showsEmptyState = false
     @EnvironmentObject private var appLanguage: AppLanguageController
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
 
@@ -33,7 +36,7 @@ struct MonthlyTrendCard: View {
 
         return months.compactMap { monthStart in
             let interval = calendar.dateInterval(of: .month, for: monthStart)
-            let monthSessions = viewModel.sessions.filter { session in
+            let monthSessions = viewModel.workSessions.filter { session in
                 guard let interval else { return false }
                 return session.clockOut != nil
                     && session.clockIn >= interval.start
@@ -45,7 +48,7 @@ struct MonthlyTrendCard: View {
             let hours = monthSessions.reduce(0) { $0 + $1.effectiveHours }
             let breakdown = OvertimeCalculator.aggregate(
                 sessions: monthSessions,
-                settings: viewModel.settings
+                settings: viewModel.activeSettings
             )
             return MonthlyTrendPoint(
                 id: monthStart,
@@ -82,57 +85,11 @@ struct MonthlyTrendCard: View {
                     .foregroundStyle(Color.secondary.opacity(0.7))
             }
 
-            Chart(points) { point in
-                BarMark(
-                    x: .value("Month", point.label),
-                    y: .value("Hours", point.hours)
-                )
-                .foregroundStyle(
-                    LinearGradient(
-                        colors: [
-                            homeTheme.accent.opacity(0.95),
-                            Color.cyan.opacity(point.hours >= maxHours * 0.9 ? 1 : 0.55),
-                        ],
-                        startPoint: .bottom,
-                        endPoint: .top
-                    )
-                )
-                .cornerRadius(4)
-                .annotation(position: .top) {
-                    if point.hours > 0 {
-                        Text(String(format: "%.0f", point.hours))
-                            .font(.system(size: 9, weight: .semibold, design: .rounded))
-                            .foregroundStyle(Color.secondary)
-                            .monospacedDigit()
-                    }
-                }
-            }
-            .frame(height: 120)
-            .chartXAxis {
-                AxisMarks { _ in
-                    AxisGridLine().foregroundStyle(Color.white.opacity(0.04))
-                    AxisValueLabel()
-                        .foregroundStyle(Color.secondary.opacity(0.7))
-                }
-            }
-            .chartYAxis(.hidden)
-            .chartPlotStyle { plotArea in
-                plotArea
-                    .background(Color.white.opacity(0.02), in: RoundedRectangle(cornerRadius: 10))
-            }
-
-            HStack(spacing: 10) {
-                trendFootStat(
-                    icon: "calendar",
-                    value: L10n.historyTrendThisMonth + "  " + lastMonthText,
-                    color: homeTheme.accent
-                )
-                Spacer()
-                trendFootStat(
-                    icon: "chart.line.uptrend.xyaxis",
-                    value: PayFormatter.string(averageMonthlyPay, currencyCode: viewModel.settings.currencyCode),
-                    color: homeTheme.accent
-                )
+            if showsEmptyState && points.allSatisfy({ $0.hours == 0 }) {
+                emptyState
+            } else {
+                chart
+                footer
             }
         }
         .padding(14)
@@ -144,6 +101,78 @@ struct MonthlyTrendCard: View {
                         .stroke(Color.white.opacity(0.06), lineWidth: 1)
                 )
         )
+    }
+
+    private var emptyState: some View {
+        HStack(spacing: DS.Space.sm) {
+            Image(systemName: "chart.bar.xaxis")
+                .htFont(size: 20, relativeTo: .title3, weight: .semibold)
+                .foregroundStyle(homeTheme.accent.opacity(0.7))
+                .accessibilityHidden(true)
+            Text(L10n.homeTrendEmpty)
+                .dsFont(.sub)
+                .foregroundStyle(DS.Palette.textSecondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, minHeight: 60, alignment: .leading)
+    }
+
+    private var chart: some View {
+        Chart(points) { point in
+            BarMark(
+                x: .value("Month", point.label),
+                y: .value("Hours", point.hours)
+            )
+            .foregroundStyle(
+                LinearGradient(
+                    colors: [
+                        homeTheme.accent.opacity(0.95),
+                        Color.cyan.opacity(point.hours >= maxHours * 0.9 ? 1 : 0.55),
+                    ],
+                    startPoint: .bottom,
+                    endPoint: .top
+                )
+            )
+            .cornerRadius(4)
+            .annotation(position: .top) {
+                if point.hours > 0 {
+                    Text(String(format: "%.0f", point.hours))
+                        .font(.system(size: 9, weight: .semibold, design: .rounded))
+                        .foregroundStyle(Color.secondary)
+                        .monospacedDigit()
+                }
+            }
+        }
+        .frame(height: 120)
+        .chartXAxis {
+            AxisMarks { _ in
+                AxisGridLine().foregroundStyle(Color.white.opacity(0.04))
+                AxisValueLabel()
+                    .foregroundStyle(Color.secondary.opacity(0.7))
+            }
+        }
+        .chartYAxis(.hidden)
+        .chartPlotStyle { plotArea in
+            plotArea
+                .background(Color.white.opacity(0.02), in: RoundedRectangle(cornerRadius: 10))
+        }
+    }
+
+    private var footer: some View {
+        HStack(spacing: 10) {
+            trendFootStat(
+                icon: "calendar",
+                value: L10n.historyTrendThisMonth + "  " + lastMonthText,
+                color: homeTheme.accent
+            )
+            Spacer()
+            trendFootStat(
+                icon: "chart.line.uptrend.xyaxis",
+                value: PayFormatter.string(averageMonthlyPay, currencyCode: viewModel.activeSettings.currencyCode),
+                color: homeTheme.accent
+            )
+        }
     }
 
     private var lastMonthText: String {

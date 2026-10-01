@@ -48,7 +48,7 @@ struct WatchHomeView: View {
                     Button {
                         store.refresh()
                     } label: {
-                        Label(AppLocale.tr("common.retry"), systemImage: "arrow.clockwise")
+                        Label(AppLocale.tr("watch.refresh"), systemImage: "arrow.clockwise")
                     }
                     .font(.system(size: 10))
                     .buttonStyle(.plain)
@@ -81,10 +81,30 @@ struct WatchHomeView: View {
     private var clockCard: some View {
         VStack(spacing: 8) {
             if snapshot.isClockedIn, let clockInTime = snapshot.clockInTime {
-                Text(clockInTime, style: .timer)
-                    .font(.system(size: 32, weight: .light, design: .rounded))
-                    .monospacedDigit()
-                    .foregroundStyle(.white)
+                let closedBreaks = snapshot.closedBreakSeconds ?? 0
+                if let breakStart = snapshot.breakStart, snapshot.breaksArePaid != true {
+                    // Paid clock is stopped for the break — show where it paused.
+                    Text(Self.clock(breakStart.timeIntervalSince(clockInTime) - closedBreaks))
+                        .font(.system(size: 32, weight: .light, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.white.opacity(0.45))
+                    breakCountdown(breakStart: breakStart)
+                } else {
+                    // Shift the start forward by finished breaks so the system timer
+                    // shows paid time, matching the phone.
+                    Text(clockInTime.addingTimeInterval(closedBreaks), style: .timer)
+                        .font(.system(size: 32, weight: .light, design: .rounded))
+                        .monospacedDigit()
+                        .foregroundStyle(.white)
+                    // Paid break: the clock keeps running, the countdown is a reminder.
+                    if let breakStart = snapshot.breakStart {
+                        breakCountdown(breakStart: breakStart)
+                    }
+                }
+            }
+
+            if snapshot.isClockedIn, let curve = snapshot.livePay {
+                livePayText(curve)
             }
 
             Button(action: toggleClock) {
@@ -104,6 +124,21 @@ struct WatchHomeView: View {
             .accessibilityHint(snapshot.isClockedIn
                 ? AppLocale.tr("watch.a11y.clockOutHint")
                 : AppLocale.tr("watch.a11y.clockInHint"))
+
+            if snapshot.isClockedIn {
+                let onBreak = snapshot.breakStart != nil
+                Button(action: toggleBreak) {
+                    Label(
+                        onBreak ? L10n.homeBreakEnd : L10n.homeBreakStart,
+                        systemImage: onBreak ? "arrow.uturn.backward" : "cup.and.saucer.fill"
+                    )
+                    .font(.system(size: 13, weight: .semibold, design: .rounded))
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(onBreak ? accent : .white)
+                .disabled(isSending)
+            }
         }
         .padding(.vertical, snapshot.isClockedIn ? 10 : 0)
         .background {
@@ -189,6 +224,63 @@ struct WatchHomeView: View {
         return DaypartGreeting.current().title(withName: workerName.isEmpty ? nil : workerName)
     }
 
+    /// The shift's pay so far, ticking every second from the phone's live pay curve —
+    /// the same figure Home shows at the same moment. Frozen during an unpaid break.
+    private func livePayText(_ curve: LivePayCurve) -> some View {
+        let net = snapshot.livePayIsNet == true
+        return TimelineView(.periodic(from: .now, by: 1)) { context in
+            Text(Self.livePayString(curve.pay(at: context.date, net: net), currencyCode: curve.currencyCode))
+                .font(.system(size: 17, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(accent)
+                .contentTransition(.numericText())
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+        }
+    }
+
+    /// Counts down the planned break length, then up (in coral) once over.
+    private func breakCountdown(breakStart: Date) -> some View {
+        let target = TimeInterval((snapshot.breakTargetMinutes ?? 30) * 60)
+        return TimelineView(.periodic(from: .now, by: 1)) { context in
+            let remaining = target - context.date.timeIntervalSince(breakStart)
+            VStack(spacing: 1) {
+                Text(L10n.homeOnBreak.uppercased())
+                    .font(.system(size: 9, weight: .bold))
+                    .foregroundStyle(.secondary)
+                Text(remaining >= 0
+                     ? L10n.homeBreakRemaining(Self.clock(remaining))
+                     : L10n.homeBreakOver(Self.clock(-remaining)))
+                    .font(.system(size: 15, weight: .semibold, design: .rounded))
+                    .monospacedDigit()
+                    .foregroundStyle(remaining >= 0 ? accent : WatchPalette.coral)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.7)
+            }
+        }
+    }
+
+    /// h:mm:ss, or mm:ss under an hour.
+    private static func clock(_ seconds: TimeInterval) -> String {
+        let total = max(0, Int(seconds.rounded()))
+        let hours = total / 3600
+        let minutes = (total % 3600) / 60
+        let secs = total % 60
+        return hours > 0
+            ? String(format: "%d:%02d:%02d", hours, minutes, secs)
+            : String(format: "%02d:%02d", minutes, secs)
+    }
+
+    private func toggleBreak() {
+        isSending = true
+        if snapshot.breakStart != nil {
+            store.endBreak()
+        } else {
+            store.startBreak()
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1) { isSending = false }
+    }
+
     private func toggleClock() {
         isSending = true
         if snapshot.isClockedIn {
@@ -203,6 +295,16 @@ struct WatchHomeView: View {
         let h = Int(hours)
         let m = Int((hours - Double(h)) * 60)
         return String(format: "%d:%02d", h, m)
+    }
+
+    /// Agorot included, so the live figure visibly counts up (the stat cards stay whole).
+    private static func livePayString(_ amount: Double, currencyCode: String) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = currencyCode.isEmpty ? "ILS" : currencyCode
+        formatter.minimumFractionDigits = 2
+        formatter.maximumFractionDigits = 2
+        return formatter.string(from: NSNumber(value: amount)) ?? String(format: "%.2f", amount)
     }
 
     private func formattedPay(_ amount: Double) -> String {

@@ -20,10 +20,12 @@ enum DaypartGreeting: Equatable {
 
     static func current(at date: Date = Date(), calendar: Calendar = .current) -> DaypartGreeting {
         let hour = calendar.component(.hour, from: date)
+        // Morning 05:00–11:59 · afternoon 12:00–17:59 · evening 18:00–22:59 ·
+        // night 23:00–04:59. Pinned at every edge by DaypartGreetingTests.
         switch hour {
         case 5..<12: return .morning
-        case 12..<17: return .afternoon
-        case 17..<21: return .evening
+        case 12..<18: return .afternoon
+        case 18..<23: return .evening
         default: return .night
         }
     }
@@ -32,8 +34,9 @@ enum DaypartGreeting: Equatable {
         switch self {
         case .morning: return L10n.homeGreetingMorning
         case .afternoon: return L10n.homeGreetingAfternoon
-        case .evening: return L10n.homeGreetingEvening
-        case .night: return L10n.homeGreetingNight
+        // "Good night" reads as a goodbye to someone starting or ending a night
+        // shift, so the night band greets like the evening.
+        case .evening, .night: return L10n.homeGreetingEvening
         }
     }
 
@@ -46,8 +49,7 @@ enum DaypartGreeting: Equatable {
         switch self {
         case .morning: return L10n.homeGreetingMorningName(isolated)
         case .afternoon: return L10n.homeGreetingAfternoonName(isolated)
-        case .evening: return L10n.homeGreetingEveningName(isolated)
-        case .night: return L10n.homeGreetingNightName(isolated)
+        case .evening, .night: return L10n.homeGreetingEveningName(isolated)
         }
     }
 

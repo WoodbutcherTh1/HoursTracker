@@ -11,15 +11,16 @@ final class DaypartGreetingParityTests: XCTestCase {
         calendar.date(bySettingHour: hour, minute: 0, second: 0, of: Date())!
     }
 
+    /// Morning 05–11:59 · afternoon 12–17:59 · evening 18–22:59 · night 23–04:59.
     func testHourBands() {
         let calendar = Calendar.current
         XCTAssertEqual(DaypartGreeting.current(at: date(atHour: 5, calendar: calendar)), .morning)
         XCTAssertEqual(DaypartGreeting.current(at: date(atHour: 11, calendar: calendar)), .morning)
         XCTAssertEqual(DaypartGreeting.current(at: date(atHour: 12, calendar: calendar)), .afternoon)
-        XCTAssertEqual(DaypartGreeting.current(at: date(atHour: 16, calendar: calendar)), .afternoon)
-        XCTAssertEqual(DaypartGreeting.current(at: date(atHour: 17, calendar: calendar)), .evening)
-        XCTAssertEqual(DaypartGreeting.current(at: date(atHour: 20, calendar: calendar)), .evening)
-        XCTAssertEqual(DaypartGreeting.current(at: date(atHour: 21, calendar: calendar)), .night)
+        XCTAssertEqual(DaypartGreeting.current(at: date(atHour: 17, calendar: calendar)), .afternoon)
+        XCTAssertEqual(DaypartGreeting.current(at: date(atHour: 18, calendar: calendar)), .evening)
+        XCTAssertEqual(DaypartGreeting.current(at: date(atHour: 22, calendar: calendar)), .evening)
+        XCTAssertEqual(DaypartGreeting.current(at: date(atHour: 23, calendar: calendar)), .night)
         XCTAssertEqual(DaypartGreeting.current(at: date(atHour: 4, calendar: calendar)), .night)
     }
 

@@ -85,7 +85,7 @@ project.yml                      ← XcodeGen manifest (the .xcodeproj is genera
 
 **State flow**: `Views` → `AppViewModel` (`@MainActor`, owns stores/managers) → `PersistenceManager` (source of truth is local disk; cloud is a mirror/backup, merge-on-sync, never the live store).
 
-**Build system**: **XcodeGen** — edit `project.yml`, run `xcodegen generate`; do not hand-edit the `.xcodeproj`. Swift 5.9, iOS deployment target **17.0**, watchOS **10.0**; builds must use **Xcode 26.x** (App Store requirement as of April 2026). App version currently 1.6 (build 21); version trains 1.2/1.3/1.5 are permanently closed on App Store Connect — new submissions need a higher marketing version.
+**Build system**: **XcodeGen** — edit `project.yml`, run `xcodegen generate`; do not hand-edit the `.xcodeproj`. Swift 5.9, iOS deployment target **17.0**, watchOS **10.0**; builds must use **Xcode 26.x** (App Store requirement as of April 2026). App version: see `project.yml` (never restated here — see Build Versioning); version trains 1.2/1.3/1.5 are permanently closed on App Store Connect — new submissions need a higher marketing version.
 
 ## 4. Tech stack — what is used
 
@@ -131,6 +131,33 @@ project.yml                      ← XcodeGen manifest (the .xcodeproj is genera
 6. **Assistant**: user question + local data summary → `AssistantEngine` plans tool calls (reads sessions/settings locally) → `AssistantLLMRouter` asks Gemini (falls back to OpenAI-compatible) → grounded answer. With no key configured it reports itself as not set up rather than pretending.
 7. **Feedback**: `ContactSupportSheet` → `TelegramFeedbackSender` (optionally attaching `ActivityLogStore` export) → Bot API → developer's Telegram channel.
 8. **Widgets/Live Activities**: extension reads shared state from the App Group, renders timelines, interactive buttons run App Intents that mutate the app's store and `WidgetCenter`-reload; deep links (`hourstracker://`) route back into specific screens.
+
+## Legally Sensitive Fields
+
+Rest days change the pay premium; never bind `WeekPattern` to them.
+
+- `WorkplaceSettings.restDayWeekday` / `secondRestDayWeekday` are the **legal weekly rest day(s)** (Shabbat, Friday or Sunday depending on the worker). Work on them is paid at a premium, so they are pay inputs — not "days I usually don't work".
+- The onboarding's week pattern (5 days / 6 days / varies / custom days) and `weeklyGoalHoursDisplayOnly` are **display-only** (`DisplayPreferences`, `Models/OnboardingSetup.swift`). They drive previews and goals only and must never be copied into rest days, `weeklyStandardHours` (the legal overtime threshold) or any other pay input. `OnboardingSetupTests.testDisplayOnlyPreferencesNeverReachPayMath` pins this.
+- Any new "convenience" question that looks like a schedule (days off, expected hours, shift type) follows the same rule: store it as a display preference; change pay inputs only through Settings, where the user sees the legal meaning.
+
+## Display vs. Calculation Separation
+
+- The pay engine keeps Shabbat/holiday hours in the "regular" bucket (base 150%, then 175%/200% for overtime) — see `OvertimeCalculator.tiers(for:)`.
+- `PayTier` (`Models/PayTier.swift`, display layer) reads the day type and shows the real rate.
+- Never assume `regularHours` == 100%. Always go through `PayTier` when showing rates, tier colours or tier labels. `DaySummaryTests.testShabbatShiftShowsAllHoursAt150Percent` pins this.
+
+## Number Entry in Hebrew/Arabic
+
+- A SwiftUI `TextField` for amounts stored the typed digits but drew nothing in Hebrew/Arabic (only the caret), with or without a forced `.leftToRight` (BUG #1).
+- Use `AmountField` (`Views/AmountField.swift`) for amount entry: the real `TextField` stays for input, focus and VoiceOver with clear text, and the digits and caret are drawn with `Text` on top.
+- `OnboardingRTLUITests` checks the digits are actually drawn (pixels), not only stored.
+
+## Build Versioning
+
+- Version and build number come from `project.yml` → `settings.base.MARKETING_VERSION` / `CURRENT_PROJECT_VERSION` — one place for the app, widget and Watch. Every Info.plist reads them as `$(MARKETING_VERSION)` / `$(CURRENT_PROJECT_VERSION)`; App Store Connect rejects an upload whose extensions don't match the app.
+- Never hard-code them in Swift or markdown.
+- `Info.plist` inherits them from `project.yml` at generate time (`xcodegen generate`).
+- Any text that shows a version must read it from `Bundle.main` (see `AboutSheet.versionString`).
 
 ## Quick facts
 

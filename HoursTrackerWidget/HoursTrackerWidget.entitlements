@@ -1,5 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
-<dict/>
+<!--
+  Must match the same group in HoursTracker.entitlements exactly — this is
+  the widget extension's side of the shared UserDefaults suite WidgetBridge.swift
+  uses to read app data and deliver Clock In/Out button taps back to the app.
+-->
+<dict>
+	<key>com.apple.security.application-groups</key>
+	<array>
+		<string>group.com.hourstracker.app</string>
+	</array>
+</dict>
 </plist>

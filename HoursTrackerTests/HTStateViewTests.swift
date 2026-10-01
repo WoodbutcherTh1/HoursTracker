@@ -53,7 +53,7 @@ final class HTStateViewTests: XCTestCase {
             "watch.a11y.clockInHint",
             "watch.a11y.clockOutHint",
         ] {
-            for language in [AppLocale.Language.english, .hebrew, .arabic] {
+            for language in [AppLocale.Language.english, .hebrew, .arabic, .russian] {
                 let value = AppLocale.localizedString(key, language: language)
                 XCTAssertNotEqual(value, key, "key \(key) missing for \(language)")
             }
@@ -68,7 +68,7 @@ final class HTStateViewTests: XCTestCase {
             "home.greeting.evening", "home.greeting.night",
             "home.greeting.morningName %@", "home.greeting.nightName %@",
         ] {
-            for language in [AppLocale.Language.english, .hebrew, .arabic] {
+            for language in [AppLocale.Language.english, .hebrew, .arabic, .russian] {
                 XCTAssertNotEqual(
                     AppLocale.localizedString(key, language: language), key,
                     "greeting key \(key) missing for \(language)"

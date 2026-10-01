@@ -6,7 +6,7 @@ enum ExportLayout {
     static func isRTL(language: AppLocale.Language) -> Bool {
         switch language {
         case .hebrew, .arabic: return true
-        case .english: return false
+        case .english, .russian: return false
         }
     }
 

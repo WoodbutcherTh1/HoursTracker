@@ -87,6 +87,10 @@ extension WatchConnectivityManager: WCSessionDelegate {
                 viewModel.clockIn()
             case .clockOut:
                 viewModel.clockOut()
+            case .startBreak:
+                viewModel.startBreak()
+            case .endBreak:
+                viewModel.endBreak()
             case .shiftHistoryPeriod:
                 self.historyPeriodOffset += request.intValue ?? 0
             case .toggleAppLock:
@@ -134,7 +138,7 @@ extension WatchConnectivityManager: WCSessionDelegate {
         case "thisYear":
             range = .year(calendar.component(.year, from: Date()))
         default:
-            let period = HistoryPeriodHelper.payrollPeriod(containing: Date(), startDay: viewModel.settings.payrollStartDay)
+            let period = HistoryPeriodHelper.payrollPeriod(containing: Date(), startDay: viewModel.activeSettings.payrollStartDay)
             range = .custom(from: period.start, to: period.end)
         }
         do {
