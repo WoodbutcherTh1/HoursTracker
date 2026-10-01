@@ -181,8 +181,13 @@ private func widgetActionLabel(title: String, systemImage: String, isClockIn: Bo
     Label(title, systemImage: systemImage)
         .font(.system(size: 12, weight: .heavy, design: .rounded))
         .foregroundStyle(Color.black.opacity(0.82))
-        .padding(.horizontal, 14)
+        // Never "יצי…": one line, shrinks a little, and the capsule takes the
+        // whole width it's given instead of hugging the text.
+        .lineLimit(1)
+        .minimumScaleFactor(0.7)
+        .padding(.horizontal, 10)
         .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
         .background(
             isClockIn ? WidgetTheme.auroraButtonGradient : WidgetTheme.stopButtonGradient,
             in: Capsule()
