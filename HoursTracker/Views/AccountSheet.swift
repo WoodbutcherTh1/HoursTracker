@@ -226,8 +226,12 @@ private struct OneTimeCodeField: View {
         }
         // Codes read left-to-right in Hebrew and Arabic too.
         .environment(\.layoutDirection, .leftToRight)
-        .onAppear {
-            if autoFocus { isFocused = true }
+        .task {
+            // Wait for the step's slide-in (~0.4s spring) to settle before the
+            // keyboard comes up; focusing mid-transition made the boxes drift.
+            guard autoFocus else { return }
+            try? await Task.sleep(for: .milliseconds(450))
+            isFocused = true
         }
     }
 
@@ -288,6 +292,40 @@ private struct ShakeEffect: GeometryEffect {
     }
 }
 
+/// The one line of status text under a code entry: an error, a "new code sent"
+/// note, or a quiet hint. It sits in a fixed-height slot (room for two caption
+/// lines) so swapping between them never shifts the code boxes or the buttons.
+private struct CodeStatusLine: View {
+    var errorMessage: String?
+    var resendMessage: String?
+    var fallback: String?
+
+    var body: some View {
+        ZStack(alignment: .top) {
+            if let errorMessage {
+                line(errorMessage, color: .red)
+            } else if let resendMessage {
+                line(resendMessage, color: .green)
+            } else if let fallback {
+                line(fallback, color: .white.opacity(0.4))
+            }
+        }
+        .frame(maxWidth: .infinity, minHeight: 34, alignment: .top)
+        .animation(.easeOut(duration: 0.2), value: errorMessage)
+        .animation(.easeOut(duration: 0.2), value: resendMessage)
+    }
+
+    private func line(_ text: String, color: Color) -> some View {
+        Text(text)
+            .font(.caption)
+            .foregroundStyle(color)
+            .multilineTextAlignment(.center)
+            .lineLimit(3)
+            .fixedSize(horizontal: false, vertical: true)
+            .transition(.opacity)
+    }
+}
+
 /// "Didn't get it? Check spam" — held back until the email has had time to
 /// arrive, and only while nothing has been typed, so it helps the people who
 /// are actually waiting instead of cluttering the screen for everyone.
@@ -300,19 +338,20 @@ private struct DelayedSpamHint: View {
     @State private var isShown = false
 
     var body: some View {
-        // A VStack (not a Group) so the view — and its timer task — exists even
-        // while the hint is hidden.
-        VStack(spacing: 0) {
-            if isShown && isWaiting {
-                Label(L10n.accountCheckSpamHint, systemImage: "tray.full")
-                    .font(.caption)
-                    .foregroundStyle(.white.opacity(0.55))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 28)
-                    .transition(.move(edge: .top).combined(with: .opacity))
-            }
-        }
-        .animation(.easeOut(duration: 0.35), value: isShown && isWaiting)
+        // Always laid out, only faded in and out: inserting the row after the
+        // delay (and removing it again on the first digit) pushed the code boxes
+        // below it down and back up, which made the whole screen look like it
+        // was floating. Reserving its space keeps everything under it still.
+        let visible = isShown && isWaiting
+        Label(L10n.accountCheckSpamHint, systemImage: "tray.full")
+            .font(.caption)
+            .foregroundStyle(.white.opacity(0.55))
+            .multilineTextAlignment(.center)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 28)
+            .opacity(visible ? 1 : 0)
+            .accessibilityHidden(!visible)
+            .animation(.easeOut(duration: 0.35), value: visible)
         .task(id: restartToken) {
             isShown = false
             try? await Task.sleep(for: Self.delay)
@@ -592,11 +631,7 @@ private struct VerifyCodeView: View {
                 VStack(spacing: 8) {
                     OneTimeCodeField(code: $code, shakeTrigger: rejectedCount)
 
-                    if let errorMessage {
-                        Text(errorMessage).font(.caption).foregroundStyle(.red)
-                    } else if let resendMessage {
-                        Text(resendMessage).font(.caption).foregroundStyle(.green)
-                    }
+                    CodeStatusLine(errorMessage: errorMessage, resendMessage: resendMessage)
                 }
                 .padding(.horizontal, 20)
 
@@ -954,15 +989,11 @@ private struct ResetPasswordView: View {
                         autocapitalization: .never
                     )
 
-                    if let errorMessage {
-                        Text(errorMessage).font(.caption).foregroundStyle(.red)
-                    } else if let resendMessage {
-                        Text(resendMessage).font(.caption).foregroundStyle(.green)
-                    } else {
-                        Text(L10n.accountPasswordRule)
-                            .font(.caption)
-                            .foregroundStyle(.white.opacity(0.4))
-                    }
+                    CodeStatusLine(
+                        errorMessage: errorMessage,
+                        resendMessage: resendMessage,
+                        fallback: L10n.accountPasswordRule
+                    )
                 }
                 .padding(.horizontal, 20)
 
