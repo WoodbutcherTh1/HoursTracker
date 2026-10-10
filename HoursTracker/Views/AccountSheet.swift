@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 import PhotosUI
 
@@ -71,6 +72,7 @@ private struct AccountFlowView: View {
         switch step {
         case .welcome:
             AccountWelcomeView(
+                viewModel: viewModel,
                 onCreateAccount: { step = .signUp },
                 onSignIn: { step = .signIn }
             )
@@ -441,9 +443,183 @@ private struct GlowIconBadge: View {
     }
 }
 
+// MARK: - Sign in with Apple / Google
+
+/// "Continue with Apple" and "Continue with Google": one tap creates the
+/// account the first time and signs back in after that — no password, no
+/// emailed code. Afterwards the account's backup is restored into this device
+/// (or, for a brand-new account, this device's data is uploaded), exactly like
+/// the email sign-in and sign-up flows do.
+private struct SocialSignInButtons: View {
+    @ObservedObject var viewModel: AppViewModel
+    @Environment(\.dismiss) private var dismiss
+
+    private enum Provider { case apple, google }
+
+    @State private var rawNonce = ""
+    @State private var busy: Provider?
+    @State private var errorMessage: String?
+
+    var body: some View {
+        VStack(spacing: 12) {
+            SignInWithAppleButton(.continue) { request in
+                let nonce = AppleSignInNonce.make()
+                rawNonce = nonce
+                request.requestedScopes = [.fullName, .email]
+                request.nonce = AppleSignInNonce.sha256(nonce)
+            } onCompletion: { result in
+                handleApple(result)
+            }
+            .signInWithAppleButtonStyle(.white)
+            .frame(height: 52)
+            .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            .overlay {
+                if busy == .apple {
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(.white)
+                        .overlay(ProgressView().tint(.black))
+                }
+            }
+            .disabled(busy != nil)
+
+            Button(action: signInWithGoogle) {
+                HStack(spacing: 10) {
+                    if busy == .google {
+                        ProgressView().tint(.black)
+                    } else if let logo = UIImage(named: "GoogleG") {
+                        // Google's official "G" mark, added to Assets as "GoogleG"
+                        // (from Google's branding guidelines). Text-only until then.
+                        Image(uiImage: logo)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 20, height: 20)
+                    }
+                    Text(L10n.accountContinueWithGoogle)
+                        .font(.system(size: 19, weight: .medium))
+                }
+                .foregroundStyle(.black)
+                .frame(maxWidth: .infinity)
+                .frame(height: 52)
+                .background(
+                    RoundedRectangle(cornerRadius: 16, style: .continuous)
+                        .fill(Color.white)
+                )
+                .contentShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            }
+            .buttonStyle(.plain)
+            .disabled(busy != nil)
+
+            if let errorMessage {
+                Text(errorMessage)
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+    }
+
+    private func handleApple(_ result: Result<ASAuthorization, Error>) {
+        switch result {
+        case .failure(let error):
+            if let authError = error as? ASAuthorizationError, authError.code == .canceled { return }
+            errorMessage = L10n.accountSocialFailed
+        case .success(let authorization):
+            guard
+                let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                let tokenData = credential.identityToken,
+                let idToken = String(data: tokenData, encoding: .utf8)
+            else {
+                errorMessage = L10n.accountSocialFailed
+                return
+            }
+            let nonce = rawNonce
+            let fullName = credential.fullName
+            run(.apple) {
+                try await SupabaseAuthManager.shared.signInWithApple(
+                    idToken: idToken,
+                    rawNonce: nonce,
+                    fullName: fullName
+                )
+            }
+        }
+    }
+
+    private func signInWithGoogle() {
+        run(.google) {
+            try await SupabaseAuthManager.shared.signInWithGoogle()
+        }
+    }
+
+    private func run(_ provider: Provider, _ signIn: @escaping () async throws -> Void) {
+        errorMessage = nil
+        busy = provider
+        Task { @MainActor in
+            do {
+                try await signIn()
+                let restored = await AccountSignInFinisher.finish(viewModel: viewModel)
+                busy = nil
+                viewModel.showSuccessToast(restored ? L10n.accountRestoreSuccess : L10n.accountSyncSuccess)
+                dismiss()
+            } catch AccountAuthError.cancelled {
+                busy = nil
+            } catch {
+                busy = nil
+                errorMessage = error.localizedDescription
+            }
+        }
+    }
+}
+
+/// What every sign-in path does once a session exists: bring the account's
+/// saved backup into this device (merged, so nothing here is lost), or — when
+/// the account has no backup yet, i.e. it was just created through Apple or
+/// Google — upload this device's data so the new account starts with it.
+@MainActor
+private enum AccountSignInFinisher {
+    /// `true` when an existing backup was restored, `false` for a fresh upload.
+    static func finish(viewModel: AppViewModel) async -> Bool {
+        if let backup = try? await SupabaseAccountSyncManager.shared.downloadBackup() {
+            let document = FullDataExportDocument(
+                exportedAt: ISO8601DateFormatter().string(from: Date()),
+                appVersion: FullDataExportManager.appVersionString(),
+                settings: backup.settings,
+                sessions: backup.sessions,
+                computedBreakdowns: [],
+                activityLog: []
+            )
+            try? viewModel.importFullDataExport(document, mode: .merge)
+            return true
+        }
+        let names = SupabaseAuthManager.shared.currentUserNames
+        try? await SupabaseAccountSyncManager.shared.uploadBackup(
+            settings: viewModel.settings,
+            sessions: viewModel.sessions,
+            fullName: names.fullName,
+            familyName: names.familyName
+        )
+        return false
+    }
+}
+
+/// A thin "—— or ——" rule between the one-tap buttons and the email options.
+private struct OrDivider: View {
+    var body: some View {
+        HStack(spacing: 12) {
+            Rectangle().fill(Color.white.opacity(0.12)).frame(height: 1)
+            Text(L10n.accountOr)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white.opacity(0.4))
+            Rectangle().fill(Color.white.opacity(0.12)).frame(height: 1)
+        }
+        .accessibilityHidden(true)
+    }
+}
+
 // MARK: - Welcome
 
 private struct AccountWelcomeView: View {
+    @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var theme = HomeAccentTheme.shared
     let onCreateAccount: () -> Void
     let onSignIn: () -> Void
@@ -468,6 +644,11 @@ private struct AccountWelcomeView: View {
             Spacer(minLength: 12)
 
             VStack(spacing: 12) {
+                SocialSignInButtons(viewModel: viewModel)
+
+                OrDivider()
+                    .padding(.vertical, 2)
+
                 Button(L10n.accountCreateButton, action: onCreateAccount)
                     .buttonStyle(PremiumPrimaryButtonStyle(accent: theme.accent))
 
@@ -747,6 +928,13 @@ private struct SignInFormView: View {
                 Text(L10n.accountSignInTitle)
                     .font(.title2.weight(.bold))
                     .foregroundStyle(.white)
+
+                VStack(spacing: 12) {
+                    SocialSignInButtons(viewModel: viewModel)
+                    OrDivider()
+                        .padding(.vertical, 2)
+                }
+                .padding(.horizontal, 20)
 
                 VStack(spacing: 12) {
                     AccountTextField(

@@ -393,6 +393,9 @@ enum L10n {
     static var accountVerifiedBadge: String { t("account.verifiedBadge") }
     static var accountSignInTitle: String { t("account.signInTitle") }
     static var accountForgotPassword: String { t("account.forgotPassword") }
+    static var accountContinueWithGoogle: String { t("account.continueWithGoogle") }
+    static var accountOr: String { t("account.or") }
+    static var accountSocialFailed: String { t("account.socialFailed") }
     static var accountResetTitle: String { t("account.resetTitle") }
     static var accountResetHint: String { t("account.resetHint") }
     static var accountResetSubmitButton: String { t("account.resetSubmitButton") }
