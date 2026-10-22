@@ -532,6 +532,8 @@ struct HomeView: View {
         }
         .frame(height: metrics.doorHeight)
         .background(DSHeroGlow(color: homeTheme.accent))
+        .frame(maxWidth: .infinity)
+        .overlay(alignment: .trailing) { supportChatButton }
     }
 
     private func breakControl(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {
@@ -558,6 +560,29 @@ struct HomeView: View {
             viewModel.clockOut()
         }
         .frame(height: metrics.doorHeight)
+        .frame(maxWidth: .infinity)
+        .overlay(alignment: .trailing) { supportChatButton }
+    }
+
+    /// "Chat with us", floating beside the door where the row is otherwise empty.
+    private var supportChatButton: some View {
+        Button {
+            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+            showSupportChat = true
+        } label: {
+            Image(systemName: "bubble.left.and.bubble.right.fill")
+                .font(.system(size: 18, weight: .semibold))
+                .foregroundStyle(homeTheme.accent)
+                .frame(width: 48, height: 48)
+                .background(
+                    Circle()
+                        .fill(HomeNeon.card.opacity(0.9))
+                        .overlay(Circle().stroke(homeTheme.accent.opacity(0.45), lineWidth: 1.2))
+                )
+        }
+        .buttonStyle(ScalePressButtonStyle())
+        .accessibilityLabel(L10n.supportChatTitle)
+        .accessibilityIdentifier("home.supportChat")
     }
 
     /// The door pinned above the tab bar, over a fade so scrolled content slides
