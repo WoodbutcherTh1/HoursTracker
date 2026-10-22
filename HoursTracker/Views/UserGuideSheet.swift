@@ -57,7 +57,7 @@ struct UserGuideSheet: View {
                 slide(3, copy: GuideCopy.payslips) { GuidePayslipsPage(accent: homeTheme.accent, guideLanguage: guideLanguage) }
                 slide(4, copy: GuideCopy.shiftDetail) { GuideShiftDetailPage(guideLanguage: guideLanguage) }
                 slide(5, copy: GuideCopy.settings) { GuideSettingsPage(guideLanguage: guideLanguage) }
-                slide(6, copy: GuideCopy.assistant) {
+                slide(6, copy: GuideCopy.assistant, captionBelow: true) {
                     GuideAssistantPage(accent: homeTheme.accent, workerName: workerName)
                 }
             }
@@ -71,32 +71,45 @@ struct UserGuideSheet: View {
     private func slide<Content: View>(
         _ index: Int,
         copy: GuideCopy,
+        captionBelow: Bool = false,
         @ViewBuilder content: () -> Content
     ) -> some View {
         let text = copy.pair(for: guideLanguage)
         let alignment: HorizontalAlignment = guideLanguage.isRTL ? .trailing : .leading
-        return ZStack(alignment: .bottom) {
-            content()
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+        let caption = VStack(alignment: alignment, spacing: 4) {
+            Text(text.title)
+                .font(.headline.weight(.bold))
+                .foregroundStyle(.white)
+            Text(text.subtitle)
+                .font(.footnote)
+                .foregroundStyle(.white.opacity(0.72))
+        }
+        .frame(maxWidth: .infinity, alignment: alignment == .leading ? .leading : .trailing)
+        .multilineTextAlignment(guideLanguage.isRTL ? .trailing : .leading)
+        .padding(16)
 
-            VStack(alignment: alignment, spacing: 4) {
-                Text(text.title)
-                    .font(.headline.weight(.bold))
-                    .foregroundStyle(.white)
-                Text(text.subtitle)
-                    .font(.footnote)
-                    .foregroundStyle(.white.opacity(0.72))
+        return Group {
+            if captionBelow {
+                // Long illustrations (the assistant's suggestion chips) must not sit under the caption.
+                VStack(spacing: 0) {
+                    content()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    caption
+                }
+            } else {
+                ZStack(alignment: .bottom) {
+                    content()
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                    caption
+                        .background(
+                            LinearGradient(
+                                colors: [.clear, Color.black.opacity(0.85)],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                }
             }
-            .frame(maxWidth: .infinity, alignment: alignment == .leading ? .leading : .trailing)
-            .multilineTextAlignment(guideLanguage.isRTL ? .trailing : .leading)
-            .padding(16)
-            .background(
-                LinearGradient(
-                    colors: [.clear, Color.black.opacity(0.85)],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-            )
         }
         .tag(index)
     }
@@ -317,22 +330,26 @@ private struct GuideCopy {
         en: (
             "Mark a day as Holiday",
             "Pick Holiday as the day type — hours auto-fill from your typical shift. "
-                + "Below, History counts the days you worked, and shows +1? while a shift is open."
+                + "Below, History counts the days you worked, and shows +1? while a shift is open. "
+                + "A holiday you didn't work counts as a paid day off, not as a worked holiday."
         ),
         he: (
             "סמנו יום כחג",
             "בחרו חג כסוג היום - השעות יתמלאו אוטומטית לפי המשמרת הרגילה שלכם. "
-                + "למטה, ההיסטוריה סופרת את ימי העבודה ומציגה ‎+1?‎ כשמשמרת פתוחה."
+                + "למטה, ההיסטוריה סופרת את ימי העבודה ומציגה ‎+1?‎ כשמשמרת פתוחה. "
+                + "חג שלא עבדתם בו נספר כיום חג משולם, ולא כחג שעבדתם בו."
         ),
         ar: (
             "حدد يومًا كعطلة",
             "اختر عطلة كنوع اليوم — تُملأ الساعات تلقائيًا حسب مناوبتك المعتادة. "
-                + "بالأسفل، يعدّ السجل أيام عملك ويعرض ‎+1?‎ أثناء مناوبة مفتوحة."
+                + "بالأسفل، يعدّ السجل أيام عملك ويعرض ‎+1?‎ أثناء مناوبة مفتوحة. "
+                + "العيد اللي ما اشتغلت فيه بيُحسب كيوم عيد مدفوع، مش كعيد اشتغلت فيه."
         ),
         ru: (
             "Отметьте день как праздник",
             "Выберите «Праздник» как тип дня — часы заполнятся по вашей обычной смене. "
-                + "Внизу история считает отработанные дни и показывает +1?, пока смена открыта."
+                + "Внизу история считает отработанные дни и показывает +1?, пока смена открыта. "
+                + "Праздник, в который вы не работали, считается оплачиваемым выходным, а не отработанным праздником."
         )
     )
 
@@ -630,7 +647,7 @@ private struct GuideAssistantPage: View {
                 )
             }
             .padding(.top, 16)
-            .padding(.bottom, 120)
+            .padding(.bottom, 16)
         }
         .scrollBounceBehavior(.basedOnSize)
     }

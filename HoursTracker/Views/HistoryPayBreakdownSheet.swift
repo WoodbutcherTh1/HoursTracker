@@ -77,6 +77,7 @@ struct HistoryPayBreakdownSheet: View {
             Text(L10n.dayCountsTitle)
                 .font(.headline)
             dayCountRow(L10n.dayCountsHoliday, count: dayCounts.holiday, icon: "star.fill", tint: .yellow)
+            dayCountRow(L10n.dayCountsHolidayNotWorked, count: dayCounts.holidayNotWorked, icon: "gift.fill", tint: .orange)
             dayCountRow(L10n.dayCountsVacation, count: dayCounts.vacation, icon: LeaveKind.vacation.systemImage, tint: .teal)
             dayCountRow(
                 L10n.dayCountsRecuperation,

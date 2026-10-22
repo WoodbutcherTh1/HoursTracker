@@ -90,4 +90,33 @@ final class LeaveDayTests: XCTestCase {
         XCTAssertEqual(decoded.leaveDays, [])
         XCTAssertEqual(decoded.workplaceName, settings.workplaceName)
     }
+
+    // Pesach I falls on 2 April 2026 (Israel). A holiday with no hours is a paid
+    // day off, not a worked holiday; with hours it counts as a worked holiday.
+    func testStatutoryHolidayWithoutHoursIsPaidDayOff() {
+        let counts = PeriodDayCounts.count(
+            sessions: [],
+            leaveDays: [],
+            from: TestData.date(2026, 4, 2),
+            through: TestData.date(2026, 4, 2),
+            calendar: calendar
+        )
+
+        XCTAssertEqual(counts.holiday, 0)
+        XCTAssertEqual(counts.holidayNotWorked, 1)
+    }
+
+    func testStatutoryHolidayWithHoursCountsAsWorked() {
+        let worked = TestData.session(year: 2026, month: 4, day: 2, dayType: .holiday)
+        let counts = PeriodDayCounts.count(
+            sessions: [worked],
+            leaveDays: [],
+            from: TestData.date(2026, 4, 2),
+            through: TestData.date(2026, 4, 2),
+            calendar: calendar
+        )
+
+        XCTAssertEqual(counts.holiday, 1)
+        XCTAssertEqual(counts.holidayNotWorked, 0)
+    }
 }

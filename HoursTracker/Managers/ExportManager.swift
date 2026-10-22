@@ -367,9 +367,9 @@ final class ExportManager {
             let hoursBottom = drawBarChart(
                 title: copy.hoursChart,
                 segments: [
-                    (copy.colRegular, totals.regularHours, UIColor(red: 0.20, green: 0.55, blue: 0.40, alpha: 1)),
-                    (copy.colOT125, totals.ot125Hours, UIColor(red: 0.90, green: 0.55, blue: 0.15, alpha: 1)),
-                    (copy.colOT150, totals.ot150Hours, UIColor(red: 0.80, green: 0.25, blue: 0.25, alpha: 1))
+                    (copy.colRegular, totals.regularHours, UIColor(red: 0.12, green: 0.23, blue: 0.34, alpha: 1)),
+                    (copy.colOT125, totals.ot125Hours, UIColor(red: 0.36, green: 0.48, blue: 0.60, alpha: 1)),
+                    (copy.colOT150, totals.ot150Hours, UIColor(red: 0.66, green: 0.75, blue: 0.82, alpha: 1))
                 ],
                 x: hoursX,
                 y: chartTop,
@@ -382,10 +382,10 @@ final class ExportManager {
             let payBottom = drawBarChart(
                 title: copy.payChart,
                 segments: [
-                    (copy.colRegular, totals.basePay, UIColor(red: 0.20, green: 0.45, blue: 0.70, alpha: 1)),
-                    (copy.colOT125, totals.ot125Pay, UIColor(red: 0.90, green: 0.55, blue: 0.15, alpha: 1)),
-                    (copy.colOT150, totals.ot150Pay, UIColor(red: 0.80, green: 0.25, blue: 0.25, alpha: 1)),
-                    (copy.colGas, totals.gasAllowance, UIColor(red: 0.45, green: 0.45, blue: 0.55, alpha: 1))
+                    (copy.colRegular, totals.basePay, UIColor(red: 0.12, green: 0.23, blue: 0.34, alpha: 1)),
+                    (copy.colOT125, totals.ot125Pay, UIColor(red: 0.36, green: 0.48, blue: 0.60, alpha: 1)),
+                    (copy.colOT150, totals.ot150Pay, UIColor(red: 0.66, green: 0.75, blue: 0.82, alpha: 1)),
+                    (copy.colGas, totals.gasAllowance, UIColor(red: 0.85, green: 0.87, blue: 0.90, alpha: 1))
                 ],
                 x: payX,
                 y: chartTop,
@@ -405,9 +405,9 @@ final class ExportManager {
             y = drawBarChart(
                 title: copy.deductionsChart,
                 segments: [
-                    (copy.colIncomeTax, totals.incomeTax, UIColor(red: 0.75, green: 0.28, blue: 0.32, alpha: 1)),
-                    (copy.colNationalInsurance, totals.nationalInsurance, UIColor(red: 0.55, green: 0.40, blue: 0.70, alpha: 1)),
-                    (copy.colHealthTax, totals.healthTax, UIColor(red: 0.20, green: 0.55, blue: 0.65, alpha: 1))
+                    (copy.colIncomeTax, totals.incomeTax, UIColor(red: 0.30, green: 0.32, blue: 0.36, alpha: 1)),
+                    (copy.colNationalInsurance, totals.nationalInsurance, UIColor(red: 0.55, green: 0.57, blue: 0.61, alpha: 1)),
+                    (copy.colHealthTax, totals.healthTax, UIColor(red: 0.78, green: 0.80, blue: 0.83, alpha: 1))
                 ],
                 x: margin,
                 y: y,

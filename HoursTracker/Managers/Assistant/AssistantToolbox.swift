@@ -66,6 +66,7 @@ enum AssistantToolbox {
             case .regular: return entry.breakdown.regularHours > 0
             case .ot125: return entry.breakdown.ot125Hours > 0
             case .ot150: return entry.breakdown.ot150Hours > 0
+            case .anyOvertime: return entry.breakdown.ot125Hours > 0 || entry.breakdown.ot150Hours > 0
             }
         }
         let ids = Set(matching.map { $0.session.id })

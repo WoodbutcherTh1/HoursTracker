@@ -87,6 +87,23 @@ final class WatchSessionStore: NSObject, ObservableObject {
         send(WatchRequest(kind: .requestFullSnapshot))
     }
 
+    /// Pulls the phone's latest snapshot without surfacing an error. Called when the
+    /// Watch app comes to the foreground and when the phone becomes reachable again,
+    /// so the screen doesn't stay on a stale cached snapshot until the user taps Refresh.
+    func refreshSilently() {
+        guard WCSession.isSupported() else { return }
+        let session = WCSession.default
+        guard session.isReachable else { return }
+        session.sendMessage(
+            WatchRequest(kind: .requestFullSnapshot).asMessage(),
+            replyHandler: { [weak self] reply in
+                guard let updated = WatchSnapshot.from(message: reply) else { return }
+                Task { @MainActor in self?.apply(updated) }
+            },
+            errorHandler: { _ in }
+        )
+    }
+
     /// `rangeKey` is "thisMonth" or "thisYear" — see `WatchExportView`.
     func requestExport(rangeKey: String) {
         guard WCSession.isSupported() else { return }
@@ -173,10 +190,12 @@ extension WatchSessionStore: WCSessionDelegate {
         error: Error?
     ) {
         Task { @MainActor in self.isReachable = session.isReachable }
+        refreshSilently()
     }
 
     func sessionReachabilityDidChange(_ session: WCSession) {
         Task { @MainActor in self.isReachable = session.isReachable }
+        refreshSilently()
     }
 
     func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {

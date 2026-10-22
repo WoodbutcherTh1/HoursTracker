@@ -120,3 +120,69 @@ final class ScreenshotTests: XCTestCase {
         add(attachment)
     }
 }
+
+
+/// Captures every page of the in-app user guide in each language, so the guide's
+/// mockups can be checked against the current app. Screenshots are written to
+/// `/tmp/guide-shots/<language>/<index>.png` on the machine running the tests.
+///
+///   xcodebuild test -scheme HoursTracker \
+///     -only-testing:HoursTrackerUITests/GuideScreenshotTests \
+///     -destination 'platform=iOS Simulator,name=iPhone 16 Pro Max'
+final class GuideScreenshotTests: XCTestCase {
+    private let languages = ["english", "hebrew", "arabic", "russian"]
+    private let pageCount = 7
+
+    override func setUpWithError() throws {
+        continueAfterFailure = false
+    }
+
+    func testCaptureGuidePages() throws {
+        for language in languages {
+            captureGuide(language: language)
+        }
+    }
+
+    private func captureGuide(language: String) {
+        let app = XCUIApplication()
+        if app.state != .notRunning {
+            app.terminate()
+        }
+        _ = app.wait(for: .notRunning, timeout: 15)
+        app.launchArguments += [
+            "UITEST_SCREENSHOTS",
+            "UITEST_OPEN_GUIDE",
+            "UITEST_LANG", language,
+            "-appLanguagePreference", language,
+            "-hasSeenOnboarding.v1", "YES"
+        ]
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30), "App did not launch in \(language)")
+        sleep(3)
+
+        let directory = "/tmp/guide-shots/\(language)"
+        try? FileManager.default.createDirectory(atPath: directory, withIntermediateDirectories: true)
+
+        for index in 0..<pageCount {
+            sleep(2)
+            let png = app.screenshot().pngRepresentation
+            let path = "\(directory)/\(index).png"
+            try? png.write(to: URL(fileURLWithPath: path))
+            XCTAssertTrue(FileManager.default.fileExists(atPath: path), "Could not write \(path)")
+            if index < pageCount - 1 {
+                // Tap the guide's own Next button (its label is localized).
+                let labels = ["Next", "הבא", "التالي", "Далее"]
+                var tapped = false
+                for label in labels where !tapped {
+                    let button = app.buttons[label]
+                    if button.exists && button.isHittable {
+                        button.tap()
+                        tapped = true
+                    }
+                }
+                XCTAssertTrue(tapped, "No Next button found on guide page \(index) in \(language)")
+            }
+        }
+        app.terminate()
+    }
+}

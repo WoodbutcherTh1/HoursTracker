@@ -26,6 +26,8 @@ enum AssistantOvertimeTier: String, Codable, Equatable, CaseIterable {
     case regular
     case ot125
     case ot150
+    /// Any overtime hours at all (125% or 150%). Used for "overtime this month" style questions.
+    case anyOvertime = "any_overtime"
 }
 
 /// Output file type the assistant can produce, mapped onto the app's existing

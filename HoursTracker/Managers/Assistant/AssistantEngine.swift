@@ -392,6 +392,7 @@ struct AssistantEngine {
         case .regular: return L10n.summaryRegular
         case .ot125: return L10n.summaryOT125
         case .ot150: return L10n.summaryOT150
+        case .anyOvertime: return L10n.assistantScopeAnyOvertime
         }
     }
 

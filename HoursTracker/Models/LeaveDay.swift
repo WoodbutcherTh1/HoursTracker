@@ -40,10 +40,13 @@ struct LeaveDay: Codable, Equatable, Identifiable {
 /// How many holiday, vacation, recuperation and sick days fall in a range —
 /// the "Days" card of the pay summary. Counts distinct calendar days.
 struct PeriodDayCounts: Equatable {
+    /// Statutory or marked holidays the worker actually worked (paid at the holiday rate).
     var holiday = 0
     var vacation = 0
     var recuperation = 0
     var sick = 0
+    /// Statutory holidays with no worked hours: a paid day off, not a worked holiday.
+    var holidayNotWorked = 0
 
     /// - Parameters:
     ///   - start: first day of the range (any time that day).
@@ -63,24 +66,38 @@ struct PeriodDayCounts: Equatable {
             return day >= first && day <= last
         }
 
-        var holidayDays = Set<Date>()
+        // Candidate holiday days: statutory holidays in the range plus days manually
+        // marked as holiday. Each one is then split by whether any hours were worked.
+        var holidayCandidates = Set<Date>()
         var sickDays = Set<Date>()
+        var workedHoursByDay: [Date: Double] = [:]
         for session in sessions where inRange(session.date) {
             let day = calendar.startOfDay(for: session.date)
-            switch session.dayType {
-            case .holiday: holidayDays.insert(day)
-            case .sick: sickDays.insert(day)
-            case .regular, .restDay: break
+            if session.dayType == .sick {
+                sickDays.insert(day)
+                continue
             }
+            if session.dayType == .holiday {
+                holidayCandidates.insert(day)
+            }
+            workedHoursByDay[day, default: 0] += session.effectiveHours
         }
-        // Statutory holidays in the range count even when not worked.
         var cursor = first
         while cursor <= last {
             if IsraeliHolidayCalendar.holiday(on: cursor, calendar: calendar) != nil {
-                holidayDays.insert(cursor)
+                holidayCandidates.insert(cursor)
             }
             guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
             cursor = next
+        }
+        var holidayDays = Set<Date>()
+        var holidayNotWorkedDays = Set<Date>()
+        for day in holidayCandidates {
+            if (workedHoursByDay[day] ?? 0) > 0 {
+                holidayDays.insert(day)
+            } else {
+                holidayNotWorkedDays.insert(day)
+            }
         }
 
         var vacationDays = Set<Date>()
@@ -97,7 +114,8 @@ struct PeriodDayCounts: Equatable {
             holiday: holidayDays.count,
             vacation: vacationDays.count,
             recuperation: recuperationDays.count,
-            sick: sickDays.count
+            sick: sickDays.count,
+            holidayNotWorked: holidayNotWorkedDays.count
         )
     }
 }

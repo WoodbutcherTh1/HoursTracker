@@ -68,8 +68,9 @@ enum AssistantPrompt {
         including "which day(s) did I work more than/less than N hours" (set filters.min_hours
         and/or filters.max_hours — this is an exact filter, always prefer it over
         overtime_tier for any question phrased as an hour count) and "which days had
-        overtime" (set filters.overtime_tier to "ot125" or "ot150" instead, when the question
-        is phrased in terms of overtime/125%/150% rather than a specific hour count). Never
+        overtime" (set filters.overtime_tier to "any_overtime" for overtime in general, or "ot125"/"ot150"
+        only when the question names that one tier, when the question is phrased in terms of
+        overtime/125%/150% rather than a specific hour count). Never
         route an hours-worked question to "list_days_without_sessions", which means the
         opposite: days with NO shift at all.
         - "list_days_without_sessions": days with NO shift at all (a day off / not worked).
@@ -91,7 +92,7 @@ enum AssistantPrompt {
         - "start_date" / "end_date": "YYYY-MM-DD", inclusive
         - "clock_in_after" / "clock_in_before": "HH:MM", 24-hour, for questions about \
         evening/night/morning shifts
-        - "overtime_tier": "regular" | "ot125" | "ot150"
+        - "overtime_tier": "regular" | "ot125" | "ot150" | "any_overtime"
         - "day_type": "regular" | "restDay" | "holiday" | "sick"
         - "min_hours" / "max_hours": a number of hours, inclusive — for any question phrased \
         as a specific hour threshold ("more than 8 hours", "under 4 hours", "at least 10")
@@ -114,3 +115,33 @@ enum AssistantPrompt {
         return String(trimmed.prefix(maxQuestionCharacters))
     }
 }
+
+/// Corrects two scope mistakes a model makes despite the prompt: dropping the current
+/// month from "this month" questions, and reading "overtime" as the regular tier. Both
+/// are decided from the question's own words, so an answer's scope line always matches
+/// what the user asked.
+enum AssistantPlanGuard {
+    private static let overtimeTerms = ["שעות נוספות", "ساعات إضافية", "ساعات اضافية", "overtime"]
+    private static let thisMonthTerms = ["החודש", "בחודש הזה", "هالشهر", "هاد الشهر", "هذا الشهر", "this month"]
+
+    static func apply(to plan: AssistantPlan, question: String, context: AssistantPlannerContext) -> AssistantPlan {
+        var corrected = plan
+        let text = question.lowercased()
+
+        let asksOvertime = overtimeTerms.contains { text.contains($0) }
+        if asksOvertime, corrected.filters.overtimeTier == nil || corrected.filters.overtimeTier == .regular {
+            corrected.filters.overtimeTier = .anyOvertime
+        }
+
+        let asksThisMonth = thisMonthTerms.contains { text.contains($0) }
+        let hasDateScope = corrected.filters.month != nil
+            || corrected.filters.startDate != nil
+            || corrected.filters.endDate != nil
+        if asksThisMonth, !hasDateScope, context.today.count >= 7 {
+            corrected.filters.month = String(context.today.prefix(7))
+        }
+
+        return corrected
+    }
+}
+

@@ -75,7 +75,8 @@ final class AssistantChatViewModel: ObservableObject {
 
         pendingTask = Task { [weak self] in
             do {
-                let plan = try await router.plan(question: question, context: context)
+                let modelPlan = try await router.plan(question: question, context: context)
+                let plan = AssistantPlanGuard.apply(to: modelPlan, question: question, context: context)
                 guard !Task.isCancelled else { return }
                 let engine = AssistantEngine(settings: settings, sessions: sessions)
                 self?.append(engine.resolve(plan: plan))

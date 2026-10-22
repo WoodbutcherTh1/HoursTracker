@@ -261,15 +261,7 @@ struct EditSessionView: View {
                         }
                     }
                 }
-                if dayType == .holiday {
-                    Section(L10n.manualHolidayAutoFilledTitle) {
-                        LabeledContent(L10n.editClockIn, value: clockIn.formatted(date: .omitted, time: .shortened))
-                        LabeledContent(L10n.editClockOut, value: clockOut.formatted(date: .omitted, time: .shortened))
-                        Text(L10n.manualHolidayAutoFilledHint)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                } else if dayType == .sick {
+                if dayType == .sick {
                     Section(L10n.dayTypeSick) {
                         let preview = viewModel.sickStreakPreview(for: session.date)
                         Text(L10n.manualSickPreview(preview.dayNumber, Int(preview.percentage * 100)))
@@ -282,6 +274,11 @@ struct EditSessionView: View {
                     Section(L10n.editTimes) {
                         DatePicker(L10n.editClockIn, selection: $clockIn)
                         DatePicker(L10n.editClockOut, selection: $clockOut)
+                        if dayType == .holiday {
+                            Text(L10n.manualHolidayAutoFilledHint)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
                 if dayType != .sick {

@@ -73,6 +73,8 @@ struct HomeView: View {
 
     private var breaksArePaid: Bool { viewModel.activeSettings.breaksArePaid }
 
+    @State private var naturalContentHeight: CGFloat = 0
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -88,6 +90,7 @@ struct HomeView: View {
                     // past the safe area and render underneath the tab bar. `minHeight`
                     // keeps the old vertically-centered look when everything fits, and
                     // lets content scroll instead of getting clipped when it doesn't.
+                    let fit = HomeFitScale.factor(available: geo.size.height, natural: naturalContentHeight)
                     ScrollView {
                         Group {
                             if let session = viewModel.activeSession {
@@ -97,9 +100,24 @@ struct HomeView: View {
                             }
                         }
                         .padding(.horizontal, metrics.horizontalPadding)
-                        .frame(minHeight: geo.size.height - (metrics.pinsDoor ? metrics.pinnedDoorHeight : 0))
+                        .fixedSize(horizontal: false, vertical: true)
+                        .background(
+                            GeometryReader { proxy in
+                                Color.clear.preference(key: HomeNaturalHeightKey.self, value: proxy.size.height)
+                            }
+                        )
+                        // Scale the whole layout down uniformly when it is taller than the
+                        // visible area, so nothing is pinned over the tab bar or cut off.
+                        .frame(width: geo.size.width / fit)
+                        .scaleEffect(fit, anchor: .top)
+                        .frame(
+                            width: geo.size.width,
+                            height: max(geo.size.height, naturalContentHeight * fit),
+                            alignment: .top
+                        )
                     }
                     .scrollBounceBehavior(.basedOnSize)
+                    .onPreferenceChange(HomeNaturalHeightKey.self) { naturalContentHeight = $0 }
                     // BUG #3: on shorter screens the door (Clock In / Clock Out) ended up
                     // under the tab bar. There it is pinned above the tab bar and the rest
                     // scrolls behind it, so the main action is always one tap away.
@@ -181,6 +199,14 @@ struct HomeView: View {
                 UserGuideSheet(workerName: viewModel.activeSettings.workerFullName)
                     .presentationDetents([.medium, .large])
             }
+            #if DEBUG
+            .onAppear {
+                // UI-test hook only: open the user guide directly so its pages can be captured.
+                if ProcessInfo.processInfo.arguments.contains("UITEST_OPEN_GUIDE") {
+                    showUserGuide = true
+                }
+            }
+            #endif
         }
     }
 

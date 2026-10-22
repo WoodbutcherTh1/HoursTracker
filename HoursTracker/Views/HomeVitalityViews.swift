@@ -41,7 +41,8 @@ struct HomeLayoutMetrics {
     var doorHeight: CGFloat { tight ? 118 : 148 }
 
     /// Shorter screens pin the door above the tab bar (see `HomeView.pinnedDoor`).
-    var pinsDoor: Bool { isShort }
+    /// Home now scales its whole layout to fit (see `HomeFitScale`), so nothing is pinned.
+    var pinsDoor: Bool { false }
     static let pinnedDoorTopPadding: CGFloat = 6
     var pinnedDoorHeight: CGFloat { doorHeight + Self.pinnedDoorTopPadding }
 }
@@ -817,5 +818,25 @@ struct HomeWeekSparkline: View {
         let a = points[index]
         let b = points[index + 1]
         return CGPoint(x: a.x + (b.x - a.x) * frac, y: a.y + (b.y - a.y) * frac)
+    }
+}
+
+
+/// Measured natural height of the Home content before fit-scaling.
+struct HomeNaturalHeightKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
+    }
+}
+
+/// Uniform shrink factor so Home fits the visible height without scrolling.
+/// The floor keeps text readable; below it the content simply scrolls.
+enum HomeFitScale {
+    static let minimum: CGFloat = 0.72
+
+    static func factor(available: CGFloat, natural: CGFloat) -> CGFloat {
+        guard natural > 0, available > 0, natural > available else { return 1 }
+        return max(minimum, available / natural)
     }
 }

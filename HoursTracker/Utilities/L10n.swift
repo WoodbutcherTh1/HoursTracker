@@ -141,6 +141,8 @@ enum L10n {
     static var leaveMarkHint: String { t("leave.markHint") }
     static var dayCountsTitle: String { t("dayCounts.title") }
     static var dayCountsHoliday: String { t("dayCounts.holiday") }
+    static var dayCountsHolidayNotWorked: String { t("dayCounts.holidayNotWorked") }
+    static var assistantScopeAnyOvertime: String { t("assistant.scope.anyOvertime") }
     static var dayCountsVacation: String { t("dayCounts.vacation") }
     static var dayCountsRecuperation: String { t("dayCounts.recuperation") }
     static var dayCountsSick: String { t("dayCounts.sick") }

@@ -876,6 +876,7 @@
       }
     },
     "about.madeIn" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -904,6 +905,7 @@
       }
     },
     "about.rateThanks" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -1077,6 +1079,7 @@
       }
     },
     "account.checkSpamHint" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2729,6 +2732,7 @@
       }
     },
     "admin.announcements" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2757,6 +2761,7 @@
       }
     },
     "admin.audience" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2785,6 +2790,7 @@
       }
     },
     "admin.audience.all" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2813,6 +2819,7 @@
       }
     },
     "admin.audience.language" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2841,6 +2848,7 @@
       }
     },
     "admin.audience.users" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2869,6 +2877,7 @@
       }
     },
     "admin.audience.version" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2897,6 +2906,7 @@
       }
     },
     "admin.audienceCount %1$@ %2$@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2925,6 +2935,7 @@
       }
     },
     "admin.bodyField" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2953,6 +2964,7 @@
       }
     },
     "admin.compose" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -2981,6 +2993,7 @@
       }
     },
     "admin.confirmMessage %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3009,6 +3022,7 @@
       }
     },
     "admin.confirmTitle %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3037,6 +3051,7 @@
       }
     },
     "admin.deliverInApp" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3065,6 +3080,7 @@
       }
     },
     "admin.deliverPush" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3093,6 +3109,7 @@
       }
     },
     "admin.delivery" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3121,6 +3138,7 @@
       }
     },
     "admin.emailsField" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3149,6 +3167,7 @@
       }
     },
     "admin.error.forbidden" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3177,6 +3196,7 @@
       }
     },
     "admin.error.notSignedIn" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3205,6 +3225,7 @@
       }
     },
     "admin.error.rateLimited" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3233,6 +3254,7 @@
       }
     },
     "admin.error.server %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3261,6 +3283,7 @@
       }
     },
     "admin.history" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3289,6 +3312,7 @@
       }
     },
     "admin.history.counts %1$@ %2$@ %3$@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3317,6 +3341,7 @@
       }
     },
     "admin.history.empty" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3345,6 +3370,7 @@
       }
     },
     "admin.language" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3373,6 +3399,7 @@
       }
     },
     "admin.message" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3401,6 +3428,7 @@
       }
     },
     "admin.missingLanguages %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3429,6 +3457,7 @@
       }
     },
     "admin.noRecipients" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3457,6 +3486,7 @@
       }
     },
     "admin.send" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3485,6 +3515,7 @@
       }
     },
     "admin.sentMessage %1$@ %2$@ %3$@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3513,6 +3544,7 @@
       }
     },
     "admin.sentPushNotConfigured %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3541,6 +3573,7 @@
       }
     },
     "admin.sentTitle" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3569,6 +3602,7 @@
       }
     },
     "admin.settingsEntry" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3597,6 +3631,7 @@
       }
     },
     "admin.settingsFooter" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3625,6 +3660,7 @@
       }
     },
     "admin.stat.accounts" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3653,6 +3689,7 @@
       }
     },
     "admin.stat.active1d" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3681,6 +3718,7 @@
       }
     },
     "admin.stat.active30d" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3709,6 +3747,7 @@
       }
     },
     "admin.stat.active7d" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3737,6 +3776,7 @@
       }
     },
     "admin.stat.activeNow" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3765,6 +3805,7 @@
       }
     },
     "admin.stat.devices" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3793,6 +3834,7 @@
       }
     },
     "admin.stat.languages" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3821,6 +3863,7 @@
       }
     },
     "admin.stat.onShiftNow" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3849,6 +3892,7 @@
       }
     },
     "admin.stat.push" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3877,6 +3921,7 @@
       }
     },
     "admin.stat.versions" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3905,6 +3950,7 @@
       }
     },
     "admin.stat.watch" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3933,6 +3979,7 @@
       }
     },
     "admin.stat.widget" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3961,6 +4008,7 @@
       }
     },
     "admin.stats" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -3989,6 +4037,7 @@
       }
     },
     "admin.statsFooter" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4017,6 +4066,7 @@
       }
     },
     "admin.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4045,6 +4095,7 @@
       }
     },
     "admin.titleField" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4073,6 +4124,7 @@
       }
     },
     "admin.translate %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4101,6 +4153,7 @@
       }
     },
     "admin.translateHint" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4129,6 +4182,7 @@
       }
     },
     "admin.translateNeedsKey" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4157,6 +4211,7 @@
       }
     },
     "admin.unmatchedEmails %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4185,6 +4240,7 @@
       }
     },
     "admin.versionsField" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4213,6 +4269,7 @@
       }
     },
     "announcement.dismiss" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -4241,6 +4298,7 @@
       }
     },
     "announcement.header" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5312,6 +5370,35 @@
         }
       }
     },
+    "assistant.scope.anyOvertime" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ساعات إضافية (كل الفئات)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overtime (any tier)"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "שעות נוספות (כל השכבות)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сверхурочные (все уровни)"
+          }
+        }
+      }
+    },
     "assistant.scope.before %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5342,6 +5429,7 @@
       }
     },
     "assistant.scope.maxHours %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -5370,6 +5458,7 @@
       }
     },
     "assistant.scope.minHours %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6674,6 +6763,7 @@
       }
     },
     "dataSafety.backups" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6702,6 +6792,7 @@
       }
     },
     "dataSafety.backups.confirmMessage" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6730,6 +6821,7 @@
       }
     },
     "dataSafety.backups.confirmTitle" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6758,6 +6850,7 @@
       }
     },
     "dataSafety.backups.empty" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6786,6 +6879,7 @@
       }
     },
     "dataSafety.backups.preRestore" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6814,6 +6908,7 @@
       }
     },
     "dataSafety.backups.shifts %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6842,6 +6937,7 @@
       }
     },
     "dataSafety.deleteForever" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6870,6 +6966,7 @@
       }
     },
     "dataSafety.deletedOn %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6898,6 +6995,7 @@
       }
     },
     "dataSafety.hint" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6926,6 +7024,7 @@
       }
     },
     "dataSafety.recentlyDeleted" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6954,6 +7053,7 @@
       }
     },
     "dataSafety.recentlyDeleted.empty" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -6982,6 +7082,7 @@
       }
     },
     "dataSafety.restore" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7010,6 +7111,7 @@
       }
     },
     "dataSafety.restored" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7038,6 +7140,7 @@
       }
     },
     "dataSafety.section" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -7071,25 +7174,54 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "أيام الأعياد"
+            "value" : "عيد اشتغلت فيه"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Holiday days"
+            "value" : "Holiday worked"
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ימי חג"
+            "value" : "חג שעבדת בו"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Праздничные дни"
+            "value" : "Праздник с работой"
+          }
+        }
+      }
+    },
+    "dayCounts.holidayNotWorked" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "عيد مدفوع (ما اشتغلت)"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paid holiday (not worked)"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "חג משולם (לא עבדת)"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Оплачиваемый праздник (без работы)"
           }
         }
       }
@@ -8314,6 +8446,7 @@
       }
     },
     "export.language.russian" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -10923,6 +11056,7 @@
       }
     },
     "history.nextWeek" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11067,6 +11201,7 @@
       }
     },
     "history.previousWeek" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11559,6 +11694,7 @@
       }
     },
     "home.about.open" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11732,6 +11868,7 @@
       }
     },
     "home.break.end" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11760,6 +11897,7 @@
       }
     },
     "home.break.onBreak" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11788,6 +11926,7 @@
       }
     },
     "home.break.over %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11816,6 +11955,7 @@
       }
     },
     "home.break.paid" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11844,6 +11984,7 @@
       }
     },
     "home.break.remaining %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11872,6 +12013,7 @@
       }
     },
     "home.break.start" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11900,6 +12042,7 @@
       }
     },
     "home.break.target %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -11928,6 +12071,7 @@
       }
     },
     "home.break.unpaid" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12421,6 +12565,7 @@
       }
     },
     "home.helpFeedback" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12537,6 +12682,7 @@
       }
     },
     "home.more" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12797,6 +12943,7 @@
       }
     },
     "home.stat.month.short" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12883,6 +13030,7 @@
       }
     },
     "home.stat.today.short" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -12969,6 +13117,7 @@
       }
     },
     "home.stat.week.short" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13055,6 +13204,7 @@
       }
     },
     "home.stats.goal %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13083,6 +13233,7 @@
       }
     },
     "home.stats.moveEarlier" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13111,6 +13262,7 @@
       }
     },
     "home.stats.moveLater" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13197,6 +13349,7 @@
       }
     },
     "home.stats.welcomeBody" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13225,6 +13378,7 @@
       }
     },
     "home.stats.welcomeTitle" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13253,6 +13407,7 @@
       }
     },
     "home.status.break %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13281,6 +13436,7 @@
       }
     },
     "home.status.working %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13454,6 +13610,7 @@
       }
     },
     "home.theme.tip" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13598,6 +13755,7 @@
       }
     },
     "home.timer.paused" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -13888,6 +14046,7 @@
       }
     },
     "language.name.russian" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -14641,6 +14800,7 @@
       }
     },
     "log.event.autoBackupSkipped" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -14669,6 +14829,7 @@
       }
     },
     "log.event.backupRestored" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -14697,6 +14858,7 @@
       }
     },
     "log.event.breakEnd" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -14725,6 +14887,7 @@
       }
     },
     "log.event.breakStart" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -15159,6 +15322,7 @@
       }
     },
     "log.event.sessionRestored" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -15631,25 +15795,25 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "بتتعبى تلقائيًا حسب ساعات دوامك المعتادة — يوم العطلة ما بيحتاج تسجّله يدوي."
+            "value" : "معبّى تلقائياً حسب ساعات دوامك المعتادة. تقدر تعدّل الأوقات إذا اليوم كان مختلف."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Filled in automatically from your usual work hours — holidays aren't punched in manually."
+            "value" : "Pre-filled from your usual work hours. Edit the times if the day was different."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "מתמלא אוטומטית לפי שעות העבודה הרגילות שלך — לא מחתימים יום חג ידנית."
+            "value" : "מתמלא לפי שעות העבודה הרגילות שלך. אפשר לערוך את השעות אם היום היה שונה."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Заполнено автоматически по вашему обычному графику — в праздники время вручную не отмечают."
+            "value" : "Заполнено по вашему обычному графику. Измените время, если день был другим."
           }
         }
       }
@@ -15974,6 +16138,7 @@
       }
     },
     "onb.back" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16002,6 +16167,7 @@
       }
     },
     "onb.clockInNow" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16030,6 +16196,7 @@
       }
     },
     "onb.cta.showResult" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16058,6 +16225,7 @@
       }
     },
     "onb.cta.start" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16086,6 +16254,7 @@
       }
     },
     "onb.days.subtitle" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16114,6 +16283,7 @@
       }
     },
     "onb.days.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16142,6 +16312,7 @@
       }
     },
     "onb.estimateCaption" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16170,6 +16341,7 @@
       }
     },
     "onb.exampleCaption" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16198,6 +16370,7 @@
       }
     },
     "onb.hours.estimate %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16226,6 +16399,7 @@
       }
     },
     "onb.hours.note" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16254,6 +16428,7 @@
       }
     },
     "onb.hours.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16282,6 +16457,7 @@
       }
     },
     "onb.hours.value %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16310,6 +16486,7 @@
       }
     },
     "onb.language" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16338,6 +16515,7 @@
       }
     },
     "onb.progress %1$@ %2$@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16366,6 +16544,7 @@
       }
     },
     "onb.rate.a11y" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16394,6 +16573,7 @@
       }
     },
     "onb.rate.error" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16422,6 +16602,7 @@
       }
     },
     "onb.rate.subtitle" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16450,6 +16631,7 @@
       }
     },
     "onb.rate.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16478,6 +16660,7 @@
       }
     },
     "onb.result.caption" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16506,6 +16689,7 @@
       }
     },
     "onb.result.hours" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16534,6 +16718,7 @@
       }
     },
     "onb.result.perHour" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16562,6 +16747,7 @@
       }
     },
     "onb.result.privacy" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16590,6 +16776,7 @@
       }
     },
     "onb.result.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16618,6 +16805,7 @@
       }
     },
     "onb.skip" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16646,6 +16834,7 @@
       }
     },
     "onb.today" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16674,6 +16863,7 @@
       }
     },
     "onb.week.custom" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16702,6 +16892,7 @@
       }
     },
     "onb.week.customSub" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16730,6 +16921,7 @@
       }
     },
     "onb.week.five" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16758,6 +16950,7 @@
       }
     },
     "onb.week.fiveSub" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16786,6 +16979,7 @@
       }
     },
     "onb.week.six" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16814,6 +17008,7 @@
       }
     },
     "onb.week.sixSub" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16842,6 +17037,7 @@
       }
     },
     "onb.week.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16870,6 +17066,7 @@
       }
     },
     "onb.week.varies" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16898,6 +17095,7 @@
       }
     },
     "onb.week.variesSub" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16926,6 +17124,7 @@
       }
     },
     "onb.welcome.row1" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16954,6 +17153,7 @@
       }
     },
     "onb.welcome.row2" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -16982,6 +17182,7 @@
       }
     },
     "onb.welcome.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -17300,6 +17501,7 @@
       }
     },
     "pay.tierAt %1$@ %2$@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23128,6 +23330,7 @@
       }
     },
     "settings.breaksArePaid" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23156,6 +23359,7 @@
       }
     },
     "settings.breaksArePaid.offHint" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23184,6 +23388,7 @@
       }
     },
     "settings.breaksArePaid.onHint" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23908,6 +24113,7 @@
       }
     },
     "settings.notifications.announcements" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23936,6 +24142,7 @@
       }
     },
     "settings.notifications.breakEndingSoon" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23964,6 +24171,7 @@
       }
     },
     "settings.notifications.breakLead" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -23992,6 +24200,7 @@
       }
     },
     "settings.notifications.breakLength" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -24020,6 +24229,7 @@
       }
     },
     "settings.notifications.breakOver" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -24048,6 +24258,7 @@
       }
     },
     "settings.notifications.hint" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -24076,6 +24287,7 @@
       }
     },
     "settings.notifications.minutes %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -24104,6 +24316,7 @@
       }
     },
     "settings.notifications.scheduleLearning" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -24132,6 +24345,7 @@
       }
     },
     "settings.notifications.section" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -24160,6 +24374,7 @@
       }
     },
     "settings.notifications.shiftEnd" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -24188,6 +24403,7 @@
       }
     },
     "settings.notifications.shiftStart" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -24245,6 +24461,7 @@
       }
     },
     "settings.notifications.usualSchedule" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26071,6 +26288,7 @@
       }
     },
     "sum.breakPaid" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26099,6 +26317,7 @@
       }
     },
     "sum.breakUnpaid" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26127,6 +26346,7 @@
       }
     },
     "sum.creditPointsInfo" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26155,6 +26375,7 @@
       }
     },
     "sum.deductions %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26183,6 +26404,7 @@
       }
     },
     "sum.homeSyncGross" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26211,6 +26433,7 @@
       }
     },
     "sum.homeSyncNet" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26239,6 +26462,7 @@
       }
     },
     "sum.new" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26267,6 +26491,7 @@
       }
     },
     "sum.noteGross" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26295,6 +26520,7 @@
       }
     },
     "sum.noteNet" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26323,6 +26549,7 @@
       }
     },
     "sum.rateMissing" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26351,6 +26578,7 @@
       }
     },
     "sum.rateSave" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26379,6 +26607,7 @@
       }
     },
     "sum.rowBreaks" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26407,6 +26636,7 @@
       }
     },
     "sum.rowOvertime %@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26435,6 +26665,7 @@
       }
     },
     "sum.rowRegular" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26463,6 +26694,7 @@
       }
     },
     "sum.title" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -26491,6 +26723,7 @@
       }
     },
     "sum.week %1$@ %2$@" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -27186,6 +27419,7 @@
       }
     },
     "tab.payslips" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {
@@ -28287,6 +28521,7 @@
       }
     },
     "undo.delete" : {
+      "extractionState" : "stale",
       "localizations" : {
         "ar" : {
           "stringUnit" : {

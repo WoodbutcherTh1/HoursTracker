@@ -29,15 +29,7 @@ struct ManualEntryView: View {
                 }
             }
 
-            if dayType == .holiday {
-                Section(L10n.manualHolidayAutoFilledTitle) {
-                    LabeledContent(L10n.editClockIn, value: clockIn.formatted(date: .omitted, time: .shortened))
-                    LabeledContent(L10n.editClockOut, value: clockOut.formatted(date: .omitted, time: .shortened))
-                    Text(L10n.manualHolidayAutoFilledHint)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            } else if dayType == .sick {
+            if dayType == .sick {
                 Section(L10n.dayTypeSick) {
                     let preview = viewModel.sickStreakPreview(for: selectedDate)
                     Text(L10n.manualSickPreview(preview.dayNumber, Int(preview.percentage * 100)))
@@ -66,6 +58,11 @@ struct ManualEntryView: View {
                     Section(L10n.editTimes) {
                         DatePicker(L10n.editClockIn, selection: $clockIn, displayedComponents: .hourAndMinute)
                         DatePicker(L10n.editClockOut, selection: $clockOut, displayedComponents: .hourAndMinute)
+                        if dayType == .holiday {
+                            Text(L10n.manualHolidayAutoFilledHint)
+                                .font(.footnote)
+                                .foregroundStyle(.secondary)
+                        }
                     }
                 }
             }
@@ -143,7 +140,7 @@ struct ManualEntryView: View {
     /// Shift length in minutes as entered, before any break deduction.
     /// Returns nil when the times are invalid (equal clock in/out).
     private var enteredShiftMinutes: Int? {
-        if dayType == .holiday || dayType == .sick { return nil }
+        if dayType == .sick { return nil }
         if useDirectHours {
             return Int(directHours * 60)
         }
@@ -163,7 +160,7 @@ struct ManualEntryView: View {
 
     /// Inline validation message shown above the save button; nil when valid.
     private var validationMessage: String? {
-        guard dayType != .holiday, dayType != .sick else { return nil }
+        guard dayType != .sick else { return nil }
 
         // Zero-duration shift (0 hours, or identical clock-in/out times).
         guard let shiftMinutes = enteredShiftMinutes, shiftMinutes > 0 else {
