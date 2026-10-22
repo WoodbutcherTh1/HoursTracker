@@ -177,7 +177,11 @@ final class SupportChatModel: ObservableObject {
             let (data, response) = try await session.data(for: request)
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
             guard status == 200 else {
-                notice = status == 429 ? L10n.supportChatErrorLimit : L10n.supportChatErrorGeneric
+                switch status {
+                case 429: notice = L10n.supportChatErrorLimit
+                case 503: notice = L10n.supportChatErrorPaused
+                default: notice = L10n.supportChatErrorGeneric
+                }
                 return false
             }
             struct Envelope: Decodable { let messages: [Item] }

@@ -9,6 +9,14 @@ struct AdminDashboardView: View {
 
     var body: some View {
         List {
+            Section {
+                NavigationLink {
+                    AdminControlRoomView()
+                } label: {
+                    Label(L10n.adminControlRoomTitle, systemImage: "waveform.path.ecg.rectangle")
+                        .font(.body.weight(.semibold))
+                }
+            }
             statsSection
             Section {
                 NavigationLink {

@@ -675,6 +675,33 @@ enum L10n {
     static var settingsArrivalBody: String { t("settings.arrivalBody") }
     static var settingsArrivalContinue: String { t("settings.arrivalContinue") }
     static var settingsTools: String { t("settings.tools") }
+    static var adminControlRoomTitle: String { t("admin.control.title") }
+    static var adminControlRoomTurnOff: String { t("admin.control.turnOff") }
+    static var adminControlRoomOnline: String { t("admin.control.online") }
+    static var adminControlRoomOffline: String { t("admin.control.offline") }
+    static var adminControlRoomActiveToday: String { t("admin.control.activeToday") }
+    static var adminControlRoomActiveWeek: String { t("admin.control.activeWeek") }
+    static var adminControlRoomNewWeek: String { t("admin.control.newWeek") }
+    static var adminControlRoomOnShift: String { t("admin.control.onShift") }
+    static var adminControlRoomReturning: String { t("admin.control.returning") }
+    static var adminControlRoomDevices: String { t("admin.control.devices") }
+    static var adminControlRoomAI: String { t("admin.control.ai") }
+    static var adminControlRoomToday: String { t("admin.control.today") }
+    static var adminControlRoomSwitches: String { t("admin.control.switches") }
+    static var adminControlRoomRunning: String { t("admin.control.running") }
+    static var adminControlRoomStopped: String { t("admin.control.stopped") }
+    static var adminControlRoomVersions: String { t("admin.control.versions") }
+    static var adminControlRoomAudit: String { t("admin.control.audit") }
+    static var adminControlRoomAuditEmpty: String { t("admin.control.auditEmpty") }
+    static var adminControlRoomSwitchAI: String { t("admin.control.switchAI") }
+    static var adminControlRoomSwitchChat: String { t("admin.control.switchChat") }
+    static var supportChatErrorPaused: String { t("supportChat.error.paused") }
+    static func adminControlRoomConfirmOff(_ name: String) -> String {
+        String(format: t("admin.control.confirmOff"), name)
+    }
+    static func adminControlRoomUnread(_ count: Int) -> String {
+        String(format: t("admin.control.unread"), count)
+    }
     static var adminAutoRepliesTitle: String { t("admin.autoReplies.title") }
     static var adminAutoRepliesEmpty: String { t("admin.autoReplies.empty") }
     static var adminAutoRepliesHint: String { t("admin.autoReplies.hint") }

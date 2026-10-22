@@ -56,6 +56,7 @@ struct HomeView: View {
     @State private var showAbout = false
     @State private var showFeedback = false
     @State private var showSupportChat = false
+    @State private var showControlRoomPreview = false
     /// Set once the "Tap to personalize" toast has shown (or the picker was opened).
     @AppStorage("home.themeTipSeen") private var themeTipSeen = false
     @State private var showThemeTip = false
@@ -201,6 +202,11 @@ struct HomeView: View {
             .sheet(isPresented: $showSupportChat) {
                 SupportChatSheet()
             }
+            #if DEBUG
+            .fullScreenCover(isPresented: $showControlRoomPreview) {
+                NavigationStack { AdminControlRoomView() }
+            }
+            #endif
             .sheet(isPresented: $showFeedback) {
                 ContactSupportSheet(viewModel: viewModel)
             }
@@ -213,6 +219,9 @@ struct HomeView: View {
                 // UI-test hook only: open the user guide directly so its pages can be captured.
                 if ProcessInfo.processInfo.arguments.contains("UITEST_OPEN_GUIDE") {
                     showUserGuide = true
+                }
+                if ProcessInfo.processInfo.arguments.contains("UITEST_OPEN_CONTROL_ROOM") {
+                    showControlRoomPreview = true
                 }
             }
             #endif
