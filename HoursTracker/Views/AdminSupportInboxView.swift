@@ -196,7 +196,7 @@ final class AdminSupportModel: ObservableObject {
         await loadThreads()
     }
 
-    private func call<Response: Decodable>(_ body: [String: String]) async -> Response? {
+    func call<Response: Decodable>(_ body: [String: Any]) async -> Response? {
         guard let token = try? await SupabaseAuthManager.shared.client.auth.session.accessToken else {
             notice = L10n.adminSupportNotSignedIn
             return nil

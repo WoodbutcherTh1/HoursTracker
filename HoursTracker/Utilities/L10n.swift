@@ -675,6 +675,14 @@ enum L10n {
     static var settingsArrivalBody: String { t("settings.arrivalBody") }
     static var settingsArrivalContinue: String { t("settings.arrivalContinue") }
     static var settingsTools: String { t("settings.tools") }
+    static var adminAutoRepliesTitle: String { t("admin.autoReplies.title") }
+    static var adminAutoRepliesEmpty: String { t("admin.autoReplies.empty") }
+    static var adminAutoRepliesHint: String { t("admin.autoReplies.hint") }
+    static var adminAutoRepliesAdd: String { t("admin.autoReplies.add") }
+    static var adminAutoRepliesKeywords: String { t("admin.autoReplies.keywords") }
+    static var adminAutoRepliesKeywordsPlaceholder: String { t("admin.autoReplies.keywordsPlaceholder") }
+    static var adminAutoRepliesKeywordsHint: String { t("admin.autoReplies.keywordsHint") }
+    static var adminAutoRepliesEnabled: String { t("admin.autoReplies.enabled") }
     static var adminSupportTitle: String { t("admin.support.title") }
     static var adminSupportEmpty: String { t("admin.support.empty") }
     static var adminSupportOpen: String { t("admin.support.status.open") }

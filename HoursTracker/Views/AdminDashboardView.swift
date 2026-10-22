@@ -30,6 +30,11 @@ struct AdminDashboardView: View {
                 } label: {
                     Label(L10n.adminSupportTitle, systemImage: "bubble.left.and.bubble.right")
                 }
+                NavigationLink {
+                    AdminAutoRepliesView()
+                } label: {
+                    Label(L10n.adminAutoRepliesTitle, systemImage: "text.bubble")
+                }
             }
         }
         .navigationTitle(L10n.adminTitle)
