@@ -675,6 +675,14 @@ enum L10n {
     static var settingsArrivalBody: String { t("settings.arrivalBody") }
     static var settingsArrivalContinue: String { t("settings.arrivalContinue") }
     static var settingsTools: String { t("settings.tools") }
+    static var supportChatTitle: String { t("supportChat.title") }
+    static var supportChatIntro: String { t("supportChat.intro") }
+    static var supportChatPlaceholder: String { t("supportChat.placeholder") }
+    static var supportChatSend: String { t("supportChat.send") }
+    static var supportChatAutoReplyTag: String { t("supportChat.autoReplyTag") }
+    static var supportChatErrorLimit: String { t("supportChat.error.limit") }
+    static var supportChatErrorGeneric: String { t("supportChat.error.generic") }
+    static var supportChatErrorNetwork: String { t("supportChat.error.network") }
     static var settingsGroupWork: String { t("settings.group.work") }
     static var settingsGroupWorkSummary: String { t("settings.group.workSummary") }
     static var settingsGroupReminders: String { t("settings.group.reminders") }

@@ -55,6 +55,7 @@ struct HomeView: View {
     @State private var showUserGuide = false
     @State private var showAbout = false
     @State private var showFeedback = false
+    @State private var showSupportChat = false
     /// Set once the "Tap to personalize" toast has shown (or the picker was opened).
     @AppStorage("home.themeTipSeen") private var themeTipSeen = false
     @State private var showThemeTip = false
@@ -142,6 +143,11 @@ struct HomeView: View {
                         } label: {
                             Label(L10n.guideTitle, systemImage: "questionmark.circle")
                         }
+                        Button {
+                            showSupportChat = true
+                        } label: {
+                            Label(L10n.supportChatTitle, systemImage: "bubble.left.and.bubble.right")
+                        }
                         // One row for support and feedback — the sheet's own picker
                         // (bug / suggestion / …) says what it's about.
                         Button {
@@ -191,6 +197,9 @@ struct HomeView: View {
             .sheet(isPresented: $showAbout) {
                 AboutSheet(viewModel: viewModel)
                     .presentationDetents([.medium])
+            }
+            .sheet(isPresented: $showSupportChat) {
+                SupportChatSheet()
             }
             .sheet(isPresented: $showFeedback) {
                 ContactSupportSheet(viewModel: viewModel)
