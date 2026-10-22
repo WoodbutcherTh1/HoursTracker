@@ -205,5 +205,12 @@ extension ScreenshotTests {
         settingsTab.tap()
         pause(2)
         capture(app, "english", "settings-groups")
+
+        let reminders = app.descendants(matching: .any)["settings.group.reminders"].firstMatch
+        if reminders.waitForExistence(timeout: 5) {
+            reminders.tap()
+            pause(1)
+            capture(app, "english", "settings-reminders-open")
+        }
     }
 }
