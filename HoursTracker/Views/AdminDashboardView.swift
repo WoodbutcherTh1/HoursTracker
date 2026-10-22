@@ -24,6 +24,13 @@ struct AdminDashboardView: View {
             } header: {
                 Text(L10n.adminAnnouncements)
             }
+            Section {
+                NavigationLink {
+                    AdminSupportInboxView()
+                } label: {
+                    Label(L10n.adminSupportTitle, systemImage: "bubble.left.and.bubble.right")
+                }
+            }
         }
         .navigationTitle(L10n.adminTitle)
         .refreshable { await loadStats() }

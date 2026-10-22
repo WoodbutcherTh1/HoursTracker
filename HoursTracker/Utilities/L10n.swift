@@ -675,6 +675,16 @@ enum L10n {
     static var settingsArrivalBody: String { t("settings.arrivalBody") }
     static var settingsArrivalContinue: String { t("settings.arrivalContinue") }
     static var settingsTools: String { t("settings.tools") }
+    static var adminSupportTitle: String { t("admin.support.title") }
+    static var adminSupportEmpty: String { t("admin.support.empty") }
+    static var adminSupportOpen: String { t("admin.support.status.open") }
+    static var adminSupportAnswered: String { t("admin.support.status.answered") }
+    static var adminSupportClosed: String { t("admin.support.status.closed") }
+    static var adminSupportNotSignedIn: String { t("admin.support.notSignedIn") }
+    static var adminSupportFailed: String { t("admin.support.failed") }
+    static func adminSupportConversation(_ ref: String) -> String {
+        String(format: t("admin.support.conversation"), ref)
+    }
     static var supportChatTitle: String { t("supportChat.title") }
     static var supportChatIntro: String { t("supportChat.intro") }
     static var supportChatPlaceholder: String { t("supportChat.placeholder") }
