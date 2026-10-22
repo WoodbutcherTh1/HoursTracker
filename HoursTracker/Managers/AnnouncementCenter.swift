@@ -69,11 +69,16 @@ final class AnnouncementCenter: ObservableObject {
 
     /// Random per-install id, created on first use and dropped by `forget()`.
     var installID: UUID {
-        if let raw = defaults.string(forKey: Key.installID), let id = UUID(uuidString: raw) {
-            return id
+        UUID(uuidString: Self.stableInstallID(defaults: defaults)) ?? UUID()
+    }
+
+    /// Same id as `installID`, readable from any actor (the assistant router uses it).
+    nonisolated static func stableInstallID(defaults: UserDefaults = .standard) -> String {
+        if let raw = defaults.string(forKey: Key.installID), UUID(uuidString: raw) != nil {
+            return raw
         }
-        let id = UUID()
-        defaults.set(id.uuidString, forKey: Key.installID)
+        let id = UUID().uuidString
+        defaults.set(id, forKey: Key.installID)
         return id
     }
 

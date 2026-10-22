@@ -37,6 +37,8 @@ struct AssistantLLMRouter: Sendable {
         if hasKey(secondaryKey) {
             providers.append(OpenAICompatibleAssistantLLMProvider(apiKey: secondaryKey))
         }
+        // Free AI for everyone else: last in line, limited per install on the server.
+        providers.append(ManagedAssistantLLMProvider(installID: AnnouncementCenter.stableInstallID()))
         return AssistantLLMRouter(providers: providers)
     }
 
