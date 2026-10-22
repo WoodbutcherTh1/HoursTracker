@@ -570,15 +570,12 @@ struct HomeView: View {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
             showSupportChat = true
         } label: {
-            Image(systemName: "bubble.left.and.bubble.right.fill")
-                .font(.system(size: 18, weight: .semibold))
-                .foregroundStyle(homeTheme.accent)
-                .frame(width: 48, height: 48)
-                .background(
-                    Circle()
-                        .fill(HomeNeon.card.opacity(0.9))
-                        .overlay(Circle().stroke(homeTheme.accent.opacity(0.45), lineWidth: 1.2))
-                )
+            // Quiet on purpose: the door is the one main action on this screen.
+            Image(systemName: "bubble.left.and.bubble.right")
+                .font(.system(size: 15, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 40, height: 40)
+                .background(Circle().fill(HomeNeon.card.opacity(0.6)))
         }
         .buttonStyle(ScalePressButtonStyle())
         .accessibilityLabel(L10n.supportChatTitle)
