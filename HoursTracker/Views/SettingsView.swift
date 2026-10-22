@@ -102,30 +102,82 @@ struct SettingsView: View {
         }
     }
 
+    @State private var openSettingsGroups: Set<String> = []
+
+    private func groupBinding(_ key: String) -> Binding<Bool> {
+        Binding(
+            get: { openSettingsGroups.contains(key) },
+            set: { open in
+                if open { openSettingsGroups.insert(key) } else { openSettingsGroups.remove(key) }
+            }
+        )
+    }
+
+    /// One collapsible group in the Form. Its rows come from the section builders
+    /// above; the group header shows a one-line summary so closed groups stay useful.
+    private func settingsGroup<Rows: View>(
+        _ key: String,
+        title: String,
+        icon: String,
+        summary: String,
+        @ViewBuilder rows: () -> Rows
+    ) -> some View {
+        let content = rows()
+        return Section {
+            DisclosureGroup(isExpanded: groupBinding(key)) {
+                content
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: icon)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundStyle(homeTheme.accent)
+                        .frame(width: 24)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(title)
+                            .font(.body.weight(.semibold))
+                        Text(summary)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.vertical, 2)
+            }
+            .accessibilityIdentifier("settings.group.\(key)")
+        }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
                 accountSection
-                workplacesSection
-                workerSection
-                workplaceSection
-                paySection
-                workRulesSection
-                payrollSection
-                taxSection
-                locationSection
-                notificationsSection
-                securitySection
-                widgetPrivacySection
-                smartScannerSection
-                if viewModel.isCloudSyncSupported {
-                    syncSection
+                settingsGroup("work", title: L10n.settingsGroupWork, icon: "briefcase.fill", summary: L10n.settingsGroupWorkSummary) {
+                    workplacesRows
+                    workerRows
+                    workplaceRows
+                    payRows
+                    workRulesRows
+                    payrollRows
+                    taxRows
                 }
-                dataSafetySection
-                if admin.isAdmin {
-                    adminSection
+                settingsGroup("reminders", title: L10n.settingsGroupReminders, icon: "bell.badge.fill", summary: L10n.settingsGroupRemindersSummary) {
+                    locationRows
+                    notificationsRows
                 }
-                toolsSection
+                settingsGroup("privacy", title: L10n.settingsGroupPrivacy, icon: "lock.shield.fill", summary: L10n.settingsGroupPrivacySummary) {
+                    securityRows
+                    widgetPrivacyRows
+                    smartScannerRows
+                    dataSafetyRows
+                }
+                settingsGroup("data", title: L10n.settingsGroupData, icon: "externaldrive.fill", summary: L10n.settingsGroupDataSummary) {
+                    if viewModel.isCloudSyncSupported {
+                        syncRows
+                    }
+                    if admin.isAdmin {
+                        adminRows
+                    }
+                    toolsRows
+                }
                 languageSection
                 aboutSection
                 shareAppSection
@@ -338,8 +390,9 @@ struct SettingsView: View {
         .accessibilityIdentifier("settings.save")
     }
 
-    private var smartScannerSection: some View {
-        Section {
+    private var smartScannerRows: some View {
+        Group {
+            sectionHeader(L10n.scannerSection, icon: "doc.text.viewfinder")
             Toggle(L10n.scannerCloudEnabled, isOn: $smartScannerCloudEnabled)
 
             Text(L10n.scannerCloudPrivacyNotice)
@@ -373,8 +426,6 @@ struct SettingsView: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
-        } header: {
-            sectionHeader(L10n.scannerSection, icon: "doc.text.viewfinder")
         }
     }
 
@@ -460,8 +511,9 @@ struct SettingsView: View {
         }
     }
 
-    private var workerSection: some View {
-        Section {
+    private var workerRows: some View {
+        Group {
+            sectionHeader(L10n.settingsWorkerInfo, icon: "person.text.rectangle.fill")
             TextField(L10n.settingsFullName, text: $draft.workerFullName)
                 .accessibilityIdentifier("settings.fullName")
             if isEditingIDNumber {
@@ -494,8 +546,6 @@ struct SettingsView: View {
             }
             TextField(L10n.settingsEmployeeNumber, text: $draft.employeeNumber)
                 .accessibilityIdentifier("settings.employeeNumber")
-        } header: {
-            sectionHeader(L10n.settingsWorkerInfo, icon: "person.text.rectangle.fill")
         }
     }
 
@@ -534,8 +584,9 @@ struct SettingsView: View {
 
     /// One switch per notification-sending feature. These are device preferences
     /// (UserDefaults), not workplace settings, so they apply immediately — no Save.
-    private var notificationsSection: some View {
-        Section {
+    private var notificationsRows: some View {
+        Group {
+            sectionHeader(L10n.settingsNotificationsSection, icon: "bell.badge.fill")
             Picker(L10n.settingsNotificationsBreakLength, selection: $notificationPrefs.breakTargetMinutes) {
                 ForEach(breakTargetChoices, id: \.self) { minutes in
                     Text(L10n.settingsNotificationsMinutes(minutes)).tag(minutes)
@@ -580,10 +631,7 @@ struct SettingsView: View {
                     }
                 }
             }
-        } header: {
-            sectionHeader(L10n.settingsNotificationsSection, icon: "bell.badge.fill")
-        } footer: {
-            Text(L10n.settingsNotificationsHint)
+            Text(L10n.settingsNotificationsHint).font(.footnote).foregroundStyle(.secondary)
         }
     }
 
@@ -644,8 +692,9 @@ struct SettingsView: View {
     }
 
     /// Recently deleted shifts (30 days) and the automatic daily backups (14 days).
-    private var dataSafetySection: some View {
-        Section {
+    private var dataSafetyRows: some View {
+        Group {
+            sectionHeader(L10n.dataSafetySection, icon: "externaldrive.badge.checkmark")
             NavigationLink {
                 RecentlyDeletedView(viewModel: viewModel)
             } label: {
@@ -656,35 +705,29 @@ struct SettingsView: View {
             } label: {
                 Label(L10n.dataSafetyBackups, systemImage: "clock.arrow.circlepath")
             }
-        } header: {
-            sectionHeader(L10n.dataSafetySection, icon: "externaldrive.badge.checkmark")
-        } footer: {
-            Text(L10n.dataSafetyHint)
+            Text(L10n.dataSafetyHint).font(.footnote).foregroundStyle(.secondary)
         }
     }
 
-    private var adminSection: some View {
-        Section {
+    private var adminRows: some View {
+        Group {
+            sectionHeader(L10n.adminTitle, icon: "crown.fill")
             NavigationLink {
                 AdminDashboardView()
             } label: {
                 Label(L10n.adminSettingsEntry, systemImage: "crown")
             }
-        } header: {
-            sectionHeader(L10n.adminTitle, icon: "crown.fill")
-        } footer: {
-            Text(L10n.adminSettingsFooter)
+            Text(L10n.adminSettingsFooter).font(.footnote).foregroundStyle(.secondary)
         }
     }
 
-    private var securitySection: some View {
-        Section {
+    private var securityRows: some View {
+        Group {
+            sectionHeader(L10n.appLockSection, icon: "lock.shield.fill")
             Toggle(L10n.appLockEnabled, isOn: $appLock.isEnabled)
             Text(L10n.appLockHint)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-        } header: {
-            sectionHeader(L10n.appLockSection, icon: "lock.shield.fill")
         }
     }
 
@@ -692,8 +735,9 @@ struct SettingsView: View {
     /// show money by default — this lets users mask it everywhere outside the app.
     /// The flag lives in the shared App Group suite so the widget extension reads
     /// it without needing the app's settings file.
-    private var widgetPrivacySection: some View {
-        Section {
+    private var widgetPrivacyRows: some View {
+        Group {
+            sectionHeader(L10n.settingsHideWidgetPaySection, icon: "square.grid.2x2.fill")
             addWidgetButton
             Text(L10n.settingsAddWidgetHint)
                 .font(.caption)
@@ -713,13 +757,12 @@ struct SettingsView: View {
             Text(L10n.settingsHideWidgetPayHint)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-        } header: {
-            sectionHeader(L10n.settingsHideWidgetPaySection, icon: "square.grid.2x2.fill")
         }
     }
 
-    private var workplaceSection: some View {
-        Section {
+    private var workplaceRows: some View {
+        Group {
+            sectionHeader(L10n.settingsWorkplace, icon: "building.2.fill")
             TextField(L10n.settingsWorkplaceName, text: $draft.workplaceName)
                 .accessibilityIdentifier("settings.workplaceName")
             TextField(L10n.settingsContractor, text: Binding(
@@ -727,13 +770,12 @@ struct SettingsView: View {
                 set: { draft.contractorName = $0.isEmpty ? nil : $0 }
             ))
             .accessibilityIdentifier("settings.contractor")
-        } header: {
-            sectionHeader(L10n.settingsWorkplace, icon: "building.2.fill")
         }
     }
 
-    private var paySection: some View {
-        Section {
+    private var payRows: some View {
+        Group {
+            sectionHeader(L10n.settingsPayHours, icon: "banknote.fill")
             HStack {
                 Text(L10n.settingsHourlyRate)
                 Spacer()
@@ -790,8 +832,6 @@ struct SettingsView: View {
                     .frame(width: 100)
                     .accessibilityIdentifier("settings.weeklyOvertimeCap")
             }
-        } header: {
-            sectionHeader(L10n.settingsPayHours, icon: "banknote.fill")
         }
     }
 
@@ -815,8 +855,9 @@ struct SettingsView: View {
         )
     }
 
-    private var workRulesSection: some View {
-        Section {
+    private var workRulesRows: some View {
+        Group {
+            sectionHeader(L10n.settingsWorkRules, icon: "clock.badge.checkmark.fill")
             Picker(L10n.settingsRestDay, selection: $draft.restDayWeekday) {
                 ForEach(1...7, id: \.self) { weekday in
                     Text(Calendar.current.weekdaySymbols[weekday - 1]).tag(weekday)
@@ -884,8 +925,6 @@ struct SettingsView: View {
                     .padding(.top, 2)
             }
             .font(.caption)
-        } header: {
-            sectionHeader(L10n.settingsWorkRules, icon: "clock.badge.checkmark.fill")
         }
     }
 
@@ -943,8 +982,9 @@ struct SettingsView: View {
         }
     }
 
-    private var payrollSection: some View {
-        Section {
+    private var payrollRows: some View {
+        Group {
+            sectionHeader(AppLocale.tr("payroll.section"), icon: "calendar.badge.clock")
             Text(AppLocale.tr("payroll.startDayHelp"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -989,13 +1029,12 @@ struct SettingsView: View {
             ))
             .font(.caption)
             .foregroundStyle(.secondary)
-        } header: {
-            sectionHeader(AppLocale.tr("payroll.section"), icon: "calendar.badge.clock")
         }
     }
 
-    private var taxSection: some View {
-        Section {
+    private var taxRows: some View {
+        Group {
+            sectionHeader(AppLocale.tr("tax.section"), icon: "percent")
             DatePicker(
                 AppLocale.tr("tax.birthDate"),
                 selection: Binding(
@@ -1048,13 +1087,12 @@ struct SettingsView: View {
             Text(AppLocale.tr("tax.estimateNote"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
-        } header: {
-            sectionHeader(AppLocale.tr("tax.section"), icon: "percent")
         }
     }
 
-    private var locationSection: some View {
-        Section {
+    private var locationRows: some View {
+        Group {
+            sectionHeader(L10n.settingsLocationReminders, icon: "location.fill")
             Toggle(L10n.settingsArrivalReminders, isOn: Binding(
                 get: { draft.arrivalRemindersEnabled },
                 set: { newValue in
@@ -1151,8 +1189,6 @@ struct SettingsView: View {
                             ? .red : .green
                     )
             }
-        } header: {
-            sectionHeader(L10n.settingsLocationReminders, icon: "location.fill")
         }
     }
 
@@ -1161,8 +1197,9 @@ struct SettingsView: View {
         return status == .denied || status == .restricted
     }
 
-    private var syncSection: some View {
-        Section {
+    private var syncRows: some View {
+        Group {
+            sectionHeader(L10n.syncSection, icon: "icloud.fill")
             Toggle(L10n.syncEnabled, isOn: Binding(
                 get: { viewModel.isICloudSyncEnabled },
                 set: { newValue in
@@ -1200,20 +1237,17 @@ struct SettingsView: View {
                     .disabled(viewModel.isSyncing)
                 }
             }
-        } header: {
-            sectionHeader(L10n.syncSection, icon: "icloud.fill")
         }
     }
 
-    private var toolsSection: some View {
-        Section {
+    private var toolsRows: some View {
+        Group {
+            sectionHeader(L10n.settingsTools, icon: "wrench.and.screwdriver.fill")
             NavigationLink {
                 ActivityLogView(viewModel: viewModel)
             } label: {
                 Label(L10n.logTitle, systemImage: "list.bullet.rectangle")
             }
-        } header: {
-            sectionHeader(L10n.settingsTools, icon: "wrench.and.screwdriver.fill")
         }
     }
 
@@ -1296,8 +1330,9 @@ struct SettingsView: View {
 
     /// Several jobs, each with its own shifts, pay and settings. The settings
     /// below this section belong to the workplace picked here.
-    private var workplacesSection: some View {
-        Section {
+    private var workplacesRows: some View {
+        Group {
+            sectionHeader(L10n.workplacesTitle, icon: "building.2.crop.circle")
             if viewModel.hasMultipleWorkplaces {
                 WorkplaceSwitcher(viewModel: viewModel)
                 ForEach(viewModel.workplaceOptions.dropFirst()) { option in
@@ -1322,9 +1357,6 @@ struct SettingsView: View {
                 Label(L10n.workplaceAdd, systemImage: "plus.circle.fill")
             }
             .accessibilityIdentifier("settings.addWorkplace")
-        } header: {
-            sectionHeader(L10n.workplacesTitle, icon: "building.2.crop.circle")
-        } footer: {
             Text(viewModel.hasMultipleWorkplaces ? L10n.workplacesHintActive : L10n.workplacesHint)
         }
         .alert(L10n.workplaceAdd, isPresented: $showAddWorkplace) {
@@ -1354,7 +1386,7 @@ struct SettingsView: View {
         } message: {
             Text(L10n.workplaceDeleteConfirmMessage(
                 workplacePendingDelete?.workplaceID.map { viewModel.shiftCount(in: $0) } ?? 0
-            ))
+            )).font(.footnote).foregroundStyle(.secondary)
         }
     }
 

@@ -675,6 +675,14 @@ enum L10n {
     static var settingsArrivalBody: String { t("settings.arrivalBody") }
     static var settingsArrivalContinue: String { t("settings.arrivalContinue") }
     static var settingsTools: String { t("settings.tools") }
+    static var settingsGroupWork: String { t("settings.group.work") }
+    static var settingsGroupWorkSummary: String { t("settings.group.workSummary") }
+    static var settingsGroupReminders: String { t("settings.group.reminders") }
+    static var settingsGroupRemindersSummary: String { t("settings.group.remindersSummary") }
+    static var settingsGroupPrivacy: String { t("settings.group.privacy") }
+    static var settingsGroupPrivacySummary: String { t("settings.group.privacySummary") }
+    static var settingsGroupData: String { t("settings.group.data") }
+    static var settingsGroupDataSummary: String { t("settings.group.dataSummary") }
     static var settingsAbout: String { t("settings.about") }
     static var settingsVersion: String { t("settings.version") }
     static var settingsSupport: String { t("settings.support") }

@@ -186,3 +186,24 @@ final class GuideScreenshotTests: XCTestCase {
         app.terminate()
     }
 }
+
+extension ScreenshotTests {
+    /// Opens Settings to check the grouped layout by eye.
+    func testCaptureSettingsGroups() throws {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "UITEST_SCREENSHOTS",
+            "UITEST_LANG", "english",
+            "-appLanguagePreference", "english",
+            "-hasSeenOnboarding.v1", "YES"
+        ]
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30), "App did not launch")
+        allowSystemPrompt()
+        let settingsTab = app.tabBars.buttons["Settings"]
+        XCTAssertTrue(settingsTab.waitForExistence(timeout: 30), "Settings tab not found")
+        settingsTab.tap()
+        pause(2)
+        capture(app, "english", "settings-groups")
+    }
+}
