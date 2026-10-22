@@ -93,33 +93,34 @@ struct HomeView: View {
                     // keeps the old vertically-centered look when everything fits, and
                     // lets content scroll instead of getting clipped when it doesn't.
                     let fit = HomeFitScale.factor(available: geo.size.height, natural: naturalContentHeight)
-                    ScrollView {
-                        Group {
-                            if let session = viewModel.activeSession {
-                                clockedInView(session: session, metrics: metrics)
-                            } else {
-                                clockedOutView(metrics: metrics)
-                            }
+                    // Fits as designed: stretch to the visible height so the Spacers spread the
+                    // layout (tall phones). Too tall: scale the whole layout down to fit instead
+                    // of pinning controls over the tab bar or cutting them off.
+                    ViewThatFits(in: .vertical) {
+                        homeContent(metrics: metrics)
+                            .padding(.horizontal, metrics.horizontalPadding)
+                            .frame(minHeight: geo.size.height)
+
+                        ScrollView {
+                            homeContent(metrics: metrics)
+                                .padding(.horizontal, metrics.horizontalPadding)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .background(
+                                    GeometryReader { proxy in
+                                        Color.clear.preference(key: HomeNaturalHeightKey.self, value: proxy.size.height)
+                                    }
+                                )
+                                .frame(width: geo.size.width / fit)
+                                .scaleEffect(fit, anchor: .top)
+                                .frame(
+                                    width: geo.size.width,
+                                    height: max(geo.size.height, naturalContentHeight * fit),
+                                    alignment: .top
+                                )
                         }
-                        .padding(.horizontal, metrics.horizontalPadding)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .background(
-                            GeometryReader { proxy in
-                                Color.clear.preference(key: HomeNaturalHeightKey.self, value: proxy.size.height)
-                            }
-                        )
-                        // Scale the whole layout down uniformly when it is taller than the
-                        // visible area, so nothing is pinned over the tab bar or cut off.
-                        .frame(width: geo.size.width / fit)
-                        .scaleEffect(fit, anchor: .top)
-                        .frame(
-                            width: geo.size.width,
-                            height: max(geo.size.height, naturalContentHeight * fit),
-                            alignment: .top
-                        )
+                        .scrollBounceBehavior(.basedOnSize)
+                        .onPreferenceChange(HomeNaturalHeightKey.self) { naturalContentHeight = $0 }
                     }
-                    .scrollBounceBehavior(.basedOnSize)
-                    .onPreferenceChange(HomeNaturalHeightKey.self) { naturalContentHeight = $0 }
                     // BUG #3: on shorter screens the door (Clock In / Clock Out) ended up
                     // under the tab bar. There it is pinned above the tab bar and the rest
                     // scrolls behind it, so the main action is always one tap away.
@@ -225,6 +226,15 @@ struct HomeView: View {
                 }
             }
             #endif
+        }
+    }
+
+    @ViewBuilder
+    private func homeContent(metrics: HomeLayoutMetrics) -> some View {
+        if let session = viewModel.activeSession {
+            clockedInView(session: session, metrics: metrics)
+        } else {
+            clockedOutView(metrics: metrics)
         }
     }
 
