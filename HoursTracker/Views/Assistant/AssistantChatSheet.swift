@@ -91,6 +91,14 @@ struct AssistantChatSheet: View {
         ScrollViewReader { proxy in
             ScrollView {
                 VStack(alignment: .leading, spacing: 14) {
+                    if !chat.isConfigured {
+                        AssistantEnableCard(accent: theme.accent) {
+                            UserDefaultsSmartScannerCloudPreference.shared.isEnabled = true
+                            UIImpactFeedbackGenerator(style: .medium).impactOccurred()
+                            chat.refreshConfiguration()
+                        }
+                        .padding(.top, 12)
+                    }
                     if chat.messages.isEmpty {
                         AssistantWelcomeView(
                             accent: theme.accent,
@@ -473,5 +481,44 @@ struct AssistantThinkingBubble: View {
             }
         }
         .accessibilityLabel(L10n.assistantThinking)
+    }
+}
+
+
+/// Shown while cloud AI is off: one tap turns the free assistant on, with the privacy
+/// trade-off said up front instead of buried in Settings.
+struct AssistantEnableCard: View {
+    let accent: Color
+    let onEnable: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            Label(L10n.assistantEnableTitle, systemImage: "sparkles")
+                .font(.headline)
+                .foregroundStyle(.white)
+            Text(L10n.assistantEnableBody)
+                .font(.subheadline)
+                .foregroundStyle(.white.opacity(0.7))
+                .fixedSize(horizontal: false, vertical: true)
+            Button(action: onEnable) {
+                Text(L10n.assistantEnableButton)
+                    .font(.body.weight(.semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 12)
+                    .background(Capsule().fill(accent))
+                    .foregroundStyle(.black)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("assistant.enable")
+        }
+        .padding(16)
+        .background(
+            RoundedRectangle(cornerRadius: 20, style: .continuous)
+                .fill(Color.white.opacity(0.06))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20, style: .continuous)
+                        .stroke(accent.opacity(0.4), lineWidth: 1)
+                )
+        )
     }
 }

@@ -144,6 +144,11 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
                 AnnouncementCenter.shared.refresh(force: true)
             }
             let viewModel = AppViewModel.shared
+            if response.notification.request.content.userInfo[WidgetNudge.userInfoKey] != nil {
+                AppShortcutRouting.route(WidgetNudge.deepLink)
+                completionHandler()
+                return
+            }
             if response.notification.request.identifier == SettingsUnsavedReminder.identifier {
                 if action == SettingsUnsavedReminder.discardActionID {
                     SettingsUnsavedChanges.shared.discard()

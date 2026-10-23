@@ -867,6 +867,17 @@ final class AppViewModel: ObservableObject {
         }
     }
 
+    /// The user pulled the "deleted · Undo" banner away: the deletion stays.
+    func dismissUndoBanner() {
+        clearUndo()
+    }
+
+    /// The user pulled the confirmation banner away before its timer.
+    func dismissSuccessToast() {
+        successToastTask?.cancel()
+        successToast = nil
+    }
+
     private func clearUndo() {
         undoClearTask?.cancel()
         undoableDeletion = nil

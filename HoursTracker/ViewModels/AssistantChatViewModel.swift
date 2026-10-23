@@ -40,6 +40,7 @@ final class AssistantChatViewModel: ObservableObject {
 
     /// Picks up a key added in Settings while the app was already running.
     func refreshConfiguration() {
+        objectWillChange.send()
         router = .default()
     }
 

@@ -588,19 +588,25 @@ struct HomeWeekSparkline: View {
                         ridge
                             .stroke(accent.opacity(0.22), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
 
-                        ridge
-                            .trim(from: trailStart, to: travel)
-                            .stroke(
-                                LinearGradient(
-                                    colors: [accent.opacity(0.05), accent.opacity(0.9), Color.white.opacity(0.95)],
-                                    startPoint: .leading,
-                                    endPoint: .trailing
-                                ),
-                                style: StrokeStyle(lineWidth: 2.5, lineCap: .round, lineJoin: .round)
-                            )
-                            .shadow(color: accent.opacity(0.55), radius: 5)
+                        // The tail is the curve itself, cut into short pieces that fade and thin
+                        // out behind the dot, so it bends with the line instead of a straight streak.
+                        Group {
+                            ForEach(0..<Self.trailSteps, id: \.self) { k in
+                                let from = trailStart + (travel - trailStart) * CGFloat(k) / CGFloat(Self.trailSteps)
+                                let to = trailStart + (travel - trailStart) * CGFloat(k + 1) / CGFloat(Self.trailSteps)
+                                let f = Double(k + 1) / Double(Self.trailSteps)
+                                ridge
+                                    .trim(from: from, to: to)
+                                    .stroke(
+                                        k == Self.trailSteps - 1 ? Color.white.opacity(0.95) : accent.opacity(0.06 + 0.86 * f),
+                                        style: StrokeStyle(lineWidth: 1.0 + 1.8 * f, lineCap: .round, lineJoin: .round)
+                                    )
+                            }
+                        }
+                        .shadow(color: accent.opacity(0.55), radius: 5)
 
-                        if let point = pointAlongPolyline(tops, progress: travel) {
+                        // The dot sits on the same curve, at the head of the tail.
+                        if travel > 0.001, let point = ridge.trimmedPath(from: 0, to: travel).currentPoint {
                             travelingShine(at: point, pulse: t)
                         }
                     }
@@ -787,6 +793,8 @@ struct HomeWeekSparkline: View {
             return CGPoint(x: x, y: y)
         }
     }
+
+    private static let trailSteps = 12
 
     private func ridgePath(points: [CGPoint]) -> Path {
         guard points.count > 1 else { return Path() }

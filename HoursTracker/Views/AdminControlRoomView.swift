@@ -85,6 +85,8 @@ struct AdminControlRoomView: View {
 
     private var metricsGrid: some View {
         LazyVGrid(columns: [GridItem(.flexible(), spacing: 10), GridItem(.flexible(), spacing: 10)], spacing: 10) {
+            MetricTile(label: L10n.adminControlRoomInAppNow, value: model.int("active_now"), accent: ControlRoomPalette.green)
+            MetricTile(label: L10n.adminControlRoomAccounts, value: model.int("accounts"), accent: ControlRoomPalette.cyan)
             MetricTile(label: L10n.adminControlRoomActiveToday, value: model.int("active_1d"), accent: ControlRoomPalette.green)
             MetricTile(label: L10n.adminControlRoomActiveWeek, value: model.int("active_7d"), accent: ControlRoomPalette.cyan)
             MetricTile(label: L10n.adminControlRoomNewWeek, value: model.int("new_7d"), accent: ControlRoomPalette.cyan)
@@ -298,7 +300,7 @@ final class AdminOpsModel: ObservableObject {
         if let data = await call(["action": "overview"]) as? [String: Any] {
             withAnimation { overview = data }
             isHealthy = true
-        } else {
+        } else if notice != nil {
             isHealthy = false
         }
         if let data = await call(["action": "audit_log"]) as? [String: Any],
@@ -323,7 +325,7 @@ final class AdminOpsModel: ObservableObject {
 
     private func call(_ body: [String: Any]) async -> Any? {
         guard let token = try? await SupabaseAuthManager.shared.client.auth.session.accessToken else {
-            notice = L10n.adminSupportNotSignedIn
+            notice = L10n.adminControlRoomNotSignedIn
             return nil
         }
         var request = URLRequest(url: Self.functionURL)
@@ -336,13 +338,17 @@ final class AdminOpsModel: ObservableObject {
         do {
             let (data, response) = try await session.data(for: request)
             guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-                notice = L10n.adminSupportFailed
+                notice = L10n.adminControlRoomFailed
                 return nil
             }
             notice = nil
             return try JSONSerialization.jsonObject(with: data)
+        } catch is CancellationError {
+            return nil   // pull-to-refresh and the 30 s timer overlapping; not a failure
+        } catch let error as URLError where error.code == .cancelled {
+            return nil
         } catch {
-            notice = L10n.adminSupportFailed
+            notice = L10n.adminControlRoomFailed
             return nil
         }
     }

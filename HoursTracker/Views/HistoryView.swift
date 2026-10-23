@@ -1068,6 +1068,8 @@ struct HistoryView: View {
                         Text(L10n.historyTotalPay)
                             .font(.caption2)
                             .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .fixedSize()
 
                         Picker("", selection: $payMode) {
                             ForEach(PayDisplayMode.allCases) { mode in
@@ -1075,7 +1077,7 @@ struct HistoryView: View {
                             }
                         }
                         .pickerStyle(.segmented)
-                        .frame(width: 120)
+                        .frame(width: 108)
 
                         Button {
                             showPayBreakdown = true

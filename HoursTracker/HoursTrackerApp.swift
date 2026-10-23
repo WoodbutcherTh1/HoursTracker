@@ -104,6 +104,7 @@ struct HoursTrackerApp: App {
                     viewModel.refreshShiftReminders()
                     viewModel.takeDailyBackupIfNeeded()
                     AnnouncementCenter.shared.refresh()
+                    Task { await WidgetNudge.refresh() }
                     if appLock.isEnabled && appLock.isLocked {
                         Task { await appLock.unlock() }
                     }
@@ -263,9 +264,9 @@ struct MainTabView: View {
         .overlay(alignment: .bottom) {
             if let message = viewModel.successToast {
                 SuccessToastBanner(message: message)
+                    .swipeDownToDismiss { viewModel.dismissSuccessToast() }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .padding(.bottom, 56)
-                    .allowsHitTesting(false)
             }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.successToast)
@@ -273,6 +274,7 @@ struct MainTabView: View {
         .overlay(alignment: .bottom) {
             if viewModel.undoableDeletion != nil {
                 UndoDeleteBanner(count: viewModel.undoableDeletionCount) { viewModel.undoLastDeletion() }
+                    .swipeDownToDismiss { viewModel.dismissUndoBanner() }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                     .padding(.bottom, 56)
             }
@@ -407,6 +409,11 @@ struct MainTabView: View {
             if let tab = AppTab(rawValue: url.lastPathComponent) {
                 selectedTab = tab
             }
+        case "widgetGuide":
+            // The widget reminder was tapped: Settings, with the install guide open.
+            selectedTab = .settings
+            WidgetNudge.pendingGuide = true
+            NotificationCenter.default.post(name: WidgetNudge.openGuide, object: nil)
         case "action":
             switch url.lastPathComponent {
             case "clockIn":

@@ -46,3 +46,41 @@ struct UndoDeleteBanner: View {
         .padding(.horizontal, 16)
     }
 }
+
+/// Lets a bottom banner be pulled down to dismiss it, instead of waiting for its timer.
+/// The banner follows the finger; past a short distance (or a quick flick) it goes,
+/// otherwise it springs back.
+struct SwipeDownToDismiss: ViewModifier {
+    let onDismiss: () -> Void
+    @State private var offset: CGFloat = 0
+
+    func body(content: Content) -> some View {
+        content
+            .offset(y: offset)
+            .opacity(1 - min(offset / 160, 0.6))
+            .gesture(
+                DragGesture(minimumDistance: 6)
+                    .onChanged { value in
+                        // Down follows the finger; up resists.
+                        let dy = value.translation.height
+                        offset = dy > 0 ? dy : dy / 6
+                    }
+                    .onEnded { value in
+                        if value.translation.height > 40 || value.predictedEndTranslation.height > 110 {
+                            UIImpactFeedbackGenerator(style: .light).impactOccurred()
+                            withAnimation(.easeOut(duration: 0.18)) { offset = 220 }
+                            onDismiss()
+                            offset = 0
+                        } else {
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.75)) { offset = 0 }
+                        }
+                    }
+            )
+    }
+}
+
+extension View {
+    func swipeDownToDismiss(_ onDismiss: @escaping () -> Void) -> some View {
+        modifier(SwipeDownToDismiss(onDismiss: onDismiss))
+    }
+}

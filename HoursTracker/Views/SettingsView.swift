@@ -271,6 +271,12 @@ struct SettingsView: View {
             .sheet(isPresented: $showContactSupport) {
                 ContactSupportSheet(viewModel: viewModel)
             }
+            .onReceive(NotificationCenter.default.publisher(for: WidgetNudge.openGuide)) { _ in
+                openWidgetGuideFromReminder()
+            }
+            .onAppear {
+                if WidgetNudge.pendingGuide { openWidgetGuideFromReminder() }
+            }
             .sheet(isPresented: $showWidgetGuide) {
                 WidgetInstallGuideView(installedCount: widgetInstallCount)
             }
@@ -553,6 +559,14 @@ struct SettingsView: View {
     /// iOS has no API to install a widget programmatically (still true in the
     /// iOS 26 SDK — verified), so this is a one-tap guide: deep context plus
     /// whether a widget is already placed, then hands off to Settings.
+    private func openWidgetGuideFromReminder() {
+        WidgetNudge.pendingGuide = false
+        Task {
+            widgetInstallCount = await WidgetBridge.installedWidgetCount()
+            showWidgetGuide = true
+        }
+    }
+
     private var addWidgetButton: some View {
         Button {
             Task {

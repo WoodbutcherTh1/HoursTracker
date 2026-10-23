@@ -211,7 +211,15 @@ enum HistoryPeriodHelper {
         f.locale = locale
         f.calendar = Calendar(identifier: .gregorian)
         f.setLocalizedDateFormatFromTemplate("dd/MM")
-        return "\(f.string(from: period.start)) – \(f.string(from: period.end))"
+        // Each date is an isolated left-to-right run, stripped of the formatter's own
+        // direction marks; in a right-to-left paragraph the start then sits on the right.
+        func isolated(_ date: Date) -> String {
+            let raw = f.string(from: date)
+                .replacingOccurrences(of: "\u{200F}", with: "")
+                .replacingOccurrences(of: "\u{200E}", with: "")
+            return "\u{2066}\(raw)\u{2069}"
+        }
+        return "\(isolated(period.start)) – \(isolated(period.end))"
     }
 
     /// Per-day worked hours for the calendar week containing `date` (7 values, week-start first).

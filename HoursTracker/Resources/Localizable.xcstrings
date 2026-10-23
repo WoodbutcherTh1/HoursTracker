@@ -3310,6 +3310,35 @@
         }
       }
     },
+    "admin.control.accounts" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الحسابات"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Accounts"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "חשבונות"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Аккаунты"
+          }
+        }
+      }
+    },
     "admin.control.activeToday" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3513,6 +3542,64 @@
         }
       }
     },
+    "admin.control.failed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تعذّر تحديث الأرقام. اسحب للأسفل للمحاولة مجددًا."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't refresh the numbers. Pull down to try again."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "לא הצלחנו לרענן את הנתונים. משכו למטה כדי לנסות שוב."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Не удалось обновить данные. Потяните вниз, чтобы повторить."
+          }
+        }
+      }
+    },
+    "admin.control.inAppNow" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "بالتطبيق الآن"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In the app now"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "באפליקציה עכשיו"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Сейчас в приложении"
+          }
+        }
+      }
+    },
     "admin.control.newWeek" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3538,6 +3625,35 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Новые 7 дней"
+          }
+        }
+      }
+    },
+    "admin.control.notSignedIn" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "سجّل الدخول بحساب الأدمن لعرض الأرقام."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in with the admin account to see the numbers."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "היכנסו עם חשבון הניהול כדי לראות את הנתונים."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Войдите в админ-аккаунт, чтобы увидеть данные."
           }
         }
       }
@@ -5887,6 +6003,93 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Ваш отчёт готов."
+          }
+        }
+      }
+    },
+    "assistant.enable.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "يُرسَل سؤالك فقط إلى ذكاء Google الاصطناعي ليفهمه. وردياتك وأجرك تبقى على هاتفك وتُحسب عليه. مجاني: 3 أسئلة يوميًا و10 أسبوعيًا."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only your question is sent to Google's AI, so it can understand it. Your shifts and pay stay on your phone and are calculated there. Free: 3 questions a day, 10 a week."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "רק השאלה שלכם נשלחת ל-AI של Google כדי להבין אותה. המשמרות והשכר נשארים בטלפון ומחושבים בו. חינם: 3 שאלות ביום, 10 בשבוע."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "В ИИ Google отправляется только ваш вопрос, чтобы его понять. Смены и оплата остаются на телефоне и считаются там. Бесплатно: 3 вопроса в день, 10 в неделю."
+          }
+        }
+      }
+    },
+    "assistant.enable.button" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "تفعيل"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הפעלה"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Включить"
+          }
+        }
+      }
+    },
+    "assistant.enable.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "فعّل المساعد المجاني"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Turn on the free assistant"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "הפעילו את העוזר החינמי"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Включите бесплатного помощника"
           }
         }
       }
@@ -31995,6 +32198,64 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Добавьте виджет HoursTracker"
+          }
+        }
+      }
+    },
+    "widgetNudge.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "شوف ساعات اليوم على الشاشة الرئيسية بدون ما تفتح التطبيق. اضغط لتشوف الطريقة."
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See today's hours right on your Home Screen, without opening the app. Tap to see how."
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "רואים את השעות של היום ישר במסך הבית, בלי לפתוח את האפליקציה. הקישו כדי לראות איך."
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Часы за сегодня прямо на главном экране, без открытия приложения. Нажмите, чтобы узнать как."
+          }
+        }
+      }
+    },
+    "widgetNudge.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "📣 ضيف الويدجيت"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "📣 Add the widget"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "📣 הוסיפו את הווידג'ט"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "📣 Добавьте виджет"
           }
         }
       }

@@ -675,6 +675,15 @@ enum L10n {
     static var settingsArrivalBody: String { t("settings.arrivalBody") }
     static var settingsArrivalContinue: String { t("settings.arrivalContinue") }
     static var settingsTools: String { t("settings.tools") }
+    static var widgetNudgeTitle: String { t("widgetNudge.title") }
+    static var widgetNudgeBody: String { t("widgetNudge.body") }
+    static var adminControlRoomInAppNow: String { t("admin.control.inAppNow") }
+    static var adminControlRoomAccounts: String { t("admin.control.accounts") }
+    static var adminControlRoomFailed: String { t("admin.control.failed") }
+    static var adminControlRoomNotSignedIn: String { t("admin.control.notSignedIn") }
+    static var assistantEnableTitle: String { t("assistant.enable.title") }
+    static var assistantEnableBody: String { t("assistant.enable.body") }
+    static var assistantEnableButton: String { t("assistant.enable.button") }
     static var adminControlRoomTitle: String { t("admin.control.title") }
     static var adminControlRoomTurnOff: String { t("admin.control.turnOff") }
     static var adminControlRoomOnline: String { t("admin.control.online") }

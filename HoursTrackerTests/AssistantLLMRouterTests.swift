@@ -17,13 +17,15 @@ final class AssistantLLMRouterTests: XCTestCase {
         XCTAssertFalse(router.isConfigured, "a saved key must not enable the assistant while the cloud toggle is off")
     }
 
-    func testNotConfiguredWhenCloudEnabledButNoKeys() {
+    /// With cloud AI on and no key of their own, people get the free assistant
+    /// (the server-side `ai-assist` function, limited per install).
+    func testFreeAssistantWhenCloudEnabledButNoKeys() {
         let router = AssistantLLMRouter.default(
             geminiKey: nil,
             secondaryKey: "   ",
             cloudEnabled: true
         )
-        XCTAssertFalse(router.isConfigured)
+        XCTAssertTrue(router.isConfigured)
     }
 
     func testConfiguredWhenCloudEnabledAndAKeyIsPresent() {
