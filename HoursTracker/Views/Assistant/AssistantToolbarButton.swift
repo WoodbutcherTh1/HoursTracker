@@ -28,6 +28,7 @@ struct AssistantToolbarButton: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(L10n.assistantTitle)
+            .accessibilityIdentifier("assistant.open")
             .accessibilityAddTraits(.isButton)
         }
     }

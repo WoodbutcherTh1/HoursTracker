@@ -508,6 +508,7 @@ struct SettingsView: View {
                 }
                 .padding(.vertical, 4)
             }
+            .accessibilityIdentifier("settings.account")
         }
     }
 
