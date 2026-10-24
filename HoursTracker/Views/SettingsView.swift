@@ -151,23 +151,26 @@ struct SettingsView: View {
             Form {
                 accountSection
                 settingsGroup("work", title: L10n.settingsGroupWork, icon: "briefcase.fill", summary: L10n.settingsGroupWorkSummary) {
-                    workplacesRows
-                    workerRows
-                    workplaceRows
-                    payRows
-                    workRulesRows
-                    payrollRows
-                    taxRows
+                    // Each section is type-erased: the nested opaque types of these big
+                    // builders made Swift's runtime type resolution overflow the stack
+                    // (EXC_BAD_ACCESS in swift_getTypeByMangledName) when Settings opened.
+                    AnyView(workplacesRows)
+                    AnyView(workerRows)
+                    AnyView(workplaceRows)
+                    AnyView(payRows)
+                    AnyView(workRulesRows)
+                    AnyView(payrollRows)
+                    AnyView(taxRows)
                 }
                 settingsGroup("reminders", title: L10n.settingsGroupReminders, icon: "bell.badge.fill", summary: L10n.settingsGroupRemindersSummary) {
-                    locationRows
-                    notificationsRows
+                    AnyView(locationRows)
+                    AnyView(notificationsRows)
                 }
                 settingsGroup("privacy", title: L10n.settingsGroupPrivacy, icon: "lock.shield.fill", summary: L10n.settingsGroupPrivacySummary) {
-                    securityRows
-                    widgetPrivacyRows
-                    smartScannerRows
-                    dataSafetyRows
+                    AnyView(securityRows)
+                    AnyView(widgetPrivacyRows)
+                    AnyView(smartScannerRows)
+                    AnyView(dataSafetyRows)
                 }
                 settingsGroup("data", title: L10n.settingsGroupData, icon: "externaldrive.fill", summary: L10n.settingsGroupDataSummary) {
                     if viewModel.isCloudSyncSupported {
@@ -836,6 +839,16 @@ struct SettingsView: View {
     private var workRulesRows: some View {
         Group {
             sectionHeader(L10n.settingsWorkRules, icon: "clock.badge.checkmark.fill")
+            restDayRows
+            breakRulesRows
+            shiftStartAndCurrencyRows
+        }
+    }
+
+    // Split out of `workRulesRows`: one big inline ViewBuilder made Swift's runtime
+    // generic-metadata resolution hang the main thread on device when Settings opened.
+    private var restDayRows: some View {
+        Group {
             Picker(L10n.settingsRestDay, selection: $draft.restDayWeekday) {
                 ForEach(1...7, id: \.self) { weekday in
                     Text(Calendar.current.weekdaySymbols[weekday - 1]).tag(weekday)
@@ -862,6 +875,11 @@ struct SettingsView: View {
                 }
             }
 
+        }
+    }
+
+    private var breakRulesRows: some View {
+        Group {
             VStack(alignment: .leading, spacing: 4) {
                 Toggle(L10n.settingsBreaksArePaid, isOn: $draft.breaksArePaid)
                 Text(draft.breaksArePaid ? L10n.settingsBreaksArePaidOnHint : L10n.settingsBreaksArePaidOffHint)
@@ -883,6 +901,11 @@ struct SettingsView: View {
                 .padding(.vertical, 2)
             }
 
+        }
+    }
+
+    private var shiftStartAndCurrencyRows: some View {
+        Group {
             DatePicker(
                 L10n.settingsExpectedShiftStart,
                 selection: expectedShiftStartBinding,
