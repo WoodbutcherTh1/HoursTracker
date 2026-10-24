@@ -127,6 +127,9 @@ private struct StatCard: View {
 private struct HoursRing: View {
     let elapsed: Double
     let standard: Double
+    /// When set, the center shows the system-driven paid timer (ticks every second on
+    /// its own) instead of the static hours figure.
+    var liveStart: Date?
 
     private var progress: Double {
         guard standard > 0 else { return 0 }
@@ -146,14 +149,25 @@ private struct HoursRing: View {
                 .rotationEffect(.degrees(-90))
                 .shadow(color: WidgetTheme.moneyGreen.opacity(0.45), radius: 6)
             // Center text
-            VStack(spacing: 0) {
-                Text(String(format: "%.1f", elapsed))
-                    .font(.system(size: 18, weight: .heavy, design: .rounded))
+            if let liveStart {
+                Text(timerInterval: liveStart...Date.distantFuture, countsDown: false)
+                    .font(.system(size: 16, weight: .heavy, design: .rounded))
                     .foregroundStyle(WidgetTheme.textPrimary)
                     .monospacedDigit()
-                Text(verbatim: WidgetL10n.hoursUnit)
-                    .font(.system(size: 9, weight: .semibold, design: .rounded))
-                    .foregroundStyle(WidgetTheme.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.55)
+                    .padding(.horizontal, 12)
+            } else {
+                VStack(spacing: 0) {
+                    Text(String(format: "%.1f", elapsed))
+                        .font(.system(size: 18, weight: .heavy, design: .rounded))
+                        .foregroundStyle(WidgetTheme.textPrimary)
+                        .monospacedDigit()
+                    Text(verbatim: WidgetL10n.hoursUnit)
+                        .font(.system(size: 9, weight: .semibold, design: .rounded))
+                        .foregroundStyle(WidgetTheme.textSecondary)
+                }
             }
         }
     }
@@ -322,23 +336,31 @@ struct HoursTimelineProvider: TimelineProvider {
 
         let todayCompleted = WidgetBridge.todayCompletedSessions(from: sessions, calendar: calendar)
         let completedHours = todayCompleted.reduce(0) { $0 + $1.effectiveHours }
-        let completedPay = todayCompleted.reduce(0) {
+        var completedPay = todayCompleted.reduce(0) {
             $0 + WidgetBridge.estimatePay(elapsedHours: $1.effectiveHours, settings: settings)
         }
 
         let weekSessions = WidgetBridge.weekSessions(from: sessions, calendar: calendar)
         let weeklyHours = weekSessions.reduce(0) { $0 + $1.effectiveHours }
-        let weeklyPay = weekSessions.reduce(0) {
+        var weeklyPay = weekSessions.reduce(0) {
             $0 + WidgetBridge.estimatePay(elapsedHours: $1.effectiveHours, settings: settings)
         }
 
         let monthSessions = WidgetBridge.monthSessions(from: sessions, calendar: calendar)
         let monthHours = monthSessions.reduce(0) { $0 + $1.effectiveHours }
-        let monthPay = monthSessions.reduce(0) {
+        var monthPay = monthSessions.reduce(0) {
             $0 + WidgetBridge.estimatePay(elapsedHours: $1.effectiveHours, settings: settings)
         }
 
         let bars = weekBars(from: sessions, calendar: calendar)
+
+        // Prefer the app's real-engine totals of finished shifts (same numbers as
+        // History); the running shift's live pay is added below.
+        if let period = WidgetBridge.readPeriodPay(now: date, calendar: calendar) {
+            completedPay = showsNet ? period.todayNet : period.todayGross
+            weeklyPay = showsNet ? period.weekNet : period.weekGross
+            monthPay = showsNet ? period.monthNet : period.monthGross
+        }
 
         if let open = WidgetBridge.openSession(from: sessions) {
             // Prefer the app's live curve (real pay engine: tiers, rest-day rates, net)
@@ -348,12 +370,14 @@ struct HoursTimelineProvider: TimelineProvider {
             let elapsed = curve?.paidHours(at: date) ?? open.effectiveHours
             let pay = curve?.pay(at: date, net: showsNet)
                 ?? WidgetBridge.estimatePay(elapsedHours: elapsed, settings: settings)
+            let hasPeriodPay = WidgetBridge.readPeriodPay(now: date, calendar: calendar) != nil
+            let openPay = hasPeriodPay ? pay : 0
             return HoursEntry(
                 date: date, isOpen: true, session: open,
                 elapsedHours: elapsed, estimatedPay: pay,
                 todayCompletedHours: completedHours, todayCompletedPay: completedPay,
-                weeklyHours: weeklyHours, weeklyPay: weeklyPay,
-                monthHours: monthHours, monthPay: monthPay,
+                weeklyHours: weeklyHours, weeklyPay: weeklyPay + openPay,
+                monthHours: monthHours, monthPay: monthPay + openPay,
                 weekBars: bars, settings: settings,
                 livePay: curve, payIsNet: curve != nil && showsNet
             )
@@ -610,24 +634,39 @@ struct HoursHomeWidgetView: View {
 
     // MARK: Medium — Active
 
+    /// Start of the system paid timer while the paid clock runs (nil on a break or
+    /// before the app has written its live curve).
+    private var liveTimerStart: Date? {
+        guard let curve = entry.livePay, !curve.isPaused, entry.session?.isOnBreak != true else { return nil }
+        return curve.paidClockStart
+    }
+
     private var mediumActiveView: some View {
         HStack(spacing: 14) {
-            // Left: ring + status
+            // Left: ring with the live timer inside, status below
             VStack(spacing: 8) {
-                HoursRing(elapsed: entry.elapsedHours, standard: entry.settings.standardDayHours)
-                    .frame(width: 66, height: 66)
-
-                HStack(spacing: 5) {
-                    PulseDot(color: entry.session?.isOnBreak == true ? WidgetTheme.coral : WidgetTheme.workingDot, size: 4)
-                    Text(verbatim: entry.session?.isOnBreak == true ? WidgetL10n.onBreak : WidgetL10n.working)
-                        .font(.system(size: 9, weight: .bold, design: .rounded))
-                        .foregroundStyle(entry.session?.isOnBreak == true ? WidgetTheme.coral : WidgetTheme.accentLight)
-                }
+                HoursRing(
+                    elapsed: entry.elapsedHours,
+                    standard: entry.settings.standardDayHours,
+                    liveStart: liveTimerStart
+                )
+                .frame(width: 74, height: 74)
 
                 if let session = entry.session, let breakEnd = plannedBreakEnd(for: session) {
+                    HStack(spacing: 5) {
+                        PulseDot(color: WidgetTheme.coral, size: 4)
+                        Text(verbatim: WidgetL10n.onBreak)
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .foregroundStyle(WidgetTheme.coral)
+                    }
                     breakCountdown(start: session.breakStart ?? entry.date, end: breakEnd)
-                } else if let curve = entry.livePay, !curve.isPaused {
-                    paidClockTimer(curve)
+                } else {
+                    HStack(spacing: 5) {
+                        PulseDot(color: entry.session?.isOnBreak == true ? WidgetTheme.coral : WidgetTheme.workingDot, size: 4)
+                        Text(verbatim: entry.session?.isOnBreak == true ? WidgetL10n.onBreak : WidgetL10n.working)
+                            .font(.system(size: 9, weight: .bold, design: .rounded))
+                            .foregroundStyle(entry.session?.isOnBreak == true ? WidgetTheme.coral : WidgetTheme.accentLight)
+                    }
                 }
             }
 
@@ -637,20 +676,21 @@ struct HoursHomeWidgetView: View {
 
             // Right: stats + action
             VStack(alignment: .leading, spacing: 6) {
-                StatCard(
-                    icon: "banknote.fill",
-                    value: payText(entry.estimatedPay),
-                    label: WidgetL10n.earnings,
-                    valueColor: WidgetTheme.moneyGreen,
-                    iconColor: WidgetTheme.moneyGreen
-                )
-                StatCard(
-                    icon: "clock.fill",
-                    value: formattedElapsed(entry.elapsedHours),
-                    label: WidgetL10n.elapsed,
-                    valueColor: WidgetTheme.accentLight,
-                    iconColor: WidgetTheme.accent
-                )
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(verbatim: (entry.payIsNet ? WidgetL10n.estimatedNet : WidgetL10n.earnings).uppercased())
+                        .font(.system(size: 9, weight: .bold, design: .rounded))
+                        .foregroundStyle(WidgetTheme.textTertiary)
+                        .tracking(0.6)
+                    Text(payText(entry.estimatedPay))
+                        .font(.system(size: 30, weight: .heavy, design: .rounded))
+                        .foregroundStyle(WidgetTheme.moneyGreen)
+                        .monospacedDigit()
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.6)
+                        .shadow(color: WidgetTheme.moneyGreen.opacity(0.35), radius: 6)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                Spacer(minLength: 0)
                 HStack(spacing: 6) {
                     if entry.session?.isOnBreak == true {
                         Button(intent: EndBreakIntent()) {

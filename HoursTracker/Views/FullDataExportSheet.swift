@@ -22,7 +22,7 @@ struct FullDataExportSheet: View {
                         } label: {
                             HStack(alignment: .top, spacing: 12) {
                                 Image(systemName: selectedFormat == format ? "checkmark.circle.fill" : "circle")
-                                    .foregroundStyle(selectedFormat == format ? Color.accentColor : .secondary)
+                                    .foregroundStyle(selectedFormat == format ? Color.appAccent : .secondary)
                                     .font(.title3)
                                 VStack(alignment: .leading, spacing: 4) {
                                     Text(format.localizedName)

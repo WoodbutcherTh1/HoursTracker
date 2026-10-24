@@ -14,6 +14,8 @@ struct AboutSheet: View {
     @State private var showUserGuide = false
     @State private var showPrivacy = false
     @State private var showHelp = false
+    @State private var showWhatsNew = false
+    @ObservedObject private var whatsNew = WhatsNewCenter.shared
     @State private var toast: String?
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -38,6 +40,11 @@ struct AboutSheet: View {
                 }
 
                 VStack(spacing: 0) {
+                    // Only for 24 hours after the update was first opened.
+                    if let release = whatsNew.activeRelease() {
+                        row(String(format: L10n.whatsNewRow, release.version), icon: "sparkles", id: "about.whatsNew") { showWhatsNew = true }
+                        divider
+                    }
                     row(L10n.guideTitle, icon: "book.fill", id: "about.guide") { showUserGuide = true }
                     divider
                     row(L10n.privacyTitle, icon: "hand.raised.fill", id: "about.privacy") { showPrivacy = true }
@@ -62,6 +69,11 @@ struct AboutSheet: View {
         }
         .sheet(isPresented: $showPrivacy) {
             NavigationStack { PrivacyPolicyView() }
+        }
+        .sheet(isPresented: $showWhatsNew) {
+            if let release = whatsNew.activeRelease() {
+                WhatsNewSheet(release: release)
+            }
         }
         .sheet(isPresented: $showHelp) {
             ContactSupportSheet(viewModel: viewModel)

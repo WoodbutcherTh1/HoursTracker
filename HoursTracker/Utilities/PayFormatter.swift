@@ -8,17 +8,17 @@ enum PayFormatter {
     private static var formatters: [String: NumberFormatter] = [:]
     private static let lock = NSLock()
 
-    static func string(_ amount: Double, currencyCode: String, locale: Locale? = nil) -> String {
-        formatter(for: currencyCode, locale: locale).string(from: NSNumber(value: amount))
-            ?? String(format: "%.2f", amount)
+    static func string(_ amount: Double, currencyCode: String, locale: Locale? = nil, fractionDigits: Int = 2) -> String {
+        formatter(for: currencyCode, locale: locale, fractionDigits: fractionDigits).string(from: NSNumber(value: amount))
+            ?? String(format: "%.\(fractionDigits)f", amount)
     }
 
     static func symbol(for currencyCode: String) -> String {
         formatter(for: currencyCode, locale: nil).currencySymbol ?? currencyCode
     }
 
-    private static func formatter(for code: String, locale: Locale?) -> NumberFormatter {
-        let cacheKey = "\(code)|\(locale?.identifier ?? "current")"
+    private static func formatter(for code: String, locale: Locale?, fractionDigits: Int = 2) -> NumberFormatter {
+        let cacheKey = "\(code)|\(locale?.identifier ?? "current")|\(fractionDigits)"
         lock.lock()
         defer { lock.unlock() }
         if let cached = formatters[cacheKey] {
@@ -30,8 +30,8 @@ enum PayFormatter {
         if let locale {
             formatter.locale = locale
         }
-        formatter.minimumFractionDigits = 2
-        formatter.maximumFractionDigits = 2
+        formatter.minimumFractionDigits = fractionDigits
+        formatter.maximumFractionDigits = fractionDigits
         formatters[cacheKey] = formatter
         return formatter
     }

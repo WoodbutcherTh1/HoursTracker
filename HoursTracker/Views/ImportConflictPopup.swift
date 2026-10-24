@@ -48,7 +48,7 @@ struct ImportConflictPopup: View {
                                         .font(.caption)
                                         .foregroundStyle(
                                             calendar.isDate(day, inSameDayAs: currentDate)
-                                            ? Color.accentColor
+                                            ? Color.appAccent
                                             : Color.secondary
                                         )
                                     Text(dateFormatter.string(from: day))

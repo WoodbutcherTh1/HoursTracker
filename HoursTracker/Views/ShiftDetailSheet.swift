@@ -157,8 +157,10 @@ struct ShiftDetailSheet: View {
     private var shiftAttributesLine: some View {
         HStack(spacing: 6) {
             attributeBadge(session.dayType.localizedName, highlighted: session.dayType.isPremium)
-            if session.isNightShift {
-                attributeBadge(L10n.sessionNightShift, highlighted: true)
+            switch session.shiftKind() {
+            case .morning: attributeBadge(L10n.shiftKindMorning, highlighted: false)
+            case .evening: attributeBadge(L10n.shiftKindEvening, highlighted: false)
+            case .night: attributeBadge(L10n.sessionNightShift, highlighted: true)
             }
             if session.breakMinutes > 0 {
                 attributeBadge("\(L10n.sessionBreakMinutes): \(session.breakMinutes)", highlighted: false)
@@ -172,8 +174,8 @@ struct ShiftDetailSheet: View {
             .font(.caption2.weight(.medium))
             .padding(.horizontal, 8)
             .padding(.vertical, 4)
-            .background(Capsule().fill(highlighted ? Color.accentColor.opacity(0.15) : Color(.tertiarySystemFill)))
-            .foregroundStyle(highlighted ? Color.accentColor : Color.secondary)
+            .background(Capsule().fill(highlighted ? Color.appAccent.opacity(0.15) : Color(.tertiarySystemFill)))
+            .foregroundStyle(highlighted ? Color.appAccent : Color.secondary)
     }
 
     private func tierTitle(base: String, multiplier: Double) -> String {

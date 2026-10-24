@@ -65,7 +65,10 @@ extension DayPayBreakdown {
             healthTax: sum { $0.healthTax },
             creditPointsApplied: sum { $0.creditPointsApplied },
             creditPoints: first.creditPoints,
-            currencyCode: first.currencyCode
+            currencyCode: first.currencyCode,
+            pensionEmployee: sum { $0.pensionEmployee },
+            pensionEmployer: sum { $0.pensionEmployer },
+            severance: sum { $0.severance }
         )
     }
 }

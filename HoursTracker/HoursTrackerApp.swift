@@ -98,12 +98,14 @@ struct HoursTrackerApp: App {
                 // Wipe on background only — `.inactive` also fires while the share
                 // sheet is presented and would delete the file mid-share.
                 if phase == .active {
+                    HomeAccentTheme.shared.applyUIKitTint()
                     SettingsUnsavedReminder.cancel()
                     viewModel.retryLoadIfNeeded()
                     viewModel.syncNow()
                     viewModel.refreshShiftReminders()
                     viewModel.takeDailyBackupIfNeeded()
                     AnnouncementCenter.shared.refresh()
+                    Task { await SupportInbox.shared.check() }
                     Task { await WidgetNudge.refresh() }
                     if appLock.isEnabled && appLock.isLocked {
                         Task { await appLock.unlock() }
@@ -131,6 +133,7 @@ private enum MainSheetRoute: Identifiable, Hashable {
     case assistant
     case scannerReview
     case scanner
+    case supportChat
 
     var id: Self { self }
 }
@@ -152,6 +155,9 @@ struct MainTabView: View {
     @State private var selectedTab: AppTab = .home
     /// The tab the user tried to open while Settings had unsaved changes.
     @State private var pendingTab: AppTab?
+    /// Bumped for a tab when the user leaves it: its view is rebuilt, so it comes back
+    /// closed — no expanded calendar, open group, pushed screen or selection left over.
+    @State private var tabResetTokens: [AppTab: Int] = [:]
     @ObservedObject private var unsavedSettings = SettingsUnsavedChanges.shared
     @AppStorage("hasSeenOnboarding.v1") private var hasSeenOnboarding = false
     @ObservedObject private var legal = LegalConsent.shared
@@ -160,6 +166,10 @@ struct MainTabView: View {
     // Settings, not just Home's own neon-styled elements.
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
     @ObservedObject private var announcements = AnnouncementCenter.shared
+    @ObservedObject private var supportInbox = SupportInbox.shared
+    @ObservedObject private var whatsNew = WhatsNewCenter.shared
+    @ObservedObject private var updateReminder = UpdateReminderCenter.shared
+    @Environment(\.scenePhase) private var scenePhase
 
     /// A scan that completes while the assistant is already open stays queued rather
     /// than yanking the assistant away mid-conversation: the existing "ready for review"
@@ -171,12 +181,14 @@ struct MainTabView: View {
         Binding(
             get: {
                 if viewModel.showScannerSheet { return .scanner }
+                if supportInbox.showChat { return .supportChat }
                 if viewModel.showAssistant { return .assistant }
                 if viewModel.showPendingScannerReview { return .scannerReview }
                 return nil
             },
             set: { newRoute in
                 viewModel.showAssistant = (newRoute == .assistant)
+                supportInbox.showChat = (newRoute == .supportChat)
                 viewModel.showPendingScannerReview = (newRoute == .scannerReview)
                 viewModel.showScannerSheet = (newRoute == .scanner)
             }
@@ -187,6 +199,7 @@ struct MainTabView: View {
         let _ = appLanguage.preference // keep tab labels tied to language changes
         TabView(selection: tabSelection) {
             HomeView(viewModel: viewModel)
+                .id(tabResetTokens[.home] ?? 0)
                 .tabItem {
                     Label(L10n.tabHome, systemImage: "clock.fill")
                         .accessibilityIdentifier("tab.home")
@@ -207,6 +220,7 @@ struct MainTabView: View {
                 }
 
             HistoryView(viewModel: viewModel)
+                .id(tabResetTokens[.history] ?? 0)
                 .tabItem {
                     Label(L10n.tabHistory, systemImage: "list.bullet.rectangle")
                         .accessibilityIdentifier("tab.history")
@@ -214,6 +228,7 @@ struct MainTabView: View {
                 .tag(AppTab.history)
 
             PayslipsTabView(viewModel: viewModel)
+                .id(tabResetTokens[.payslips] ?? 0)
                 .tabItem {
                     Label(L10n.tabPayslips, systemImage: "doc.text.viewfinder")
                         .accessibilityIdentifier("tab.payslips")
@@ -221,6 +236,7 @@ struct MainTabView: View {
                 .tag(AppTab.payslips)
 
             ExportView(viewModel: viewModel)
+                .id(tabResetTokens[.export] ?? 0)
                 .tabItem {
                     Label(L10n.tabExport, systemImage: "square.and.arrow.up")
                         .accessibilityIdentifier("tab.export")
@@ -228,6 +244,7 @@ struct MainTabView: View {
                 .tag(AppTab.export)
 
             SettingsView(viewModel: viewModel)
+                .id(tabResetTokens[.settings] ?? 0)
                 .tabItem {
                     Label(L10n.tabSettings, systemImage: "gearshape.fill")
                         .accessibilityIdentifier("tab.settings")
@@ -235,6 +252,10 @@ struct MainTabView: View {
                 .tag(AppTab.settings)
         }
         .tint(homeTheme.accent)
+        // Coming back to any tab later: everything closed, top of the page.
+        .onChange(of: selectedTab) { old, new in
+            tabResetTokens[old, default: 0] += 1
+        }
         // Leaving Settings with unsaved changes: save, discard, or stay.
         .alert(
             L10n.settingsUnsavedTitle,
@@ -291,6 +312,52 @@ struct MainTabView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: announcements.current?.id)
+        // First launch after an update: what's new, once; About keeps it for 24 hours.
+        .overlay {
+            if whatsNew.showPopup, hasSeenOnboarding, legal.isAccepted,
+               let release = whatsNew.activeRelease() {
+                WhatsNewPopup(release: release) {
+                    withAnimation(.easeOut(duration: 0.2)) { whatsNew.dismissPopup() }
+                }
+                .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: whatsNew.showPopup)
+        // Behind on versions: a polite reminder, a few times at most, only while the
+        // app is open and nothing else is asking for attention.
+        .overlay {
+            if updateReminder.promptPending, canShowUpdatePrompt {
+                UpdatePromptPopup(
+                    version: updateReminder.latestVersion,
+                    onUpdate: { updateReminder.openStore() },
+                    onLater: { withAnimation(.easeOut(duration: 0.2)) { updateReminder.dismiss() } }
+                )
+                .transition(.opacity)
+                .onAppear { updateReminder.registerShown() }
+            }
+        }
+        .animation(.easeInOut(duration: 0.25), value: updateReminder.promptPending)
+        .task(id: "\(hasSeenOnboarding)-\(legal.isAccepted)-\(scenePhase == .active)-\(whatsNew.showPopup)") {
+            guard hasSeenOnboarding, legal.isAccepted, scenePhase == .active, !whatsNew.showPopup else { return }
+            await updateReminder.evaluate()
+        }
+        .task(id: "\(hasSeenOnboarding)-\(legal.isAccepted)-\(scenePhase == .active)") {
+            guard legal.isAccepted, scenePhase == .active else { return }
+            whatsNew.evaluate(hasOnboarded: hasSeenOnboarding)
+        }
+        // The owner answered the user's support chat.
+        .overlay(alignment: .top) {
+            if supportInbox.promptVisible, announcements.current == nil {
+                SupportReplyBanner(
+                    preview: supportInbox.preview,
+                    onOpen: { supportInbox.openChat() },
+                    onLater: { supportInbox.dismissPrompt() }
+                )
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: supportInbox.promptVisible)
         // A single routed sheet — see `MainSheetRoute` — rather than one
         // `.sheet(isPresented:)` per case, so the assistant and the scanner-review sheet
         // (which a background scan can request at any moment) can never both be live at
@@ -308,6 +375,8 @@ struct MainTabView: View {
                 if let result = viewModel.pendingScannerResult {
                     TimesheetScannerView(appViewModel: viewModel, initialResult: result)
                 }
+            case .supportChat:
+                SupportChatSheet()
             case .scanner:
                 // Deep-linked (widget / quick action) scanner — no pending result
                 // yet, so TimesheetScannerView runs its own capture/import flow.
@@ -377,6 +446,12 @@ struct MainTabView: View {
         ) {
             OnboardingView(viewModel: viewModel)
         }
+    }
+
+    /// Nothing else is on screen asking for attention.
+    private var canShowUpdatePrompt: Bool {
+        hasSeenOnboarding && legal.isAccepted && !whatsNew.showPopup && announcements.current == nil
+            && !supportInbox.promptVisible
     }
 
     /// Tab taps go through here so leaving Settings with unsaved changes asks first.

@@ -47,14 +47,11 @@ struct HoursLiveActivityView: View {
 
                 // Stats
                 VStack(alignment: .leading, spacing: 3) {
-                    HStack(spacing: 4) {
-                        Text(state.elapsedHours, format: .number.precision(.fractionLength(1)))
-                            .font(.system(size: 16, weight: .bold, design: .rounded))
-                            .foregroundStyle(LATheme.textPrimary)
-                        + Text(verbatim: WidgetL10n.hoursUnit)
-                            .font(.system(size: 11, weight: .semibold, design: .rounded))
-                            .foregroundStyle(LATheme.textSecondary)
-                    }
+                    // The one worked-time figure: a system timer that ticks every second
+                    // (frozen while the paid clock is stopped).
+                    paidClockText(state, fallback: formattedTime(state.elapsedTime))
+                        .font(.system(size: 16, weight: .bold, design: .rounded).monospacedDigit())
+                        .foregroundStyle(LATheme.textPrimary)
 
                     Text(formattedPay(state.estimatedPay))
                         .font(.system(size: 18, weight: .bold, design: .rounded))
@@ -87,18 +84,9 @@ struct HoursLiveActivityView: View {
                             .font(.system(size: 9, weight: .medium, design: .rounded))
                             .foregroundStyle(LATheme.coral)
                     } else {
-                        HStack(spacing: 3) {
-                            Image(systemName: "timer")
-                                .font(.system(size: 9))
-                                .foregroundStyle(LATheme.accent)
-                            paidClockText(state, fallback: formattedTime(state.elapsedTime))
-                                .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
-                                .foregroundStyle(LATheme.textPrimary)
-                        }
-
                         Text("\(WidgetL10n.sincePrefix) \(attributes.clockInTime, style: .time)")
-                            .font(.system(size: 9, weight: .medium, design: .rounded))
-                            .foregroundStyle(LATheme.textTertiary)
+                            .font(.system(size: 11, weight: .medium, design: .rounded))
+                            .foregroundStyle(LATheme.textSecondary)
                     }
                 }
             }

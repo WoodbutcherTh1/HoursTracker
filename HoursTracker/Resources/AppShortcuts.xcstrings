@@ -19,7 +19,11 @@
             "state" : "translated",
             "values" : [
               "האם אני במשמרת ב־${applicationName}",
-              "${applicationName} מצב משמרת"
+              "${applicationName} מצב משמרת",
+              "האם אני בעבודה ב־${applicationName}",
+              "כמה זמן אני עובד ב־${applicationName}",
+              "תבדוק משמרת ב־${applicationName}",
+              "תבדקי משמרת ב־${applicationName}"
             ]
           }
         },
@@ -51,7 +55,9 @@
             "state" : "translated",
             "values" : [
               "שאל את ${applicationName}",
-              "שאלה ל־${applicationName}"
+              "שאלה ל־${applicationName}",
+              "תשאל את ${applicationName}",
+              "תשאלי את ${applicationName}"
             ]
           }
         },
@@ -83,7 +89,10 @@
             "state" : "translated",
             "values" : [
               "חזרתי מהפסקה ב־${applicationName}",
-              "חזרה לעבודה ב־${applicationName}"
+              "חזרה לעבודה ב־${applicationName}",
+              "סיים הפסקה ב־${applicationName}",
+              "תסיים הפסקה ב־${applicationName}",
+              "תסיימי הפסקה ב־${applicationName}"
             ]
           }
         },
@@ -117,7 +126,14 @@
             "values" : [
               "סיים משמרת ב־${applicationName}",
               "יציאה ב־${applicationName}",
-              "${applicationName} סיים משמרת"
+              "${applicationName} סיים משמרת",
+              "תחתים יציאה עם ${applicationName}",
+              "תחתימי יציאה עם ${applicationName}",
+              "תחתים יציאה ב־${applicationName}",
+              "תחתימי יציאה ב־${applicationName}",
+              "החתם יציאה ב־${applicationName}",
+              "תחתימי לי יציאה ב־${applicationName}",
+              "תוציא אותי ב־${applicationName}"
             ]
           }
         },
@@ -217,7 +233,11 @@
             "state" : "translated",
             "values" : [
               "צא להפסקה ב־${applicationName}",
-              "${applicationName} הפסקה"
+              "${applicationName} הפסקה",
+              "תצא להפסקה ב־${applicationName}",
+              "תתחיל הפסקה ב־${applicationName}",
+              "תתחילי הפסקה ב־${applicationName}",
+              "הפסקה עם ${applicationName}"
             ]
           }
         },
@@ -251,7 +271,14 @@
             "values" : [
               "התחל משמרת ב־${applicationName}",
               "כניסה ב־${applicationName}",
-              "${applicationName} התחל משמרת"
+              "${applicationName} התחל משמרת",
+              "תחתים כניסה עם ${applicationName}",
+              "תחתימי כניסה עם ${applicationName}",
+              "תחתים כניסה ב־${applicationName}",
+              "תחתימי כניסה ב־${applicationName}",
+              "החתם כניסה ב־${applicationName}",
+              "תחתימי לי כניסה ב־${applicationName}",
+              "תכניס אותי ב־${applicationName}"
             ]
           }
         },

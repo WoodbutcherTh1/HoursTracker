@@ -63,6 +63,8 @@ struct ContactSupportSheet: View {
     @State private var attachLog = false
     @State private var sendState: SendState = .idle
     @State private var errorMessage: String?
+    @State private var showChat = false
+    @ObservedObject private var supportInbox = SupportInbox.shared
 
     private var isMessageValid: Bool {
         !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -72,11 +74,18 @@ struct ContactSupportSheet: View {
         NavigationStack {
             Form {
                 heroSection
+                chatSection
                 nameSection
                 categorySection
                 messageSection
             }
             .scrollContentBackground(.hidden)
+            // Presented from the Form itself, not from a row: list rows are recycled when
+            // the unread state refreshes, which dismissed a sheet attached to one.
+            .sheet(isPresented: $showChat) {
+                SupportChatSheet()
+            }
+            .task { await supportInbox.check() }
             .background(appBackground.background.ignoresSafeArea())
             .tint(theme.accent)
             .navigationTitle(L10n.settingsSupport)
@@ -131,6 +140,42 @@ struct ContactSupportSheet: View {
                     .fill(.ultraThinMaterial)
             )
             .listRowBackground(Color.clear)
+        }
+    }
+
+    /// The conversation with the developer lives here: chat (gets a reply in the app and
+    /// a notification) or, below, a one-way message.
+    private var chatSection: some View {
+        Section {
+            Button {
+                showChat = true
+            } label: {
+                HStack(spacing: 12) {
+                    Image(systemName: "bubble.left.and.bubble.right.fill")
+                        .font(.title3)
+                        .foregroundStyle(theme.accent)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text(L10n.contactSupportChatTitle)
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text(L10n.contactSupportChatSubtitle)
+                            .font(.footnote)
+                            .foregroundStyle(.secondary)
+                    }
+                    Spacer()
+                    if supportInbox.hasUnreadReply {
+                        Circle().fill(Color.red).frame(width: 10, height: 10)
+                    }
+                    Image(systemName: "chevron.forward")
+                        .font(.footnote.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.vertical, 4)
+            }
+            .listRowBackground(HomeNeon.card)
+            .accessibilityIdentifier("feedback.chat")
+        } footer: {
+            Text(L10n.contactSupportOrSend)
         }
     }
 
@@ -294,7 +339,8 @@ struct ContactSupportSheet: View {
         lines.append("")
         lines.append(message.trimmingCharacters(in: .whitespacesAndNewlines))
         lines.append("")
-        lines.append("— \(device.model), iOS \(device.systemVersion), app \(appVersion) (\(build))")
+        lines.append("— \(SupportSenderContext.hardwareIdentifier), iOS \(device.systemVersion), app \(appVersion) (\(build)), locale \(Locale.current.identifier)")
+        lines.append(SupportSenderContext.accountLine)
         return lines.joined(separator: "\n")
     }
 }

@@ -83,7 +83,7 @@ struct SupportChatSheet: View {
                     .padding(.vertical, 8)
                     .background(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(fromUser ? Color.accentColor : Color(.secondarySystemBackground))
+                            .fill(fromUser ? Color.appAccent : Color(.secondarySystemBackground))
                     )
             }
             if !fromUser { Spacer(minLength: 40) }
@@ -108,7 +108,7 @@ struct SupportChatSheet: View {
             } label: {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.system(size: 32))
-                    .foregroundStyle(model.canSend ? Color.accentColor : Color.gray.opacity(0.4))
+                    .foregroundStyle(model.canSend ? Color.appAccent : Color.gray.opacity(0.4))
             }
             .disabled(!model.canSend)
             .accessibilityLabel(L10n.supportChatSend)
@@ -147,7 +147,9 @@ final class SupportChatModel: ObservableObject {
     func load() async {
         isLoading = true
         defer { isLoading = false }
-        await call(["action": "list"])
+        if await call(["action": "list", "markRead": "true"]) {
+            SupportInbox.shared.chatOpened()
+        }
     }
 
     func send() async {
@@ -155,21 +157,28 @@ final class SupportChatModel: ObservableObject {
         guard !text.isEmpty else { return }
         isSending = true
         defer { isSending = false }
-        if await call(["action": "send", "body": text, "language": Self.languageCode]) {
+        if await call(["action": "send", "body": text, "language": Self.languageCode], withContext: true) {
             draft = ""
         }
     }
 
     /// Returns true when the server accepted the request.
     @discardableResult
-    private func call(_ extra: [String: String]) async -> Bool {
-        var payload = extra
+    private func call(_ extra: [String: String], withContext: Bool = false) async -> Bool {
+        var payload: [String: Any] = extra
         payload["deviceId"] = AnnouncementCenter.stableInstallID()
+        if extra["markRead"] != nil { payload["markRead"] = true }
+        if withContext { payload["context"] = SupportSenderContext.current() }
 
         var request = URLRequest(url: functionURL)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(SupabaseConfig.publishableKey, forHTTPHeaderField: "apikey")
+        // Signed in: the server attaches the account to the conversation, so the owner
+        // knows who is writing. Anonymous installs chat as before.
+        if withContext, let token = try? await SupabaseAuthManager.shared.client.auth.session.accessToken {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
         request.timeoutInterval = 30
         request.httpBody = try? JSONSerialization.data(withJSONObject: payload)
 

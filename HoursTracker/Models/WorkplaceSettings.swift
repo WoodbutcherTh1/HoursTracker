@@ -57,6 +57,11 @@ struct WorkplaceSettings: Codable, Equatable {
     /// settings; always empty inside an `AdditionalWorkplace`). Shifts point at one
     /// with `WorkSession.workplaceID`.
     var additionalWorkplaces: [AdditionalWorkplace] = []
+    /// Holidays the worker added or removed for this workplace, on top of the
+    /// bundled Israeli calendar.
+    var holidayCustomization = HolidayCustomization()
+    /// Contractor vs. direct employment, the move between them, and pension terms.
+    var employment = EmploymentInfo()
     var modifiedAt: Date
 
     static let `default` = WorkplaceSettings(
@@ -141,6 +146,8 @@ struct WorkplaceSettings: Codable, Equatable {
         case expectedShiftStartHour, expectedShiftStartMinute
         case leaveDays
         case additionalWorkplaces
+        case holidayCustomization
+        case employment
         case modifiedAt
     }
 
@@ -243,6 +250,8 @@ struct WorkplaceSettings: Codable, Equatable {
         // A malformed or unknown entry must never make the whole settings unreadable.
         leaveDays = (try? c.decodeIfPresent([LeaveDay].self, forKey: .leaveDays)) ?? []
         additionalWorkplaces = (try? c.decodeIfPresent([AdditionalWorkplace].self, forKey: .additionalWorkplaces)) ?? []
+        holidayCustomization = (try? c.decodeIfPresent(HolidayCustomization.self, forKey: .holidayCustomization)) ?? HolidayCustomization()
+        employment = (try? c.decodeIfPresent(EmploymentInfo.self, forKey: .employment)) ?? EmploymentInfo()
         modifiedAt = try c.decodeIfPresent(Date.self, forKey: .modifiedAt) ?? Date()
         normalizeValidatedFields()
     }

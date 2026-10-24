@@ -55,7 +55,6 @@ struct HomeView: View {
     @State private var showUserGuide = false
     @State private var showAbout = false
     @State private var showFeedback = false
-    @State private var showSupportChat = false
     @State private var showControlRoomPreview = false
     /// Set once the "Tap to personalize" toast has shown (or the picker was opened).
     @AppStorage("home.themeTipSeen") private var themeTipSeen = false
@@ -145,13 +144,9 @@ struct HomeView: View {
                         } label: {
                             Label(L10n.guideTitle, systemImage: "questionmark.circle")
                         }
-                        Button {
-                            showSupportChat = true
-                        } label: {
-                            Label(L10n.supportChatTitle, systemImage: "bubble.left.and.bubble.right")
-                        }
                         // One row for support and feedback — the sheet's own picker
-                        // (bug / suggestion / …) says what it's about.
+                        // (bug / suggestion / …) says what it's about, and the chat with
+                        // the developer starts from inside it.
                         Button {
                             showFeedback = true
                         } label: {
@@ -199,9 +194,6 @@ struct HomeView: View {
             .sheet(isPresented: $showAbout) {
                 AboutSheet(viewModel: viewModel)
                     .presentationDetents([.medium])
-            }
-            .sheet(isPresented: $showSupportChat) {
-                SupportChatSheet()
             }
             #if DEBUG
             .fullScreenCover(isPresented: $showControlRoomPreview) {
@@ -552,7 +544,6 @@ struct HomeView: View {
         .frame(height: metrics.doorHeight)
         .background(DSHeroGlow(color: homeTheme.accent))
         .frame(maxWidth: .infinity)
-        .overlay(alignment: .trailing) { supportChatButton }
     }
 
     private func breakControl(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {
@@ -580,25 +571,6 @@ struct HomeView: View {
         }
         .frame(height: metrics.doorHeight)
         .frame(maxWidth: .infinity)
-        .overlay(alignment: .trailing) { supportChatButton }
-    }
-
-    /// "Chat with us", floating beside the door where the row is otherwise empty.
-    private var supportChatButton: some View {
-        Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            showSupportChat = true
-        } label: {
-            // Quiet on purpose: the door is the one main action on this screen.
-            Image(systemName: "bubble.left.and.bubble.right")
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 40, height: 40)
-                .background(Circle().fill(HomeNeon.card.opacity(0.6)))
-        }
-        .buttonStyle(ScalePressButtonStyle())
-        .accessibilityLabel(L10n.supportChatTitle)
-        .accessibilityIdentifier("home.supportChat")
     }
 
     /// The door pinned above the tab bar, over a fade so scrolled content slides
@@ -662,9 +634,7 @@ struct HomeView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
-            if isNightShiftDisplay(session) {
-                nightShiftLabel(session)
-            }
+            shiftKindLabel(session)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
@@ -681,23 +651,25 @@ struct HomeView: View {
 
     // MARK: - Night shift
 
-    /// Display only — pay uses `WorkSession.isNightShift`, set at clock-out. A shift
-    /// that started in the evening or at night, or has run past midnight, gets the
-    /// moon so it's clear which day it belongs to: it counts on the day it started.
-    private func isNightShiftDisplay(_ session: WorkSession) -> Bool {
-        let hour = calendar.component(.hour, from: session.clockIn)
-        return hour >= 20 || hour < 5 || !calendar.isDate(session.clockIn, inSameDayAs: liveNow)
-    }
-
-    private func nightShiftLabel(_ session: WorkSession) -> some View {
+    /// The shift's name — morning, evening or night (night per the law: two hours between
+    /// 22:00 and 06:00, see `ShiftKind`). Display only: pay uses `WorkSession.isNightShift`,
+    /// set at clock-out. A shift that began yesterday says so: it counts on the day it started.
+    private func shiftKindLabel(_ session: WorkSession) -> some View {
+        let kind = session.shiftKind(now: liveNow, calendar: calendar)
         let startedYesterday = !calendar.isDate(session.clockIn, inSameDayAs: liveNow)
-        let text = startedYesterday
-            ? L10n.sessionNightShift + " · " + L10n.homeNightStartedYesterday
-            : L10n.sessionNightShift
+        let name: String
+        let icon: String
+        let tint: Color
+        switch kind {
+        case .morning: (name, icon, tint) = (L10n.shiftKindMorning, "sunrise.fill", Self.morningColor)
+        case .evening: (name, icon, tint) = (L10n.shiftKindEvening, "sunset.fill", Self.eveningColor)
+        case .night: (name, icon, tint) = (L10n.sessionNightShift, "moon.stars.fill", Self.nightColor)
+        }
+        let text = startedYesterday ? name + " · " + L10n.homeNightStartedYesterday : name
         return HStack(spacing: DS.Space.xxs) {
-            Image(systemName: "moon.stars.fill")
+            Image(systemName: icon)
                 .htFont(size: 12, relativeTo: .footnote, weight: .semibold)
-                .foregroundStyle(Self.nightColor)
+                .foregroundStyle(tint)
                 .accessibilityHidden(true)
             Text(text)
                 .dsFont(.meta, weight: .semibold)
@@ -707,10 +679,12 @@ struct HomeView: View {
         }
         .padding(.horizontal, DS.Space.sm)
         .padding(.vertical, 3)
-        .background(Capsule(style: .continuous).fill(Self.nightColor.opacity(0.14)))
-        .accessibilityIdentifier("home.nightShift")
+        .background(Capsule(style: .continuous).fill(tint.opacity(0.14)))
+        .accessibilityIdentifier("home.shiftKind")
     }
 
+    private static let morningColor = Color(red: 1.0, green: 0.78, blue: 0.35)
+    private static let eveningColor = Color(red: 1.0, green: 0.55, blue: 0.40)
     private static let nightColor = Color(red: 0.62, green: 0.64, blue: 1.0)
 
     // MARK: - "Your shift is on the Lock Screen too" tip

@@ -737,6 +737,75 @@ enum L10n {
     static var supportChatErrorLimit: String { t("supportChat.error.limit") }
     static var supportChatErrorGeneric: String { t("supportChat.error.generic") }
     static var supportChatErrorNetwork: String { t("supportChat.error.network") }
+    static var holidaysTitle: String { t("holidays.title") }
+    static var holidaysSettingsSummary: String { t("holidays.settingsSummary") }
+    static var holidaysFooter: String { t("holidays.footer") }
+    static var holidaysAdd: String { t("holidays.add") }
+    static var holidaysEdit: String { t("holidays.edit") }
+    static var holidaysName: String { t("holidays.name") }
+    static var holidaysNamePlaceholder: String { t("holidays.namePlaceholder") }
+    static var holidaysDate: String { t("holidays.date") }
+    static var holidaysPaysRate: String { t("holidays.paysRate") }
+    static var holidaysReset: String { t("holidays.reset") }
+    static var holidaysEmpty: String { t("holidays.empty") }
+    static var holidaysCustomTag: String { t("holidays.customTag") }
+    static var holidaysRemove: String { t("holidays.remove") }
+    static var contactSupportChatTitle: String { t("contactSupport.chatTitle") }
+    static var contactSupportChatSubtitle: String { t("contactSupport.chatSubtitle") }
+    static var contactSupportOrSend: String { t("contactSupport.orSend") }
+    static var supportReplyTitle: String { t("supportReply.title") }
+    static var supportReplyOpen: String { t("supportReply.open") }
+    static var supportReplyLater: String { t("supportReply.later") }
+    static var adminSupportAccount: String { t("admin.support.account") }
+    static var adminSupportNoAccount: String { t("admin.support.noAccount") }
+    static var adminSupportDevice: String { t("admin.support.device") }
+    static var adminSupportApp: String { t("admin.support.app") }
+    static var adminSupportLocale: String { t("admin.support.locale") }
+    static var adminSupportUserId: String { t("admin.support.userId") }
+    static var whatsNewTitle: String { t("whatsNew.title") }
+    static var whatsNewSubtitle: String { t("whatsNew.subtitle") }
+    static var whatsNewDone: String { t("whatsNew.done") }
+    static var whatsNewClose: String { t("whatsNew.close") }
+    static var whatsNewRow: String { t("whatsNew.row") }
+    static var employmentTypeLabel: String { t("employment.typeLabel") }
+    static var employmentNotSet: String { t("employment.notSet") }
+    static var employmentContractor: String { t("employment.contractor") }
+    static var employmentDirect: String { t("employment.direct") }
+    static var employmentStartDate: String { t("employment.startDate") }
+    static var employmentSetDate: String { t("employment.setDate") }
+    static var employmentNineMonths: String { t("employment.nineMonths") }
+    static var employmentDaysLeft: String { t("employment.daysLeft") }
+    static var employmentNineMonthsPassed: String { t("employment.nineMonthsPassed") }
+    static var employmentMoveButton: String { t("employment.moveButton") }
+    static var employmentEditMove: String { t("employment.editMove") }
+    static var employmentMoveTitle: String { t("employment.move.title") }
+    static var employmentMoveDate: String { t("employment.move.date") }
+    static var employmentMoveRate: String { t("employment.move.rate") }
+    static var employmentMoveGas: String { t("employment.move.gas") }
+    static var employmentMoveNote: String { t("employment.move.note") }
+    static var employmentHistoryFormat: String { t("employment.history.format") }
+    static var employmentHistoryTerms: String { t("employment.history.terms") }
+    static var employmentPensionToggle: String { t("employment.pension.toggle") }
+    static var employmentPensionEmployee: String { t("employment.pension.employee") }
+    static var employmentPensionEmployer: String { t("employment.pension.employer") }
+    static var employmentSeverance: String { t("employment.severance") }
+    static var employmentPensionHint: String { t("employment.pension.hint") }
+    static var taxPensionEmployee: String { t("tax.pensionEmployee") }
+    static var taxPensionEmployer: String { t("tax.pensionEmployer") }
+    static var taxSeverance: String { t("tax.severance") }
+    static var onbEmploymentTitle: String { t("onb.employment.title") }
+    static var onbEmploymentSubtitle: String { t("onb.employment.subtitle") }
+    static var onbEmploymentContractorHint: String { t("onb.employment.contractorHint") }
+    static var onbEmploymentDirectHint: String { t("onb.employment.directHint") }
+    static var whatsNewFindAgain: String { t("whatsNew.findAgain") }
+    static var shiftKindMorning: String { t("shiftKind.morning") }
+    static var shiftKindEvening: String { t("shiftKind.evening") }
+    static var updatePromptTitle: String { t("updatePrompt.title") }
+    static var updatePromptBody: String { t("updatePrompt.body") }
+    static var updatePromptUpdate: String { t("updatePrompt.update") }
+    static var updatePromptLater: String { t("updatePrompt.later") }
+    static var settingsSubWorkplace: String { t("settings.sub.workplace") }
+    static var settingsSubPayrollTax: String { t("settings.sub.payrollTax") }
     static var settingsGroupWork: String { t("settings.group.work") }
     static var settingsGroupWorkSummary: String { t("settings.group.workSummary") }
     static var settingsGroupReminders: String { t("settings.group.reminders") }

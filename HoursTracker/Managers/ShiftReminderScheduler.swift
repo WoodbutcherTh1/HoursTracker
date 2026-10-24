@@ -50,7 +50,7 @@ enum ShiftReminderScheduler {
                 guard let day = calendar.date(byAdding: .day, value: offset, to: today) else { continue }
                 let weekday = calendar.component(.weekday, from: day)
                 guard !settings.isRestDayWeekday(weekday),
-                      IsraeliHolidayCalendar.holiday(on: day, calendar: calendar) == nil,
+                      IsraeliHolidayCalendar.resolved(on: day, calendar: calendar, customization: settings.holidayCustomization) == nil,
                       let start = schedule.start(on: day, calendar: calendar) else { continue }
                 // Already clocked in that day (or still in a shift today) — nothing to remind.
                 if offset == 0, open != nil { continue }

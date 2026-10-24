@@ -214,3 +214,129 @@ extension ScreenshotTests {
         }
     }
 }
+
+
+extension ScreenshotTests {
+    /// Screenshots of what is new in 1.10: the What's New card, Home while clocked in and
+    /// out, the full month in History (big daily amounts), the Settings levels, holidays,
+    /// the contractor → company flow and the Feedback page with the chat. Written to
+    /// `~/Desktop/AppStoreScreenshots/<language>/` next to the standard set.
+    func testCaptureRelease110() throws {
+        for language in ["english", "hebrew", "arabic"] {
+            captureRelease(language: language)
+        }
+    }
+
+    private func launchRelease(_ language: String, extra: [String]) -> XCUIApplication {
+        let app = XCUIApplication()
+        app.launchArguments += [
+            "UITEST_SCREENSHOTS",
+            "UITEST_LANG", language,
+            "-appLanguagePreference", language,
+            "-hasSeenOnboarding.v1", "YES"
+        ] + extra
+        if app.state != .notRunning { app.terminate() }
+        _ = app.wait(for: .notRunning, timeout: 15)
+        app.launch()
+        XCTAssertTrue(app.wait(for: .runningForeground, timeout: 30))
+        return app
+    }
+
+    private func shot(_ app: XCUIApplication, _ language: String, _ name: String, wait: TimeInterval = 1.5) {
+        Thread.sleep(forTimeInterval: wait)
+        let screenshot = app.screenshot()
+        let home = ProcessInfo.processInfo.environment["SIMULATOR_HOST_HOME"] ?? NSHomeDirectory()
+        let dir = URL(fileURLWithPath: home).appendingPathComponent("Desktop/AppStoreScreenshots/\(language)")
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        try? screenshot.pngRepresentation.write(to: dir.appendingPathComponent("\(name).png"))
+    }
+
+    private func element(_ app: XCUIApplication, _ id: String) -> XCUIElement {
+        app.descendants(matching: .any)[id].firstMatch
+    }
+
+    private func tapIfThere(_ app: XCUIApplication, _ id: String, timeout: TimeInterval = 8) -> Bool {
+        let el = element(app, id)
+        guard el.waitForExistence(timeout: timeout) else { return false }
+        el.tap()
+        return true
+    }
+
+    private func back(_ app: XCUIApplication) {
+        let button = app.navigationBars.buttons.element(boundBy: 0)
+        if button.exists { button.tap() }
+        Thread.sleep(forTimeInterval: 0.8)
+    }
+
+    private func captureRelease(language: String) {
+        // 1. What's New card over Home.
+        var app = launchRelease(language, extra: ["UITEST_WHATS_NEW"])
+        if element(app, "whatsNew.done").waitForExistence(timeout: 20) {
+            shot(app, language, "10_WhatsNew", wait: 2)
+            element(app, "whatsNew.done").tap()
+        }
+        app.terminate()
+
+        // 2. Home clocked in, then clocked out; History full month.
+        app = launchRelease(language, extra: ["UITEST_CLOCKED_IN_MINUTES", "205"])
+        if app.buttons["home.clockOut"].waitForExistence(timeout: 30) {
+            shot(app, language, "11_HomeClockedIn", wait: 3)
+        }
+        let tabs = app.tabBars.firstMatch
+        if tabs.buttons.element(boundBy: 1).waitForExistence(timeout: 5) {
+            tabs.buttons.element(boundBy: 1).tap()
+            Thread.sleep(forTimeInterval: 1.5)
+            // Drag the week strip down to open the whole month.
+            let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.28))
+            let bottom = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.62))
+            top.press(forDuration: 0.1, thenDragTo: bottom)
+            shot(app, language, "12_HistoryMonth", wait: 2)
+        }
+        tabs.buttons.element(boundBy: 0).tap()
+        Thread.sleep(forTimeInterval: 1)
+        if app.buttons["home.clockOut"].exists {
+            app.buttons["home.clockOut"].tap()
+            if app.scrollViews["daySummary.sheet"].waitForExistence(timeout: 15) {
+                shot(app, language, "13_DaySummary", wait: 2)
+                if app.buttons["daySummary.done"].waitForExistence(timeout: 5) { app.buttons["daySummary.done"].tap() }
+            }
+            shot(app, language, "14_HomeClockedOut", wait: 2)
+        }
+        app.terminate()
+
+        // 3. Settings levels, holidays, contractor → company, feedback with chat.
+        app = launchRelease(language, extra: ["UITEST_EMPLOYMENT", "contractor"])
+        let settingsTab = app.tabBars.firstMatch.buttons.element(boundBy: 4)
+        guard settingsTab.waitForExistence(timeout: 30) else { app.terminate(); return }
+        settingsTab.tap()
+        shot(app, language, "20_Settings")
+        if tapIfThere(app, "settings.group.work") {
+            shot(app, language, "21_SettingsWork")
+            if tapIfThere(app, "settings.sub.workplace") {
+                shot(app, language, "22_SettingsEmployment", wait: 2)
+                if tapIfThere(app, "settings.employmentMove") {
+                    shot(app, language, "23_SettingsMoveToCompany", wait: 2)
+                    let swipe = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.3))
+                    swipe.press(forDuration: 0.1, thenDragTo: app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.95)))
+                }
+                back(app)
+            }
+            if tapIfThere(app, "settings.sub.rules") {
+                if tapIfThere(app, "settings.holidays", timeout: 5) {
+                    shot(app, language, "24_Holidays", wait: 2)
+                    back(app)
+                }
+                back(app)
+            }
+            back(app)
+        }
+        // Feedback page with the chat entry (scroll the root list to the Contact row).
+        let contact = element(app, "settings.contactSupport")
+        for _ in 0..<6 where !(contact.exists && contact.isHittable) { app.swipeUp() }
+        if contact.exists && contact.isHittable {
+            contact.tap()
+            shot(app, language, "25_Feedback", wait: 2)
+        }
+        app.terminate()
+    }
+}

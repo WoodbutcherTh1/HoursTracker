@@ -102,6 +102,14 @@ extension AppViewModel {
             DisplayPreferences.shared.weeklyGoalHoursDisplayOnly = nil
         }
 
+        // Release screenshots (`UITEST_EMPLOYMENT contractor`): a contractor placement that
+        // is four months in, so the 9-month counter and the "company hired me" button show.
+        if ProcessInfo.processInfo.arguments.contains("UITEST_EMPLOYMENT") {
+            settings.employment.type = .contractor
+            settings.employment.startDate = calendar.date(byAdding: .day, value: -120, to: today)
+            settings.contractorName = "Atlas Staffing"
+        }
+
         let document = FullDataExportDocument(
             exportedAt: ISO8601DateFormatter().string(from: Date()),
             appVersion: "screenshot-seed",

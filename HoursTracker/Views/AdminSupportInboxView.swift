@@ -25,10 +25,10 @@ struct AdminSupportInboxView: View {
                     } label: {
                         HStack(spacing: 10) {
                             Circle()
-                                .fill(thread.unreadAdmin ? Color.accentColor : Color.clear)
+                                .fill(thread.unreadAdmin ? Color.appAccent : Color.clear)
                                 .frame(width: 8, height: 8)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(L10n.adminSupportConversation(thread.deviceRef))
+                                Text(thread.senderTitle)
                                     .font(.body.weight(thread.unreadAdmin ? .semibold : .regular))
                                 Text(thread.statusLabel)
                                     .font(.caption)
@@ -63,6 +63,7 @@ struct AdminSupportThreadView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 10) {
+                    senderCard
                     ForEach(messages) { message in
                         bubble(message)
                     }
@@ -97,18 +98,52 @@ struct AdminSupportThreadView: View {
         }
     }
 
+    /// Who is on the other end: account (or none), device, OS, app build, locale.
+    private var senderCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            senderRow(L10n.adminSupportAccount, thread.userEmail ?? L10n.adminSupportNoAccount)
+            if let userId = thread.userId { senderRow(L10n.adminSupportUserId, userId) }
+            senderRow(L10n.adminSupportDevice, [thread.deviceModel, thread.osVersion.map { "iOS \($0)" }]
+                .compactMap { $0 }.joined(separator: " · "))
+            senderRow(L10n.adminSupportApp, thread.appVersion.map { "v\($0)" + (thread.build.map { " (\($0))" } ?? "") } ?? "")
+            senderRow(L10n.adminSupportLocale, thread.locale ?? "")
+        }
+        .font(.caption)
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(RoundedRectangle(cornerRadius: 12, style: .continuous).fill(Color(.tertiarySystemBackground)))
+    }
+
+    @ViewBuilder
+    private func senderRow(_ label: String, _ value: String) -> some View {
+        if !value.isEmpty {
+            HStack(alignment: .firstTextBaseline) {
+                Text(label).foregroundStyle(.secondary)
+                Spacer(minLength: 8)
+                Text(value).textSelection(.enabled).multilineTextAlignment(.trailing)
+            }
+        }
+    }
+
     private func bubble(_ message: AdminSupportModel.Message) -> some View {
         let fromUser = message.sender == "user"
         return HStack {
             if !fromUser { Spacer(minLength: 40) }
-            Text(message.body)
-                .padding(.horizontal, 12)
-                .padding(.vertical, 8)
-                .foregroundStyle(message.sender == "admin" ? Color.white : Color.primary)
-                .background(
-                    RoundedRectangle(cornerRadius: 16, style: .continuous)
-                        .fill(message.sender == "admin" ? Color.accentColor : Color(.secondarySystemBackground))
-                )
+            VStack(alignment: fromUser ? .leading : .trailing, spacing: 3) {
+                Text(message.body)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .foregroundStyle(message.sender == "admin" ? Color.white : Color.primary)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .fill(message.sender == "admin" ? Color.appAccent : Color(.secondarySystemBackground))
+                    )
+                if fromUser, let context = message.context {
+                    Text(context.summary)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
             if fromUser { Spacer(minLength: 40) }
         }
         .frame(maxWidth: .infinity)
@@ -134,12 +169,30 @@ final class AdminSupportModel: ObservableObject {
         let unreadAdmin: Bool
         let lastMessageAt: Date
         let deviceRef: String
+        /// Who the conversation is with. Optional so an older server still decodes.
+        let userId: String?
+        let userEmail: String?
+        let deviceModel: String?
+        let osVersion: String?
+        let appVersion: String?
+        let build: String?
+        let locale: String?
 
         enum CodingKeys: String, CodingKey {
-            case id, status
+            case id, status, build, locale
             case unreadAdmin = "unread_admin"
             case lastMessageAt = "last_message_at"
             case deviceRef = "device_ref"
+            case userId = "user_id"
+            case userEmail = "user_email"
+            case deviceModel = "device_model"
+            case osVersion = "os_version"
+            case appVersion = "app_version"
+        }
+
+        /// Email when signed in, otherwise the short device reference.
+        var senderTitle: String {
+            userEmail ?? (userId != nil ? L10n.adminSupportAccount : L10n.adminSupportConversation(deviceRef))
         }
 
         var statusLabel: String {
@@ -151,10 +204,31 @@ final class AdminSupportModel: ObservableObject {
         }
     }
 
+    /// What the app reported when the user wrote this message, plus the account the
+    /// server verified from their session.
+    struct SenderContext: Decodable, Equatable {
+        let userId: String?
+        let email: String?
+        let model: String?
+        let osVersion: String?
+        let appVersion: String?
+        let build: String?
+        let locale: String?
+
+        var summary: String {
+            let device = [model, osVersion.map { "iOS \($0)" }].compactMap { $0 }.joined(separator: " · ")
+            let app = appVersion.map { "v\($0)" + (build.map { " (\($0))" } ?? "") }
+            return [email ?? L10n.adminSupportNoAccount, device.isEmpty ? nil : device, app, locale]
+                .compactMap { $0 }
+                .joined(separator: " · ")
+        }
+    }
+
     struct Message: Identifiable, Decodable {
         let id: String
         let sender: String
         let body: String
+        let context: SenderContext?
     }
 
     @Published private(set) var threads: [Thread] = []

@@ -11,7 +11,8 @@ final class LegalConsent: ObservableObject {
     static let shared = LegalConsent()
 
     /// 1 = terms + policy of 29 Sep 2026 (first version with a consent screen).
-    static let currentVersion = 1
+    /// 2 = 24 Oct 2026: in-app chat now stores account email and device details.
+    static let currentVersion = 2
 
     static let versionKey = "legal.acceptedVersion"
     static let dateKey = "legal.acceptedAt"

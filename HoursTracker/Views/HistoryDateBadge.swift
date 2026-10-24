@@ -41,13 +41,13 @@ private struct DateBadgeGlass: View {
             if #available(iOS 26.0, *) {
                 Color.clear
                     .glassEffect(
-                        isSelected ? .regular.tint(Color.accentColor.opacity(0.85)) : .regular,
+                        isSelected ? .regular.tint(Color.appAccent.opacity(0.85)) : .regular,
                         in: shape
                     )
             } else {
                 shape
                     .fill(.ultraThinMaterial)
-                    .overlay(shape.fill(isSelected ? Color.accentColor : DS.Palette.card.opacity(0.35)))
+                    .overlay(shape.fill(isSelected ? Color.appAccent : DS.Palette.card.opacity(0.35)))
             }
         }
         .overlay(

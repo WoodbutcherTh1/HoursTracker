@@ -36,7 +36,7 @@ struct AccountSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.editCancel) { dismiss() }
+                    Button(L10n.onbBack) { dismiss() }
                         .tint(.white.opacity(0.8))
                 }
             }
