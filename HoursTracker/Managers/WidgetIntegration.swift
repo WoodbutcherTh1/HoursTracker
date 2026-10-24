@@ -49,7 +49,30 @@ extension WidgetBridge {
         update(livePay: livePay, showsNet: livePayShowsNet)
         update(settings: snapshot(from: settings))
         update(sessions: sessions.map { snapshot(from: $0, breaksArePaid: settings.breaksArePaid) })
+        update(periodPay: periodPay(settings: settings, sessions: sessions))
         reloadWidgetTimelines()
+    }
+
+    /// Finished-shift totals from the same engine History and the Watch use. The running
+    /// shift is left out; the widget adds its live pay on top.
+    static func periodPay(settings: WorkplaceSettings, sessions: [WorkSession], now: Date = Date()) -> WidgetPeriodPay {
+        let calendar = Calendar.current
+        let completed = sessions.filter { $0.clockOut != nil }
+        let today = calendar.startOfDay(for: now)
+        let week = calendar.dateInterval(of: .weekOfYear, for: now) ?? DateInterval(start: today, end: today)
+        let month = calendar.dateInterval(of: .month, for: now) ?? DateInterval(start: today, end: today)
+        let todayTotals = OvertimeCalculator.aggregate(
+            sessions: completed.filter { calendar.isDate($0.date, inSameDayAs: today) }, settings: settings)
+        let weekTotals = OvertimeCalculator.aggregate(
+            sessions: completed.filter { week.contains($0.date) }, settings: settings)
+        let monthTotals = OvertimeCalculator.aggregate(
+            sessions: completed.filter { calendar.isDate($0.date, equalTo: now, toGranularity: .month) }, settings: settings)
+        return WidgetPeriodPay(
+            todayStart: today, weekStart: week.start, monthStart: month.start,
+            todayGross: todayTotals.totalPay, todayNet: todayTotals.netPay,
+            weekGross: weekTotals.totalPay, weekNet: weekTotals.netPay,
+            monthGross: monthTotals.totalPay, monthNet: monthTotals.netPay
+        )
     }
 }
 

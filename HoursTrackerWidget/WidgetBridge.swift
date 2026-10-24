@@ -134,6 +134,19 @@ struct HoursActivityAttributes: ActivityAttributes {
 
 /// Bridge between the main app and the widget extension.
 /// Data is stored in a shared App Group UserDefaults suite.
+/// Pay totals of finished shifts, in both gross and net.
+struct WidgetPeriodPay: Codable, Equatable {
+    var todayStart: Date
+    var weekStart: Date
+    var monthStart: Date
+    var todayGross: Double
+    var todayNet: Double
+    var weekGross: Double
+    var weekNet: Double
+    var monthGross: Double
+    var monthNet: Double
+}
+
 enum WidgetBridge {
     static let suiteName = "group.com.hourstracker.app"
     static let settingsKey = "widget_settings"
@@ -144,6 +157,7 @@ enum WidgetBridge {
     static let pendingActionDateKey = "widget_pending_action_date"
     static let livePayKey = "widget_live_pay"
     static let livePayShowsNetKey = "widget_live_pay_net"
+    static let periodPayKey = "widget_period_pay"
 
     /// Darwin notification name — works across the app ↔ widget processes.
     static let darwinActionNotification = "com.hourstracker.widget.action" as CFString
@@ -173,6 +187,24 @@ enum WidgetBridge {
             suite?.removeObject(forKey: livePayKey)
         }
         suite?.set(showsNet, forKey: livePayShowsNetKey)
+    }
+
+    /// Completed-shift pay for today / this week / this month, priced by the app's real
+    /// engine (tiers, weekly overtime, rest-day and holiday rates, tax for net).
+    static func update(periodPay: WidgetPeriodPay) {
+        guard let data = try? JSONEncoder().encode(periodPay) else { return }
+        suite?.set(data, forKey: periodPayKey)
+    }
+
+    /// The stored totals, or nil when the app hasn't written any or they belong to a
+    /// previous day/week/month (the widget then falls back to its own estimate).
+    static func readPeriodPay(now: Date = Date(), calendar: Calendar = .current) -> WidgetPeriodPay? {
+        guard let data = suite?.data(forKey: periodPayKey),
+              let value = try? JSONDecoder().decode(WidgetPeriodPay.self, from: data) else { return nil }
+        let sameWeek = calendar.isDate(value.weekStart, equalTo: now, toGranularity: .weekOfYear)
+        let sameMonth = calendar.isDate(value.monthStart, equalTo: now, toGranularity: .month)
+        guard sameWeek, sameMonth else { return nil }
+        return value
     }
 
     static func readLivePay() -> LivePayCurve? {
