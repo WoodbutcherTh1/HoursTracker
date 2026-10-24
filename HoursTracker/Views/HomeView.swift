@@ -55,7 +55,6 @@ struct HomeView: View {
     @State private var showUserGuide = false
     @State private var showAbout = false
     @State private var showFeedback = false
-    @ObservedObject private var supportInbox = SupportInbox.shared
     @State private var showControlRoomPreview = false
     /// Set once the "Tap to personalize" toast has shown (or the picker was opened).
     @AppStorage("home.themeTipSeen") private var themeTipSeen = false
@@ -545,7 +544,6 @@ struct HomeView: View {
         .frame(height: metrics.doorHeight)
         .background(DSHeroGlow(color: homeTheme.accent))
         .frame(maxWidth: .infinity)
-        .overlay(alignment: .trailing) { supportChatButton }
     }
 
     private func breakControl(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {
@@ -573,30 +571,6 @@ struct HomeView: View {
         }
         .frame(height: metrics.doorHeight)
         .frame(maxWidth: .infinity)
-        .overlay(alignment: .trailing) { supportChatButton }
-    }
-
-    /// "Chat with us", floating beside the door where the row is otherwise empty.
-    private var supportChatButton: some View {
-        Button {
-            UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            showFeedback = true
-        } label: {
-            // Quiet on purpose: the door is the one main action on this screen.
-            Image(systemName: "bubble.left.and.bubble.right")
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(.secondary)
-                .frame(width: 40, height: 40)
-                .background(Circle().fill(HomeNeon.card.opacity(0.6)))
-                .overlay(alignment: .topTrailing) {
-                    if supportInbox.hasUnreadReply {
-                        Circle().fill(Color.red).frame(width: 10, height: 10)
-                    }
-                }
-        }
-        .buttonStyle(ScalePressButtonStyle())
-        .accessibilityLabel(L10n.supportChatTitle)
-        .accessibilityIdentifier("home.supportChat")
     }
 
     /// The door pinned above the tab bar, over a fade so scrolled content slides
