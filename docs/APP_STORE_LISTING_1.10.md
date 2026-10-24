@@ -1,5 +1,7 @@
 # App Store listing — v1.10 (build 29)
 
+Note: App Store Connect rejected the emoji in these fields ("invalid characters"), so the versions entered there have the emoji removed and a "•" bullet in their place. The texts below keep the emoji for other uses.
+
 Limits: What's New 4000 characters, Promotional Text 170 (can be changed any time without a new version), Description 4000.
 
 ---
