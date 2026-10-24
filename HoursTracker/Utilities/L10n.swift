@@ -737,6 +737,31 @@ enum L10n {
     static var supportChatErrorLimit: String { t("supportChat.error.limit") }
     static var supportChatErrorGeneric: String { t("supportChat.error.generic") }
     static var supportChatErrorNetwork: String { t("supportChat.error.network") }
+    static var holidaysTitle: String { t("holidays.title") }
+    static var holidaysSettingsSummary: String { t("holidays.settingsSummary") }
+    static var holidaysFooter: String { t("holidays.footer") }
+    static var holidaysAdd: String { t("holidays.add") }
+    static var holidaysEdit: String { t("holidays.edit") }
+    static var holidaysName: String { t("holidays.name") }
+    static var holidaysNamePlaceholder: String { t("holidays.namePlaceholder") }
+    static var holidaysDate: String { t("holidays.date") }
+    static var holidaysPaysRate: String { t("holidays.paysRate") }
+    static var holidaysReset: String { t("holidays.reset") }
+    static var holidaysEmpty: String { t("holidays.empty") }
+    static var holidaysCustomTag: String { t("holidays.customTag") }
+    static var holidaysRemove: String { t("holidays.remove") }
+    static var contactSupportChatTitle: String { t("contactSupport.chatTitle") }
+    static var contactSupportChatSubtitle: String { t("contactSupport.chatSubtitle") }
+    static var contactSupportOrSend: String { t("contactSupport.orSend") }
+    static var supportReplyTitle: String { t("supportReply.title") }
+    static var supportReplyOpen: String { t("supportReply.open") }
+    static var supportReplyLater: String { t("supportReply.later") }
+    static var adminSupportAccount: String { t("admin.support.account") }
+    static var adminSupportNoAccount: String { t("admin.support.noAccount") }
+    static var adminSupportDevice: String { t("admin.support.device") }
+    static var adminSupportApp: String { t("admin.support.app") }
+    static var adminSupportLocale: String { t("admin.support.locale") }
+    static var adminSupportUserId: String { t("admin.support.userId") }
     static var settingsGroupWork: String { t("settings.group.work") }
     static var settingsGroupWorkSummary: String { t("settings.group.workSummary") }
     static var settingsGroupReminders: String { t("settings.group.reminders") }

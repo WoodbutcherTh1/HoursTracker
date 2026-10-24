@@ -33,6 +33,12 @@ Deno.serve(async (req) => {
     return json({ error: "Could not delete account" }, 500)
   }
 
+  // Support inbox: drop the account's email/link from its conversations (the
+  // message text stays). Best-effort — a deployment without the support tables
+  // must still be able to delete accounts.
+  const { error: supportError } = await supabase.rpc("support_forget_user", { p_user_id: userId })
+  if (supportError) console.error("delete-account: support", supportError.message)
+
   const { error: deleteError } = await supabase.auth.admin.deleteUser(userId)
   if (deleteError) {
     console.error("delete-account: user", deleteError.message)

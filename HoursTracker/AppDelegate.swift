@@ -125,6 +125,13 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
         willPresent notification: UNNotification,
         withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void
     ) {
+        // An owner reply to the support chat is shown by the in-app prompt instead of a
+        // system banner on top of the app.
+        if notification.request.content.userInfo["supportReply"] != nil {
+            Task { @MainActor in await SupportInbox.shared.check() }
+            completionHandler([])
+            return
+        }
         completionHandler([.banner, .list, .sound])
     }
 
@@ -138,7 +145,14 @@ extension AppDelegate: UNUserNotificationCenterDelegate {
     ) {
         let action = response.actionIdentifier
         let isAnnouncement = response.notification.request.content.userInfo["announcementId"] != nil
+        let isSupportReply = response.notification.request.content.userInfo["supportReply"] != nil
         Task { @MainActor in
+            if isSupportReply {
+                // Tapping the reply notification opens the conversation.
+                SupportInbox.shared.openChat()
+                completionHandler()
+                return
+            }
             if isAnnouncement {
                 // Tapping an owner announcement opens its full text in the app.
                 AnnouncementCenter.shared.refresh(force: true)

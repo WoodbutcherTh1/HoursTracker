@@ -104,6 +104,7 @@ struct HoursTrackerApp: App {
                     viewModel.refreshShiftReminders()
                     viewModel.takeDailyBackupIfNeeded()
                     AnnouncementCenter.shared.refresh()
+                    Task { await SupportInbox.shared.check() }
                     Task { await WidgetNudge.refresh() }
                     if appLock.isEnabled && appLock.isLocked {
                         Task { await appLock.unlock() }
@@ -131,6 +132,7 @@ private enum MainSheetRoute: Identifiable, Hashable {
     case assistant
     case scannerReview
     case scanner
+    case supportChat
 
     var id: Self { self }
 }
@@ -160,6 +162,7 @@ struct MainTabView: View {
     // Settings, not just Home's own neon-styled elements.
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
     @ObservedObject private var announcements = AnnouncementCenter.shared
+    @ObservedObject private var supportInbox = SupportInbox.shared
 
     /// A scan that completes while the assistant is already open stays queued rather
     /// than yanking the assistant away mid-conversation: the existing "ready for review"
@@ -171,12 +174,14 @@ struct MainTabView: View {
         Binding(
             get: {
                 if viewModel.showScannerSheet { return .scanner }
+                if supportInbox.showChat { return .supportChat }
                 if viewModel.showAssistant { return .assistant }
                 if viewModel.showPendingScannerReview { return .scannerReview }
                 return nil
             },
             set: { newRoute in
                 viewModel.showAssistant = (newRoute == .assistant)
+                supportInbox.showChat = (newRoute == .supportChat)
                 viewModel.showPendingScannerReview = (newRoute == .scannerReview)
                 viewModel.showScannerSheet = (newRoute == .scanner)
             }
@@ -291,6 +296,19 @@ struct MainTabView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: announcements.current?.id)
+        // The owner answered the user's support chat.
+        .overlay(alignment: .top) {
+            if supportInbox.promptVisible, announcements.current == nil {
+                SupportReplyBanner(
+                    preview: supportInbox.preview,
+                    onOpen: { supportInbox.openChat() },
+                    onLater: { supportInbox.dismissPrompt() }
+                )
+                .padding(.top, 8)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
+        }
+        .animation(.easeInOut(duration: 0.3), value: supportInbox.promptVisible)
         // A single routed sheet — see `MainSheetRoute` — rather than one
         // `.sheet(isPresented:)` per case, so the assistant and the scanner-review sheet
         // (which a background scan can request at any moment) can never both be live at
@@ -308,6 +326,8 @@ struct MainTabView: View {
                 if let result = viewModel.pendingScannerResult {
                     TimesheetScannerView(appViewModel: viewModel, initialResult: result)
                 }
+            case .supportChat:
+                SupportChatSheet()
             case .scanner:
                 // Deep-linked (widget / quick action) scanner — no pending result
                 // yet, so TimesheetScannerView runs its own capture/import flow.

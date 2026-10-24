@@ -55,7 +55,7 @@ struct HomeView: View {
     @State private var showUserGuide = false
     @State private var showAbout = false
     @State private var showFeedback = false
-    @State private var showSupportChat = false
+    @ObservedObject private var supportInbox = SupportInbox.shared
     @State private var showControlRoomPreview = false
     /// Set once the "Tap to personalize" toast has shown (or the picker was opened).
     @AppStorage("home.themeTipSeen") private var themeTipSeen = false
@@ -145,13 +145,9 @@ struct HomeView: View {
                         } label: {
                             Label(L10n.guideTitle, systemImage: "questionmark.circle")
                         }
-                        Button {
-                            showSupportChat = true
-                        } label: {
-                            Label(L10n.supportChatTitle, systemImage: "bubble.left.and.bubble.right")
-                        }
                         // One row for support and feedback — the sheet's own picker
-                        // (bug / suggestion / …) says what it's about.
+                        // (bug / suggestion / …) says what it's about, and the chat with
+                        // the developer starts from inside it.
                         Button {
                             showFeedback = true
                         } label: {
@@ -199,9 +195,6 @@ struct HomeView: View {
             .sheet(isPresented: $showAbout) {
                 AboutSheet(viewModel: viewModel)
                     .presentationDetents([.medium])
-            }
-            .sheet(isPresented: $showSupportChat) {
-                SupportChatSheet()
             }
             #if DEBUG
             .fullScreenCover(isPresented: $showControlRoomPreview) {
@@ -587,7 +580,7 @@ struct HomeView: View {
     private var supportChatButton: some View {
         Button {
             UIImpactFeedbackGenerator(style: .light).impactOccurred()
-            showSupportChat = true
+            showFeedback = true
         } label: {
             // Quiet on purpose: the door is the one main action on this screen.
             Image(systemName: "bubble.left.and.bubble.right")
@@ -595,6 +588,11 @@ struct HomeView: View {
                 .foregroundStyle(.secondary)
                 .frame(width: 40, height: 40)
                 .background(Circle().fill(HomeNeon.card.opacity(0.6)))
+                .overlay(alignment: .topTrailing) {
+                    if supportInbox.hasUnreadReply {
+                        Circle().fill(Color.red).frame(width: 10, height: 10)
+                    }
+                }
         }
         .buttonStyle(ScalePressButtonStyle())
         .accessibilityLabel(L10n.supportChatTitle)

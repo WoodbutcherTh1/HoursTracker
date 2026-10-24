@@ -840,6 +840,7 @@ struct SettingsView: View {
         Group {
             sectionHeader(L10n.settingsWorkRules, icon: "clock.badge.checkmark.fill")
             restDayRows
+            HolidaysSettingsLink(customization: $draft.holidayCustomization)
             breakRulesRows
             shiftStartAndCurrencyRows
         }

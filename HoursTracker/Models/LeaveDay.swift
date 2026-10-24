@@ -54,6 +54,7 @@ struct PeriodDayCounts: Equatable {
     static func count(
         sessions: [WorkSession],
         leaveDays: [LeaveDay],
+        holidays: HolidayCustomization = HolidayCustomization(),
         from start: Date,
         through end: Date,
         calendar: Calendar = .current
@@ -84,7 +85,7 @@ struct PeriodDayCounts: Equatable {
         }
         var cursor = first
         while cursor <= last {
-            if IsraeliHolidayCalendar.holiday(on: cursor, calendar: calendar) != nil {
+            if IsraeliHolidayCalendar.resolved(on: cursor, calendar: calendar, customization: holidays) != nil {
                 holidayCandidates.insert(cursor)
             }
             guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }

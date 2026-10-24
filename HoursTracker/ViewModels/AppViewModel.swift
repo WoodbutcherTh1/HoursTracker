@@ -469,7 +469,7 @@ final class AppViewModel: ObservableObject {
         if hasHolidayMarked { return .holiday }
         // Bundled Israeli holiday calendar — a statutory rest day overrides the
         // regular rest-day auto-tag (and never downgrades a manual marking).
-        if IsraeliHolidayCalendar.isHoliday(date, calendar: calendar) { return .holiday }
+        if IsraeliHolidayCalendar.isHoliday(date, calendar: calendar, customization: activeSettings.holidayCustomization) { return .holiday }
         return DayType.automatic(for: date, settings: activeSettings)
     }
 
