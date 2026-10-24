@@ -48,7 +48,8 @@ struct WhatsNewCard: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
-            .frame(maxHeight: 320)
+            .scrollIndicators(.visible)
+            .frame(maxHeight: UIScreen.main.bounds.height * 0.5)
 
             // Counts down live: 22 hours left, then 21, … and gone for the last hour.
             TimelineView(.periodic(from: .now, by: 60)) { context in
