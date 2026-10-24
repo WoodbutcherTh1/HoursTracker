@@ -340,3 +340,47 @@ extension ScreenshotTests {
         app.terminate()
     }
 }
+
+
+extension ScreenshotTests {
+    /// Promo-video shots with a worker name in the app's own language, for Hebrew and
+    /// Arabic (the English set already says "Alex"). Writes to
+    /// `~/Desktop/AppStoreScreenshots/<language>/brag-*.png`.
+    func testCaptureBragShots() throws {
+        let sets: [(language: String, name: String, workplace: String)] = [
+            ("hebrew", "נועם לוי", "קפה הנהר"),
+            ("arabic", "ليث حداد", "مقهى النهر"),
+        ]
+        for set in sets {
+            var app = launchRelease(set.language, extra: ["UITEST_CLOCKED_IN_MINUTES", "205",
+                                                           "UITEST_WORKER_NAME", set.name,
+                                                           "UITEST_WORKPLACE_NAME", set.workplace])
+            if app.buttons["home.clockOut"].waitForExistence(timeout: 30) {
+                shot(app, set.language, "brag-home", wait: 3)
+            }
+            let tabs = app.tabBars.firstMatch
+            if tabs.buttons.element(boundBy: 1).waitForExistence(timeout: 5) {
+                tabs.buttons.element(boundBy: 1).tap()
+                Thread.sleep(forTimeInterval: 1.5)
+                let top = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.28))
+                let bottom = app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.62))
+                top.press(forDuration: 0.1, thenDragTo: bottom)
+                shot(app, set.language, "brag-history", wait: 2)
+            }
+            app.terminate()
+            app = launchRelease(set.language, extra: ["UITEST_WORKER_NAME", set.name])
+            let settingsTab = app.tabBars.firstMatch.buttons.element(boundBy: 4)
+            if settingsTab.waitForExistence(timeout: 30) {
+                settingsTab.tap()
+                if tapIfThere(app, "settings.group.work") {
+                    if tapIfThere(app, "settings.sub.rules") {
+                        if tapIfThere(app, "settings.holidays", timeout: 5) {
+                            shot(app, set.language, "brag-holidays", wait: 2)
+                        }
+                    }
+                }
+            }
+            app.terminate()
+        }
+    }
+}
