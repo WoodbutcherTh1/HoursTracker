@@ -80,6 +80,12 @@ struct ContactSupportSheet: View {
                 messageSection
             }
             .scrollContentBackground(.hidden)
+            // Presented from the Form itself, not from a row: list rows are recycled when
+            // the unread state refreshes, which dismissed a sheet attached to one.
+            .sheet(isPresented: $showChat) {
+                SupportChatSheet()
+            }
+            .task { await supportInbox.check() }
             .background(appBackground.background.ignoresSafeArea())
             .tint(theme.accent)
             .navigationTitle(L10n.settingsSupport)
@@ -171,10 +177,6 @@ struct ContactSupportSheet: View {
         } footer: {
             Text(L10n.contactSupportOrSend)
         }
-        .sheet(isPresented: $showChat) {
-            SupportChatSheet()
-        }
-        .task { await supportInbox.check() }
     }
 
     private var nameSection: some View {

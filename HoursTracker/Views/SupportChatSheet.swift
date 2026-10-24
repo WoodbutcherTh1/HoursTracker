@@ -83,7 +83,7 @@ struct SupportChatSheet: View {
                     .padding(.vertical, 8)
                     .background(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(fromUser ? Color.accentColor : Color(.secondarySystemBackground))
+                            .fill(fromUser ? Color.appAccent : Color(.secondarySystemBackground))
                     )
             }
             if !fromUser { Spacer(minLength: 40) }
@@ -108,7 +108,7 @@ struct SupportChatSheet: View {
             } label: {
                 Image(systemName: "arrow.up.circle.fill")
                     .font(.system(size: 32))
-                    .foregroundStyle(model.canSend ? Color.accentColor : Color.gray.opacity(0.4))
+                    .foregroundStyle(model.canSend ? Color.appAccent : Color.gray.opacity(0.4))
             }
             .disabled(!model.canSend)
             .accessibilityLabel(L10n.supportChatSend)

@@ -524,7 +524,7 @@ struct ScannedDraftRow: View {
         HStack(spacing: 12) {
             Button(action: onToggle) {
                 Image(systemName: draft.isSelected ? "checkmark.circle.fill" : "circle")
-                    .foregroundStyle(draft.isSelected ? Color.accentColor : .secondary)
+                    .foregroundStyle(draft.isSelected ? Color.appAccent : .secondary)
                     .font(.title3)
             }
             .buttonStyle(.plain)

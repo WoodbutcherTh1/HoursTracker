@@ -438,7 +438,7 @@ struct HistoryView: View {
             VStack(spacing: 4) {
                 Text(weekdayLetter)
                     .font(.caption2.weight(.medium))
-                    .foregroundStyle(isSelected ? Color.accentColor : .secondary)
+                    .foregroundStyle(isSelected ? Color.appAccent : .secondary)
 
                 Text(number)
                     .font(.body.weight(isSelected ? .bold : .regular).monospacedDigit())
@@ -450,9 +450,9 @@ struct HistoryView: View {
                     .frame(width: 34, height: 34)
                     .background {
                         if isSelected {
-                            Circle().fill(Color.accentColor)
+                            Circle().fill(Color.appAccent)
                         } else if isToday && day.isInPeriod {
-                            Circle().strokeBorder(Color.accentColor.opacity(0.7), lineWidth: 1.25)
+                            Circle().strokeBorder(Color.appAccent.opacity(0.7), lineWidth: 1.25)
                         } else if holiday != nil {
                             Circle().strokeBorder(Color.yellow.opacity(0.8), lineWidth: 1.25)
                         }
@@ -461,7 +461,7 @@ struct HistoryView: View {
                 Circle()
                     .fill(
                         isSelected ? Color.clear
-                            : hasSession ? Color.accentColor
+                            : hasSession ? Color.appAccent
                             : (day.isInPeriod && viewModel.leaveKind(on: day.date) != nil) ? Color.teal
                             : Color.clear
                     )
@@ -496,7 +496,7 @@ struct HistoryView: View {
     private func dayNumberColor(isSelected: Bool, isToday: Bool, isInPeriod: Bool) -> Color {
         if !isInPeriod { return .secondary }
         if isSelected { return .white }
-        if isToday { return .accentColor }
+        if isToday { return Color.appAccent }
         return .primary
     }
 
@@ -678,9 +678,9 @@ struct HistoryView: View {
                     .frame(width: 30, height: 30)
                     .background {
                         if isSelected {
-                            Circle().fill(Color.accentColor)
+                            Circle().fill(Color.appAccent)
                         } else if isToday && day.isInPeriod {
-                            Circle().strokeBorder(Color.accentColor.opacity(0.7), lineWidth: 1.25)
+                            Circle().strokeBorder(Color.appAccent.opacity(0.7), lineWidth: 1.25)
                         } else if holiday != nil {
                             Circle().strokeBorder(Color.yellow.opacity(0.8), lineWidth: 1.25)
                         }
@@ -690,15 +690,17 @@ struct HistoryView: View {
                 // shift nor a holiday, same as the week strip's plain dot today.
                 // A worked holiday still shows its pay total — the gold ring above
                 // already marks it as a holiday.
-                Text(amount.map(formattedDailyAmount) ?? holiday?.hebrewShortName ?? leave.map(leaveShortName) ?? " ")
-                    .font(.system(size: 10, weight: .semibold))
+                // Whole amounts, larger: the month grid has room for "₪456" at 14pt where
+                // "₪456.78" had to stay tiny.
+                Text(amount.map(formattedCompactDailyAmount) ?? holiday?.hebrewShortName ?? leave.map(leaveShortName) ?? " ")
+                    .font(.system(size: 14, weight: .bold).monospacedDigit())
                     .foregroundStyle(
                         amount == nil && holiday != nil ? .yellow
                             : amount == nil && leave != nil ? .teal
-                            : (isSelected ? Color.accentColor : .secondary)
+                            : (isSelected ? Color.appAccent : .secondary)
                     )
                     .lineLimit(1)
-                    .minimumScaleFactor(0.5)
+                    .minimumScaleFactor(0.6)
             }
             .frame(maxWidth: .infinity)
             .padding(.vertical, 4)
@@ -721,8 +723,8 @@ struct HistoryView: View {
         }
     }
 
-    private func formattedDailyAmount(_ amount: Double) -> String {
-        PayFormatter.string(amount, currencyCode: viewModel.activeSettings.currencyCode)
+    private func formattedCompactDailyAmount(_ amount: Double) -> String {
+        PayFormatter.string(amount, currencyCode: viewModel.activeSettings.currencyCode, fractionDigits: 0)
     }
 
     /// Shared insets so column headers and session rows stay locked together.
@@ -992,7 +994,7 @@ struct HistoryView: View {
         .padding(.vertical, 11)
         .background {
             if isPicked {
-                Color.accentColor.opacity(0.14)
+                Color.appAccent.opacity(0.14)
             } else if striped {
                 Color(.secondarySystemGroupedBackground).opacity(0.45)
             }
@@ -1209,7 +1211,7 @@ struct HistoryView: View {
         let allVisiblePicked = !visibleIDs.isEmpty && visibleIDs.isSubset(of: selectedIDs)
         return HStack(spacing: 8) {
             Image(systemName: "checkmark.circle")
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Color.appAccent)
             Text(L10n.historySelectHint)
                 .font(.caption)
                 .foregroundStyle(.secondary)

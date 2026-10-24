@@ -19,6 +19,14 @@ struct TaxDeductionsCard: View {
             row(AppLocale.tr("tax.incomeTax"), amount: breakdown.incomeTax)
             row(AppLocale.tr("tax.nationalInsurance"), amount: breakdown.nationalInsurance)
             row(AppLocale.tr("tax.healthTax"), amount: breakdown.healthTax)
+            if breakdown.pensionEmployee > 0 {
+                row(AppLocale.tr("tax.pensionEmployee"), amount: breakdown.pensionEmployee)
+            }
+            if breakdown.pensionEmployer > 0 || breakdown.severance > 0 {
+                Divider()
+                extraRow(AppLocale.tr("tax.pensionEmployer"), amount: breakdown.pensionEmployer)
+                extraRow(AppLocale.tr("tax.severance"), amount: breakdown.severance)
+            }
 
             Text(AppLocale.tr("tax.estimateNote"))
                 .font(.caption2)
@@ -29,6 +37,19 @@ struct TaxDeductionsCard: View {
         .padding()
         .background(Color(.secondarySystemGroupedBackground))
         .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+    }
+
+    /// Paid by the employer on top — for information.
+    private func extraRow(_ title: String, amount: Double) -> some View {
+        HStack {
+            Text(title)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            Spacer()
+            Text("+" + breakdown.formatted(amount))
+                .font(.subheadline.weight(.semibold).monospacedDigit())
+                .foregroundStyle(.green)
+        }
     }
 
     private func row(_ title: String, amount: Double) -> some View {

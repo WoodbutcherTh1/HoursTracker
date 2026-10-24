@@ -289,8 +289,12 @@ struct WorkSession: Codable, Identifiable, Equatable {
         // overlap the shift, starting from the evening before clock-in.
         var day = calendar.date(byAdding: .day, value: -1, to: calendar.startOfDay(for: clockIn))!
         while day <= clockOut {
-            if let windowStart = calendar.date(bySettingHour: 22, minute: 0, second: 0, of: day) {
-                let windowEnd = windowStart.addingTimeInterval(8 * 3600)
+            // The window ends at 06:00 the next morning by the calendar, not 8 hours
+            // later: on the night the clocks change (last Sunday of October in Israel)
+            // it is 9 real hours long, and 7 in spring.
+            if let windowStart = calendar.date(bySettingHour: 22, minute: 0, second: 0, of: day),
+               let nextDay = calendar.date(byAdding: .day, value: 1, to: day),
+               let windowEnd = calendar.date(bySettingHour: 6, minute: 0, second: 0, of: nextDay) {
                 let overlap = min(clockOut, windowEnd).timeIntervalSince(max(clockIn, windowStart))
                 if overlap > 0 { nightSeconds += overlap }
             }

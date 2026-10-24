@@ -102,47 +102,146 @@ struct SettingsView: View {
         }
     }
 
-    @State private var openSettingsGroups: Set<String> = []
+    // MARK: - Navigation: Settings → group → sub-screen
 
-    private func groupBinding(_ key: String) -> Binding<Bool> {
-        Binding(
-            get: { openSettingsGroups.contains(key) },
-            set: { open in
-                if open { openSettingsGroups.insert(key) } else { openSettingsGroups.remove(key) }
-            }
-        )
-    }
-
-    /// One collapsible group in the Form. Its rows come from the section builders
-    /// above; the group header shows a one-line summary so closed groups stay useful.
-    private func settingsGroup<Rows: View>(
+    /// A row on the Settings list that opens a group. The icon-and-summary label keeps a
+    /// closed group useful at a glance; the group itself is a pushed screen, not an
+    /// accordion, so no screen ever shows more than one topic.
+    private func groupLink<Destination: View>(
         _ key: String,
         title: String,
         icon: String,
         summary: String,
-        @ViewBuilder rows: () -> Rows
+        @ViewBuilder destination: @escaping () -> Destination
     ) -> some View {
-        let content = rows()
-        return Section {
-            DisclosureGroup(isExpanded: groupBinding(key)) {
-                content
-            } label: {
-                HStack(spacing: 12) {
-                    Image(systemName: icon)
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(homeTheme.accent)
-                        .frame(width: 24)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(title)
-                            .font(.body.weight(.semibold))
-                        Text(summary)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
+        // AnyView at every link keeps the view types shallow (see the note in `body`).
+        NavigationLink {
+            AnyView(destination())
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(homeTheme.accent)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.body.weight(.semibold))
+                    Text(summary)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .accessibilityIdentifier("settings.group.\(key)")
+    }
+
+    /// A row on a group screen that opens one sub-screen.
+    private func subLink<Destination: View>(
+        _ key: String,
+        title: String,
+        icon: String,
+        @ViewBuilder destination: @escaping () -> Destination
+    ) -> some View {
+        NavigationLink {
+            AnyView(destination())
+        } label: {
+            Label {
+                Text(title)
+            } icon: {
+                Image(systemName: icon).foregroundStyle(homeTheme.accent)
+            }
+        }
+        .accessibilityIdentifier("settings.sub.\(key)")
+    }
+
+    /// A pushed Settings screen. Edits go to the shared `draft`, so Save works from
+    /// any of them exactly as on the main list.
+    private func settingsPage<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        Form { content() }
+            .tint(homeTheme.accent)
+            .symbolRenderingMode(.monochrome)
+            .scrollContentBackground(.hidden)
+            .background(appBackground.background.ignoresSafeArea())
+            .scrollDismissesKeyboard(.interactively)
+            .keyboardDismissible()
+            .navigationTitle(title)
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbarBackground(appBackground.background, for: .navigationBar)
+            .toolbarBackground(.visible, for: .navigationBar)
+            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                ToolbarItem(placement: .confirmationAction) { saveButton }
+            }
+    }
+
+    // Level 2: a group that has several topics lists them; a short group shows its
+    // rows directly. Each section builder is type-erased (see the note in `body`).
+
+    private var workGroupPage: some View {
+        settingsPage(L10n.settingsGroupWork) {
+            Section {
+                subLink("workplace", title: L10n.settingsSubWorkplace, icon: "building.2.fill") {
+                    settingsPage(L10n.settingsSubWorkplace) {
+                        Section { AnyView(workplacesRows) }
+                        Section { AnyView(workerRows) }
+                        Section { AnyView(workplaceRows) }
                     }
                 }
-                .padding(.vertical, 2)
+                subLink("pay", title: L10n.settingsPayHours, icon: "banknote.fill") {
+                    settingsPage(L10n.settingsPayHours) { Section { AnyView(payRows) } }
+                }
+                subLink("rules", title: L10n.settingsWorkRules, icon: "clock.badge.checkmark.fill") {
+                    settingsPage(L10n.settingsWorkRules) { Section { AnyView(workRulesRows) } }
+                }
+                subLink("payroll", title: L10n.settingsSubPayrollTax, icon: "calendar.badge.clock") {
+                    settingsPage(L10n.settingsSubPayrollTax) {
+                        Section { AnyView(payrollRows) }
+                        Section { AnyView(taxRows) }
+                    }
+                }
             }
-            .accessibilityIdentifier("settings.group.\(key)")
+        }
+    }
+
+    private var remindersGroupPage: some View {
+        settingsPage(L10n.settingsGroupReminders) {
+            Section { AnyView(locationRows) }
+            Section { AnyView(notificationsRows) }
+        }
+    }
+
+    private var privacyGroupPage: some View {
+        settingsPage(L10n.settingsGroupPrivacy) {
+            Section {
+                subLink("lock", title: L10n.appLockSection, icon: "lock.shield.fill") {
+                    settingsPage(L10n.appLockSection) { Section { AnyView(securityRows) } }
+                }
+                subLink("widgets", title: L10n.settingsHideWidgetPaySection, icon: "square.grid.2x2.fill") {
+                    settingsPage(L10n.settingsHideWidgetPaySection) { Section { AnyView(widgetPrivacyRows) } }
+                }
+                subLink("scanner", title: L10n.scannerSection, icon: "doc.text.viewfinder") {
+                    settingsPage(L10n.scannerSection) { Section { AnyView(smartScannerRows) } }
+                }
+                subLink("safety", title: L10n.dataSafetySection, icon: "externaldrive.badge.checkmark") {
+                    settingsPage(L10n.dataSafetySection) { Section { AnyView(dataSafetyRows) } }
+                }
+            }
+        }
+    }
+
+    private var dataGroupPage: some View {
+        settingsPage(L10n.settingsGroupData) {
+            if viewModel.isCloudSyncSupported {
+                Section { AnyView(syncRows) }
+            }
+            if admin.isAdmin {
+                Section { AnyView(adminRows) }
+            }
+            Section { AnyView(toolsRows) }
         }
     }
 
@@ -150,36 +249,15 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 accountSection
-                settingsGroup("work", title: L10n.settingsGroupWork, icon: "briefcase.fill", summary: L10n.settingsGroupWorkSummary) {
-                    // Each section is type-erased: the nested opaque types of these big
-                    // builders made Swift's runtime type resolution overflow the stack
-                    // (EXC_BAD_ACCESS in swift_getTypeByMangledName) when Settings opened.
-                    AnyView(workplacesRows)
-                    AnyView(workerRows)
-                    AnyView(workplaceRows)
-                    AnyView(payRows)
-                    AnyView(workRulesRows)
-                    AnyView(payrollRows)
-                    AnyView(taxRows)
-                }
-                settingsGroup("reminders", title: L10n.settingsGroupReminders, icon: "bell.badge.fill", summary: L10n.settingsGroupRemindersSummary) {
-                    AnyView(locationRows)
-                    AnyView(notificationsRows)
-                }
-                settingsGroup("privacy", title: L10n.settingsGroupPrivacy, icon: "lock.shield.fill", summary: L10n.settingsGroupPrivacySummary) {
-                    AnyView(securityRows)
-                    AnyView(widgetPrivacyRows)
-                    AnyView(smartScannerRows)
-                    AnyView(dataSafetyRows)
-                }
-                settingsGroup("data", title: L10n.settingsGroupData, icon: "externaldrive.fill", summary: L10n.settingsGroupDataSummary) {
-                    if viewModel.isCloudSyncSupported {
-                        syncRows
-                    }
-                    if admin.isAdmin {
-                        adminRows
-                    }
-                    toolsRows
+                // Each group opens its own screen. Each section is type-erased inside those
+                // screens: the nested opaque types of the big builders made Swift's runtime
+                // type resolution overflow the stack (EXC_BAD_ACCESS in
+                // swift_getTypeByMangledName) when Settings opened.
+                Section {
+                    groupLink("work", title: L10n.settingsGroupWork, icon: "briefcase.fill", summary: L10n.settingsGroupWorkSummary) { workGroupPage }
+                    groupLink("reminders", title: L10n.settingsGroupReminders, icon: "bell.badge.fill", summary: L10n.settingsGroupRemindersSummary) { remindersGroupPage }
+                    groupLink("privacy", title: L10n.settingsGroupPrivacy, icon: "lock.shield.fill", summary: L10n.settingsGroupPrivacySummary) { privacyGroupPage }
+                    groupLink("data", title: L10n.settingsGroupData, icon: "externaldrive.fill", summary: L10n.settingsGroupDataSummary) { dataGroupPage }
                 }
                 languageSection
                 aboutSection
@@ -190,6 +268,10 @@ struct SettingsView: View {
             // Contact Support icons, etc.) stuck showing the previous tint until
             // something else invalidates them.
             .id(homeTheme.accent.hexString)
+            .tint(homeTheme.accent)
+            // Some symbols (the privacy hand) have a built-in blue multicolor variant;
+            // keep every icon monochrome so it takes the accent.
+            .symbolRenderingMode(.monochrome)
             .scrollContentBackground(.hidden)
             .background(appBackground.background.ignoresSafeArea())
             .scrollDismissesKeyboard(.interactively)
@@ -746,11 +828,7 @@ struct SettingsView: View {
             sectionHeader(L10n.settingsWorkplace, icon: "building.2.fill")
             TextField(L10n.settingsWorkplaceName, text: $draft.workplaceName)
                 .accessibilityIdentifier("settings.workplaceName")
-            TextField(L10n.settingsContractor, text: Binding(
-                get: { draft.contractorName ?? "" },
-                set: { draft.contractorName = $0.isEmpty ? nil : $0 }
-            ))
-            .accessibilityIdentifier("settings.contractor")
+            EmploymentSettingsRows(draft: $draft)
         }
     }
 
@@ -975,9 +1053,9 @@ struct SettingsView: View {
                         .padding(.vertical, 5)
                         .background(
                             Capsule(style: .continuous)
-                                .fill(draft.defaultBreakMinutes == minutes ? Color.accentColor.opacity(0.18) : Color(.tertiarySystemFill))
+                                .fill(draft.defaultBreakMinutes == minutes ? Color.appAccent.opacity(0.18) : Color(.tertiarySystemFill))
                         )
-                        .foregroundStyle(draft.defaultBreakMinutes == minutes ? Color.accentColor : Color.secondary)
+                        .foregroundStyle(draft.defaultBreakMinutes == minutes ? Color.appAccent : Color.secondary)
                 }
                 .buttonStyle(.plain)
             }
@@ -1005,7 +1083,7 @@ struct SettingsView: View {
                                     .frame(width: 38, height: 38)
                                     .background(
                                         Circle()
-                                            .fill(draft.payrollStartDay == day ? Color.accentColor : Color(.tertiarySystemFill))
+                                            .fill(draft.payrollStartDay == day ? Color.appAccent : Color(.tertiarySystemFill))
                                     )
                                     .foregroundStyle(draft.payrollStartDay == day ? Color.white : Color.primary)
                             }
@@ -1298,6 +1376,7 @@ struct SettingsView: View {
             } label: {
                 Label(L10n.settingsSupport, systemImage: "envelope")
             }
+            .accessibilityIdentifier("settings.contactSupport")
 
             if let rateURL = URL(string: "https://apps.apple.com/app/id6790862413?action=write-review") {
                 Link(destination: rateURL) {

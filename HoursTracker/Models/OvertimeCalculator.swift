@@ -22,6 +22,11 @@ struct DayPayBreakdown: Equatable {
     let creditPointsApplied: Double
     let creditPoints: Double
     let currencyCode: String
+    /// Your pension share, already taken off `netPay` (direct employees only).
+    var pensionEmployee: Double = 0
+    /// Paid by the employer on top of gross — shown for information, not in `netPay`.
+    var pensionEmployer: Double = 0
+    var severance: Double = 0
 
     var grossPay: Double { totalPay }
 
@@ -159,6 +164,8 @@ enum OvertimeCalculator {
         calendar: Calendar = .current
     ) -> [(session: WorkSession, breakdown: DayPayBreakdown)] {
         guard !daySessions.isEmpty else { return [] }
+        // Contractor-era shifts are priced with the contractor's rate and travel allowance.
+        let settings = settings.effectiveTerms(on: daySessions[0].date)
 
         struct Slice {
             let session: WorkSession
@@ -238,6 +245,13 @@ enum OvertimeCalculator {
         let dayGross = slices.reduce(0) { $0 + $1.gross }
         let dayTax = IsraeliTaxEstimator.estimateDailyNet(fromDailyGross: dayGross, settings: settings)
         let points = TaxCreditPointsCalculator.creditPoints(for: settings)
+        // Pension and severance are figured on pay without the travel allowance.
+        let pensionBase = slices.reduce(0) { $0 + $1.gross - $1.gas }
+        let pensionOn = settings.employment.pensionActive(on: daySessions[0].date)
+        let pension = settings.employment.pension
+        let dayPensionEmployee = pensionOn ? pensionBase * pension.employeePercent / 100 : 0
+        let dayPensionEmployer = pensionOn ? pensionBase * pension.employerPercent / 100 : 0
+        let daySeverance = pensionOn ? pensionBase * pension.severancePercent / 100 : 0
 
         return slices.map { slice in
             let share = dayGross > 0 ? slice.gross / dayGross : 0
@@ -251,13 +265,16 @@ enum OvertimeCalculator {
                 ot125Pay: slice.tier1Pay,
                 ot150Pay: slice.tier2Pay,
                 totalPay: slice.gross,
-                netPay: dayTax.net * share,
+                netPay: (dayTax.net - dayPensionEmployee) * share,
                 incomeTax: dayTax.incomeTax * share,
                 nationalInsurance: dayTax.nationalInsurance * share,
                 healthTax: dayTax.healthTax * share,
                 creditPointsApplied: dayTax.creditApplied * share,
                 creditPoints: points,
-                currencyCode: settings.currencyCode
+                currencyCode: settings.currencyCode,
+                pensionEmployee: dayPensionEmployee * share,
+                pensionEmployer: dayPensionEmployer * share,
+                severance: daySeverance * share
             ))
         }
     }
@@ -329,6 +346,9 @@ enum OvertimeCalculator {
         var ot125Pay = totals.reduce(0) { $0 + $1.ot125Pay }
         var ot150Pay = totals.reduce(0) { $0 + $1.ot150Pay }
         let net = totals.reduce(0) { $0 + $1.netPay }
+        let pensionEmployee = totals.reduce(0) { $0 + $1.pensionEmployee }
+        let pensionEmployer = totals.reduce(0) { $0 + $1.pensionEmployer }
+        let severance = totals.reduce(0) { $0 + $1.severance }
         let incomeTax = totals.reduce(0) { $0 + $1.incomeTax }
         let ni = totals.reduce(0) { $0 + $1.nationalInsurance }
         let health = totals.reduce(0) { $0 + $1.healthTax }
@@ -341,7 +361,8 @@ enum OvertimeCalculator {
         // 2h of weekly OT) then 150% (beyond), mirroring the daily tier structure.
         // Hours already at 125%/150% daily count toward the weekly OT cap so they are
         // not double-charged.
-        let rate = settings.hourlyRate
+        // The latest shift's rate (after a contractor → company move this is the new one).
+        let rate = settings.effectiveTerms(on: completed.map(\.date).max() ?? Date()).hourlyRate
         let dailyOT = ot125 + ot150
 
         let groupedByWeek = Dictionary(grouping: completed) { session in
@@ -387,7 +408,10 @@ enum OvertimeCalculator {
             healthTax: round(health),
             creditPointsApplied: round(credit),
             creditPoints: points,
-            currencyCode: settings.currencyCode
+            currencyCode: settings.currencyCode,
+            pensionEmployee: round(pensionEmployee),
+            pensionEmployer: round(pensionEmployer),
+            severance: round(severance)
         )
     }
 }

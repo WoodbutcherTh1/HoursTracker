@@ -32,6 +32,13 @@ extension Color {
     }
 }
 
+extension Color {
+    /// The user's chosen app accent. Use this instead of `Color.accentColor`, which is
+    /// system blue whenever a view doesn't inherit the root `.tint` (sheets, recycled
+    /// list rows, popovers) — that made buttons flip from green to blue.
+    @MainActor static var appAccent: Color { HomeAccentTheme.shared.accent }
+}
+
 /// User-customizable accent color for the app: drives the tab bar tint, the
 /// HoursTracker wordmark, and every neon-styled element across Home, Payslip
 /// Library/Detail, and the Forgot Clock In / launch splash screens. Defaults to
@@ -49,12 +56,28 @@ final class HomeAccentTheme: ObservableObject {
     @Published var accent: Color {
         didSet {
             UserDefaults.standard.set(accent.hexString, forKey: Self.storageKey)
+            applyUIKitTint()
+        }
+    }
+
+    /// UIKit-drawn parts of SwiftUI lists and sheets (row icons, chevrons, pickers) take
+    /// their colour from the window's `tintColor`, which is system blue unless set —
+    /// the "icon flips to blue" bug. Keep it on the chosen accent, on every window.
+    func applyUIKitTint() {
+        let color = UIColor(accent)
+        UIView.appearance().tintColor = color
+        for scene in UIApplication.shared.connectedScenes {
+            guard let windowScene = scene as? UIWindowScene else { continue }
+            for window in windowScene.windows { window.tintColor = color }
         }
     }
 
     private init(defaults: UserDefaults = .standard) {
         let hex = defaults.string(forKey: Self.storageKey) ?? Self.defaultHex
         accent = Color(hex: hex)
+        // `didSet` doesn't run inside init; the windows may not exist yet, so the app
+        // re-applies this when it becomes active.
+        UIView.appearance().tintColor = UIColor(accent)
     }
 
     func reset() {

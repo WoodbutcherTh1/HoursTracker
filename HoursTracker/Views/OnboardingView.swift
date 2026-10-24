@@ -17,13 +17,14 @@ struct OnboardingView: View {
     @ObservedObject private var appBackground = AppBackgroundTheme.shared
 
     private enum Step: Int {
-        case welcome, rate, workType, customDays, weeklyHours, result
+        // `employment` is last so the saved-draft step numbers of older builds still line up.
+        case welcome, rate, workType, customDays, weeklyHours, result, employment
 
         /// Filled segments in the 4-part progress bar.
         var progress: Int {
             switch self {
             case .welcome: return 0
-            case .rate: return 1
+            case .rate, .employment: return 1
             case .workType, .customDays: return 2
             case .weeklyHours: return 3
             case .result: return 4
@@ -37,6 +38,7 @@ struct OnboardingView: View {
     @State private var pattern: WeekPattern = .fiveDays
     @State private var customDays: Set<Int> = []
     @State private var weeklyHours = 42
+    @State private var employment: EmploymentType?
     @State private var touchedWeeklyHours = false
     @State private var answeredWeek = false
     @State private var answeredHours = false
@@ -109,7 +111,7 @@ struct OnboardingView: View {
         savedRate = rateText
         savedPattern = pattern.rawValue
         savedDays = customDays.sorted().map(String.init).joined(separator: ",")
-        savedHours = touchedWeeklyHours || step.rawValue >= Step.weeklyHours.rawValue ? weeklyHours : 0
+        savedHours = touchedWeeklyHours || [Step.weeklyHours, .result].contains(step) ? weeklyHours : 0
     }
 
     private func restoreDraft() {
@@ -121,7 +123,7 @@ struct OnboardingView: View {
             weeklyHours = savedHours
             touchedWeeklyHours = true
         }
-        answeredWeek = restored.rawValue > Step.workType.rawValue
+        answeredWeek = [Step.customDays, .weeklyHours, .result].contains(restored)
         answeredHours = restored == .result
         movingForward = true
         step = restored
@@ -205,6 +207,7 @@ struct OnboardingView: View {
         switch step {
         case .welcome: welcomeStep
         case .rate: rateStep
+        case .employment: employmentStep
         case .workType: workTypeStep
         case .customDays: customDaysStep
         case .weeklyHours: weeklyHoursStep
@@ -340,6 +343,52 @@ struct OnboardingView: View {
             patternCard(.varies, title: L10n.onbWeekVaries, subtitle: L10n.onbWeekVariesSub, icon: "calendar.badge.clock")
             patternCard(.custom, title: L10n.onbWeekCustom, subtitle: L10n.onbWeekCustomSub, icon: "square.grid.3x3")
         }
+    }
+
+    private var employmentStep: some View {
+        VStack(alignment: .leading, spacing: DS.Space.sm) {
+            stepTitle(L10n.onbEmploymentTitle, subtitle: L10n.onbEmploymentSubtitle)
+                .padding(.bottom, DS.Space.xs)
+            employmentCard(.contractor, title: L10n.employmentContractor, subtitle: L10n.onbEmploymentContractorHint, icon: "person.2.fill")
+            employmentCard(.direct, title: L10n.employmentDirect, subtitle: L10n.onbEmploymentDirectHint, icon: "building.2.fill")
+        }
+    }
+
+    private func employmentCard(_ value: EmploymentType, title: String, subtitle: String, icon: String) -> some View {
+        let selected = employment == value
+        return Button {
+            employment = value
+            selectionTick += 1
+        } label: {
+            HStack(spacing: DS.Space.sm) {
+                Image(systemName: icon)
+                    .htFont(size: 22, relativeTo: .title3, weight: .semibold)
+                    .foregroundStyle(accent)
+                    .frame(width: 28)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title).dsFont(.headline).foregroundStyle(DS.Palette.textPrimary)
+                    Text(subtitle).dsFont(.sub).foregroundStyle(DS.Palette.textSecondary)
+                }
+                Spacer(minLength: DS.Space.xs)
+                Image(systemName: selected ? "checkmark.circle.fill" : "circle")
+                    .htFont(size: 22, relativeTo: .title3, weight: .regular)
+                    .foregroundStyle(selected ? accent : DS.Palette.textTertiary)
+            }
+            .padding(DS.Space.md)
+            .frame(minHeight: 72)
+            .background(
+                RoundedRectangle(cornerRadius: DS.Radius.lg, style: .continuous)
+                    .fill(selected ? accent.opacity(0.08) : DS.Palette.card)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: DS.Radius.lg, style: .continuous)
+                    .stroke(selected ? accent : DS.Palette.hairline, lineWidth: selected ? 1.5 : 1)
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityIdentifier("onboarding.employment.\(value.rawValue)")
     }
 
     private func patternCard(_ value: WeekPattern, title: String, subtitle: String, icon: String) -> some View {
@@ -570,7 +619,7 @@ struct OnboardingView: View {
     private var primaryTitle: String {
         switch step {
         case .welcome: return L10n.onbCtaStart
-        case .rate, .workType, .customDays: return L10n.onboardingNext
+        case .rate, .employment, .workType, .customDays: return L10n.onboardingNext
         case .weeklyHours: return L10n.onbCtaShowResult
         case .result: return L10n.onboardingStart
         }
@@ -608,7 +657,8 @@ struct OnboardingView: View {
         guard canAdvance else { return }
         switch step {
         case .welcome: go(to: .rate, forward: true)
-        case .rate: go(to: .workType, forward: true)
+        case .rate: go(to: .employment, forward: true)
+        case .employment: go(to: .workType, forward: true)
         case .workType:
             answeredWeek = true
             go(to: pattern == .custom ? .customDays : .weeklyHours, forward: true)
@@ -624,7 +674,8 @@ struct OnboardingView: View {
         switch step {
         case .welcome: break
         case .rate: go(to: .welcome, forward: false)
-        case .workType: go(to: .rate, forward: false)
+        case .employment: go(to: .rate, forward: false)
+        case .workType: go(to: .employment, forward: false)
         case .customDays: go(to: .workType, forward: false)
         case .weeklyHours: go(to: pattern == .custom ? .customDays : .workType, forward: false)
         case .result: go(to: .weeklyHours, forward: false)
@@ -650,11 +701,17 @@ struct OnboardingView: View {
     /// Saves only what the user actually answered: the rate into the workplace
     /// settings (the same path Settings uses), the rest as display-only preferences.
     private func saveAnswers() {
-        if let rate, rate != viewModel.settings.hourlyRate {
-            var settings = viewModel.settings
+        var settings = viewModel.settings
+        var changed = false
+        if let rate, rate != settings.hourlyRate {
             settings.hourlyRate = rate
-            viewModel.saveSettings(settings)
+            changed = true
         }
+        if let employment, employment != settings.employment.type {
+            settings.employment.type = employment
+            changed = true
+        }
+        if changed { viewModel.saveSettings(settings) }
         let display = DisplayPreferences.shared
         if answeredWeek {
             display.weekPattern = pattern

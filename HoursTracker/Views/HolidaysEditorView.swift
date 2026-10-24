@@ -17,6 +17,7 @@ struct HolidaysSettingsLink: View {
                     .foregroundStyle(.secondary)
             }
         }
+        .accessibilityIdentifier("settings.holidays")
     }
 }
 
@@ -74,6 +75,7 @@ struct HolidaysEditorView: View {
         .sheet(item: $editing) { draft in
             HolidayEditSheet(draft: draft) { commit($0) }
                 .presentationDetents([.medium])
+                .tint(HomeAccentTheme.shared.accent)
         }
     }
 

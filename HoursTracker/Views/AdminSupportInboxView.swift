@@ -25,7 +25,7 @@ struct AdminSupportInboxView: View {
                     } label: {
                         HStack(spacing: 10) {
                             Circle()
-                                .fill(thread.unreadAdmin ? Color.accentColor : Color.clear)
+                                .fill(thread.unreadAdmin ? Color.appAccent : Color.clear)
                                 .frame(width: 8, height: 8)
                             VStack(alignment: .leading, spacing: 2) {
                                 Text(thread.senderTitle)
@@ -136,7 +136,7 @@ struct AdminSupportThreadView: View {
                     .foregroundStyle(message.sender == "admin" ? Color.white : Color.primary)
                     .background(
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
-                            .fill(message.sender == "admin" ? Color.accentColor : Color(.secondarySystemBackground))
+                            .fill(message.sender == "admin" ? Color.appAccent : Color(.secondarySystemBackground))
                     )
                 if fromUser, let context = message.context {
                     Text(context.summary)

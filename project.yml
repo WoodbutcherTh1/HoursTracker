@@ -12,8 +12,8 @@ settings:
     # THE version and build number for every target (app, widget, Watch). The
     # Info.plists read them as $(MARKETING_VERSION) / $(CURRENT_PROJECT_VERSION);
     # never type a version anywhere else (AI_AGENT_BRIEF → Build Versioning).
-    MARKETING_VERSION: "1.9"
-    CURRENT_PROJECT_VERSION: "28"
+    MARKETING_VERSION: "1.10"
+    CURRENT_PROJECT_VERSION: "29"
     SWIFT_VERSION: "5.9"
     DEVELOPMENT_LANGUAGE: en
     LOCALIZATION_PREFERS_STRING_CATALOGS: YES

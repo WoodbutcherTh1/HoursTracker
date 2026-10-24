@@ -82,10 +82,10 @@ final class SupportInbox: ObservableObject {
     }
 
     private func apply(unread: Bool, preview: String?) {
-        hasUnreadReply = unread
-        self.preview = preview
+        if hasUnreadReply != unread { hasUnreadReply = unread }
+        if self.preview != preview { self.preview = preview }
         guard unread else {
-            promptVisible = false
+            if promptVisible { promptVisible = false }
             return
         }
         // Prompt once per distinct reply, not on every foreground.
@@ -108,8 +108,8 @@ final class SupportInbox: ObservableObject {
 
     /// The chat was opened and loaded: the server cleared its unread flag.
     func chatOpened() {
-        hasUnreadReply = false
-        preview = nil
-        promptVisible = false
+        if hasUnreadReply { hasUnreadReply = false }
+        if preview != nil { preview = nil }
+        if promptVisible { promptVisible = false }
     }
 }
