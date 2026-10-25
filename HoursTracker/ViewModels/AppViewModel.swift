@@ -206,7 +206,7 @@ final class AppViewModel: ObservableObject {
         self.deletedSessions = deletedSessions
         self.backups = backups
         syncState = store.syncState
-        load()
+        load(report: false)
         // An open shift from a previous launch: build its live pay curve right away so
         // Home and the widgets show the shared figure from the first frame.
         refreshLiveCurve()
@@ -900,7 +900,44 @@ final class AppViewModel: ObservableObject {
     /// A no-op when the last load was fine, so in-memory state is never clobbered.
     func retryLoadIfNeeded() {
         guard sessionsLoadUnavailable || settingsLoadUnavailable else { return }
-        load()
+        load(report: false)
+        if sessionsLoadUnavailable || settingsLoadUnavailable {
+            recoverLoadWithBackoff()
+        } else {
+            finishLoadRecovery()
+        }
+    }
+
+    private var loadRecoveryTask: Task<Void, Never>?
+
+    /// The data was unreadable at launch (Data Protection still locked right after a widget
+    /// tap woke the app). Try again a few times over ~7 seconds; only if it is still
+    /// unreadable, tell the user. A first-launch error must not outlive a successful retry.
+    private func recoverLoadWithBackoff() {
+        guard loadRecoveryTask == nil else { return }
+        loadRecoveryTask = Task { @MainActor [weak self] in
+            for delay in [0.4, 1.0, 2.0, 4.0] {
+                try? await Task.sleep(for: .seconds(delay))
+                guard let self, self.sessionsLoadUnavailable || self.settingsLoadUnavailable else { break }
+                self.load(report: false)
+            }
+            guard let self else { return }
+            self.loadRecoveryTask = nil
+            if self.sessionsLoadUnavailable || self.settingsLoadUnavailable {
+                self.errorMessage = L10n.errorSaveFailed
+            } else {
+                self.finishLoadRecovery()
+            }
+        }
+    }
+
+    /// The data came back: drop a stale error and refresh everything that was built from
+    /// the empty stand-in (live pay, widgets, reminders).
+    private func finishLoadRecovery() {
+        if errorMessage == L10n.errorSaveFailed { errorMessage = nil }
+        refreshLiveCurve()
+        refreshReminders()
+        syncWidget()
     }
 
     /// Today's automatic backup (once a day). Taken at launch and whenever the app
@@ -1243,7 +1280,11 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Private
 
-    private func load() {
+    /// `report`: show the "could not save" alert when the data is unreadable. The first
+    /// load at launch passes false — a launch from a widget tap often loses a short Data
+    /// Protection race, and `retryLoadIfNeeded` / `recoverLoadWithBackoff` report only if
+    /// the data is still unreadable after a few seconds.
+    private func load(report: Bool = true) {
         switch store.loadSessionsResult() {
         case .loaded(let loaded):
             sessions = loaded
@@ -1255,7 +1296,7 @@ final class AppViewModel: ObservableObject {
             // Keep the (default empty) in-memory `sessions` value, but flag it
             // so `persist()` will NOT overwrite the intact-but-unreadable file.
             sessionsLoadUnavailable = true
-            errorMessage = L10n.errorSaveFailed
+            if report { errorMessage = L10n.errorSaveFailed }
         }
 
         switch store.loadSettingsResult() {
@@ -1267,7 +1308,7 @@ final class AppViewModel: ObservableObject {
             settingsLoadUnavailable = false
         case .temporarilyUnavailable:
             settingsLoadUnavailable = true
-            errorMessage = L10n.errorSaveFailed
+            if report { errorMessage = L10n.errorSaveFailed }
         }
     }
 
