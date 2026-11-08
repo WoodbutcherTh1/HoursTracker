@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 import PhotosUI
 
@@ -71,6 +72,7 @@ private struct AccountFlowView: View {
         switch step {
         case .welcome:
             AccountWelcomeView(
+                viewModel: viewModel,
                 onCreateAccount: { step = .signUp },
                 onSignIn: { step = .signIn }
             )
@@ -445,11 +447,24 @@ private struct GlowIconBadge: View {
 
 /// Premium dark welcome screen: a glowing Cyan/Green hourglass header, three
 /// stacked social sign-in options, and a quiet "already have an account?"
-/// footer. Apple and Google aren't wired to a real provider yet — Email
+/// footer. Google signs in through Supabase's hosted OAuth page; Apple uses
+/// the native `ASAuthorizationController` flow — both call into
+/// `SupabaseAuthManager`. Apple's capability/entitlement isn't enabled yet
+/// (needs a paid Apple Developer account, see docs/SOCIAL_SIGN_IN.md), so
+/// tapping it compiles and runs but currently fails at the OS layer. Email
 /// routes into the existing, fully-functional Supabase email flow below.
 private struct AccountWelcomeView: View {
+    @ObservedObject var viewModel: AppViewModel
+    @Environment(\.dismiss) private var dismiss
     let onCreateAccount: () -> Void
     let onSignIn: () -> Void
+
+    @State private var isSigningInWithApple = false
+    @State private var isSigningInWithGoogle = false
+    @State private var errorMessage: String?
+    /// Kept alive for the duration of one Apple request — `ASAuthorizationController`
+    /// needs its delegate to outlive the async call it's bridging into a continuation.
+    @State private var appleCoordinator: AppleSignInCoordinator?
 
     private static let cyan = Color(hex: "00E5FF")
     private static let green = Color(hex: "26F273")
@@ -494,7 +509,11 @@ private struct AccountWelcomeView: View {
                     signInWithApple()
                 } label: {
                     HStack(spacing: 10) {
-                        Image(systemName: "apple.logo")
+                        if isSigningInWithApple {
+                            ProgressView().tint(.white)
+                        } else {
+                            Image(systemName: "apple.logo")
+                        }
                         Text(L10n.accountContinueWithApple)
                     }
                 }
@@ -503,14 +522,19 @@ private struct AccountWelcomeView: View {
                     border: Color.white.opacity(0.3),
                     foreground: .white
                 ))
+                .disabled(isSigningInWithApple || isSigningInWithGoogle)
 
                 Button {
                     signInWithGoogle()
                 } label: {
                     HStack(spacing: 10) {
-                        // Placeholder until a real Google "G" asset is added —
-                        // no bundled brand mark exists in this project yet.
-                        Image(systemName: "g.circle")
+                        if isSigningInWithGoogle {
+                            ProgressView().tint(.white)
+                        } else {
+                            // Placeholder until a real Google "G" asset is added —
+                            // no bundled brand mark exists in this project yet.
+                            Image(systemName: "g.circle")
+                        }
                         Text(L10n.accountContinueWithGoogle)
                     }
                 }
@@ -519,6 +543,15 @@ private struct AccountWelcomeView: View {
                     border: .clear,
                     foreground: .white
                 ))
+                .disabled(isSigningInWithGoogle || isSigningInWithApple)
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
 
                 Button(action: onCreateAccount) {
                     HStack(spacing: 10) {
@@ -551,11 +584,148 @@ private struct AccountWelcomeView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
-    // TODO: Hook Supabase Auth (Sign in with Apple).
-    private func signInWithApple() {}
+    // Requires the Sign in with Apple capability + entitlement, which in turn
+    // requires a paid Apple Developer Program membership — not added yet (see
+    // docs/SOCIAL_SIGN_IN.md). This compiles and is harmless on a free team;
+    // it will throw an ASAuthorizationError at runtime until that capability
+    // is enabled on the App ID.
+    private func signInWithApple() {
+        errorMessage = nil
+        isSigningInWithApple = true
+        let nonce = AppleSignInNonce.make()
+        let coordinator = AppleSignInCoordinator()
+        appleCoordinator = coordinator
+        Task {
+            do {
+                let authorization = try await coordinator.perform(rawNonce: nonce)
+                guard
+                    let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                    let tokenData = credential.identityToken,
+                    let idToken = String(data: tokenData, encoding: .utf8)
+                else {
+                    throw AccountAuthError.server(L10n.accountErrorSocial)
+                }
+                try await SupabaseAuthManager.shared.signInWithApple(
+                    idToken: idToken,
+                    rawNonce: nonce,
+                    fullName: credential.fullName
+                )
+                let restored = await SocialSignInFinisher.finish(viewModel: viewModel)
+                await MainActor.run {
+                    isSigningInWithApple = false
+                    appleCoordinator = nil
+                    viewModel.showSuccessToast(restored ? L10n.accountRestoreSuccess : L10n.accountSyncSuccess)
+                    dismiss()
+                }
+            } catch let error as ASAuthorizationError where error.code == .canceled {
+                await MainActor.run {
+                    isSigningInWithApple = false
+                    appleCoordinator = nil
+                }
+            } catch {
+                await MainActor.run {
+                    isSigningInWithApple = false
+                    appleCoordinator = nil
+                    errorMessage = error.localizedDescription.isEmpty ? L10n.accountErrorSocial : error.localizedDescription
+                }
+            }
+        }
+    }
 
-    // TODO: Hook Supabase Auth (Google OAuth).
-    private func signInWithGoogle() {}
+    private func signInWithGoogle() {
+        errorMessage = nil
+        isSigningInWithGoogle = true
+        Task {
+            do {
+                try await SupabaseAuthManager.shared.signInWithGoogle()
+                let restored = await SocialSignInFinisher.finish(viewModel: viewModel)
+                await MainActor.run {
+                    isSigningInWithGoogle = false
+                    viewModel.showSuccessToast(restored ? L10n.accountRestoreSuccess : L10n.accountSyncSuccess)
+                    dismiss()
+                }
+            } catch AccountAuthError.cancelled {
+                await MainActor.run { isSigningInWithGoogle = false }
+            } catch {
+                await MainActor.run {
+                    isSigningInWithGoogle = false
+                    errorMessage = error.localizedDescription.isEmpty ? L10n.accountErrorSocial : error.localizedDescription
+                }
+            }
+        }
+    }
+}
+
+/// What a social sign-in does once a session exists: bring the account's
+/// saved backup into this device (merged, so nothing here is lost), or — when
+/// the account has no backup yet, i.e. it was just created through Google or
+/// Apple — upload this device's data so the new account starts with it.
+/// Mirrors the restore/upload steps `SignInFormView`/`VerifyCodeView` run
+/// inline, but unlike those two a social tap can't tell in advance whether
+/// it's a first-time signup or a returning sign-in.
+@MainActor
+private enum SocialSignInFinisher {
+    /// `true` when an existing backup was restored, `false` for a fresh upload.
+    static func finish(viewModel: AppViewModel) async -> Bool {
+        if let backup = try? await SupabaseAccountSyncManager.shared.downloadBackup() {
+            let document = FullDataExportDocument(
+                exportedAt: ISO8601DateFormatter().string(from: Date()),
+                appVersion: FullDataExportManager.appVersionString(),
+                settings: backup.settings,
+                sessions: backup.sessions,
+                computedBreakdowns: [],
+                activityLog: []
+            )
+            try? viewModel.importFullDataExport(document, mode: .merge)
+            return true
+        }
+        let names = SupabaseAuthManager.shared.currentUserNames
+        try? await SupabaseAccountSyncManager.shared.uploadBackup(
+            settings: viewModel.settings,
+            sessions: viewModel.sessions,
+            fullName: names.fullName,
+            familyName: names.familyName
+        )
+        return false
+    }
+}
+
+/// Bridges the delegate-based `ASAuthorizationController` into async/await so
+/// a plain custom-styled `Button` can trigger native Apple sign-in — SwiftUI's
+/// own `SignInWithAppleButton` only offers Apple's fixed black/white/outline
+/// look, which doesn't match this screen's custom button style.
+private final class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    private var continuation: CheckedContinuation<ASAuthorization, Error>?
+
+    func perform(rawNonce: String) async throws -> ASAuthorization {
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+            let request = ASAuthorizationAppleIDProvider().createRequest()
+            request.requestedScopes = [.fullName, .email]
+            request.nonce = AppleSignInNonce.sha256(rawNonce)
+            let controller = ASAuthorizationController(authorizationRequests: [request])
+            controller.delegate = self
+            controller.presentationContextProvider = self
+            controller.performRequests()
+        }
+    }
+
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow) ?? ASPresentationAnchor()
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        continuation?.resume(returning: authorization)
+        continuation = nil
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        continuation?.resume(throwing: error)
+        continuation = nil
+    }
 }
 
 /// Stacked social sign-in button: 55pt tall, fully rounded, with a

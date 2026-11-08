@@ -416,6 +416,7 @@ enum L10n {
     static var accountErrorCodeIncomplete: String { t("account.error.codeIncomplete") }
     static var accountErrorCodeExpired: String { t("account.error.codeExpired") }
     static var accountErrorNotSignedUpYet: String { t("account.error.notSignedUpYet") }
+    static var accountErrorSocial: String { t("account.error.social") }
 
     // Edit
     static var editTitle: String { t("edit.title") }

@@ -1,5 +1,8 @@
+import AuthenticationServices
+import CryptoKit
 import Foundation
 import os
+import Security
 import Supabase
 
 /// Errors surfaced to the sign-up / sign-in screens, already carrying a
@@ -11,6 +14,8 @@ enum AccountAuthError: LocalizedError {
     case codeIncomplete
     case codeExpired
     case notSignedUpYet
+    /// The person closed the Apple / Google sheet themselves — not an error to show.
+    case cancelled
     case server(String)
 
     var errorDescription: String? {
@@ -24,6 +29,7 @@ enum AccountAuthError: LocalizedError {
             // identically, so don't claim outright that the code expired.
             return L10n.accountErrorCodeExpired
         case .notSignedUpYet: return L10n.accountErrorNotSignedUpYet
+        case .cancelled: return nil
         case .server(let message): return message
         }
     }
@@ -284,6 +290,67 @@ final class SupabaseAuthManager: ObservableObject {
         try? await client.auth.signOut()
     }
 
+    // MARK: - Sign in with Apple / Google
+
+    /// Where Supabase sends the browser back to after Google sign-in. Uses the
+    /// app's existing `hourstracker://` scheme; this exact URL must also be in
+    /// the Supabase dashboard's Auth → URL Configuration → Redirect URLs.
+    static let oauthRedirectURL = URL(string: "hourstracker://auth-callback")!
+
+    /// Exchanges the identity token from the native "Sign in with Apple" sheet
+    /// for a Supabase session (creating the account the first time). `rawNonce`
+    /// is the unhashed value whose SHA-256 went on the Apple request.
+    ///
+    /// Apple shares the person's name only on the very first authorization, so
+    /// when it is present it is written to the account's metadata straight away
+    /// — after that Apple never sends it again.
+    func signInWithApple(idToken: String, rawNonce: String, fullName: PersonNameComponents?) async throws {
+        do {
+            _ = try await client.auth.signInWithIdToken(
+                credentials: OpenIDConnectCredentials(provider: .apple, idToken: idToken, nonce: rawNonce)
+            )
+        } catch {
+            throw AccountAuthError.server(error.localizedDescription)
+        }
+
+        var metadata: [String: AnyJSON] = [:]
+        if let given = fullName?.givenName?.trimmingCharacters(in: .whitespacesAndNewlines), !given.isEmpty {
+            metadata["full_name"] = .string(given)
+        }
+        if let family = fullName?.familyName?.trimmingCharacters(in: .whitespacesAndNewlines), !family.isEmpty {
+            metadata["family_name"] = .string(family)
+        }
+        if !metadata.isEmpty {
+            _ = try? await client.auth.update(user: UserAttributes(data: metadata))
+        }
+    }
+
+    /// Google sign-in through Supabase's hosted Google page, shown in the
+    /// system's secure in-app browser sheet (`ASWebAuthenticationSession`).
+    /// No Google SDK — supabase-swift stays the app's only third-party package.
+    func signInWithGoogle() async throws {
+        do {
+            _ = try await client.auth.signInWithOAuth(
+                provider: .google,
+                redirectTo: Self.oauthRedirectURL,
+                queryParams: [(name: "prompt", value: "select_account")]
+            )
+        } catch let error as ASWebAuthenticationSessionError where error.code == .canceledLogin {
+            throw AccountAuthError.cancelled
+        } catch {
+            throw AccountAuthError.server(error.localizedDescription)
+        }
+    }
+
+    /// The name stored on the signed-in account: what the sign-up form saved,
+    /// Apple's first-time name, or Google's profile name.
+    var currentUserNames: (fullName: String, familyName: String?) {
+        let metadata = client.auth.currentUser?.userMetadata ?? [:]
+        let full = metadata["full_name"]?.stringValue ?? metadata["name"]?.stringValue ?? ""
+        let family = metadata["family_name"]?.stringValue
+        return (full, family)
+    }
+
     /// Deliberately permissive — real validation is the confirmation email
     /// actually arriving, not a strict regex.
     static func isValidEmail(_ email: String) -> Bool {
@@ -295,5 +362,23 @@ final class SupabaseAuthManager: ObservableObject {
             && domain.contains(".")
             && !domain.hasPrefix(".")
             && !domain.hasSuffix(".")
+    }
+}
+
+/// The one-time value that ties a "Sign in with Apple" token to this request.
+/// The SHA-256 hash goes to Apple; the raw value goes to Supabase, which
+/// hashes it again and checks it against the token, so a token captured from
+/// somewhere else cannot be replayed into this app.
+enum AppleSignInNonce {
+    static func make(length: Int = 32) -> String {
+        let charset = Array("0123456789ABCDEFGHIJKLMNOPQRSTUVXYZabcdefghijklmnopqrstuvwxyz-._")
+        var bytes = [UInt8](repeating: 0, count: length)
+        let status = SecRandomCopyBytes(kSecRandomDefault, length, &bytes)
+        precondition(status == errSecSuccess, "SecRandomCopyBytes failed")
+        return String(bytes.map { charset[Int($0) % charset.count] })
+    }
+
+    static func sha256(_ input: String) -> String {
+        SHA256.hash(data: Data(input.utf8)).map { String(format: "%02x", $0) }.joined()
     }
 }
