@@ -116,7 +116,7 @@ struct WatchSnapshot: Codable, Equatable {
         settingsSummary: .empty,
         currencyCode: "ILS",
         workplaceName: "",
-        accentColorHex: "26F273",
+        accentColorHex: "00E5FF",
         generatedAt: .distantPast
     )
 }

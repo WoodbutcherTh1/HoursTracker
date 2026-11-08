@@ -14,10 +14,16 @@ struct ExportView: View {
     @State private var customTo = Date()
     @State private var shareItem: ShareableFile?
     @State private var errorMessage: String?
-    /// "Attach notes" — remembered between exports.
     @AppStorage("exportIncludeNotes") private var includeNotes = false
+    @State private var selectedQuickPill: QuickDatePill?
 
-    /// Menu order is intentional: This month → Specific month → This year → Custom range.
+    // Store the summary in @State instead of calculating it in the body.
+    @State private var previewSummary: (dayCount: Int, totalHours: Double, gross: Double, net: Double)? = nil
+    /// The in-flight preview computation, if any — cancelled and replaced
+    /// whenever a filter changes before it finishes, so a slow background
+    /// result from a since-superseded filter can never overwrite a newer one.
+    @State private var previewTask: Task<Void, Never>?
+
     enum RangeMode: CaseIterable, Identifiable {
         case thisMonth
         case month
@@ -45,126 +51,69 @@ struct ExportView: View {
 
     var body: some View {
         NavigationStack {
-            Form {
-                Section {
-                    Picker(L10n.exportRange, selection: $rangeMode) {
-                        ForEach(RangeMode.allCases) { mode in
-                            Text(mode.label).tag(mode)
-                        }
-                    }
+            ScrollView {
+                VStack(spacing: 12) {
+                    quickDatePillsRow
 
-                    if rangeMode == .thisMonth {
-                        Text(HistoryPeriodHelper.shortRangeLabel(for: currentPayrollPeriod))
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
+                    unifiedOptionsCard
+                        // Recalculate when options change
+                        .onChange(of: rangeMode) { _, _ in updatePreview() }
+                        .onChange(of: selectedMonth) { _, _ in updatePreview() }
+                        .onChange(of: customFrom) { _, _ in updatePreview() }
+                        .onChange(of: customTo) { _, _ in updatePreview() }
+                        .onChange(of: dayTypeFilter) { _, _ in updatePreview() }
 
-                    if rangeMode == .month {
-                        HStack {
-                            Text(L10n.exportMonth)
-                            Spacer(minLength: 8)
-                            MonthYearPicker(selection: $selectedMonth)
-                        }
-                        .accessibilityElement(children: .combine)
-                    }
+                    ExportReceiptPreview(
+                        summary: previewSummary,
+                        currencyCode: viewModel.activeSettings.currencyCode,
+                        format: selectedFormat
+                    )
 
-                    if rangeMode == .custom {
-                        DatePicker(L10n.exportFrom, selection: $customFrom, displayedComponents: .date)
-                        DatePicker(L10n.exportTo, selection: $customTo, displayedComponents: .date)
-                    }
-                } header: {
-                    Text(L10n.exportDateRange)
-                }
+                    whatsIncludedCard
 
-                Section(L10n.exportFormat) {
-                    Picker(L10n.exportFormat, selection: $selectedFormat) {
-                        ForEach(ExportFormat.allCases) { format in
-                            Text(format.localizedName).tag(format)
-                        }
-                    }
-                }
-
-                Section(L10n.exportDayType) {
-                    Picker(L10n.exportDayType, selection: $dayTypeFilter) {
-                        ForEach(ExportDayTypeFilter.allCases) { filter in
-                            Text(filter.label).tag(filter)
-                        }
-                    }
-                }
-
-                Section {
-                    Toggle(isOn: $includeNotes) {
-                        Label(L10n.exportIncludeNotes, systemImage: "note.text")
-                    }
-                    .accessibilityIdentifier("export.includeNotes")
-                } footer: {
-                    Text(L10n.exportIncludeNotesHint)
-                }
-
-                Section(L10n.exportLanguage) {
-                    Picker(L10n.exportLanguage, selection: $selectedLanguage) {
-                        ForEach(ExportLanguage.allCases) { language in
-                            Text(label(for: language)).tag(language)
-                        }
-                    }
-                }
-
-                // Live preview of exactly what the current options would export
-                // (same range filtering + pay engine as the report itself).
-                Section {
-                    if let summary = previewSummary {
-                        HStack(spacing: 12) {
-                            previewStat(value: "\(summary.dayCount)", label: L10n.exportPreviewDays)
-                            previewStat(
-                                value: String(format: "%.1f", summary.totalHours),
-                                label: L10n.exportPreviewHours
-                            )
-                            previewStat(
-                                value: PayFormatter.string(summary.gross, currencyCode: viewModel.activeSettings.currencyCode),
-                                label: L10n.exportPreviewGross
-                            )
-                            previewStat(
-                                value: PayFormatter.string(summary.net, currencyCode: viewModel.activeSettings.currencyCode),
-                                label: L10n.exportPreviewNet
-                            )
-                        }
-                        .frame(maxWidth: .infinity)
-                    } else {
-                        Label(L10n.exportPreviewEmpty, systemImage: "calendar.badge.exclamationmark")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                } header: {
-                    Text(L10n.exportPreviewTitle)
-                }
-
-                Section {
                     Button {
                         export()
                     } label: {
                         Label(L10n.exportReport, systemImage: "square.and.arrow.up")
                             .font(.headline)
+                            .foregroundStyle(.black)
                             .frame(maxWidth: .infinity)
-                            .padding(.vertical, 6)
+                            .padding(.vertical, 10)
+                            .background(
+                                LinearGradient(
+                                    colors: [Color(hex: "00E5FF"), Color(hex: "26F273")],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                ),
+                                in: RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            )
                     }
-                    .buttonStyle(.borderedProminent)
-                    .tint(HomeNeon.accent)
-                    .foregroundStyle(.black)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 4)
-                }
+                    .buttonStyle(.plain)
 
-                if let errorMessage {
-                    Section {
+                    Button {
+                        export()
+                    } label: {
+                        Label(L10n.exportShareDirectly, systemImage: "paperplane.fill")
+                            .font(.subheadline.weight(.semibold))
+                            .foregroundStyle(Color(hex: "00E5FF"))
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 9)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .stroke(Color(hex: "00E5FF").opacity(0.5), lineWidth: 1.5)
+                            )
+                    }
+                    .buttonStyle(.plain)
+
+                    if let errorMessage {
                         Text(errorMessage)
                             .foregroundStyle(.red)
                             .font(.caption)
                     }
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 16)
             }
-            .scrollContentBackground(.hidden)
             .background(appBackground.background.ignoresSafeArea())
             .navigationTitle(L10n.exportTitle)
             .toolbar {
@@ -178,23 +127,30 @@ struct ExportView: View {
             .sheet(item: $shareItem) { item in
                 ShareSheet(items: [item.url])
             }
-            // The paired Watch cannot present its own share sheet — when it requests
-            // an export, MainTabView switches here and this picks up the file the
-            // phone already generated and presents the same share sheet the Export
-            // button itself uses.
             .onChange(of: viewModel.pendingWatchExport) { _, newValue in
                 guard let newValue else { return }
                 shareItem = newValue
                 viewModel.pendingWatchExport = nil
             }
+            .onAppear {
+                updatePreview()
+            }
         }
     }
 
-    // MARK: - Live preview
+    // MARK: - Data Calculation
 
-    /// What the current range + day-type filters would produce, computed with
-    /// the same pay engine as the actual report.
-    private var previewSummary: (dayCount: Int, totalHours: Double, gross: Double, net: Double)? {
+    /// Filters sessions for the current range/day-type (cheap, main-thread) then
+    /// runs `OvertimeCalculator.aggregate` — a real calculation across every
+    /// matching day, not free for a long history — off the main thread, so
+    /// dragging the date pickers never competes with touch handling for the
+    /// main thread (that contention is what trips "gesture gate timed out").
+    /// Any previous in-flight computation is cancelled first, so a slow result
+    /// for a filter the user has already changed away from can't land after a
+    /// newer one and show stale numbers.
+    private func updatePreview() {
+        previewTask?.cancel()
+
         let range = buildRange()
         let calendar = Calendar.current
         var sessions = viewModel.workSessions.filter { $0.clockOut != nil }
@@ -211,34 +167,253 @@ struct ExportView: View {
             sessions = sessions.filter { calendar.component(.year, from: $0.date) == year }
         case .custom(let from, let to):
             let start = calendar.startOfDay(for: from)
-            let end = calendar.startOfDay(for: to).addingTimeInterval(86400 - 1)
-            sessions = sessions.filter { $0.date >= start && $0.date <= end }
+            let endDay = calendar.startOfDay(for: to)
+            guard start <= endDay, let endExclusive = calendar.date(byAdding: .day, value: 1, to: endDay) else {
+                previewSummary = nil
+                return
+            }
+            sessions = sessions.filter { $0.date >= start && $0.date < endExclusive }
         }
+
         if let dayTypes = dayTypeFilter.dayTypes {
             sessions = sessions.filter { dayTypes.contains($0.dayType) }
         }
-        guard !sessions.isEmpty else { return nil }
+        guard !sessions.isEmpty else {
+            previewSummary = nil
+            return
+        }
 
-        let breakdown = OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.activeSettings)
-        let dayCount = Set(sessions.map { calendar.startOfDay(for: $0.date) }).count
-        return (dayCount, breakdown.totalHours, breakdown.totalPay, breakdown.netPay)
+        let settings = viewModel.activeSettings
+        // `Task { }` alone would inherit this method's MainActor context and
+        // still run `aggregate` on the main thread — `.detached` is what
+        // actually hops off it. `sessions`/`settings`/`calendar` are plain
+        // value types (structs), so handing them to another thread is safe;
+        // nothing here touches `viewModel` or any other reference type off
+        // the main thread.
+        previewTask = Task.detached(priority: .userInitiated) {
+            let breakdown = OvertimeCalculator.aggregate(sessions: sessions, settings: settings)
+            let dayCount = Set(sessions.map { calendar.startOfDay(for: $0.date) }).count
+            guard !Task.isCancelled else { return }
+            await MainActor.run {
+                previewSummary = (dayCount, breakdown.totalHours, breakdown.totalPay, breakdown.netPay)
+            }
+        }
     }
 
-    private func previewStat(value: String, label: String) -> some View {
-        VStack(spacing: 3) {
-            Text(value)
-                .htFont(size: 14, relativeTo: .headline, weight: .bold, design: .rounded)
-                .foregroundStyle(.primary)
-                .monospacedDigit()
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-            Text(label.uppercased())
-                .htFont(size: 8, relativeTo: .caption2, weight: .semibold, design: .rounded)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.7)
+    // MARK: - Quick date pills
+
+    private var quickDatePillsRow: some View {
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(spacing: 8) {
+                ForEach(QuickDatePill.allCases) { pill in
+                    quickDatePillButton(pill)
+                }
+            }
+            .padding(.horizontal, 2)
+            .padding(.vertical, 2)
         }
-        .frame(maxWidth: .infinity)
+    }
+
+    private func quickDatePillButton(_ pill: QuickDatePill) -> some View {
+        let isSelected = selectedQuickPill == pill
+        return Button {
+            applyQuickPill(pill)
+        } label: {
+            Text(pill.label)
+                .font(.caption.weight(.semibold))
+                .lineLimit(1)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 8)
+                .background(
+                    Capsule().fill(isSelected ? Color(hex: "00E5FF").opacity(0.18) : Color(.secondarySystemGroupedBackground))
+                )
+                .overlay(
+                    Capsule().stroke(
+                        isSelected ? Color(hex: "00E5FF") : Color.white.opacity(0.12),
+                        lineWidth: isSelected ? 1.5 : 1
+                    )
+                )
+                .foregroundStyle(isSelected ? Color(hex: "00E5FF") : .white.opacity(0.75))
+        }
+        .buttonStyle(.plain)
+    }
+
+    private func applyQuickPill(_ pill: QuickDatePill) {
+        let calendar = Calendar.current
+        let now = Date()
+        switch pill {
+        case .thisMonth:
+            rangeMode = .thisMonth
+        case .lastMonth:
+            rangeMode = .month
+            selectedMonth = calendar.date(byAdding: .month, value: -1, to: now) ?? now
+        case .thisWeek:
+            rangeMode = .custom
+            if let interval = calendar.dateInterval(of: .weekOfYear, for: now) {
+                customFrom = interval.start
+                customTo = calendar.date(byAdding: .day, value: -1, to: interval.end) ?? interval.start
+            }
+        case .lastWeek:
+            rangeMode = .custom
+            if let thisWeek = calendar.dateInterval(of: .weekOfYear, for: now) {
+                let lastWeekStart = calendar.date(byAdding: .day, value: -7, to: thisWeek.start) ?? thisWeek.start
+                customFrom = lastWeekStart
+                customTo = calendar.date(byAdding: .day, value: -1, to: thisWeek.start) ?? lastWeekStart
+            }
+        }
+        selectedQuickPill = pill
+        UISelectionFeedbackGenerator().selectionChanged()
+    }
+
+    private func clearQuickPillSelection() {
+        selectedQuickPill = nil
+    }
+
+    // MARK: - Unified options card
+
+    private var unifiedOptionsCard: some View {
+        VStack(spacing: 0) {
+            ExportMenuRow(
+                icon: "calendar",
+                title: L10n.exportRange,
+                valueLabel: rangeMode.label,
+                options: RangeMode.allCases.map { ($0, $0.label) },
+                selection: $rangeMode,
+                onSelect: clearQuickPillSelection
+            )
+
+            if rangeMode == .thisMonth {
+                exportDivider
+                HStack {
+                    Text(L10n.exportDateRange)
+                        .foregroundStyle(.white.opacity(0.6))
+                    Spacer(minLength: 8)
+                    Text(HistoryPeriodHelper.shortRangeLabel(for: currentPayrollPeriod))
+                        .foregroundStyle(.white)
+                }
+                .font(.subheadline)
+                .padding(.vertical, 6)
+            }
+
+            if rangeMode == .month {
+                exportDivider
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(L10n.exportMonth)
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.6))
+                    MonthYearPicker(selection: $selectedMonth)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .padding(.vertical, 6)
+                .accessibilityElement(children: .combine)
+                .onChange(of: selectedMonth) { _, _ in clearQuickPillSelection() }
+            }
+
+            if rangeMode == .custom {
+                exportDivider
+                DatePicker(L10n.exportFrom, selection: $customFrom, displayedComponents: .date)
+                    .font(.subheadline)
+                    .padding(.vertical, 6)
+                    .onChange(of: customFrom) { _, _ in clearQuickPillSelection() }
+                exportDivider
+                DatePicker(L10n.exportTo, selection: $customTo, displayedComponents: .date)
+                    .font(.subheadline)
+                    .padding(.vertical, 6)
+                    .onChange(of: customTo) { _, _ in clearQuickPillSelection() }
+            }
+
+            exportDivider
+
+            ExportMenuRow(
+                icon: "doc.text.fill",
+                title: L10n.exportFormat,
+                valueLabel: selectedFormat.localizedName,
+                options: ExportFormat.allCases.map { ($0, $0.localizedName) },
+                selection: $selectedFormat
+            )
+
+            exportDivider
+
+            ExportMenuRow(
+                icon: "line.3.horizontal.decrease.circle",
+                title: L10n.exportDayType,
+                valueLabel: dayTypeFilter.label,
+                options: ExportDayTypeFilter.allCases.map { ($0, $0.label) },
+                selection: $dayTypeFilter
+            )
+
+            exportDivider
+
+            ExportMenuRow(
+                icon: "globe",
+                title: L10n.exportLanguage,
+                valueLabel: label(for: selectedLanguage),
+                options: ExportLanguage.allCases.map { ($0, label(for: $0)) },
+                selection: $selectedLanguage
+            )
+
+            exportDivider
+
+            VStack(alignment: .leading, spacing: 3) {
+                Toggle(isOn: $includeNotes) {
+                    Label(L10n.exportIncludeNotes, systemImage: "note.text")
+                        .foregroundStyle(.white)
+                }
+                .tint(Color(hex: "00E5FF"))
+                .accessibilityIdentifier("export.includeNotes")
+
+                Text(L10n.exportIncludeNotesHint)
+                    .font(.caption2)
+                    .foregroundStyle(.white.opacity(0.5))
+            }
+            .padding(.vertical, 6)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 2)
+        .background(Color(hex: "0D0D0D"), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Color(hex: "00E5FF").opacity(0.3), lineWidth: 1)
+        )
+    }
+
+    private var exportDivider: some View {
+        Divider().overlay(Color.white.opacity(0.08))
+    }
+
+    private var whatsIncludedCard: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(L10n.exportWhatsIncludedTitle)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.white)
+
+            LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 6) {
+                whatsIncludedRow(L10n.exportWhatsIncludedOvertime)
+                whatsIncludedRow(L10n.exportWhatsIncludedBreaks)
+                whatsIncludedRow(L10n.exportWhatsIncludedDailyBreakdown)
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(hex: "0D0D0D"), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+        )
+    }
+
+    private func whatsIncludedRow(_ text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(Color(hex: "26F273"))
+            Text(text)
+                .font(.caption2)
+                .foregroundStyle(.white.opacity(0.85))
+                .lineLimit(2)
+                .minimumScaleFactor(0.85)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     private func label(for language: ExportLanguage) -> String {
@@ -253,6 +428,8 @@ struct ExportView: View {
             return L10n.exportLanguageArabic
         case .russian:
             return L10n.exportLanguageRussian
+        case .thai:
+            return L10n.exportLanguageThai
         }
     }
 
@@ -266,8 +443,6 @@ struct ExportView: View {
                 dayTypes: dayTypeFilter.dayTypes,
                 includeNotes: includeNotes
             )
-            // Present on the next run loop so the sheet always has a non-nil item
-            // (avoids the blank first-presentation SwiftUI race).
             DispatchQueue.main.async {
                 shareItem = ShareableFile(url: url)
             }
@@ -293,8 +468,75 @@ struct ExportView: View {
     }
 }
 
-/// Which day types to include in the exported file. `.holiday` bundles rest
-/// days in with holidays since both pay the same 150%+ premium tiers.
+// MARK: - Supporting Types
+
+private enum QuickDatePill: CaseIterable, Identifiable {
+    case thisMonth
+    case lastMonth
+    case thisWeek
+    case lastWeek
+
+    var id: Self { self }
+
+    var label: String {
+        switch self {
+        case .thisMonth: return L10n.exportThisMonth
+        case .lastMonth: return L10n.exportLastMonth
+        case .thisWeek: return L10n.exportThisWeek
+        case .lastWeek: return L10n.exportLastWeek
+        }
+    }
+}
+
+private struct ExportMenuRow<Value: Hashable>: View {
+    let icon: String
+    let title: String
+    let valueLabel: String
+    let options: [(value: Value, label: String)]
+    @Binding var selection: Value
+    var onSelect: (() -> Void)?
+
+    var body: some View {
+        Menu {
+            ForEach(options, id: \.value) { option in
+                Button {
+                    selection = option.value
+                    onSelect?()
+                } label: {
+                    if option.value == selection {
+                        Label(option.label, systemImage: "checkmark")
+                    } else {
+                        Text(option.label)
+                    }
+                }
+            }
+        } label: {
+            HStack {
+                Label {
+                    Text(title)
+                        .foregroundStyle(.white)
+                } icon: {
+                    Image(systemName: icon)
+                        .foregroundStyle(Color(hex: "00E5FF"))
+                }
+                Spacer(minLength: 8)
+                HStack(spacing: 4) {
+                    Text(valueLabel)
+                        .foregroundStyle(.white.opacity(0.6))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                    Image(systemName: "chevron.up.chevron.down")
+                        .font(.caption2.weight(.semibold))
+                        .foregroundStyle(.white.opacity(0.6))
+                }
+            }
+            .contentShape(Rectangle())
+        }
+        .padding(.vertical, 8)
+        .accentColor(.primary)
+    }
+}
+
 enum ExportDayTypeFilter: CaseIterable, Identifiable {
     case all
     case regular
@@ -322,8 +564,78 @@ enum ExportDayTypeFilter: CaseIterable, Identifiable {
     }
 }
 
+private struct ExportReceiptPreview: View {
+    let summary: (dayCount: Int, totalHours: Double, gross: Double, net: Double)?
+    let currencyCode: String
+    let format: ExportFormat
 
-/// Identifiable file handle for `.sheet(item:)` share presentation.
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(L10n.exportPreviewTitle.uppercased())
+                .font(.caption2.weight(.bold))
+                .foregroundStyle(.white.opacity(0.6))
+                .tracking(0.4)
+
+            if let summary {
+                HStack(spacing: 0) {
+                    segment(L10n.exportPreviewDays, "\(summary.dayCount)")
+                    pipe
+                    segment(L10n.exportPreviewHours, String(format: "%.1f", summary.totalHours))
+                    pipe
+                    segment(L10n.exportPreviewNet, PayFormatter.string(summary.net, currencyCode: currencyCode), emphasized: true)
+                }
+                .padding(.vertical, 10)
+                .padding(.horizontal, 10)
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .strokeBorder(style: StrokeStyle(lineWidth: 1.2, dash: [5, 4]))
+                        .foregroundStyle(Color.white.opacity(0.18))
+                )
+
+                readyTag
+            } else {
+                Label(L10n.exportPreviewEmpty, systemImage: "calendar.badge.exclamationmark")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.vertical, 8)
+            }
+        }
+    }
+
+    private func segment(_ label: String, _ value: String, emphasized: Bool = false) -> some View {
+        VStack(spacing: 1) {
+            Text(value)
+                .font(.system(size: emphasized ? 16 : 14, weight: .bold, design: .default).monospacedDigit())
+                .foregroundStyle(emphasized ? Color(hex: "26F273") : .primary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+            Text(label.uppercased())
+                .font(.system(size: 9, weight: .medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    private var pipe: some View {
+        Text(verbatim: "|")
+            .font(.body.weight(.light))
+            .foregroundStyle(.white.opacity(0.15))
+    }
+
+    private var readyTag: some View {
+        HStack(spacing: 5) {
+            Image(systemName: format.icon)
+                .font(.caption2.weight(.semibold))
+            Text(L10n.exportPreviewReady(format.localizedName))
+                .font(.caption2.weight(.semibold))
+        }
+        .foregroundStyle(Color(hex: "26F273"))
+    }
+}
+
 struct ShareableFile: Identifiable, Equatable {
     let id = UUID()
     let url: URL

@@ -2,17 +2,21 @@ import ActivityKit
 import SwiftUI
 
 // MARK: - Theme (shared with HoursWidget.swift)
+//
+// Updated for the 2026 theme refresh to the same Neon Cyan / Neon Green / Onyx
+// values as `WidgetTheme` in HoursWidget.swift and the phone app's defaults, so
+// the Live Activity reads as the same product as Home and the home-screen widget.
 
 private enum LATheme {
-    static let background = Color(red: 0.027, green: 0.102, blue: 0.122)
-    static let accent = Color(red: 0.180, green: 0.831, blue: 0.769) // #2dd4bf
-    static let accentLight = Color(red: 0.369, green: 0.918, blue: 0.831) // #5eead4
-    static let cyan = Color(red: 0.133, green: 0.827, blue: 0.933) // #22d3ee
-    static let moneyGreen = Color(red: 0.345, green: 0.851, blue: 0.471) // #4ade80
+    static let background = Color(red: 0, green: 0, blue: 0) // Onyx #000000
+    static let accent = Color(red: 0.0, green: 0.898, blue: 1.0) // #00E5FF Neon Cyan
+    static let accentLight = Color(red: 0.435, green: 0.953, blue: 1.0) // #6FF3FF
+    static let cyan = Color(red: 0.0, green: 0.898, blue: 1.0) // #00E5FF
+    static let moneyGreen = Color(red: 0.149, green: 0.949, blue: 0.451) // #26F273 Neon Green
     static let textPrimary = Color(red: 0.918, green: 1.0, blue: 0.984)
     static let textSecondary = Color.white.opacity(0.5)
     static let textTertiary = Color.white.opacity(0.3)
-    static let glow = Color(red: 0.180, green: 0.831, blue: 0.769).opacity(0.15)
+    static let glow = Color(red: 0.0, green: 0.898, blue: 1.0).opacity(0.15)
     static let coral = Color(red: 1.0, green: 0.420, blue: 0.482) // #FF6B7B — break state
 }
 
@@ -53,7 +57,7 @@ struct HoursLiveActivityView: View {
                         .font(.system(size: 16, weight: .bold, design: .rounded).monospacedDigit())
                         .foregroundStyle(LATheme.textPrimary)
 
-                    Text(formattedPay(state.estimatedPay))
+                    livePayText(attributes, state)
                         .font(.system(size: 18, weight: .bold, design: .rounded))
                         .foregroundStyle(
                             LinearGradient(
@@ -108,10 +112,6 @@ struct HoursLiveActivityView: View {
         let h = Int(interval) / 3600
         let m = (Int(interval) % 3600) / 60
         return String(format: "%d:%02d", h, m)
-    }
-
-    private func formattedPay(_ amount: Double) -> String {
-        WidgetBridge.format(amount: amount, currencyCode: attributes.currencyCode)
     }
 }
 
@@ -195,7 +195,7 @@ struct HoursLiveActivityExpanded: View {
                 Spacer()
 
                 VStack(alignment: .trailing, spacing: 4) {
-                    Text(formattedPay(state.estimatedPay))
+                    livePayText(attributes, state)
                         .font(.system(size: 30, weight: .bold, design: .rounded))
                         .foregroundStyle(
                             LinearGradient(
@@ -205,7 +205,10 @@ struct HoursLiveActivityExpanded: View {
                             )
                         )
 
-                    Text(verbatim: state.payIsNet == true ? WidgetL10n.estimatedNet : WidgetL10n.estimatedGross)
+                    // Explicitly scoped to this shift — the home-screen widget shows
+                    // the same figure under the same label, so the two never read as
+                    // different metrics even though they refresh independently.
+                    Text(verbatim: state.payIsNet == true ? WidgetL10n.currentShiftNet : WidgetL10n.currentShiftGross)
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
                         .tracking(0.5)
                         .foregroundStyle(LATheme.textTertiary)
@@ -247,10 +250,6 @@ struct HoursLiveActivityExpanded: View {
         let s = Int(interval) % 60
         return String(format: "%d:%02d:%02d", h, m, s)
     }
-
-    private func formattedPay(_ amount: Double) -> String {
-        WidgetBridge.format(amount: amount, currencyCode: attributes.currencyCode)
-    }
 }
 
 
@@ -265,6 +264,36 @@ private func paidClockText(_ state: HoursActivityAttributes.ContentState, fallba
         Text(timerInterval: start...Date.distantFuture, countsDown: false)
     } else {
         Text(fallback)
+    }
+}
+
+// MARK: - Live pay
+
+/// Pay used to freeze at whatever `LiveActivityManager` last pushed — once iOS fully
+/// suspended the app, nothing updated it again until the app was reopened. A
+/// `TimelineView` ticks this locally between pushes instead: `initialPay +
+/// ratePerSecond * secondsSincePush`, where `initialPay`/`ratePerSecond` are the
+/// exact pay and the curve's own exact local slope at the moment of the last push.
+/// The app re-pushes roughly every 60s (and on any break/settings change), so the
+/// flat rate only has to hold for a minute of whichever overtime tier the shift is
+/// currently in — it does not re-derive pay from `hourlyRate` with a different,
+/// simpler formula (that was the original bug: the widget's `HoursEntry.livePay`
+/// reads the real `LivePayCurve`, while this view used `WidgetBridge.estimatePay`'s
+/// plain daily-OT quick-estimate, so the two surfaces showed different numbers for
+/// the same second).
+@ViewBuilder
+func livePayText(_ attributes: HoursActivityAttributes, _ state: HoursActivityAttributes.ContentState) -> some View {
+    let net = state.payIsNet ?? false
+    let initial = net ? state.initialNetPay : state.initialGrossPay
+    let rate = net ? state.netRatePerSecond : state.grossRatePerSecond
+    if let pushedAt = state.payPushedAt, let initial, let rate {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let secondsSincePush = context.date.timeIntervalSince(pushedAt)
+            let amount = initial + rate * secondsSincePush
+            Text(WidgetBridge.format(amount: amount, currencyCode: attributes.currencyCode))
+        }
+    } else {
+        Text(WidgetBridge.format(amount: initial ?? state.estimatedPay, currencyCode: attributes.currencyCode))
     }
 }
 

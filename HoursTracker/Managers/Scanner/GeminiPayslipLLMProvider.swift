@@ -143,9 +143,11 @@ struct GeminiPayslipLLMProvider: PayslipLLMProviding {
         }
 
         Vocabulary hints:
-        - Pay: Hebrew שכר ברוטו / ברוטו / סה"כ תשלומים = gross_pay; שכר נטו / נטו / לתשלום =
-          net_pay. English Gross / Gross Pay = gross_pay; Net / Net Pay / Take Home = net_pay.
-          Arabic صافي = net_pay; إجمالي / الراتب الإجمالي = gross_pay.
+        - Pay: Hebrew שכר ברוטו / ברוטו / סה"כ תשלומים / סך תשלומים = gross_pay; שכר נטו /
+          נטו / לתשלום / שכר משולם = net_pay. These are the exact terms Israeli payslips use —
+          match them even when the surrounding row layout is unfamiliar. English Gross /
+          Gross Pay = gross_pay; Net / Net Pay / Take Home = net_pay. Arabic صافي = net_pay;
+          إجمالي / الراتب الإجمالي = gross_pay.
         - Hours: Hebrew שעות עבודה / שעות רגילות (often on the row labeled משכורת or 001) =
           hours_regular. Overtime is usually split across SEVERAL rows by rate, each row's
           own "כמות"/"quantity" column being that tier's hours — e.g. ש.נוספות 125%,
@@ -167,10 +169,12 @@ struct GeminiPayslipLLMProvider: PayslipLLMProviding {
           employee_name.
 
         Rules for dates — read carefully, this is the most common mistake:
-        - `payment_month` is the month the payslip COVERS, normally printed as
-          "תלוש שכר לחודש MM/YYYY" or "לחודש MM/YYYY". It is almost never the same as a
-          separately printed "הודפס בתאריך" / "printed on" date — that is only when the
-          document was generated and must be ignored for payment_month and period purposes.
+        - `payment_month` is the month the payslip COVERS, normally printed near a label
+          like "תקופת שכר" / "חודש" / "עבור חודש" / "תלוש שכר לחודש MM/YYYY" / "לחודש
+          MM/YYYY" — any of these mean the same thing: look for the nearby month/year value,
+          not just the exact phrase. It is almost never the same as a separately printed
+          "הודפס בתאריך" / "printed on" date — that is only when the document was generated
+          and must be ignored for payment_month and period purposes.
         - `pay_period_start` / `pay_period_end` should only be filled from an EXPLICIT
           "מתאריך .. עד תאריך" / "period" range for THIS payslip. Do not use an unrelated
           date such as "תחילת עבודה" (the employee's overall employment start date — a

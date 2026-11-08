@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 struct HistoryView: View {
     @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var appBackground = AppBackgroundTheme.shared
+    @ObservedObject private var homeTheme = HomeAccentTheme.shared
 
     /// Anchor month for the payroll cycle label / chevron navigation.
     @State private var periodAnchor: Date = Date()
@@ -38,6 +39,12 @@ struct HistoryView: View {
     @State private var isSelecting = false
     @State private var selectedIDs: Set<UUID> = []
     @State private var showBulkDeleteConfirm = false
+
+    // MARK: Staggered row entrance
+    /// Rows that have already played their entrance — cleared on first load and
+    /// on every period/day change so a fresh list replays the stagger, but
+    /// scrolling the same list back and forth never does.
+    @State private var animatedInIDs: Set<UUID> = []
 
     private let calendar = Calendar.current
 
@@ -181,8 +188,14 @@ struct HistoryView: View {
                 isPresented: $showBulkDeleteConfirm
             ) {
                 Button(L10n.editDelete, role: .destructive) {
-                    viewModel.deleteSessions(selectedSessions)  // one Undo banner for all
+                    let batch = selectedSessions
                     endSelection()
+                    // Standard SwiftUI List removal animation — the haptic is the
+                    // confirmation, not a flight across the screen.
+                    UINotificationFeedbackGenerator().notificationOccurred(.success)
+                    withAnimation {
+                        viewModel.deleteSessions(batch)  // one Undo banner for the whole selection
+                    }
                 }
                 Button(L10n.editCancel, role: .cancel) {}
             } message: {
@@ -197,7 +210,10 @@ struct HistoryView: View {
             ) {
                 Button(L10n.editDelete, role: .destructive) {
                     if let session = sessionPendingDelete {
-                        viewModel.deleteSession(session)  // shows its own Undo banner
+                        UINotificationFeedbackGenerator().notificationOccurred(.success)
+                        withAnimation {
+                            viewModel.deleteSession(session)  // shows its own Undo banner
+                        }
                     }
                     sessionPendingDelete = nil
                 }
@@ -274,11 +290,13 @@ struct HistoryView: View {
                 alignToCurrentPayrollPeriod()
             }
             .onChange(of: selectedDay) { _, newDay in
+                animatedInIDs.removeAll()
                 if let newDay {
                     syncWeekPage(to: newDay, animated: true)
                 }
             }
             .onChange(of: periodAnchor) { _, _ in
+                animatedInIDs.removeAll()
                 if let pending = pendingWeekIndex {
                     pendingWeekIndex = nil
                     selectedWeekIndex = pending
@@ -476,14 +494,17 @@ struct HistoryView: View {
         .accessibilityHidden(!day.isInPeriod)
     }
 
-    /// "חג <name>" banner shown above the session list when the selected day is
-    /// an Israeli statutory holiday — see `IsraeliHolidayCalendar`.
+    /// "Holiday <name>" banner shown above the session list when the selected day is
+    /// an Israeli statutory holiday — see `IsraeliHolidayCalendar`. `ResolvedHoliday`
+    /// only carries an English and a Hebrew name (no Arabic/Russian/Thai), matching
+    /// the same fallback already used for holiday names elsewhere in the app.
     private func holidayBanner(_ holiday: ResolvedHoliday) -> some View {
-        HStack(spacing: 6) {
+        let name = AppLocale.current == .hebrew ? holiday.hebrewName : holiday.englishName
+        return HStack(spacing: 6) {
             Image(systemName: "star.fill")
                 .font(.caption)
                 .foregroundStyle(.yellow)
-            Text("חג \(holiday.hebrewName)")
+            Text(L10n.historyHolidayBanner(name))
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(.yellow)
         }
@@ -863,6 +884,13 @@ struct HistoryView: View {
                 List {
                     ForEach(Array(rows.enumerated()), id: \.element.id) { index, session in
                         sessionRow(session, striped: index.isMultiple(of: 2))
+                            .modifier(StaggeredRowEntrance(
+                                shouldAnimate: !animatedInIDs.contains(session.id) && index < 10,
+                                delay: Double(min(index, 9)) * 0.03,
+                                isFirstOfBatch: index == 0 && animatedInIDs.isEmpty,
+                                onFirstOfBatch: { UISelectionFeedbackGenerator().selectionChanged() }
+                            ))
+                            .onAppear { animatedInIDs.insert(session.id) }
                             .accessibilityIdentifier("history.sessionRow")
                             .contentShape(Rectangle())
                             .onTapGesture {
@@ -897,7 +925,7 @@ struct HistoryView: View {
                                 } label: {
                                     Label(L10n.editTitle, systemImage: "pencil")
                                 }
-                                .tint(.blue)
+                                .tint(homeTheme.accent)
 
                                 Button {
                                     menuSession = session
@@ -1380,6 +1408,8 @@ struct HistoryView: View {
         // Default: no day selected → full period list (not “empty today”).
         selectedDay = nil
         syncWeekPage(to: Date(), animated: false)
+        // First load (and any re-align) replays the staggered row entrance.
+        animatedInIDs.removeAll()
     }
 
     private func snapSelectedDayIntoPeriod() {
@@ -1466,6 +1496,32 @@ private struct DayCellTapTarget<Content: View>: View {
             .accessibilityAction(named: Text(selectActionName)) {
                 guard isEnabled else { return }
                 onLongPress()
+            }
+    }
+}
+
+/// Fade + slide entrance for a History row, staggered by index. Only plays when
+/// `shouldAnimate` is true (first load or a fresh period/day — see `HistoryView`'s
+/// `animatedInIDs`) and only for the first 10 rows; everything else, and anything
+/// already animated in, just renders fully visible with no delay.
+private struct StaggeredRowEntrance: ViewModifier {
+    let shouldAnimate: Bool
+    let delay: Double
+    let isFirstOfBatch: Bool
+    let onFirstOfBatch: () -> Void
+
+    @State private var appeared = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(appeared || !shouldAnimate ? 1 : 0)
+            .offset(y: appeared || !shouldAnimate ? 0 : 10)
+            .onAppear {
+                guard shouldAnimate, !appeared else { return }
+                if isFirstOfBatch { onFirstOfBatch() }
+                withAnimation(.easeOut(duration: 0.3).delay(delay)) {
+                    appeared = true
+                }
             }
     }
 }

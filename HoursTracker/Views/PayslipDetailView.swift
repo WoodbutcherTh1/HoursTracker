@@ -17,6 +17,7 @@ struct PayslipDetailView: View {
     @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @State private var showDeleteConfirm = false
     @State private var previewImage: UIImage?
+    @State private var showFullScreenImage = false
 
     private var currencyCode: String? {
         record.userOverrides?.currencyCode ?? record.extraction.currencyCode
@@ -94,11 +95,22 @@ struct PayslipDetailView: View {
     private var previewSection: some View {
         Group {
             if let previewImage {
-                Image(uiImage: previewImage)
-                    .resizable()
-                    .scaledToFit()
+                ZoomableImageView(image: previewImage)
                     .frame(maxWidth: .infinity)
+                    .frame(height: 320)
                     .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+                    .onTapGesture { showFullScreenImage = true }
+                    .overlay(alignment: .bottomTrailing) {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .font(.caption.weight(.semibold))
+                            .foregroundStyle(.white)
+                            .padding(7)
+                            .background(Circle().fill(Color.black.opacity(0.5)))
+                            .padding(8)
+                            .allowsHitTesting(false)
+                    }
+                    .accessibilityAddTraits(.isButton)
+                    .accessibilityHint(L10n.payslipZoomHint)
             } else if record.sourceKind == .pdf {
                 PayslipDetailPDFPreview(url: sourceURL)
                     .frame(minHeight: 280)
@@ -110,6 +122,11 @@ struct PayslipDetailView: View {
             }
         }
         .accessibilityLabel(L10n.payslipPreview)
+        .fullScreenCover(isPresented: $showFullScreenImage) {
+            if let previewImage {
+                PayslipImageFullScreenView(image: previewImage)
+            }
+        }
     }
 
     private var fieldSection: some View {
@@ -223,6 +240,75 @@ struct PayslipDetailView: View {
             previewImage = image
         } else if let cached = PayslipThumbnailCache.shared.cachedImage(for: record.id) {
             previewImage = cached
+        }
+    }
+}
+
+/// An image inside a `ScrollView`, pinch-zoomable via `MagnificationGesture`.
+/// The image's *frame* (not just a cosmetic `.scaleEffect`) grows with the pinch,
+/// so once zoomed in past the viewport, `ScrollView`'s own native panning works
+/// correctly — a `.scaleEffect` alone doesn't change what `ScrollView` thinks
+/// its content size is, so panning wouldn't track the visually-zoomed image.
+struct ZoomableImageView: View {
+    let image: UIImage
+    @State private var scale: CGFloat = 1
+    @State private var baseScale: CGFloat = 1
+
+    private static let minScale: CGFloat = 1
+    private static let maxScale: CGFloat = 4
+
+    var body: some View {
+        GeometryReader { geo in
+            let fitted = Self.fittedSize(for: image.size, in: geo.size)
+            ScrollView([.horizontal, .vertical], showsIndicators: false) {
+                Image(uiImage: image)
+                    .resizable()
+                    .frame(width: fitted.width * scale, height: fitted.height * scale)
+                    .frame(minWidth: geo.size.width, minHeight: geo.size.height)
+            }
+            .gesture(
+                MagnificationGesture()
+                    .onChanged { value in
+                        scale = min(max(baseScale * value, Self.minScale), Self.maxScale)
+                    }
+                    .onEnded { _ in
+                        baseScale = scale
+                    }
+            )
+        }
+    }
+
+    private static func fittedSize(for imageSize: CGSize, in containerSize: CGSize) -> CGSize {
+        guard imageSize.width > 0, imageSize.height > 0, containerSize.width > 0, containerSize.height > 0 else {
+            return containerSize
+        }
+        let ratio = min(containerSize.width / imageSize.width, containerSize.height / imageSize.height)
+        return CGSize(width: imageSize.width * ratio, height: imageSize.height * ratio)
+    }
+}
+
+/// Full-screen presentation of a payslip image — the same zoomable view, with
+/// far more room to actually read a photographed payslip's fine print than the
+/// detail screen's fixed-height preview allows.
+struct PayslipImageFullScreenView: View {
+    let image: UIImage
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        ZStack(alignment: .topTrailing) {
+            Color.black.ignoresSafeArea()
+            ZoomableImageView(image: image)
+                .ignoresSafeArea()
+            Button {
+                dismiss()
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 30))
+                    .foregroundStyle(.white.opacity(0.85))
+                    .shadow(color: .black.opacity(0.4), radius: 6)
+            }
+            .padding(16)
+            .accessibilityLabel(L10n.editCancel)
         }
     }
 }

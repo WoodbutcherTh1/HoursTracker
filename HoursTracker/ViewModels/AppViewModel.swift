@@ -29,6 +29,21 @@ final class AppViewModel: ObservableObject {
     /// Live pay for the open shift — what Home, the Watch, the widgets and the Live
     /// Activity all read, so they show the same figure. Nil when clocked out.
     @Published private(set) var liveCurve: LivePayCurve?
+    /// Resolved once at launch (see `checkAdminStatus()`) instead of when Settings'
+    /// Data page first appears — the page used to ask `AdminAPIClient.checkAccess()`
+    /// itself via `.task`, which could flip this well after the page was already on
+    /// screen. Resolving it at app launch, long before Settings is ever opened,
+    /// removes that race entirely. Does not update again if the account is signed
+    /// in or out mid-session — a relaunch picks up the change.
+    @Published private(set) var isAdmin = false
+    /// The highest gross/net this shift has shown so far. `OvertimeCalculator`
+    /// re-prices the whole shift from scratch on every rebuild of `liveCurve` (a
+    /// break starting/ending, a settings edit) rather than adding a marginal
+    /// amount, so a fresh rebuild is not guaranteed to land above what the last one
+    /// already displayed. `makeLivePayCurve` clamps every new curve to this floor —
+    /// the one choke point all three surfaces build from — so pay can visibly only
+    /// hold or rise over the life of a shift, never drop back down a push later.
+    var livePayHighWaterMark: (sessionID: UUID, gross: Double, net: Double)?
     /// The shift just deleted, while its "Undo" banner is on screen.
     @Published private(set) var undoableDeletion: WorkSession?
     /// Every shift the showing Undo banner restores when it came from a multi-delete.
@@ -214,6 +229,7 @@ final class AppViewModel: ObservableObject {
         refreshReminders()
         refreshLocationPermissionStatuses()
         startLiveActivityRefreshLoop()
+        checkAdminStatus()
     }
 
     deinit {
@@ -264,6 +280,7 @@ final class AppViewModel: ObservableObject {
         )
         sessions.append(session)
         persist()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
         refreshReminders()
         // First clock-in is the natural moment to ask for notification access, if
         // it hasn't been asked yet — the clock-out reminder is about to be useful.
@@ -374,6 +391,7 @@ final class AppViewModel: ObservableObject {
             ShiftSummaryNotifier.post(session: sessions[index], breakdown: breakdown, showsNet: livePayShowsNet)
         }
         persist()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
         refreshReminders()
         syncWidget()
         refreshAppShortcuts()
@@ -1266,7 +1284,10 @@ final class AppViewModel: ObservableObject {
             range: range,
             language: language,
             dayTypes: dayTypes,
-            includeNotes: includeNotes
+            includeNotes: includeNotes,
+            workplaceNameResolver: { [weak self] id in
+                self?.workplaceOption(for: id).name ?? ""
+            }
         )
         let url = try exportManager.export(report: report, format: format, language: language)
         ActivityLogStore.shared.log(
@@ -1359,6 +1380,18 @@ final class AppViewModel: ObservableObject {
         ShiftReminderScheduler.reschedule(sessions: sessions, settings: activeSettings)
     }
 
+    /// Asks the server once at launch whether this account is an admin — see
+    /// `isAdmin`. Delegates to `AdminAPIClient`, which already owns the
+    /// network call and the "once per signed-in account" de-dupe; this just
+    /// mirrors its result onto the view model so Settings reads a value
+    /// that's already resolved by the time the Data page can be opened.
+    private func checkAdminStatus() {
+        Task {
+            await AdminAPIClient.shared.checkAccess()
+            await MainActor.run { self.isAdmin = AdminAPIClient.shared.isAdmin }
+        }
+    }
+
     /// Push current sessions and settings to the WidgetKit extension
     /// and update the Live Activity (if one is running).
     func syncWidget() {
@@ -1408,6 +1441,7 @@ final class AppViewModel: ObservableObject {
         guard let open = activeSession else {
             liveCurve = nil
             liveCurveInputs = nil
+            livePayHighWaterMark = nil
             return nil
         }
         let inputs = LiveCurveInputs(session: open, settings: workplaceSettings(for: open.workplaceID), sessionCount: sessions.count)

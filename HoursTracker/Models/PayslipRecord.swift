@@ -36,6 +36,10 @@ struct PayslipRecord: Identifiable, Codable, Equatable, Hashable {
         userOverrides?.grossPay ?? extraction.grossPay
     }
 
+    var effectiveDeductionsTotal: Decimal? {
+        userOverrides?.deductionsTotal ?? extraction.deductionsTotal
+    }
+
     var effectivePeriodMonth: Date {
         let sourceDate = userOverrides?.payPeriodStart
             ?? extraction.payPeriodStart

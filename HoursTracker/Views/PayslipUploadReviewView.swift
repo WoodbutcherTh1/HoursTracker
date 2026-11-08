@@ -11,6 +11,7 @@ struct PayslipUploadReviewView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var photoItem: PhotosPickerItem?
     @State private var saveError: String?
+    @State private var showFullScreenImage = false
 
     var onSaved: ((PayslipRecord) -> Void)?
 
@@ -260,12 +261,26 @@ struct PayslipUploadReviewView: View {
     @ViewBuilder
     private var previewBlock: some View {
         if let image = viewModel.previewImage {
-            Image(uiImage: image)
-                .resizable()
-                .scaledToFit()
-                .frame(maxHeight: 220)
+            ZoomableImageView(image: image)
+                .frame(maxWidth: .infinity)
+                .frame(height: 220)
                 .clipShape(RoundedRectangle(cornerRadius: 8))
+                .onTapGesture { showFullScreenImage = true }
+                .overlay(alignment: .bottomTrailing) {
+                    Image(systemName: "arrow.up.left.and.arrow.down.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .padding(7)
+                        .background(Circle().fill(Color.black.opacity(0.5)))
+                        .padding(8)
+                        .allowsHitTesting(false)
+                }
                 .accessibilityLabel(L10n.payslipPreview)
+                .accessibilityAddTraits(.isButton)
+                .accessibilityHint(L10n.payslipZoomHint)
+                .fullScreenCover(isPresented: $showFullScreenImage) {
+                    PayslipImageFullScreenView(image: image)
+                }
         } else if viewModel.previewIsPDF, let staged = viewModel.staged {
             PayslipPDFThumbnail(url: viewModel.previewURL(for: staged))
                 .frame(height: 180)

@@ -5,17 +5,18 @@ import WidgetKit
 // MARK: - Theme
 
 /// Widget color palette — "Aurora": a near-black surface with a green → cyan →
-/// purple gradient ring/button, chosen from a set of style mockups the user
-/// picked between.
+/// purple gradient ring/button. Updated for the 2026 theme refresh to the same
+/// Neon Cyan / Neon Green / Onyx values the phone app now ships with, so every
+/// surface (app, widget, Watch, Live Activity) reads as one coherent palette.
 private enum WidgetTheme {
-    /// Near-black background.
-    static let background = Color(red: 0.020, green: 0.027, blue: 0.039) // #05070A
-    static let surface = Color(red: 0.043, green: 0.059, blue: 0.078) // #0B0F14
-    static let accent = Color(red: 0.133, green: 0.780, blue: 0.878) // #22C7E0 (aurora cyan)
-    static let accentLight = Color(red: 0.486, green: 0.906, blue: 0.949) // #7CE7F2
-    static let cyan = Color(red: 0.133, green: 0.780, blue: 0.878) // #22C7E0
+    /// Onyx — pure black, matching the app's new default background.
+    static let background = Color(red: 0, green: 0, blue: 0) // #000000
+    static let surface = Color(red: 0.039, green: 0.039, blue: 0.039) // #0A0A0A
+    static let accent = Color(red: 0.0, green: 0.898, blue: 1.0) // #00E5FF Neon Cyan
+    static let accentLight = Color(red: 0.435, green: 0.953, blue: 1.0) // #6FF3FF
+    static let cyan = Color(red: 0.0, green: 0.898, blue: 1.0) // #00E5FF
     static let purple = Color(red: 0.659, green: 0.333, blue: 0.969) // #A855F7
-    static let moneyGreen = Color(red: 0.173, green: 0.961, blue: 0.596) // #2CF598 (aurora green)
+    static let moneyGreen = Color(red: 0.149, green: 0.949, blue: 0.451) // #26F273 Neon Green
     /// Warm "stop" color for Clock Out — matches the phone app's fixed coral
     /// active-session color, kept semantically distinct from the cool aurora gradient.
     static let coral = Color(red: 1.0, green: 0.420, blue: 0.482) // #FF6B7B
@@ -25,11 +26,12 @@ private enum WidgetTheme {
     static let workingDot = accentLight
     static let doneDot = moneyGreen
 
-    /// Gradient for the active (working) state background.
+    /// Gradient for the active (working) state background — a faint cyan cast
+    /// over Onyx, matching the Active state's cyan identity.
     static let activeGradient = LinearGradient(
         colors: [
-            Color(red: 0.055, green: 0.086, blue: 0.078), // faint green cast
-            Color(red: 0.020, green: 0.027, blue: 0.039), // #05070A
+            Color(red: 0.0, green: 0.055, blue: 0.063), // faint cyan cast
+            Color(red: 0, green: 0, blue: 0), // #000000
         ],
         startPoint: .topLeading,
         endPoint: .bottomTrailing
@@ -363,13 +365,16 @@ struct HoursTimelineProvider: TimelineProvider {
         }
 
         if let open = WidgetBridge.openSession(from: sessions) {
-            // Prefer the app's live curve (real pay engine: tiers, rest-day rates, net)
-            // so the widget shows exactly what Home shows; fall back to the quick
-            // estimate if the app hasn't written one yet.
+            // The app's live curve (real pay engine: tiers, rest-day rates, net) is
+            // the only source for the open shift's figure — same curve, same
+            // `pay(at:net:)` call `LiveActivityManager` reads, so the widget and the
+            // Live Activity can never show two different formulas for the same
+            // shift. No quick-estimate fallback: if the curve isn't there yet, the
+            // shift just hasn't started pricing, so it reads 0 rather than a
+            // different number from a different formula.
             let curve = WidgetBridge.readLivePay().flatMap { $0.sessionID == open.id ? $0 : nil }
-            let elapsed = curve?.paidHours(at: date) ?? open.effectiveHours
-            let pay = curve?.pay(at: date, net: showsNet)
-                ?? WidgetBridge.estimatePay(elapsedHours: elapsed, settings: settings)
+            let elapsed = curve?.paidHours(at: date) ?? 0
+            let pay = curve?.pay(at: date, net: showsNet) ?? 0
             let hasPeriodPay = WidgetBridge.readPeriodPay(now: date, calendar: calendar) != nil
             let openPay = hasPeriodPay ? pay : 0
             return HoursEntry(
@@ -487,7 +492,11 @@ struct HoursSmallWidgetView: View {
                     } else if let curve = entry.livePay, !curve.isPaused {
                         paidClockTimer(curve)
                     } else {
-                        Text(verbatim: WidgetL10n.today)
+                        // Same net/gross-aware label as the medium widget and the
+                        // Live Activity, so this figure is never mistaken for a
+                        // different metric on a surface that happens to not be
+                        // showing the break countdown or live timer right now.
+                        Text(verbatim: entry.payIsNet ? WidgetL10n.currentShiftNet : WidgetL10n.currentShiftGross)
                             .font(.system(size: 8, weight: .semibold, design: .rounded))
                             .foregroundStyle(WidgetTheme.textTertiary)
                             .textCase(.uppercase)
@@ -677,7 +686,10 @@ struct HoursHomeWidgetView: View {
             // Right: stats + action
             VStack(alignment: .leading, spacing: 6) {
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(verbatim: (entry.payIsNet ? WidgetL10n.estimatedNet : WidgetL10n.earnings).uppercased())
+                    // Explicitly scoped to this shift — the Live Activity shows the
+                    // same figure under the same label, so the two never read as
+                    // different metrics even though they refresh independently.
+                    Text(verbatim: (entry.payIsNet ? WidgetL10n.currentShiftNet : WidgetL10n.currentShiftGross).uppercased())
                         .font(.system(size: 9, weight: .bold, design: .rounded))
                         .foregroundStyle(WidgetTheme.textTertiary)
                         .tracking(0.6)
@@ -974,7 +986,12 @@ struct HoursLiveActivity: Widget {
                         .foregroundStyle(WidgetTheme.coral)
                         .frame(maxWidth: 52)
                 } else {
-                    Text(livePayText(context.state.estimatedPay, currency: context.attributes.currencyCode))
+                    // Same ticking interpolation as the Lock Screen banner and the
+                    // expanded Dynamic Island — this pill used to show a frozen
+                    // snapshot of `estimatedPay` that only changed once per push
+                    // (~60 s apart) and, being a separate read of a value that can
+                    // dip across rebuilds, could visibly drop between two pushes.
+                    livePayText(context.attributes, context.state)
                         .font(.system(size: 12, weight: .bold, design: .rounded))
                         .foregroundStyle(WidgetTheme.moneyGreen)
                 }
@@ -985,7 +1002,4 @@ struct HoursLiveActivity: Widget {
         }
     }
 
-    private func livePayText(_ amount: Double, currency: String) -> String {
-        WidgetBridge.format(amount: amount, currencyCode: currency)
-    }
 }

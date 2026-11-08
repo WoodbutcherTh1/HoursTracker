@@ -87,6 +87,9 @@ enum LiveActivityManager {
         var state = makeState(session: session, settings: settings, curve: curve, showsNet: showsNet)
         state.paidClockStart = nil
         state.breakStart = nil
+        state.grossRatePerSecond = nil
+        state.netRatePerSecond = nil
+        state.payPushedAt = nil
         // Gone from the Lock Screen right away. It used to linger 30 s with its Clock
         // Out and Break buttons, which read as "clock-out didn't work". Every
         // activity is ended, not just the one this process knows about.
@@ -125,18 +128,29 @@ enum LiveActivityManager {
         let isPaused = session.isOnBreak && !settings.breaksArePaid
         let paidSeconds: Double
         let pay: Double
-        if let curve, curve.sessionID == session.id {
-            // Same curve Home, the Watch and the widgets read — same figure everywhere.
-            paidSeconds = curve.paidSeconds(at: now)
-            pay = curve.pay(at: now, net: showsNet)
-        } else {
-            // Fallback (e.g. the final state at clock-out): paid time so far — wall
-            // clock minus unpaid breaks — priced with the widget's quick estimate.
-            paidSeconds = session.paidElapsedSeconds(now: now, breaksArePaid: settings.breaksArePaid)
-            pay = WidgetBridge.estimatePay(
-                elapsedHours: paidSeconds / 3600,
-                settings: WidgetBridge.snapshot(from: settings)
-            )
+        var initialGross: Double?
+        var initialNet: Double?
+        var grossRate: Double?
+        var netRate: Double?
+        let matchingCurve = (curve?.sessionID == session.id) ? curve : nil
+        paidSeconds = matchingCurve?.paidSeconds(at: now)
+            ?? session.paidElapsedSeconds(now: now, breaksArePaid: settings.breaksArePaid)
+        // Same curve Home, the Watch and the widgets read — same figure everywhere.
+        // No quick-estimate fallback: if the curve isn't there yet, the shift just
+        // hasn't started pricing, so it reads 0 rather than a different number from
+        // a different formula (matches `HoursWidget`'s `curve?.pay(at:net:) ?? 0`).
+        let current = matchingCurve?.pay(at: now)
+        pay = showsNet ? (current?.net ?? 0) : (current?.gross ?? 0)
+        initialGross = current?.gross
+        initialNet = current?.net
+        // The app re-pushes this roughly every 60s (and on any break/settings
+        // change), so a flat rate only has to hold for a minute at a time —
+        // `pay(at:)` is piecewise-linear, so this is the tier's exact slope,
+        // not an approximation of it.
+        if let matchingCurve, !matchingCurve.isPaused {
+            let rates = matchingCurve.ratePerSecond(at: now)
+            grossRate = rates.gross
+            netRate = rates.net
         }
         return HoursActivityAttributes.ContentState(
             elapsedTime: paidSeconds,
@@ -146,7 +160,12 @@ enum LiveActivityManager {
             breakTargetMinutes: NotificationPreferences.shared.breakTargetMinutes,
             // A running paid clock lets the Lock Screen tick the hours by itself.
             paidClockStart: isPaused ? nil : now.addingTimeInterval(-paidSeconds),
-            payIsNet: curve != nil && showsNet
+            payIsNet: matchingCurve != nil && showsNet,
+            initialGrossPay: initialGross,
+            initialNetPay: initialNet,
+            grossRatePerSecond: grossRate,
+            netRatePerSecond: netRate,
+            payPushedAt: (grossRate != nil) ? now : nil
         )
     }
 }

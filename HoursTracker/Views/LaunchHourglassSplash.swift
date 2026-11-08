@@ -1,58 +1,80 @@
 import SwiftUI
 
-/// Simple launch splash matching Home neon style.
+/// Launch splash: a continuously spinning, floating, glowing cyan/green
+/// hourglass over deep onyx, matching the app's Cyan/Green brand theme.
+/// `Color(hex:)` is the app-wide one declared in `HomeAccentTheme.swift` —
+/// not redeclared here.
 struct LaunchHourglassSplash: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @ObservedObject private var theme = HomeAccentTheme.shared
-    @ObservedObject private var appBackground = AppBackgroundTheme.shared
-    @State private var flipped = false
-    @State private var pulse = false
-    /// Drives the one-shot scale/fade the content enters with, separate from the
-    /// looping `flipped`/`pulse` state below — this only ever animates 0 → 1 once.
-    @State private var entered = false
+    @State private var rotationDegrees: Double = 0
+    @State private var floatOffset: CGFloat = 0
+    @State private var isGlowing = false
+    @State private var textOpacity: Double = 0
+
+    private static let cyan = Color(hex: "00E5FF")
+    private static let green = Color(hex: "26F273")
 
     var body: some View {
         ZStack {
-            appBackground.background.ignoresSafeArea()
+            Color(red: 13 / 255, green: 13 / 255, blue: 13 / 255)
+                .ignoresSafeArea()
 
-            VStack(spacing: 18) {
-                Spacer(minLength: 0)
-
+            VStack(spacing: 24) {
                 Image(systemName: "hourglass")
-                    .font(.system(size: 62, weight: .light))
-                    .foregroundStyle(theme.accent)
-                    .rotationEffect(.degrees(flipped ? 180 : 0))
-                    .scaleEffect(pulse ? 1.04 : 0.98)
-                    .shadow(color: theme.accent.opacity(pulse ? 0.5 : 0.22), radius: pulse ? 20 : 8)
+                    .font(.system(size: 72, weight: .medium))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Self.cyan, Self.green],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .shadow(color: Self.cyan.opacity(0.6), radius: isGlowing ? 25 : 15)
+                    .shadow(color: Self.green.opacity(0.4), radius: isGlowing ? 20 : 10)
+                    .rotation3DEffect(.degrees(rotationDegrees), axis: (x: 0, y: 1, z: 0))
+                    .offset(y: floatOffset)
                     .accessibilityHidden(true)
 
                 Text(L10n.brandName)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.white.opacity(0.82))
-
-                Spacer(minLength: 0)
+                    .font(.system(size: 28, weight: .bold, design: .rounded))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [.white, Color.gray.opacity(0.7)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .opacity(textOpacity)
             }
-            .scaleEffect(entered ? 1.0 : 0.8)
-            .opacity(entered ? 1.0 : 0)
         }
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L10n.brandName)
         .onAppear {
             guard !reduceMotion else {
-                entered = true
-                pulse = true
+                textOpacity = 1
                 return
             }
-            withAnimation(.easeOut(duration: 0.4)) {
-                entered = true
+            // Continuous spin — one full turn every 3s, never reversing.
+            withAnimation(.linear(duration: 3).repeatForever(autoreverses: false)) {
+                rotationDegrees = 360
             }
-            withAnimation(.easeInOut(duration: 1.15).repeatForever(autoreverses: true)) {
-                flipped = true
+            // Floating bob, synchronized to start with the spin (half its
+            // period, so the float completes two full up-down cycles per
+            // rotation) rather than one `linear`/non-reversing tween driving
+            // both — a float needs to ease back down, which `autoreverses:
+            // false` on a single shared value can't do without also undoing
+            // the spin's continuous direction.
+            withAnimation(.easeInOut(duration: 1.5).repeatForever(autoreverses: true)) {
+                floatOffset = -10
             }
-            withAnimation(.easeInOut(duration: 1.4).repeatForever(autoreverses: true)) {
-                pulse = true
+            withAnimation(.easeInOut(duration: 1.8).repeatForever(autoreverses: true)) {
+                isGlowing = true
+            }
+            withAnimation(.easeIn(duration: 0.5).delay(0.5)) {
+                textOpacity = 1
             }
         }
+        // Lifecycle (2.1s delay) is handled in HoursTrackerApp.swift.
     }
 }
 

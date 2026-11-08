@@ -4,6 +4,10 @@ import UIKit
 struct ExportRow {
     let session: WorkSession
     let breakdown: DayPayBreakdown
+    /// Resolved only when the caller passed a `workplaceNameResolver` to
+    /// `buildReport` — the normal single-workplace export path (every current
+    /// call site) leaves this `nil` and the column it would add never appears.
+    var workplaceName: String? = nil
 }
 
 struct ExportReport {
@@ -45,6 +49,18 @@ enum ExportFormat: CaseIterable, Identifiable {
         }
     }
 
+    /// SF Symbol for this format, shown anywhere the Export tab needs to signal
+    /// which file type is about to be produced (the receipt preview's ready tag).
+    var icon: String {
+        switch self {
+        case .pdf: return "doc.text"
+        case .csv: return "tablecells"
+        case .txt: return "doc.plaintext"
+        case .docx: return "doc.richtext"
+        case .markdown: return "textformat"
+        }
+    }
+
     var mimeType: String {
         switch self {
         case .pdf: return "application/pdf"
@@ -66,6 +82,13 @@ enum ExportDateRange: Equatable {
 
 final class ExportManager {
     private var copy = ExportCopy(language: .phone)
+    /// Set once per export call, from how many *distinct* workplace names
+    /// actually appear among the report's rows — see `buildReport`'s
+    /// `workplaceNameResolver`. Shared by every format (PDF/CSV/TXT/MD/DOCX),
+    /// so the extra "Workplace" column (or its absence) stays consistent
+    /// across all of them without threading an extra parameter through every
+    /// call site of `tableColumns`/`rowValues`/`totalsValues`.
+    private var showsWorkplaceColumn = false
 
     /// Layout direction for the active export language (independent of device/UI).
     private var isRTL: Bool { ExportLayout.isRTL(language: copy.language) }
@@ -99,7 +122,15 @@ final class ExportManager {
         range: ExportDateRange,
         language: ExportLanguage = .phone,
         dayTypes: Set<DayType>? = nil,
-        includeNotes: Bool = false
+        includeNotes: Bool = false,
+        /// Resolves a session's `workplaceID` to a display name. Pass this only
+        /// when `sessions` can genuinely span more than one workplace (e.g. a
+        /// future "export all workplaces, merged" path) — every current call
+        /// site exports one workplace's own `workSessions`, so this stays nil
+        /// and no "Workplace" column appears. When it IS passed and the rows
+        /// actually resolve to more than one distinct name, every format adds
+        /// that column; with only one name, nothing changes.
+        workplaceNameResolver: ((UUID?) -> String)? = nil
     ) -> ExportReport {
         apply(language: language)
         let filtered = filter(sessions: sessions, range: range)
@@ -108,7 +139,13 @@ final class ExportManager {
             completed = completed.filter { dayTypes.contains($0.dayType) }
         }
         let rows = OvertimeCalculator.dayAwareBreakdowns(sessions: completed, settings: settings)
-            .map { ExportRow(session: $0.session, breakdown: $0.breakdown) }
+            .map {
+                ExportRow(
+                    session: $0.session,
+                    breakdown: $0.breakdown,
+                    workplaceName: workplaceNameResolver?($0.session.workplaceID)
+                )
+            }
         let totals = OvertimeCalculator.aggregate(sessions: completed, settings: settings)
         return ExportReport(
             settings: settings,
@@ -201,6 +238,7 @@ final class ExportManager {
         let renderer = UIGraphicsPDFRenderer(bounds: CGRect(x: 0, y: 0, width: pageWidth, height: pageHeight))
         let totals = report.totals
         let rtl = isRTL
+        showsWorkplaceColumn = computeShowsWorkplaceColumn(report)
 
         let data = renderer.pdfData { context in
             context.beginPage()
@@ -251,8 +289,11 @@ final class ExportManager {
                 return ceil(rect.height)
             }
 
-            /// Logical column weights (Day … Daily wage); mirrored with the headers in RTL.
-            let columnWeights: [CGFloat] = [1.55, 1.15, 0.85, 0.85, 0.75, 0.9, 0.8, 0.8, 0.8, 1.15, 1.25]
+            /// Logical column weights (Day … Daily wage), with a leading "Workplace" weight
+            /// prepended only when `tableColumns()` actually inserted that column — keeps
+            /// `columnWeights.count` equal to `tableColumns().count` either way.
+            let baseColumnWeights: [CGFloat] = [1.55, 1.15, 0.85, 0.85, 0.75, 0.9, 0.8, 0.8, 0.8, 1.15, 1.25]
+            let columnWeights: [CGFloat] = showsWorkplaceColumn ? [1.1] + baseColumnWeights : baseColumnWeights
             func columnFrames(count: Int) -> [CGRect] {
                 let weights = ExportLayout.visualOrder(Array(columnWeights.prefix(count)), isRTL: rtl)
                 let totalWeight = weights.reduce(0, +)
@@ -577,6 +618,7 @@ final class ExportManager {
 
     private func exportCSV(report: ExportReport) throws -> URL {
         // Logical column order (not RTL-mirrored) — spreadsheets are LTR data tables.
+        showsWorkplaceColumn = computeShowsWorkplaceColumn(report)
         let notes = report.includeNotes
         var header = tableColumns()
         if notes { header.append(copy.fullExportNotes) }
@@ -601,6 +643,7 @@ final class ExportManager {
 
     private func exportTXT(report: ExportReport) throws -> URL {
         let rtl = isRTL
+        showsWorkplaceColumn = computeShowsWorkplaceColumn(report)
         var lines: [String] = []
         lines.append(ExportLayout.directedLine(copy.title.uppercased(), isRTL: rtl))
         lines.append(contentsOf: headerLines(report).map { ExportLayout.directedLine($0, isRTL: rtl) })
@@ -625,8 +668,9 @@ final class ExportManager {
         lines.append("")
         lines.append(ExportLayout.directedLine(copy.dailyTable, isRTL: rtl))
         let columns = ExportLayout.visualOrder(tableColumns(), isRTL: rtl)
+        let baseWidths: [Int] = [10, 11, 7, 7, 7, 7, 7, 8, 10, 10, 10]
         let widths = ExportLayout.visualOrder(
-            [10, 11, 7, 7, 7, 7, 7, 8, 10, 10, 10],
+            showsWorkplaceColumn ? [12] + baseWidths : baseWidths,
             isRTL: rtl
         )
         lines.append(formatFixedWidth(columns, widths: widths))
@@ -656,6 +700,7 @@ final class ExportManager {
 
     private func exportMarkdown(report: ExportReport) throws -> URL {
         let rtl = isRTL
+        showsWorkplaceColumn = computeShowsWorkplaceColumn(report)
         var lines: [String] = []
         lines.append("# \(ExportLayout.directedLine(copy.title, isRTL: rtl))")
         lines.append("")
@@ -717,6 +762,7 @@ final class ExportManager {
 
     private func exportDOCX(report: ExportReport) throws -> URL {
         let rtl = isRTL
+        showsWorkplaceColumn = computeShowsWorkplaceColumn(report)
         // Keep logical cell order; `bidiVisual` mirrors the table when Word/Pages open it.
         let columns = tableColumns()
         var rowsXML = ""
@@ -818,18 +864,31 @@ final class ExportManager {
 
     private func headerLines(_ report: ExportReport) -> [String] {
         let s = report.settings
-        var lines = [
-            copy.worker(s.workerFullName),
-            copy.idNumber(s.workerIDNumber),
-            copy.employee(s.employeeNumber),
-            copy.workplace(s.workplaceName)
-        ]
-        if let contractor = s.contractorName, !contractor.isEmpty {
+        var lines: [String] = []
+        if isMeaningful(s.workerFullName) { lines.append(copy.worker(s.workerFullName)) }
+        if isMeaningful(s.workerIDNumber) { lines.append(copy.idNumber(s.workerIDNumber)) }
+        if isMeaningful(s.employeeNumber) { lines.append(copy.employee(s.employeeNumber)) }
+        if isMeaningful(s.workplaceName) { lines.append(copy.workplace(s.workplaceName)) }
+        // Only while the worker is still actually on a contractor's payroll —
+        // `contractorName` (and `ContractorTerms`) stay on the settings object
+        // even after a move to direct employment, since historical shifts from
+        // the contractor era still need that name/rate. A report header should
+        // only show it when it's still the CURRENT relationship, not a leftover
+        // from before the move.
+        if s.employment.type != .direct,
+           let contractor = s.contractorName, isMeaningful(contractor) {
             lines.append(copy.contractor(contractor))
         }
         lines.append(copy.period(report.dateRangeDescription))
         lines.append(copy.creditPoints(String(format: "%.2f", s.creditPoints)))
         return lines
+    }
+
+    /// Empty, whitespace-only, or a lone "0" aren't real data — skip the whole
+    /// label+value line rather than printing e.g. "Employee #: 0" or "Name: ".
+    private func isMeaningful(_ value: String) -> Bool {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return !trimmed.isEmpty && trimmed != "0"
     }
 
     private func summaryLines(_ totals: DayPayBreakdown) -> [String] {
@@ -890,6 +949,7 @@ final class ExportManager {
             .filter { !$0.isEmpty }
             .joined(separator: " · ")
         return oneLine.isEmpty ? nil : oneLine
+        
     }
 
     /// "Sunday 01.09.26 — note" for every exported shift that has a note; empty
@@ -904,19 +964,23 @@ final class ExportManager {
     }
 
     private func tableColumns() -> [String] {
-        [
+        var columns = [
             copy.colDay, copy.colDate, copy.colIn, copy.colOut,
             copy.colBreak, copy.colTotalHours,
             copy.colRate100, copy.colRate125, copy.colRate150,
             copy.colTravel, copy.colDailyWage
         ]
+        if showsWorkplaceColumn {
+            columns.insert(copy.colWorkplace, at: 0)
+        }
+        return columns
     }
 
     private func rowValues(_ row: ExportRow) -> [String] {
         let session = row.session
         let b = row.breakdown
         let breakHours = Double(session.breakMinutes) / 60
-        return [
+        var values = [
             weekdayFormatter.string(from: session.date),
             dateFormatter.string(from: session.date),
             timeFormatter.string(from: session.clockIn),
@@ -929,10 +993,14 @@ final class ExportManager {
             formatMoney(b.gasAllowance, currencyCode: b.currencyCode),
             formatMoney(b.grossPay, currencyCode: b.currencyCode)
         ]
+        if showsWorkplaceColumn {
+            values.insert(row.workplaceName ?? "—", at: 0)
+        }
+        return values
     }
 
     private func totalsValues(_ totals: DayPayBreakdown) -> [String] {
-        [
+        var values = [
             copy.total, "", "", "",
             "",
             formatHours(totals.totalHours),
@@ -942,6 +1010,18 @@ final class ExportManager {
             formatMoney(totals.gasAllowance, currencyCode: totals.currencyCode),
             formatMoney(totals.grossPay, currencyCode: totals.currencyCode)
         ]
+        if showsWorkplaceColumn {
+            values.insert("", at: 0)
+        }
+        return values
+    }
+
+    /// How many *distinct* workplace names actually appear in this report's
+    /// rows — 0 or 1 means a single-workplace export (the normal case today;
+    /// no column), more than 1 means `buildReport` was given sessions from
+    /// several workplaces and a resolver, so every format should label them.
+    private func computeShowsWorkplaceColumn(_ report: ExportReport) -> Bool {
+        Set(report.rows.compactMap(\.workplaceName)).count > 1
     }
 
     private func formatHours(_ hours: Double) -> String {

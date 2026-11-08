@@ -571,6 +571,19 @@ struct HomeWeekSparkline: View {
                 let trailStart = max(0, travel - 0.18)
 
                 ZStack(alignment: .topLeading) {
+                    // Soft gradient area under the curve — behind the bars, so they
+                    // stay crisp on top of it.
+                    if tops.count > 1, ridgeHeights.contains(where: { $0 > 0 }) {
+                        ridgeAreaPath(points: tops, chartHeight: geo.size.height)
+                            .fill(
+                                LinearGradient(
+                                    colors: [accent.opacity(0.26), accent.opacity(0)],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                    }
+
                     HStack(alignment: .bottom, spacing: 0) {
                         ForEach(0..<7, id: \.self) { index in
                             dayColumn(
@@ -608,6 +621,13 @@ struct HomeWeekSparkline: View {
                         // The dot sits on the same curve, at the head of the tail.
                         if travel > 0.001, let point = ridge.trimmedPath(from: 0, to: travel).currentPoint {
                             travelingShine(at: point, pulse: t)
+                        }
+
+                        // A static marker at every day's point on the curve — distinct
+                        // from the single traveling comet above, and always in `accent`
+                        // so it matches the chosen theme (Cyan by default).
+                        ForEach(Array(tops.enumerated()), id: \.offset) { index, point in
+                            dayMarker(at: point, hasHours: hours[index] > 0.01, isToday: highlightedDayIndex == index)
                         }
                     }
                 }
@@ -768,6 +788,23 @@ struct HomeWeekSparkline: View {
         .position(point)
     }
 
+    /// One static marker per day on the curve — dim for a day with no hours,
+    /// bright for one with hours, and ringed + glowing for today, all in `accent`.
+    private func dayMarker(at point: CGPoint, hasHours: Bool, isToday: Bool) -> some View {
+        ZStack {
+            if isToday {
+                Circle()
+                    .stroke(accent, lineWidth: 1.5)
+                    .frame(width: 10, height: 10)
+                    .shadow(color: accent.opacity(0.6), radius: 4)
+            }
+            Circle()
+                .fill(accent.opacity(hasHours ? 1 : 0.35))
+                .frame(width: isToday ? 6 : 5, height: isToday ? 6 : 5)
+        }
+        .position(point)
+    }
+
     /// Tops of bars in chart coordinates (label row sits above the bars).
     private func ridgeHeightFractions(baseHeights: [Double], pulseTime t: Double) -> [Double] {
         guard isTodayShiftOpen, let highlightedDayIndex, baseHeights.indices.contains(highlightedDayIndex) else {
@@ -809,6 +846,18 @@ struct HomeWeekSparkline: View {
                 path.addQuadCurve(to: current, control: current)
             }
         }
+        return path
+    }
+
+    /// `ridgePath`, closed down to the chart's baseline — the fillable area under
+    /// the curve. Same curve, so the gradient's edge always matches the stroke
+    /// exactly; it just carries the two extra corners down to `chartHeight`.
+    private func ridgeAreaPath(points: [CGPoint], chartHeight: CGFloat) -> Path {
+        guard points.count > 1 else { return Path() }
+        var path = ridgePath(points: points)
+        path.addLine(to: CGPoint(x: points[points.count - 1].x, y: chartHeight))
+        path.addLine(to: CGPoint(x: points[0].x, y: chartHeight))
+        path.closeSubpath()
         return path
     }
 

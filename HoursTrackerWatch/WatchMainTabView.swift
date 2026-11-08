@@ -36,6 +36,15 @@ struct WatchMainTabView: View {
         .tint(accentColor)
         .environment(\.locale, locale)
         .environment(\.layoutDirection, layoutDirection)
+        // Belt-and-suspenders alongside the auto-dismiss timer in
+        // `WatchSessionStore.showExportConfirmation`: leaving Export always
+        // clears its status immediately, instead of leaving a stale
+        // confirmation/error to resurface if the user pages back to it.
+        .onChange(of: selectedTab) { oldTab, newTab in
+            if oldTab == .export, newTab != .export {
+                store.clearExportStatus()
+            }
+        }
     }
 
     /// The phone's chosen Home accent color, synced via `WatchSnapshot` — every
@@ -53,7 +62,7 @@ struct WatchMainTabView: View {
     private var layoutDirection: LayoutDirection {
         switch store.language {
         case .hebrew, .arabic: return .rightToLeft
-        case .english, .russian: return .leftToRight
+        case .english, .russian, .thai: return .leftToRight
         }
     }
 }

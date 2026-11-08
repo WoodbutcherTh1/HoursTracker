@@ -18,6 +18,7 @@
 		<string>ar</string>
 		<string>he</string>
 		<string>ru</string>
+		<string>th</string>
 	</array>
 	<key>CFBundleName</key>
 	<string>$(PRODUCT_NAME)</string>
@@ -38,23 +39,6 @@
 	</array>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
-	<key>ITSAppUsesNonExemptEncryption</key>
-	<false/>
-	<key>NSCameraUsageDescription</key>
-	<string>HoursTracker uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times.</string>
-	<key>NSFaceIDUsageDescription</key>
-	<string>HoursTracker uses Face ID only to unlock the app when App Lock is enabled.</string>
-	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-	<string>Always access is used only for optional workplace arrival reminders via region monitoring (one geofence you set). HoursTracker does not continuously track your location in the background.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>HoursTracker uses your location while using the app only to save your workplace when you tap Set Location.</string>
-	<key>NSPhotoLibraryUsageDescription</key>
-	<string>HoursTracker needs photo access only to import a timesheet screenshot or image you choose.</string>
-	<!-- Required for ActivityKit — without it, ActivityAuthorizationInfo().areActivitiesEnabled
-	     is false and the Live Activity silently never starts. Also set in project.yml so
-	     `xcodegen generate` keeps this file in sync. -->
-	<key>NSSupportsLiveActivities</key>
-	<true/>
 	<key>INAlternativeAppNames</key>
 	<array>
 		<dict>
@@ -70,6 +54,20 @@
 			<string>Хаурс Трекер</string>
 		</dict>
 	</array>
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+	<key>NSCameraUsageDescription</key>
+	<string>HoursTracker uses the camera only to photograph a printed timesheet so you can import clock-in and clock-out times.</string>
+	<key>NSFaceIDUsageDescription</key>
+	<string>HoursTracker uses Face ID only to unlock the app when App Lock is enabled.</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>Always access is used only for optional workplace arrival reminders via region monitoring (one geofence you set). HoursTracker does not continuously track your location in the background.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>HoursTracker uses your location while using the app only to save your workplace when you tap Set Location.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>HoursTracker needs photo access only to import a timesheet screenshot or image you choose.</string>
+	<key>NSSupportsLiveActivities</key>
+	<true/>
 	<key>UILaunchScreen</key>
 	<dict>
 		<key>UIColorName</key>

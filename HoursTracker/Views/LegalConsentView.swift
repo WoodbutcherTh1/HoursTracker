@@ -55,6 +55,11 @@ struct LegalConsentView: View {
                         } label: {
                             linkRow(t("terms.title"), icon: "doc.text")
                         }
+                        // Outside a List, NavigationLink's default style tints its whole
+                        // label with the accent color — overriding linkRow's explicit
+                        // `.foregroundStyle(.primary)` on the title text. `.plain` removes
+                        // that implicit tint so only the icon (set explicitly) stays colored.
+                        .buttonStyle(.plain)
                         .accessibilityIdentifier("legal.readTerms")
                         Divider().padding(.leading, 44)
                         NavigationLink {
@@ -62,6 +67,7 @@ struct LegalConsentView: View {
                         } label: {
                             linkRow(t("privacy.title"), icon: "hand.raised.fill")
                         }
+                        .buttonStyle(.plain)
                         .accessibilityIdentifier("legal.readPrivacy")
                     }
                     .background(Color(.secondarySystemGroupedBackground))
@@ -154,7 +160,8 @@ struct LegalConsentView: View {
         LanguageOption(language: .english, name: "English"),
         LanguageOption(language: .hebrew, name: "עברית"),
         LanguageOption(language: .arabic, name: "العربية"),
-        LanguageOption(language: .russian, name: "Русский")
+        LanguageOption(language: .russian, name: "Русский"),
+        LanguageOption(language: .thai, name: "ไทย")
     ]
 
     static func isRTL(_ language: AppLocale.Language) -> Bool {

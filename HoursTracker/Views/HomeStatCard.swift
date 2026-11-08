@@ -1,25 +1,25 @@
 import SwiftUI
 
-/// One Home stat: a static icon, the title, the number and — only when there is a
-/// real target — a thin progress bar. No decorative motion: the bar moves only when
-/// the number does. Without a target the card shows the number alone (never an
-/// empty 0% bar).
+/// One Home stat: icon + title, then a large plain number. Deliberately no
+/// progress ring/bar — that was tried and reverted (too cluttered for three
+/// cards in a row); the Cyan glow treatment lives on the Home door only.
 struct HomeStatCard: View {
     let title: String
     /// Spoken instead of `title` when the card shows a shortened one.
     var accessibilityTitle: String?
     let value: String
     let systemImage: String
-    /// 0…1 against the user's own goal (`HomeStatGoals`), or `nil` for no bar.
+    /// 0…1 against the user's own goal (`HomeStatGoals`) — no longer drawn as a
+    /// ring/bar, kept only so `targetText` still reads out correctly below.
     var progress: Double?
     /// Spoken after the value, e.g. "goal 8:24".
     var targetText: String?
     var accent: Color
+    /// Unused since the ring was removed; kept so call sites don't need to
+    /// change. See `HomeView.ringColor(for:)`.
+    var ringColor: Color?
     var compact: Bool = false
 
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-
-    private var reachedGoal: Bool { (progress ?? 0) >= 1 }
     /// A real goal with nothing done yet (e.g. a workday not started).
     private var notStarted: Bool { progress.map { $0 <= 0 } ?? false }
 
@@ -45,10 +45,6 @@ struct HomeStatCard: View {
                 .lineLimit(1)
                 .minimumScaleFactor(0.6)
                 .contentTransition(.numericText())
-
-            if let progress {
-                bar(progress)
-            }
         }
         .padding(.vertical, compact ? DS.Space.sm : DS.Space.md)
         .padding(.horizontal, compact ? DS.Space.xs + 2 : DS.Space.sm)
@@ -57,26 +53,6 @@ struct HomeStatCard: View {
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(accessibilityTitle ?? title)
         .accessibilityValue(targetText.map { "\(value), \($0)" } ?? value)
-    }
-
-    /// Nothing done yet toward a real goal: the hairline track with a 4pt dot at
-    /// its start — "the day is open", never a bar that reads as full or as 0%.
-    private func bar(_ progress: Double) -> some View {
-        GeometryReader { geo in
-            ZStack(alignment: .leading) {
-                Capsule().fill(DS.Palette.hairline)
-                if progress <= 0 {
-                    Circle().fill(accent).frame(width: 4, height: 4)
-                } else {
-                    Capsule()
-                        .fill(reachedGoal ? DS.Palette.success : accent)
-                        .frame(width: max(4, geo.size.width * progress))
-                }
-            }
-        }
-        .frame(height: 4)
-        .animation(DS.Motion.animation(DS.Motion.state, reduceMotion: reduceMotion), value: progress)
-        .accessibilityHidden(true)
     }
 }
 

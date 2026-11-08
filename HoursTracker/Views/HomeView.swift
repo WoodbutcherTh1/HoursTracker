@@ -10,24 +10,28 @@ struct LiveTimerView: View {
     var excludedSeconds: ((Date) -> TimeInterval)?
     var onTick: ((Date) -> Void)?
 
-    @State private var now = Date()
-    private let timer = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
-
     var body: some View {
-        Text(elapsedFormatted)
-            .htFont(size: fontSize, relativeTo: .largeTitle, weight: .light, design: .rounded)
-            .monospacedDigit()
-            .foregroundStyle(.white)
-            .lineLimit(1)
-            .minimumScaleFactor(0.6)
-            .contentTransition(.numericText())
-            .onReceive(timer) { date in
-                now = date
-                onTick?(date)
-            }
+        // `TimelineView` instead of `Timer.publish`/`@State` — the latter froze after
+        // the app came back from the background: each time this struct got rebuilt,
+        // a brand-new `Timer.publish(...).autoconnect()` instance was created, and the
+        // previous one's subscription didn't always reconnect cleanly afterward.
+        // `TimelineView` has no subscription to lose; it's driven directly by the
+        // system and always reflects the real current date on every redraw.
+        TimelineView(.periodic(from: startDate, by: 1)) { context in
+            Text(elapsedFormatted(now: context.date))
+                .htFont(size: fontSize, relativeTo: .largeTitle, weight: .light, design: .rounded)
+                .monospacedDigit()
+                .foregroundStyle(.white)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+                .contentTransition(.numericText())
+                .onChange(of: context.date) { _, newDate in
+                    onTick?(newDate)
+                }
+        }
     }
 
-    private var elapsedFormatted: String {
+    private func elapsedFormatted(now: Date) -> String {
         let excluded = excludedSeconds?(now) ?? 0
         let elapsed = max(0, Int(now.timeIntervalSince(startDate) - excluded))
         let hours = elapsed / 3600
@@ -246,6 +250,7 @@ struct HomeView: View {
             // bottom instead on shorter screens).
             if !metrics.pinsDoor {
                 clockInDoor(metrics: metrics)
+                dailyGoalLabel
             }
 
             if viewModel.shouldOfferForgotClockIn {
@@ -453,6 +458,7 @@ struct HomeView: View {
             progress: goal?.progress,
             targetText: goal.map { L10n.homeStatsGoal($0.label) },
             accent: homeTheme.accent,
+            ringColor: Self.ringColor(for: kind),
             compact: metrics.isCompact
         )
     }
@@ -462,6 +468,18 @@ struct HomeView: View {
         case .month, .monthPay: return "calendar"
         case .week, .weekPay: return "chart.bar.fill"
         case .today, .todayPay: return "clock"
+        }
+    }
+
+    /// Each card's own progress-ring color, distinct from the user's personalized
+    /// `accent` (which stays on the icon/value) — Month reads Green, Today reads
+    /// Cyan, Week reads Purple, so the row is distinguishable at a glance even
+    /// when every card shares the same accent.
+    private static func ringColor(for kind: HomeStatMetric) -> Color {
+        switch kind {
+        case .month, .monthPay: return Color(red: 0.173, green: 0.961, blue: 0.596)
+        case .today, .todayPay: return Color(red: 0.0, green: 0.898, blue: 1.0)
+        case .week, .weekPay: return Color(red: 0.659, green: 0.333, blue: 0.969)
         }
     }
 
@@ -515,6 +533,7 @@ struct HomeView: View {
             if !metrics.pinsDoor {
                 breakControl(session: session, metrics: metrics)
                 clockOutDoor(session: session, metrics: metrics)
+                dailyGoalLabel
             }
 
             Spacer(minLength: 4)
@@ -544,6 +563,17 @@ struct HomeView: View {
         .frame(height: metrics.doorHeight)
         .background(DSHeroGlow(color: homeTheme.accent))
         .frame(maxWidth: .infinity)
+    }
+
+    /// Today's hours goal under the door — only shown when the user actually set
+    /// one (`HomeStatGoals`); same figure the Today stat card's progress ring reads.
+    @ViewBuilder
+    private var dailyGoalLabel: some View {
+        if let goal = statGoal(for: .today) {
+            Text(L10n.homeStatsGoal(goal.label))
+                .dsFont(.meta, weight: .semibold)
+                .foregroundStyle(DS.Palette.textTertiary)
+        }
     }
 
     private func breakControl(session: WorkSession, metrics: HomeLayoutMetrics) -> some View {

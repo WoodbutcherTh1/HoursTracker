@@ -146,24 +146,23 @@ private struct EmploymentMoveSheet: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section {
+                Section(footer: Text(L10n.employmentMoveNote)) {
                     DatePicker(L10n.employmentMoveDate, selection: $date, displayedComponents: .date)
                     amountRow(L10n.employmentMoveRate, value: $rate)
                     amountRow(L10n.employmentMoveGas, value: $gas)
-                } footer: {
-                    Text(L10n.employmentMoveNote)
                 }
-                Section {
+                Section(footer: Text(L10n.employmentPensionHint)) {
                     Toggle(L10n.employmentPensionToggle, isOn: $pensionOn)
                     if pensionOn {
                         percentRow(L10n.employmentPensionEmployee, value: $pension.employeePercent)
                         percentRow(L10n.employmentPensionEmployer, value: $pension.employerPercent)
                         percentRow(L10n.employmentSeverance, value: $pension.severancePercent)
                     }
-                } footer: {
-                    Text(L10n.employmentPensionHint)
                 }
             }
+            .transaction { $0.disablesAnimations = true }
+            .scrollContentBackground(.hidden)
+            .background(AppBackgroundTheme.shared.background.ignoresSafeArea())
             .navigationTitle(L10n.employmentMoveTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {

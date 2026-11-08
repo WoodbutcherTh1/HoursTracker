@@ -104,6 +104,33 @@ final class WatchSessionStore: NSObject, ObservableObject {
         )
     }
 
+    /// Shows the "sent to iPhone" confirmation and clears it on its own after a
+    /// few seconds — this message used to stay on screen forever, since nothing
+    /// ever cleared it short of relaunching the app. A generation token means an
+    /// older timer can never wipe out a newer confirmation it raced with.
+    private var exportConfirmationGeneration = 0
+
+    @MainActor
+    private func showExportConfirmation(_ message: String) {
+        exportConfirmationGeneration += 1
+        let generation = exportConfirmationGeneration
+        lastExportConfirmation = message
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) { [weak self] in
+            guard let self, self.exportConfirmationGeneration == generation else { return }
+            self.lastExportConfirmation = nil
+        }
+    }
+
+    /// Clears any confirmation/error left over from the Export tab — called when
+    /// the Watch switches away from it, so leaving the tab always leaves a clean
+    /// slate rather than relying solely on the timer above.
+    @MainActor
+    func clearExportStatus() {
+        exportConfirmationGeneration += 1
+        lastExportConfirmation = nil
+        lastErrorMessage = nil
+    }
+
     /// `rangeKey` is "thisMonth" or "thisYear" — see `WatchExportView`.
     func requestExport(rangeKey: String) {
         guard WCSession.isSupported() else { return }
@@ -120,7 +147,7 @@ final class WatchSessionStore: NSObject, ObservableObject {
                 Task { @MainActor in
                     if ack.success {
                         self?.lastErrorMessage = nil
-                        self?.lastExportConfirmation = AppLocale.tr("watch.exportSent")
+                        self?.showExportConfirmation(AppLocale.tr("watch.exportSent"))
                     } else {
                         self?.lastErrorMessage = ack.message ?? AppLocale.tr("watch.exportFailed")
                     }

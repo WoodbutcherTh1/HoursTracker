@@ -111,6 +111,19 @@ struct HoursActivityAttributes: ActivityAttributes {
         var paidClockStart: Date? = nil
         /// Whether `estimatedPay` is net (true) or gross — follows Home's picker.
         var payIsNet: Bool? = nil
+        /// Gross/net pay at the moment this state was pushed, and the curve's own
+        /// local gross/net slope (ILS/second) at that moment — lets a `TimelineView`
+        /// extrapolate `initialPay + ratePerSecond * secondsSincePush` without
+        /// re-deriving pay from a different, simpler formula. The app re-pushes
+        /// every ~60s (or sooner on a tier change), which keeps the drift between
+        /// pushes to at most a minute of the current tier's own (linear) rate.
+        var initialGrossPay: Double? = nil
+        var initialNetPay: Double? = nil
+        var grossRatePerSecond: Double? = nil
+        var netRatePerSecond: Double? = nil
+        /// When `initialGrossPay`/`initialNetPay` were read — the anchor for
+        /// `secondsSincePush`. Nil while paused (pay is frozen, no rate to apply).
+        var payPushedAt: Date? = nil
 
         var isOnBreak: Bool { breakStart != nil }
 

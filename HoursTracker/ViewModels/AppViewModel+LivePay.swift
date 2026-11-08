@@ -50,7 +50,20 @@ extension AppViewModel {
         let paidNow = session.paidElapsedSeconds(now: now, breaksArePaid: settings.breaksArePaid)
         let isPaused = session.isOnBreak && !settings.breaksArePaid
         let current = liveBreakdown(for: session, at: now)
-        var points = [LivePayCurve.Point(paidSeconds: paidNow, gross: current.grossPay, net: current.netPay)]
+        var firstGross = current.grossPay
+        var firstNet = current.netPay
+
+        // Clamp the curve's own "now" point to what this shift has already shown —
+        // a rebuild (a break starting/ending, a settings edit) re-prices the whole
+        // shift from scratch, and that fresh price is not guaranteed to land above
+        // what the LAST curve already displayed. Without this, a rebuild could
+        // visibly drop the figure a push after it was already shown higher.
+        if let mark = livePayHighWaterMark, mark.sessionID == session.id {
+            firstGross = max(firstGross, mark.gross)
+            firstNet = max(firstNet, mark.net)
+        }
+
+        var points = [LivePayCurve.Point(paidSeconds: paidNow, gross: firstGross, net: firstNet)]
 
         if !isPaused {
             let steps = Int(Self.livePayCurveHorizon / Self.livePayCurveStep)
@@ -61,6 +74,19 @@ extension AppViewModel {
                 points.append(.init(paidSeconds: paidNow + ahead, gross: breakdown.grossPay, net: breakdown.netPay))
             }
         }
+
+        // `OvertimeCalculator` re-prices the whole shift from scratch at every sample
+        // (tiers, tax) rather than adding a marginal amount, so two samples a few
+        // minutes apart are not guaranteed to come out perfectly monotonic (e.g. a
+        // cent of rounding at a tier boundary). Every surface reads this same curve,
+        // so clamping it here — pay can only hold or rise, never fall, moving forward
+        // in time — is the one place that guarantees it everywhere at once.
+        for i in 1..<points.count {
+            points[i].gross = max(points[i].gross, points[i - 1].gross)
+            points[i].net = max(points[i].net, points[i - 1].net)
+        }
+
+        livePayHighWaterMark = (sessionID: session.id, gross: points[0].gross, net: points[0].net)
 
         return LivePayCurve(
             paidClockStart: now.addingTimeInterval(-paidNow),

@@ -1,10 +1,15 @@
 # Xcode
 build/
+build-device/
 DerivedData/
 .derivedData/
 *.xcuserstate
 *.xcscmblueprint
 xcuserdata/
+# Stray `xcodebuild ... > build.log`-style redirects (found a 900KB one
+# untracked at the repo root during the 2026-11-08 cleanup pass).
+build.log
+*.build.log
 
 # Local screenshot capture scratch space (raw simulator PNGs, build caches
 # from ad-hoc marketing shoots) — never meant to be committed.

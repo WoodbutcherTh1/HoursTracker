@@ -161,6 +161,10 @@ struct DSHeroGlow: View {
             endRadius: 160
         )
         .frame(width: 320, height: 320)
+        // Sits behind the door/live card on every Home redraw; flattening it
+        // to one GPU-composited layer avoids re-rasterizing the gradient on
+        // every frame those views animate.
+        .drawingGroup()
         .allowsHitTesting(false)
         .accessibilityHidden(true)
     }
