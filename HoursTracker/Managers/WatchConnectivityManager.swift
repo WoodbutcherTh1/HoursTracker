@@ -126,18 +126,33 @@ extension WatchConnectivityManager: WCSessionDelegate {
     /// button uses, then hands the file to `AppViewModel.pendingWatchExport` so the
     /// phone presents its native share sheet the next time Export is open — the
     /// Watch cannot present `UIActivityViewController` itself.
+    /// `WatchExportView` only ever sends these two literal keys. Matching them
+    /// by name (not falling through an implicit `default:` for "whatever isn't
+    /// thisYear") means a request this doesn't recognize is a visible, reported
+    /// error instead of silently resolving to a range the user didn't ask for.
+    private enum WatchExportRangeKey: String {
+        case thisMonth
+        case thisYear
+    }
+
     @MainActor
     private func handleExportRequest(
         _ rangeKey: String?,
         viewModel: AppViewModel,
         replyHandler: @escaping ([String: Any]) -> Void
     ) {
+        guard let rangeKey, let key = WatchExportRangeKey(rawValue: rangeKey) else {
+            replyHandler(WatchAck(success: false, message: L10n.errorTitle).asMessage())
+            return
+        }
         let calendar = Calendar.current
         let range: ExportDateRange
-        switch rangeKey {
-        case "thisYear":
+        switch key {
+        case .thisYear:
             range = .year(calendar.component(.year, from: Date()))
-        default:
+        case .thisMonth:
+            // Same payroll-period math the phone's own Export tab uses for its
+            // "This Month" — a payroll period, not necessarily a calendar month.
             let period = HistoryPeriodHelper.payrollPeriod(containing: Date(), startDay: viewModel.activeSettings.payrollStartDay)
             range = .custom(from: period.start, to: period.end)
         }

@@ -26,29 +26,29 @@ struct HoursTrackerApp: App {
                     LegalConsentView(consent: legal, viewModel: viewModel)
                         .id(appLanguage.preference)
                         .transition(.opacity)
+                        .animation(.easeInOut(duration: 0.25), value: legal.isAccepted)
                 }
 
                 if appLock.isEnabled && appLock.isLocked {
                     AppLockView(controller: appLock)
                         .transition(.opacity)
+                        .animation(.easeInOut(duration: 0.2), value: appLock.isLocked)
                 }
 
                 // Always redact for app-switcher snapshots, regardless of App Lock.
                 if scenePhase != .active {
                     PrivacyOverlayView()
                         .transition(.opacity)
+                        .animation(.easeInOut(duration: 0.15), value: scenePhase)
                 }
 
                 if showLaunchSplash {
                     LaunchHourglassSplash()
                         .transition(.opacity)
                         .zIndex(100)
+                        .animation(.easeInOut(duration: 0.45), value: showLaunchSplash)
                 }
             }
-            .animation(.easeInOut(duration: 0.2), value: appLock.isLocked)
-            .animation(.easeInOut(duration: 0.25), value: legal.isAccepted)
-            .animation(.easeInOut(duration: 0.15), value: scenePhase)
-            .animation(.easeInOut(duration: 0.45), value: showLaunchSplash)
             .environment(\.locale, appLanguage.locale)
             .environment(\.layoutDirection, appLanguage.layoutDirection)
             // HoursTracker is a dark app: Home, the payslip screens, the lock screen and
@@ -101,6 +101,12 @@ struct HoursTrackerApp: App {
                     HomeAccentTheme.shared.applyUIKitTint()
                     SettingsUnsavedReminder.cancel()
                     viewModel.retryLoadIfNeeded()
+                    // The live pay curve prices against the settings/session list at
+                    // the moment it was built — rebuild it the instant the app comes
+                    // back, so a shift left open in the background doesn't show a pay
+                    // figure priced against stale inputs until something else happens
+                    // to trigger a rebuild.
+                    viewModel.refreshLiveCurve()
                     viewModel.syncNow()
                     viewModel.refreshShiftReminders()
                     viewModel.takeDailyBackupIfNeeded()
@@ -111,6 +117,21 @@ struct HoursTrackerApp: App {
                         Task { await appLock.unlock() }
                     }
                 } else if phase == .background {
+                    // iOS suspends the app shortly after this, which stops the 60s
+                    // `syncWidget()` refresh loop — the Live Activity's curve (and
+                    // the slope it extrapolates from) is then frozen at whatever it
+                    // was when suspension hit. One last push right before that,
+                    // priced at this exact instant, gives the Live Activity the
+                    // freshest possible starting point for however long the device
+                    // actually keeps it suspended. This is a mitigation, not a fix —
+                    // the real fix for a shift left open for a long background
+                    // stretch is ActivityKit push updates (APNs-delivered
+                    // `ContentState`, which land even while the app is fully
+                    // suspended); there is no push infrastructure in this project
+                    // yet, so that remains a future backend task.
+                    if viewModel.activeSession != nil {
+                        viewModel.syncWidget()
+                    }
                     ExportTempFileStore.wipeAll()
                     if SettingsUnsavedChanges.shared.hasChanges {
                         SettingsUnsavedReminder.schedule()

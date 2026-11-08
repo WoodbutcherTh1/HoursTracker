@@ -8,6 +8,7 @@ enum AppLanguageOption: String, CaseIterable, Identifiable, Equatable {
     case hebrew
     case arabic
     case russian
+    case thai
 
     var id: String { rawValue }
 
@@ -23,6 +24,7 @@ enum AppLanguageOption: String, CaseIterable, Identifiable, Equatable {
         case .hebrew: return "עברית"
         case .arabic: return "العربية"
         case .russian: return "Русский"
+        case .thai: return "ไทย"
         }
     }
 
@@ -34,6 +36,7 @@ enum AppLanguageOption: String, CaseIterable, Identifiable, Equatable {
         case .hebrew: return "he"
         case .arabic: return "ar"
         case .russian: return "ru"
+        case .thai: return "th"
         }
     }
 
@@ -51,13 +54,15 @@ enum AppLanguageOption: String, CaseIterable, Identifiable, Equatable {
             return Locale(identifier: "ar")
         case .russian:
             return Locale(identifier: "ru")
+        case .thai:
+            return Locale(identifier: "th")
         }
     }
 
     var layoutDirection: LayoutDirection {
         switch AppLocale.resolve(preference: self, preferredLanguages: Locale.preferredLanguages) {
         case .hebrew, .arabic: return .rightToLeft
-        case .english, .russian: return .leftToRight
+        case .english, .russian, .thai: return .leftToRight
         }
     }
 

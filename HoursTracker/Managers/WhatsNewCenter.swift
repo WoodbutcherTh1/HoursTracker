@@ -5,10 +5,19 @@ struct WhatsNewItem: Identifiable {
     let icon: String
     let title: [String: String]
     let text: [String: String]
+    /// Optional small, dim line under `text` — e.g. spelling out "5 languages" as
+    /// the actual 5 names instead of leaving the reader to guess which ones.
+    var subtitle: [String: String]? = nil
+    /// Optional emphasized line shown as-is, in its own fixed script, regardless of
+    /// the reader's in-app language — e.g. a Thai greeting on the languages card,
+    /// so a Thai reader notices the update immediately even if they haven't
+    /// switched the app's language yet.
+    var nativeHighlight: String? = nil
     var id: String { title["en"] ?? icon }
 
     func localizedTitle(_ language: String) -> String { title[language] ?? title["en"] ?? "" }
     func localizedText(_ language: String) -> String { text[language] ?? text["en"] ?? "" }
+    func localizedSubtitle(_ language: String) -> String? { subtitle?[language] ?? subtitle?["en"] }
 }
 
 struct WhatsNewRelease {
@@ -17,13 +26,130 @@ struct WhatsNewRelease {
 }
 
 /// The release notes. Add an entry for every `MARKETING_VERSION` you ship; a version
-/// without an entry shows no pop-up. Languages: en (default), he, ar, ru.
+/// without an entry shows no pop-up. Languages: en (default), he, ar, ru, th —
+/// `localizedTitle`/`localizedText` fall back to en for any release written before
+/// a given language existed.
 enum WhatsNewContent {
     static func release(for version: String) -> WhatsNewRelease? {
         all.first { $0.version == version }
     }
 
     static let all: [WhatsNewRelease] = [
+        WhatsNewRelease(version: "1.11", items: [
+            WhatsNewItem(
+                icon: "paintpalette.fill",
+                title: [
+                    "en": "A fresh Cyan & Green look",
+                    "he": "מראה חדש בציאן וירוק",
+                    "ar": "مظهر جديد بالسماوي والأخضر",
+                    "ru": "Новый облик: бирюзовый и зелёный",
+                    "th": "ดีไซน์ใหม่โทนฟ้าและเขียว"
+                ],
+                text: [
+                    "en": "We introduced a stunning new theme — and you can still fully customize your own colors.",
+                    "he": "הצגנו ערכת נושא מהממת חדשה - ועדיין אפשר להתאים אישית את הצבעים שלכם במלואם.",
+                    "ar": "قدّمنا سمة جديدة مذهلة — ولا يزال بإمكانك تخصيص ألوانك الخاصة بالكامل.",
+                    "ru": "Мы представили потрясающую новую тему — а свои цвета по-прежнему можно настроить полностью.",
+                    "th": "เราเปิดตัวธีมใหม่สุดสวย — และคุณยังคงปรับแต่งสีของคุณเองได้เต็มที่"
+                ]
+            ),
+            WhatsNewItem(
+                icon: "globe",
+                title: [
+                    "en": "Now in 5 languages",
+                    "he": "עכשיו ב-5 שפות",
+                    "ar": "الآن بـ 5 لغات",
+                    "ru": "Теперь на 5 языках",
+                    "th": "ตอนนี้รองรับ 5 ภาษาแล้ว"
+                ],
+                text: [
+                    "en": "Welcome to our Thai-speaking users — the whole app now speaks your language.",
+                    "he": "ברוכים הבאים למשתמשים דוברי התאית - כל האפליקציה מדברת עכשיו בשפתכם.",
+                    "ar": "أهلاً بمستخدمينا الناطقين بالتايلاندية — التطبيق بالكامل يتحدث الآن بلغتكم.",
+                    "ru": "Добро пожаловать, тайскоязычные пользователи — всё приложение теперь говорит на вашем языке.",
+                    "th": "ยินดีต้อนรับผู้ใช้ชาวไทย — แอปทั้งหมดตอนนี้พูดภาษาของคุณแล้ว"
+                ],
+                subtitle: [
+                    "en": "Hebrew, Arabic, English, Russian, and Thai",
+                    "he": "עברית, ערבית, אנגלית, רוסית ותאילנדית",
+                    "ar": "العبرية، العربية، الإنجليزية، الروسية، والتايلاندية",
+                    "ru": "иврит, арабский, английский, русский и тайский",
+                    "th": "ฮีบรู อาหรับ อังกฤษ รัสเซีย และไทย"
+                ],
+                // Always in Thai, regardless of the reader's own in-app language —
+                // a Thai reader notices this the moment the card appears, even
+                // before they've found the language switch themselves.
+                nativeHighlight: "ยินดีต้อนรับผู้ใช้ที่พูดภาษาไทย! ตอนนี้แอปของเรารองรับภาษาของคุณแล้ว"
+            ),
+            WhatsNewItem(
+                icon: "square.and.arrow.up.fill",
+                title: [
+                    "en": "Faster, smarter export",
+                    "he": "ייצוא מהיר וחכם יותר",
+                    "ar": "تصدير أسرع وأذكى",
+                    "ru": "Экспорт быстрее и умнее",
+                    "th": "ส่งออกเร็วและฉลาดขึ้น"
+                ],
+                text: [
+                    "en": "Export your reports in one tap. Everything fits on one screen, empty fields are hidden, and an old contractor's name disappears automatically if you switched jobs.",
+                    "he": "ייצוא הדוחות בלחיצה אחת. הכול נכנס למסך אחד, שדות ריקים מוסתרים, ושם קבלן ישן נעלם אוטומטית אם עברתם מקום עבודה.",
+                    "ar": "صدّر تقاريرك بلمسة واحدة. كل شيء يناسب شاشة واحدة، الحقول الفارغة مخفية، واسم مقاول قديم يختفي تلقائيًا إذا غيّرت وظيفتك.",
+                    "ru": "Экспортируйте отчёты одним касанием. Всё помещается на одном экране, пустые поля скрыты, а имя старого подрядчика исчезает автоматически при смене работы.",
+                    "th": "ส่งออกรายงานของคุณได้ด้วยการแตะครั้งเดียว ทุกอย่างพอดีในหน้าจอเดียว ช่องว่างถูกซ่อน และชื่อผู้รับเหมาเดิมจะหายไปอัตโนมัติเมื่อคุณเปลี่ยนงาน"
+                ]
+            ),
+            WhatsNewItem(
+                icon: "person.text.rectangle.fill",
+                title: [
+                    "en": "A redesigned Account & Settings",
+                    "he": "חשבון והגדרות בעיצוב חדש",
+                    "ar": "حساب وإعدادات بتصميم جديد",
+                    "ru": "Обновлённые профиль и настройки",
+                    "th": "โปรไฟล์และการตั้งค่าออกแบบใหม่"
+                ],
+                text: [
+                    "en": "Your profile now has a unique ID (HT-XXXXX). Settings are cleaner, with a search bar to find anything instantly.",
+                    "he": "לפרופיל שלכם יש עכשיו מזהה ייחודי (HT-XXXXX). ההגדרות נקיות יותר, עם שורת חיפוש למציאת כל דבר מיד.",
+                    "ar": "لملفك الشخصي الآن معرّف فريد (HT-XXXXX). الإعدادات أنظف، مع شريط بحث للعثور على أي شيء فورًا.",
+                    "ru": "У вашего профиля теперь есть уникальный ID (HT-XXXXX). Настройки стали чище, с поиском, который сразу находит нужное.",
+                    "th": "โปรไฟล์ของคุณตอนนี้มีรหัสเฉพาะตัว (HT-XXXXX) การตั้งค่าดูสะอาดตาขึ้น พร้อมแถบค้นหาที่หาทุกอย่างได้ทันที"
+                ]
+            ),
+            WhatsNewItem(
+                icon: "applewatch",
+                title: [
+                    "en": "Watch & widget upgrades",
+                    "he": "שדרוגים לשעון ולווידג'טים",
+                    "ar": "ترقيات للساعة والودجت",
+                    "ru": "Обновления часов и виджетов",
+                    "th": "อัปเกรดนาฬิกาและวิดเจ็ต"
+                ],
+                text: [
+                    "en": "Your Watch and Home Screen widgets now show 3 distinct states — Idle, Working, Completed — with beautiful colors.",
+                    "he": "הווידג'טים בשעון ובמסך הבית מציגים עכשיו 3 מצבים ברורים - ממתין, עובד, הושלם - בצבעים יפהפיים.",
+                    "ar": "ودجت الساعة والشاشة الرئيسية تعرض الآن 3 حالات واضحة — خامل، يعمل، مكتمل — بألوان جميلة.",
+                    "ru": "Виджеты на часах и на главном экране теперь показывают 3 чётких состояния — ожидание, работа, завершено — в красивых цветах.",
+                    "th": "วิดเจ็ตบน Apple Watch และหน้าจอหลักตอนนี้แสดง 3 สถานะชัดเจน — ไม่ได้ทำงาน กำลังทำงาน เสร็จสิ้น — ด้วยสีสันสวยงาม"
+                ]
+            ),
+            WhatsNewItem(
+                icon: "wand.and.rays",
+                title: [
+                    "en": "A smarter Smart Scanner",
+                    "he": "סורק חכם, חכם יותר",
+                    "ar": "ماسح ذكي أكثر ذكاءً",
+                    "ru": "Умный сканер стал умнее",
+                    "th": "สแกนเนอร์อัจฉริยะที่ฉลาดยิ่งขึ้น"
+                ],
+                text: [
+                    "en": "The AI Scanner now reads Israeli payslips (Bruto/Neto) more accurately, and you can pinch to zoom in on any preview image.",
+                    "he": "הסורק החכם קורא עכשיו תלושי שכר ישראליים (ברוטו/נטו) בדיוק רב יותר, ואפשר לצבוט להתקרבות על כל תמונת תצוגה מקדימה.",
+                    "ar": "الماسح الذكي يقرأ الآن قسائم الرواتب الإسرائيلية (إجمالي/صافي) بدقة أكبر، ويمكنك استخدام إيماءة القرص للتكبير على أي صورة معاينة.",
+                    "ru": "ИИ-сканер теперь точнее читает израильские расчётные листы (брутто/нетто), а любое изображение предпросмотра можно увеличить двумя пальцами.",
+                    "th": "สแกนเนอร์ AI อ่านสลิปเงินเดือนของอิสราเอล (Bruto/Neto) ได้แม่นยำขึ้น และคุณสามารถบีบนิ้วเพื่อซูมดูภาพตัวอย่างได้"
+                ]
+            )
+        ]),
         WhatsNewRelease(version: "1.10", items: [
             WhatsNewItem(
                 icon: "bubble.left.and.bubble.right.fill",

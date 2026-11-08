@@ -74,4 +74,14 @@ struct LivePayCurve: Codable, Equatable {
         let t = (seconds - a.paidSeconds) / span
         return (a.gross + (b.gross - a.gross) * t, a.net + (b.net - a.net) * t)
     }
+
+    /// The curve's local slope (ILS/second, gross and net) at `date` — the rate the
+    /// Live Activity extrapolates from between pushes. Sampled 60s apart: `pay(at:)`
+    /// is piecewise-linear, so this is the exact slope of whichever tier the shift
+    /// is currently in, not an approximation of it.
+    func ratePerSecond(at date: Date) -> (gross: Double, net: Double) {
+        let now = pay(at: date)
+        let ahead = pay(at: date.addingTimeInterval(60))
+        return ((ahead.gross - now.gross) / 60, (ahead.net - now.net) / 60)
+    }
 }

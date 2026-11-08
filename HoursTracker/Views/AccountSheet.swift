@@ -1,3 +1,4 @@
+import AuthenticationServices
 import SwiftUI
 import PhotosUI
 
@@ -71,6 +72,7 @@ private struct AccountFlowView: View {
         switch step {
         case .welcome:
             AccountWelcomeView(
+                viewModel: viewModel,
                 onCreateAccount: { step = .signUp },
                 onSignIn: { step = .signIn }
             )
@@ -347,20 +349,59 @@ private struct PremiumPrimaryButtonStyle: ButtonStyle {
     }
 }
 
-/// Transparent, quiet — for the one secondary action next to a primary CTA.
-private struct PremiumSecondaryButtonStyle: ButtonStyle {
+/// Fixed Cyan→Green gradient — the brief calls for this one specific button
+/// (Account's "Sync Now"), distinct from the personalized-accent style above.
+private struct CyanGreenGradientButtonStyle: ButtonStyle {
+    var isDisabled: Bool = false
+    var compact: Bool = false
+
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
-            .font(.subheadline.weight(.semibold))
+            .font(compact ? .subheadline.weight(.bold) : .headline)
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
+            .foregroundStyle(.black)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, compact ? 11 : 16)
+            .background(
+                RoundedRectangle(cornerRadius: compact ? 12 : 16, style: .continuous)
+                    .fill(
+                        LinearGradient(
+                            colors: [Color(hex: "00E5FF"), Color(hex: "26F273")],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                        .opacity(isDisabled ? 0.35 : 1)
+                    )
+            )
+            .shadow(
+                color: isDisabled ? .clear : Color(hex: "26F273").opacity(configuration.isPressed ? 0.2 : 0.4),
+                radius: configuration.isPressed ? 6 : 14,
+                y: configuration.isPressed ? 2 : 7
+            )
+            .scaleEffect(configuration.isPressed ? 0.98 : 1)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
+    }
+}
+
+/// Transparent, quiet — for the one secondary action next to a primary CTA.
+private struct PremiumSecondaryButtonStyle: ButtonStyle {
+    var compact: Bool = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(compact ? .caption.weight(.semibold) : .subheadline.weight(.semibold))
+            .lineLimit(1)
+            .minimumScaleFactor(0.85)
             .foregroundStyle(.white.opacity(0.85))
             .frame(maxWidth: .infinity)
-            .padding(.vertical, 14)
+            .padding(.vertical, compact ? 11 : 14)
             .background(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: compact ? 12 : 14, style: .continuous)
                     .fill(Color.white.opacity(configuration.isPressed ? 0.1 : 0.06))
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                RoundedRectangle(cornerRadius: compact ? 12 : 14, style: .continuous)
                     .stroke(Color.white.opacity(0.12), lineWidth: 1)
             )
             .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
@@ -404,41 +445,314 @@ private struct GlowIconBadge: View {
 
 // MARK: - Welcome
 
+/// Premium dark welcome screen: a glowing Cyan/Green hourglass header, three
+/// stacked social sign-in options, and a quiet "already have an account?"
+/// footer. Google signs in through Supabase's hosted OAuth page; Apple uses
+/// the native `ASAuthorizationController` flow — both call into
+/// `SupabaseAuthManager`. Apple's capability/entitlement isn't enabled yet
+/// (needs a paid Apple Developer account, see docs/SOCIAL_SIGN_IN.md), so
+/// tapping it compiles and runs but currently fails at the OS layer. Email
+/// routes into the existing, fully-functional Supabase email flow below.
 private struct AccountWelcomeView: View {
-    @ObservedObject private var theme = HomeAccentTheme.shared
+    @ObservedObject var viewModel: AppViewModel
+    @Environment(\.dismiss) private var dismiss
     let onCreateAccount: () -> Void
     let onSignIn: () -> Void
 
+    @State private var isSigningInWithApple = false
+    @State private var isSigningInWithGoogle = false
+    @State private var errorMessage: String?
+    /// Kept alive for the duration of one Apple request — `ASAuthorizationController`
+    /// needs its delegate to outlive the async call it's bridging into a continuation.
+    @State private var appleCoordinator: AppleSignInCoordinator?
+
+    private static let cyan = Color(hex: "00E5FF")
+    private static let green = Color(hex: "26F273")
+
     var body: some View {
-        VStack(spacing: 28) {
+        VStack(spacing: 32) {
             Spacer(minLength: 12)
 
-            GlowIconBadge(systemName: "person.crop.circle.badge.checkmark", accent: theme.accent)
+            VStack(spacing: 18) {
+                Rectangle()
+                    .fill(Color.white.opacity(0.12))
+                    .frame(width: 40, height: 1)
 
-            VStack(spacing: 10) {
-                Text(L10n.accountSignedOutTitle)
-                    .font(.title2.weight(.bold))
-                    .foregroundStyle(.white)
-                Text(L10n.accountSignedOutHint)
-                    .font(.subheadline)
-                    .foregroundStyle(.white.opacity(0.55))
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 28)
+                Image(systemName: "hourglass")
+                    .font(.system(size: 44, weight: .medium))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Self.cyan, Self.green],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .shadow(color: Self.cyan.opacity(0.5), radius: 18)
+                    .shadow(color: Self.green.opacity(0.35), radius: 12)
+                    .accessibilityHidden(true)
+
+                Rectangle()
+                    .fill(Color.white.opacity(0.12))
+                    .frame(width: 40, height: 1)
             }
 
+            Text(L10n.accountWelcomeHeroTitle)
+                .font(.system(size: 28, weight: .bold, design: .rounded))
+                .foregroundStyle(.white)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, 24)
+
             Spacer(minLength: 12)
 
-            VStack(spacing: 12) {
-                Button(L10n.accountCreateButton, action: onCreateAccount)
-                    .buttonStyle(PremiumPrimaryButtonStyle(accent: theme.accent))
+            VStack(spacing: 16) {
+                Button {
+                    signInWithApple()
+                } label: {
+                    HStack(spacing: 10) {
+                        if isSigningInWithApple {
+                            ProgressView().tint(.white)
+                        } else {
+                            Image(systemName: "apple.logo")
+                        }
+                        Text(L10n.accountContinueWithApple)
+                    }
+                }
+                .buttonStyle(SocialLoginButtonStyle(
+                    fill: Color.white.opacity(0.1),
+                    border: Color.white.opacity(0.3),
+                    foreground: .white
+                ))
+                .disabled(isSigningInWithApple || isSigningInWithGoogle)
 
-                Button(L10n.accountAlreadyHaveAccount, action: onSignIn)
-                    .buttonStyle(PremiumSecondaryButtonStyle())
+                Button {
+                    signInWithGoogle()
+                } label: {
+                    HStack(spacing: 10) {
+                        if isSigningInWithGoogle {
+                            ProgressView().tint(.white)
+                        } else {
+                            // Placeholder until a real Google "G" asset is added —
+                            // no bundled brand mark exists in this project yet.
+                            Image(systemName: "g.circle")
+                        }
+                        Text(L10n.accountContinueWithGoogle)
+                    }
+                }
+                .buttonStyle(SocialLoginButtonStyle(
+                    fill: Color(white: 0.15),
+                    border: .clear,
+                    foreground: .white
+                ))
+                .disabled(isSigningInWithGoogle || isSigningInWithApple)
+
+                if let errorMessage {
+                    Text(errorMessage)
+                        .font(.caption)
+                        .foregroundStyle(.red)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Button(action: onCreateAccount) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "envelope.fill")
+                        Text(L10n.accountContinueWithEmail)
+                    }
+                }
+                .buttonStyle(SocialLoginButtonStyle(
+                    fill: .clear,
+                    border: Color.cyan,
+                    borderWidth: 2,
+                    foreground: .cyan
+                ))
             }
             .padding(.horizontal, 24)
+
+            Button(action: onSignIn) {
+                (
+                    Text(L10n.accountAlreadyHaveAccountQuestion + " ")
+                        .foregroundStyle(.white.opacity(0.5))
+                    + Text(L10n.accountLogInAction)
+                        .foregroundStyle(.white.opacity(0.85))
+                        .fontWeight(.bold)
+                )
+                .font(.subheadline)
+            }
+            .buttonStyle(.plain)
             .padding(.bottom, 24)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    // Requires the Sign in with Apple capability + entitlement, which in turn
+    // requires a paid Apple Developer Program membership — not added yet (see
+    // docs/SOCIAL_SIGN_IN.md). This compiles and is harmless on a free team;
+    // it will throw an ASAuthorizationError at runtime until that capability
+    // is enabled on the App ID.
+    private func signInWithApple() {
+        errorMessage = nil
+        isSigningInWithApple = true
+        let nonce = AppleSignInNonce.make()
+        let coordinator = AppleSignInCoordinator()
+        appleCoordinator = coordinator
+        Task {
+            do {
+                let authorization = try await coordinator.perform(rawNonce: nonce)
+                guard
+                    let credential = authorization.credential as? ASAuthorizationAppleIDCredential,
+                    let tokenData = credential.identityToken,
+                    let idToken = String(data: tokenData, encoding: .utf8)
+                else {
+                    throw AccountAuthError.server(L10n.accountErrorSocial)
+                }
+                try await SupabaseAuthManager.shared.signInWithApple(
+                    idToken: idToken,
+                    rawNonce: nonce,
+                    fullName: credential.fullName
+                )
+                let restored = await SocialSignInFinisher.finish(viewModel: viewModel)
+                await MainActor.run {
+                    isSigningInWithApple = false
+                    appleCoordinator = nil
+                    viewModel.showSuccessToast(restored ? L10n.accountRestoreSuccess : L10n.accountSyncSuccess)
+                    dismiss()
+                }
+            } catch let error as ASAuthorizationError where error.code == .canceled {
+                await MainActor.run {
+                    isSigningInWithApple = false
+                    appleCoordinator = nil
+                }
+            } catch {
+                await MainActor.run {
+                    isSigningInWithApple = false
+                    appleCoordinator = nil
+                    errorMessage = error.localizedDescription.isEmpty ? L10n.accountErrorSocial : error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func signInWithGoogle() {
+        errorMessage = nil
+        isSigningInWithGoogle = true
+        Task {
+            do {
+                try await SupabaseAuthManager.shared.signInWithGoogle()
+                let restored = await SocialSignInFinisher.finish(viewModel: viewModel)
+                await MainActor.run {
+                    isSigningInWithGoogle = false
+                    viewModel.showSuccessToast(restored ? L10n.accountRestoreSuccess : L10n.accountSyncSuccess)
+                    dismiss()
+                }
+            } catch AccountAuthError.cancelled {
+                await MainActor.run { isSigningInWithGoogle = false }
+            } catch {
+                await MainActor.run {
+                    isSigningInWithGoogle = false
+                    errorMessage = error.localizedDescription.isEmpty ? L10n.accountErrorSocial : error.localizedDescription
+                }
+            }
+        }
+    }
+}
+
+/// What a social sign-in does once a session exists: bring the account's
+/// saved backup into this device (merged, so nothing here is lost), or — when
+/// the account has no backup yet, i.e. it was just created through Google or
+/// Apple — upload this device's data so the new account starts with it.
+/// Mirrors the restore/upload steps `SignInFormView`/`VerifyCodeView` run
+/// inline, but unlike those two a social tap can't tell in advance whether
+/// it's a first-time signup or a returning sign-in.
+@MainActor
+private enum SocialSignInFinisher {
+    /// `true` when an existing backup was restored, `false` for a fresh upload.
+    static func finish(viewModel: AppViewModel) async -> Bool {
+        if let backup = try? await SupabaseAccountSyncManager.shared.downloadBackup() {
+            let document = FullDataExportDocument(
+                exportedAt: ISO8601DateFormatter().string(from: Date()),
+                appVersion: FullDataExportManager.appVersionString(),
+                settings: backup.settings,
+                sessions: backup.sessions,
+                computedBreakdowns: [],
+                activityLog: []
+            )
+            try? viewModel.importFullDataExport(document, mode: .merge)
+            return true
+        }
+        let names = SupabaseAuthManager.shared.currentUserNames
+        try? await SupabaseAccountSyncManager.shared.uploadBackup(
+            settings: viewModel.settings,
+            sessions: viewModel.sessions,
+            fullName: names.fullName,
+            familyName: names.familyName
+        )
+        return false
+    }
+}
+
+/// Bridges the delegate-based `ASAuthorizationController` into async/await so
+/// a plain custom-styled `Button` can trigger native Apple sign-in — SwiftUI's
+/// own `SignInWithAppleButton` only offers Apple's fixed black/white/outline
+/// look, which doesn't match this screen's custom button style.
+private final class AppleSignInCoordinator: NSObject, ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+    private var continuation: CheckedContinuation<ASAuthorization, Error>?
+
+    func perform(rawNonce: String) async throws -> ASAuthorization {
+        try await withCheckedThrowingContinuation { continuation in
+            self.continuation = continuation
+            let request = ASAuthorizationAppleIDProvider().createRequest()
+            request.requestedScopes = [.fullName, .email]
+            request.nonce = AppleSignInNonce.sha256(rawNonce)
+            let controller = ASAuthorizationController(authorizationRequests: [request])
+            controller.delegate = self
+            controller.presentationContextProvider = self
+            controller.performRequests()
+        }
+    }
+
+    func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
+        UIApplication.shared.connectedScenes
+            .compactMap { $0 as? UIWindowScene }
+            .flatMap(\.windows)
+            .first(where: \.isKeyWindow) ?? ASPresentationAnchor()
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithAuthorization authorization: ASAuthorization) {
+        continuation?.resume(returning: authorization)
+        continuation = nil
+    }
+
+    func authorizationController(controller: ASAuthorizationController, didCompleteWithError error: Error) {
+        continuation?.resume(throwing: error)
+        continuation = nil
+    }
+}
+
+/// Stacked social sign-in button: 55pt tall, fully rounded, with a
+/// configurable fill/border/foreground per provider.
+private struct SocialLoginButtonStyle: ButtonStyle {
+    var fill: Color
+    var border: Color
+    var borderWidth: CGFloat = 1
+    var foreground: Color
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .font(.headline)
+            .foregroundStyle(foreground)
+            .frame(maxWidth: .infinity)
+            .frame(height: 55)
+            .background(
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .fill(fill)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 30, style: .continuous)
+                    .stroke(border, lineWidth: borderWidth)
+            )
+            .shadow(color: border == Color.cyan ? Color.cyan.opacity(0.25) : .clear, radius: 10)
+            .opacity(configuration.isPressed ? 0.75 : 1)
+            .animation(.easeOut(duration: 0.15), value: configuration.isPressed)
     }
 }
 
@@ -1053,6 +1367,12 @@ private struct AccountCard<Content: View>: View {
     let title: String?
     @ViewBuilder var content: Content
 
+    /// Fixed Neon Cyan, matching the Settings tab's card styling — not the
+    /// personalized accent, so every account card reads consistently even if
+    /// the user picked a different theme color. Computed, not `static let`:
+    /// stored static properties aren't allowed in a generic type.
+    private static var cyan: Color { Color(hex: "00E5FF") }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             if let title {
@@ -1067,41 +1387,16 @@ private struct AccountCard<Content: View>: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .fill(Color.white.opacity(0.05))
+                .fill(Color(hex: "0D0D0D"))
         )
         .overlay(
             RoundedRectangle(cornerRadius: 18, style: .continuous)
-                .stroke(Color.white.opacity(0.08), lineWidth: 1)
+                .stroke(Self.cyan.opacity(0.3), lineWidth: 1)
         )
     }
 }
 
 /// A static "label + value" row inside an account card.
-private struct AccountDetailRow: View {
-    let icon: String
-    let title: String
-    let value: String
-
-    var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon)
-                .font(.system(size: 15, weight: .medium))
-                .foregroundStyle(.white.opacity(0.4))
-                .frame(width: 20)
-            Text(title)
-                .font(.subheadline)
-                .foregroundStyle(.white.opacity(0.55))
-            Spacer(minLength: 8)
-            Text(value)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(.white)
-                .multilineTextAlignment(.trailing)
-                .lineLimit(2)
-        }
-        .accessibilityElement(children: .combine)
-    }
-}
-
 private struct AccountSignedInView: View {
     @ObservedObject var viewModel: AppViewModel
     @ObservedObject private var auth = SupabaseAuthManager.shared
@@ -1135,8 +1430,9 @@ private struct AccountSignedInView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 18) {
-                avatarSection
+            VStack(spacing: 16) {
+                compactHeaderCard
+                    .padding(.horizontal, 20)
                     .padding(.top, 12)
 
                 if let errorMessage {
@@ -1147,77 +1443,96 @@ private struct AccountSignedInView: View {
                         .padding(.horizontal, 24)
                 }
 
-                AccountCard(title: L10n.accountProfileSection) {
-                    VStack(spacing: 12) {
-                        AccountDetailRow(icon: "person.fill", title: L10n.settingsFullName, value: displayName)
-                        Divider().overlay(Color.white.opacity(0.08))
-                        AccountDetailRow(icon: "envelope.fill", title: L10n.accountEmailPlaceholder, value: auth.currentEmail ?? "—")
-                        if let memberSince {
-                            Divider().overlay(Color.white.opacity(0.08))
-                            AccountDetailRow(
-                                icon: "calendar",
-                                title: L10n.accountMemberSinceLabel,
-                                value: AppLocale.makeDateFormatter(dateStyle: .medium, timeStyle: .none).string(from: memberSince)
-                            )
-                        }
-                    }
-                }
-                .padding(.horizontal, 20)
-
                 passwordCard
                     .padding(.horizontal, 20)
 
-                AccountCard(title: L10n.accountSyncSection) {
+                AccountCard(title: L10n.accountBackupSection) {
                     Text(L10n.accountSyncHint)
                         .font(.caption)
                         .foregroundStyle(.white.opacity(0.45))
 
-                    Button {
-                        syncNow()
-                    } label: {
-                        HStack(spacing: 8) {
-                            if isSyncing {
-                                ProgressView().tint(.black)
-                            } else {
-                                Image(systemName: "arrow.triangle.2.circlepath")
+                    // Side by side, not stacked — the two actions here don't need
+                    // a full-width row each.
+                    HStack(spacing: 8) {
+                        Button {
+                            syncNow()
+                        } label: {
+                            HStack(spacing: 6) {
+                                if isSyncing {
+                                    ProgressView().tint(.black)
+                                } else {
+                                    Image(systemName: "arrow.triangle.2.circlepath")
+                                }
+                                Text(isSyncing ? L10n.accountSyncing : L10n.accountSyncNow)
                             }
-                            Text(isSyncing ? L10n.accountSyncing : L10n.accountSyncNow)
                         }
-                    }
-                    .buttonStyle(PremiumPrimaryButtonStyle(accent: theme.accent, isDisabled: isSyncing))
-                    .disabled(isSyncing)
+                        .buttonStyle(CyanGreenGradientButtonStyle(isDisabled: isSyncing, compact: true))
+                        .disabled(isSyncing)
 
-                    Button {
-                        Task { try? await SupabaseAuthManager.shared.signOut() }
-                    } label: {
-                        Label(L10n.accountSignOut, systemImage: "rectangle.portrait.and.arrow.right")
+                        Button {
+                            Task { try? await SupabaseAuthManager.shared.signOut() }
+                        } label: {
+                            // Dark gray fill, not a red-tinted one — red is reserved for the
+                            // text/icon only, so this stays quiet next to the Cyan→Green
+                            // "Sync Now" button rather than competing with it.
+                            Label(L10n.accountSignOut, systemImage: "rectangle.portrait.and.arrow.right")
+                                .font(.subheadline.weight(.bold))
+                                .lineLimit(1)
+                                .minimumScaleFactor(0.85)
+                                .foregroundStyle(.red)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 11)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12, style: .continuous)
+                                        .fill(Color.white.opacity(0.06))
+                                )
+                        }
+                        .buttonStyle(.plain)
                     }
-                    .buttonStyle(PremiumSecondaryButtonStyle())
                 }
                 .padding(.horizontal, 20)
 
                 // App Store 5.1.1(v): an account created in the app can be deleted in it.
-                Button(role: .destructive) {
-                    showDeleteAccountConfirm = true
-                } label: {
-                    HStack(spacing: 8) {
-                        if isDeletingAccount {
-                            ProgressView()
-                        } else {
-                            Image(systemName: "person.crop.circle.badge.xmark")
+                // Isolated in its own red-tinted card, away from the ordinary cards
+                // above, so a careless tap while scrolling can't land on it.
+                HStack(spacing: 10) {
+                    Text(L10n.settingsDangerZone.uppercased())
+                        .font(.caption2.weight(.bold))
+                        .foregroundStyle(.red.opacity(0.85))
+                        .tracking(0.4)
+                        .fixedSize()
+
+                    Button(role: .destructive) {
+                        showDeleteAccountConfirm = true
+                    } label: {
+                        HStack(spacing: 6) {
+                            if isDeletingAccount {
+                                ProgressView()
+                            } else {
+                                Image(systemName: "person.crop.circle.badge.xmark")
+                            }
+                            Text(L10n.accountDelete)
                         }
-                        Text(L10n.accountDelete)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.red)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 8)
                     }
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(.red)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
+                    .disabled(isDeletingAccount)
+                    .accessibilityIdentifier("account.delete")
                 }
-                .disabled(isDeletingAccount)
+                .padding(16)
+                .background(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .fill(Color.red.opacity(0.08))
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 14, style: .continuous)
+                        .stroke(Color.red.opacity(0.3), lineWidth: 1)
+                )
                 .padding(.horizontal, 20)
-                .accessibilityIdentifier("account.delete")
             }
-            .padding(.bottom, 24)
+            .padding(.bottom, 20)
         }
         .scrollDismissesKeyboard(.interactively)
         .alert(L10n.accountDeleteConfirmTitle, isPresented: $showDeleteAccountConfirm) {
@@ -1249,65 +1564,143 @@ private struct AccountSignedInView: View {
         }
     }
 
-    // MARK: Avatar
+    // MARK: Compact header — avatar + identity + Member Since, one card
 
-    private var avatarSection: some View {
-        VStack(spacing: 10) {
-            Button {
-                if profile.avatarImage != nil {
-                    showRemovePhotoConfirm = true
-                } else {
-                    showPhotoPicker = true
-                }
-            } label: {
-                Group {
-                    if let image = profile.avatarImage {
-                        Image(uiImage: image)
-                            .resizable()
-                            .scaledToFill()
-                    } else {
-                        ZStack {
-                            Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: [theme.accent, theme.accent.darkened(by: 0.55)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                            Text(initials)
-                                .font(.system(size: 34, weight: .bold, design: .rounded))
-                                .foregroundStyle(.white)
+    /// Everything that used to be a tall, centered avatar block *plus* a
+    /// separate "Profile Info" card below it, merged into one compact,
+    /// horizontal header: avatar on the side (not centered above), identity
+    /// stacked beside it, Member Since as a single trailing line underneath.
+    private var compactHeaderCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(spacing: 14) {
+                avatarButton
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(displayName)
+                        .font(.headline.weight(.bold))
+                        .foregroundStyle(.white)
+                        .lineLimit(1)
+                    if let email = auth.currentEmail {
+                        Text(email)
+                            .font(.caption)
+                            .foregroundStyle(.white.opacity(0.5))
+                            .lineLimit(1)
+                    }
+                    HStack(spacing: 6) {
+                        Text(verbatim: LocalPlaceholderUserID.current())
+                            .font(.caption2.monospaced().weight(.semibold))
+                            .foregroundStyle(.white.opacity(0.6))
+                        Button {
+                            UIPasteboard.general.string = LocalPlaceholderUserID.current()
+                            UISelectionFeedbackGenerator().selectionChanged()
+                            viewModel.showSuccessToast(L10n.settingsUserIDCopied)
+                        } label: {
+                            Image(systemName: "doc.on.doc")
+                                .font(.caption2)
+                                .foregroundStyle(.white.opacity(0.6))
                         }
+                        .buttonStyle(.plain)
+                        .accessibilityLabel(L10n.settingsCopyUserID)
                     }
                 }
-                .frame(width: 96, height: 96)
-                .clipShape(Circle())
-                .overlay(
-                    Circle().stroke(Color.white.opacity(0.15), lineWidth: 1)
-                )
-                .overlay(alignment: .bottomTrailing) {
-                    Image(systemName: profile.avatarImage == nil ? "plus.circle.fill" : "photo.circle.fill")
-                        .font(.system(size: 26))
-                        .symbolRenderingMode(.hierarchical)
-                        .foregroundStyle(theme.accent, .black)
-                        .offset(x: 4, y: 4)
+
+                Spacer(minLength: 0)
+            }
+
+            if let memberSince {
+                Divider().overlay(Color.white.opacity(0.08))
+                HStack {
+                    Text(L10n.accountMemberSinceLabel)
+                        .font(.caption)
+                        .foregroundStyle(.white.opacity(0.5))
+                    Spacer()
+                    Text(AppLocale.makeDateFormatter(dateStyle: .medium, timeStyle: .none).string(from: memberSince))
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.white)
                 }
             }
-            .buttonStyle(.plain)
-            .accessibilityLabel(Text(L10n.accountAvatarChange))
-
-            Text(L10n.accountAvatarChange)
-                .font(.caption)
-                .foregroundStyle(.white.opacity(0.45))
         }
+        .padding(16)
+        .background(Color(hex: "0D0D0D"), in: RoundedRectangle(cornerRadius: 18, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 18, style: .continuous)
+                .stroke(Self.cyanGlow.opacity(0.3), lineWidth: 1)
+        )
+        // `.compositingGroup()` forces the card (background + stroke + avatar's own
+        // shadow) to flatten into a single layer before the `.clipShape` below runs —
+        // without it, a child's `.shadow()` can still render outside an ancestor's
+        // `.clipShape` in SwiftUI, because the shadow is otherwise composited as its
+        // own separate pass rather than being part of what gets clipped.
+        .compositingGroup()
+        // Hard-clips the whole card to its own rounded shape — the avatar's stroke/shadow
+        // sat right at the card's top-trailing corner (first in the HStack, which RTL
+        // mirrors to the right) and could visually poke past the rounded corner's curve
+        // even with correct padding. Clipping the card itself, not just the avatar,
+        // guarantees nothing inside it can ever escape the card's bounds.
+        .clipShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
     }
+
+    private var avatarButton: some View {
+        Button {
+            if profile.avatarImage != nil {
+                showRemovePhotoConfirm = true
+            } else {
+                showPhotoPicker = true
+            }
+        } label: {
+            Group {
+                if let image = profile.avatarImage {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFill()
+                } else {
+                    ZStack {
+                        Circle()
+                            .fill(
+                                LinearGradient(
+                                    colors: [theme.accent, theme.accent.darkened(by: 0.55)],
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                        Text(initials)
+                            .font(.system(size: 22, weight: .bold, design: .rounded))
+                            .foregroundStyle(.white)
+                    }
+                }
+            }
+            .frame(width: 60, height: 60)
+            // Clip to a circle BEFORE the stroke/shadow — the shadow is then
+            // computed from the already-circular shape, so its halo reads as a
+            // clean ring instead of a square-ish blur. The header card's own
+            // `.clipShape` (below) is the actual guarantee against this glow
+            // bleeding past the card's edge.
+            .clipShape(Circle())
+            .overlay(
+                Circle().stroke(Self.cyanGlow.opacity(0.6), lineWidth: 1.5)
+            )
+            .shadow(color: Self.cyanGlow.opacity(0.35), radius: 5)
+            .overlay(alignment: .bottomTrailing) {
+                Image(systemName: profile.avatarImage == nil ? "plus.circle.fill" : "photo.circle.fill")
+                    .font(.system(size: 17))
+                    .symbolRenderingMode(.hierarchical)
+                    .foregroundStyle(theme.accent, .black)
+                    .offset(x: 3, y: 3)
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(Text(L10n.accountAvatarChange))
+    }
+
+    /// Fixed Neon Cyan glow — the avatar ring stays on-brand regardless of the
+    /// user's personalized accent, matching the Settings profile card.
+    private static let cyanGlow = Color(hex: "00E5FF")
 
     // MARK: Change password
 
     private var passwordCard: some View {
         AccountCard(title: L10n.accountSecuritySection) {
-            VStack(spacing: 12) {
+            VStack(spacing: 8) {
                 AccountTextField(
                     icon: "lock.fill",
                     placeholder: L10n.accountNewPassword,
@@ -1334,22 +1727,20 @@ private struct AccountSignedInView: View {
                 } label: {
                     HStack(spacing: 8) {
                         if isChangingPassword {
-                            ProgressView().tint(.black)
+                            ProgressView().tint(.cyan)
                         }
                         Text(L10n.accountChangePassword)
                     }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundColor(.cyan)
+                    .frame(maxWidth: .infinity)
+                    .frame(height: 44)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
                 }
-                .buttonStyle(PremiumPrimaryButtonStyle(
-                    accent: theme.accent,
-                    isDisabled: !isPasswordFormValid || isChangingPassword
-                ))
-                .disabled(!isPasswordFormValid || isChangingPassword)
+                .buttonStyle(.plain)
             }
         }
-    }
-
-    private var isPasswordFormValid: Bool {
-        newPassword.count >= 6 && newPassword == confirmNewPassword
     }
 
     private func changePassword() {

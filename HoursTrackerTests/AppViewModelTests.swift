@@ -387,12 +387,15 @@ final class AppViewModelTests: XCTestCase {
         // In-memory did NOT invent a populated store; it stayed empty because
         // the load was unavailable, not because the file is empty.
         XCTAssertTrue(viewModel.sessions.isEmpty)
-        XCTAssertNotNil(viewModel.errorMessage, "unavailable load should surface an error to the user")
+        // No alert at launch: a widget-tap launch often loses a short Data Protection race,
+        // and the app retries. The error shows when the user actually tries to change data.
+        XCTAssertNil(viewModel.errorMessage, "a first-launch read race must not alert by itself")
 
         // The critical invariant: any mutation that would normally call
         // `persist()` must NOT hand `[]` (or any partial state) to
         // `store.saveSessions`, because the real bytes are still on disk.
         viewModel.clockIn()
+        XCTAssertNotNil(viewModel.errorMessage, "a change attempted while the data is unreadable must say so")
 
         XCTAssertEqual(
             store.storedSessions.map(\.id),
@@ -477,9 +480,10 @@ final class AppViewModelTests: XCTestCase {
         store.settingsLoadResultOverride = .temporarilyUnavailable
         let viewModel = AppViewModel(store: store, locationManager: MockLocationReminderManager())
 
-        XCTAssertNotNil(viewModel.errorMessage)
+        XCTAssertNil(viewModel.errorMessage)
 
         viewModel.saveSettings(WorkplaceSettings.default)
+        XCTAssertNotNil(viewModel.errorMessage)
 
         XCTAssertEqual(
             store.storedSettings.hourlyRate,

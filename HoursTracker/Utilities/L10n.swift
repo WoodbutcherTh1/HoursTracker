@@ -115,6 +115,9 @@ enum L10n {
     static var historyEmptyPeriod: String { t("history.emptyPeriod") }
     static var historyEmptyPeriodHint: String { t("history.emptyPeriodHint") }
     static var historyShowAllDays: String { t("history.showAllDays") }
+    static func historyHolidayBanner(_ name: String) -> String {
+        String(format: t("history.holidayBanner %@"), name)
+    }
     static var workplacesTitle: String { t("workplaces.title") }
     static var workplacesHint: String { t("workplaces.hint") }
     static var workplacesHintActive: String { t("workplaces.hintActive") }
@@ -350,6 +353,12 @@ enum L10n {
     static var accountWelcomeTitle: String { t("account.welcomeTitle") }
     static var accountWelcomeSubtitle: String { t("account.welcomeSubtitle") }
     static var accountAlreadyHaveAccount: String { t("account.alreadyHaveAccount") }
+    static var accountWelcomeHeroTitle: String { t("account.welcomeHeroTitle") }
+    static var accountContinueWithApple: String { t("account.continueWithApple") }
+    static var accountContinueWithGoogle: String { t("account.continueWithGoogle") }
+    static var accountContinueWithEmail: String { t("account.continueWithEmail") }
+    static var accountAlreadyHaveAccountQuestion: String { t("account.alreadyHaveAccountQuestion") }
+    static var accountLogInAction: String { t("account.logInAction") }
     static var accountSignUpTitle: String { t("account.signUpTitle") }
     static var accountNamePlaceholder: String { t("account.namePlaceholder") }
     static var accountFamilyNamePlaceholder: String { t("account.familyNamePlaceholder") }
@@ -377,6 +386,7 @@ enum L10n {
     static var accountPasswordMismatch: String { t("account.passwordMismatch") }
     static var accountPasswordRule: String { t("account.passwordRule") }
     static var accountSyncSection: String { t("account.syncSection") }
+    static var accountBackupSection: String { t("account.backupSection") }
     static var accountSyncHint: String { t("account.syncHint") }
     static var accountDataSection: String { t("account.dataSection") }
     static var accountMemberSinceLabel: String { t("account.memberSinceLabel") }
@@ -406,6 +416,7 @@ enum L10n {
     static var accountErrorCodeIncomplete: String { t("account.error.codeIncomplete") }
     static var accountErrorCodeExpired: String { t("account.error.codeExpired") }
     static var accountErrorNotSignedUpYet: String { t("account.error.notSignedUpYet") }
+    static var accountErrorSocial: String { t("account.error.social") }
 
     // Edit
     static var editTitle: String { t("edit.title") }
@@ -426,6 +437,9 @@ enum L10n {
     static var undoDelete: String { t("undo.delete") }
     // MARK: Admin (owner dashboard)
     static var adminTitle: String { t("admin.title") }
+    static var adminUserLookupPrompt: String { t("admin.userLookup.prompt") }
+    static var adminUserLookupResults: String { t("admin.userLookup.results") }
+    static var adminUserLookupMockHint: String { t("admin.userLookup.mockHint") }
     static var adminSettingsEntry: String { t("admin.settingsEntry") }
     static var adminSettingsFooter: String { t("admin.settingsFooter") }
     static var adminStats: String { t("admin.stats") }
@@ -551,6 +565,12 @@ enum L10n {
     static var settingsSave: String { t("settings.save") }
     static var settingsSaved: String { t("settings.saved") }
     static var settingsUnsavedTitle: String { t("settings.unsaved.title") }
+    static var settingsSearchPrompt: String { t("settings.searchPrompt") }
+    static var settingsProfileFallbackName: String { t("settings.profileFallbackName") }
+    static var settingsCopyUserID: String { t("settings.copyUserID") }
+    static var settingsUserIDCopied: String { t("settings.userIDCopied") }
+    static var settingsDangerZone: String { t("settings.dangerZone") }
+    static var settingsDangerZoneHint: String { t("settings.dangerZoneHint") }
     static var settingsUnsavedMessage: String { t("settings.unsaved.message") }
     static var settingsUnsavedDiscard: String { t("settings.unsaved.discard") }
     static var settingsUnsavedStay: String { t("settings.unsaved.stay") }
@@ -733,6 +753,8 @@ enum L10n {
     static var supportChatIntro: String { t("supportChat.intro") }
     static var supportChatPlaceholder: String { t("supportChat.placeholder") }
     static var supportChatSend: String { t("supportChat.send") }
+    static var supportChatAttachPhoto: String { t("supportChat.attachPhoto") }
+    static var supportChatAttachmentLocalOnly: String { t("supportChat.attachmentLocalOnly") }
     static var supportChatAutoReplyTag: String { t("supportChat.autoReplyTag") }
     static var supportChatErrorLimit: String { t("supportChat.error.limit") }
     static var supportChatErrorGeneric: String { t("supportChat.error.generic") }
@@ -808,6 +830,7 @@ enum L10n {
     static var settingsSubPayrollTax: String { t("settings.sub.payrollTax") }
     static var settingsGroupWork: String { t("settings.group.work") }
     static var settingsGroupWorkSummary: String { t("settings.group.workSummary") }
+    static var settingsWorkGroupFooter: String { t("settings.workGroupFooter") }
     static var settingsGroupReminders: String { t("settings.group.reminders") }
     static var settingsGroupRemindersSummary: String { t("settings.group.remindersSummary") }
     static var settingsGroupPrivacy: String { t("settings.group.privacy") }
@@ -855,6 +878,9 @@ enum L10n {
     static var exportRange: String { t("export.range") }
     static var exportAllDays: String { t("export.allDays") }
     static var exportThisMonth: String { t("export.thisMonth") }
+    static var exportLastMonth: String { t("export.lastMonth") }
+    static var exportThisWeek: String { t("export.thisWeek") }
+    static var exportLastWeek: String { t("export.lastWeek") }
     static var exportThisYear: String { t("export.thisYear") }
     static var exportSpecificMonth: String { t("export.specificMonth") }
     static var exportCustomRange: String { t("export.customRange") }
@@ -881,11 +907,13 @@ enum L10n {
     static var exportLanguageHebrew: String { t("export.language.hebrew") }
     static var exportLanguageArabic: String { t("export.language.arabic") }
     static var exportLanguageRussian: String { t("export.language.russian") }
+    static var exportLanguageThai: String { t("export.language.thai") }
 
     static var languageNameArabic: String { t("language.name.arabic") }
     static var languageNameHebrew: String { t("language.name.hebrew") }
     static var languageNameEnglish: String { t("language.name.english") }
     static var languageNameRussian: String { t("language.name.russian") }
+    static var languageNameThai: String { t("language.name.thai") }
 
     // Export report
     static var reportTitle: String { t("report.title") }
@@ -1094,13 +1122,18 @@ enum L10n {
     static var payslipNeedsReview: String { t("payslip.needsReview") }
     static var payslipPreview: String { t("payslip.preview") }
     static var payslipPreviewUnavailable: String { t("payslip.previewUnavailable") }
+    static var payslipZoomHint: String { t("payslip.zoomHint") }
     static var payslipLibraryTitle: String { t("payslip.library.title") }
     static var payslipSortByDate: String { t("payslip.sort.byDate") }
     static var payslipSortByAmount: String { t("payslip.sort.byAmount") }
     static var payslipSortAccessibility: String { t("payslip.sort.accessibility") }
     static var payslipLibraryEmptyTitle: String { t("payslip.library.emptyTitle") }
     static var payslipLibraryEmptySubtitle: String { t("payslip.library.emptySubtitle") }
+    static var payslipLibraryEmptyMotivation: String { t("payslip.library.emptyMotivation") }
     static var payslipNetUnavailable: String { t("payslip.netUnavailable") }
+    static var payslipDashboardNet: String { t("payslip.dashboard.net") }
+    static var payslipDashboardTaxes: String { t("payslip.dashboard.taxes") }
+    static var payslipDashboardCount: String { t("payslip.dashboard.count") }
     static var payslipDelete: String { t("payslip.delete") }
     static var payslipDeleteConfirmTitle: String { t("payslip.deleteConfirmTitle") }
     static var payslipDeleteConfirmMessage: String { t("payslip.deleteConfirmMessage") }
@@ -1269,4 +1302,16 @@ enum L10n {
     static var exportPreviewGross: String { t("export.previewGross") }
     static var exportPreviewNet: String { t("export.previewNet") }
     static var exportPreviewEmpty: String { t("export.previewEmpty") }
+    /// `format` is the localized format name ("PDF", "CSV", …) — the tag used to just
+    /// say "PDF" unconditionally even when CSV/TXT/DOCX/Markdown was selected.
+    static func exportPreviewReady(_ format: String) -> String {
+        String(format: t("export.previewReady %@"), format)
+    }
+
+    // Export "what's included" checklist
+    static var exportWhatsIncludedTitle: String { t("export.whatsIncluded.title") }
+    static var exportWhatsIncludedOvertime: String { t("export.whatsIncluded.overtime") }
+    static var exportWhatsIncludedBreaks: String { t("export.whatsIncluded.breaks") }
+    static var exportWhatsIncludedDailyBreakdown: String { t("export.whatsIncluded.dailyBreakdown") }
+    static var exportShareDirectly: String { t("export.shareDirectly") }
 }

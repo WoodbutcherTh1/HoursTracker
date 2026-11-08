@@ -51,6 +51,16 @@ enum WidgetL10n {
     // MARK: Labels
 
     static var today: String { pick("today", "היום", "اليوم", "сегодня") }
+    /// Labels the open shift's own live pay (`entry.estimatedPay` /
+    /// `ContentState.initial*Pay`) — distinct from `today`, which labels the
+    /// combined total of all of today's completed sessions plus this one.
+    /// The two are only equal when this is the only session today, so every
+    /// surface showing the open shift's figure (the widget, the Lock Screen
+    /// banner, the Dynamic Island) must say so explicitly rather than let it
+    /// read as a running daily total.
+    static var currentShift: String { pick("Current Shift", "משמרת נוכחית", "الوردية الحالية", "Текущая смена") }
+    static var currentShiftNet: String { pick("Current Shift · Net", "משמרת נוכחית · נטו", "الوردية الحالية · صافي", "Текущая смена · нетто") }
+    static var currentShiftGross: String { pick("Current Shift · Gross", "משמרת נוכחית · ברוטו", "الوردية الحالية · إجمالي", "Текущая смена · брутто") }
     static var gross: String { pick("gross", "ברוטו", "إجمالي", "брутто") }
     static var earnings: String { pick("Earnings", "הכנסה", "الدخل", "Заработок") }
     static var elapsed: String { pick("Elapsed", "זמן", "المدة", "Время") }

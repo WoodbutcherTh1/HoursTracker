@@ -2,13 +2,23 @@ import SwiftUI
 
 /// Settings → Admin (visible only to accounts the server lists in `public.admins`).
 /// Aggregate stats, and composing/sending announcements in he / ar / en.
+// TODO: backend — `AdminAPIClient.stats()` doesn't report an unread support
+// count yet. Shared by the Admin row in Settings and the Support Inbox row
+// here, so the badge UI (and where it should eventually read from) is in
+// place ahead of that endpoint, and both places agree on the number.
+enum AdminMockBadges {
+    static let unreadSupport = 3
+}
+
 struct AdminDashboardView: View {
     @State private var stats: AdminStats?
     @State private var loadingStats = false
     @State private var errorMessage: String?
+    @State private var userLookupQuery = ""
 
     var body: some View {
         List {
+            userLookupSection
             Section {
                 NavigationLink {
                     AdminControlRoomView()
@@ -38,6 +48,7 @@ struct AdminDashboardView: View {
                 } label: {
                     Label(L10n.adminSupportTitle, systemImage: "bubble.left.and.bubble.right")
                 }
+                .badge(AdminMockBadges.unreadSupport)
                 NavigationLink {
                     AdminAutoRepliesView()
                 } label: {
@@ -46,9 +57,42 @@ struct AdminDashboardView: View {
             }
         }
         .navigationTitle(L10n.adminTitle)
+        .searchable(text: $userLookupQuery, prompt: Text(L10n.adminUserLookupPrompt))
         .refreshable { await loadStats() }
         .task { await loadStats() }
         .adminErrorAlert($errorMessage)
+    }
+
+    /// Search by email or the `HT-XXXXX` public ID. No backend lookup endpoint
+    /// exists yet — this renders clearly-labeled mock rows so the UI (and the
+    /// query it needs to send once that endpoint exists) is ready ahead of it.
+    // TODO: backend — replace `mockUserLookupResults` with a real
+    // `AdminAPIClient.lookupUser(query:)` call.
+    @ViewBuilder
+    private var userLookupSection: some View {
+        if !userLookupQuery.trimmingCharacters(in: .whitespaces).isEmpty {
+            Section {
+                ForEach(mockUserLookupResults, id: \.self) { result in
+                    Label {
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(result)
+                                .font(.subheadline.weight(.semibold))
+                            Text(L10n.adminUserLookupMockHint)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                        }
+                    } icon: {
+                        Image(systemName: "person.crop.circle")
+                    }
+                }
+            } header: {
+                Text(L10n.adminUserLookupResults)
+            }
+        }
+    }
+
+    private var mockUserLookupResults: [String] {
+        ["\(userLookupQuery) — HT-7K2QX", "\(userLookupQuery) — demo@hourstracker.app"]
     }
 
     @ViewBuilder

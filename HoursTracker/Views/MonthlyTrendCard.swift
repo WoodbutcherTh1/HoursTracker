@@ -101,6 +101,12 @@ struct MonthlyTrendCard: View {
                         .stroke(Color.white.opacity(0.06), lineWidth: 1)
                 )
         )
+        // The app root applies `.animation(value:)` for toast/undo-banner overlays —
+        // that implicit animation reaches this whole subtree, so dismissing a banner
+        // elsewhere on screen re-animated this chart's gradient as a visible flash.
+        // Cutting the transaction's animation here keeps the chart static unless its
+        // own data (`points`) actually changes.
+        .transaction { $0.animation = nil }
     }
 
     private var emptyState: some View {

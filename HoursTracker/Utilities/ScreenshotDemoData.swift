@@ -102,6 +102,16 @@ extension AppViewModel {
             DisplayPreferences.shared.weeklyGoalHoursDisplayOnly = nil
         }
 
+        // Promo videos: a worker and workplace name in the app's own language
+        // (`UITEST_WORKER_NAME <name>`, `UITEST_WORKPLACE_NAME <name>`).
+        let launchArgs = ProcessInfo.processInfo.arguments
+        if let i = launchArgs.firstIndex(of: "UITEST_WORKER_NAME"), launchArgs.indices.contains(i + 1) {
+            settings.workerFullName = launchArgs[i + 1]
+        }
+        if let i = launchArgs.firstIndex(of: "UITEST_WORKPLACE_NAME"), launchArgs.indices.contains(i + 1) {
+            settings.workplaceName = launchArgs[i + 1]
+        }
+
         // Release screenshots (`UITEST_EMPLOYMENT contractor`): a contractor placement that
         // is four months in, so the 9-month counter and the "company hired me" button show.
         if ProcessInfo.processInfo.arguments.contains("UITEST_EMPLOYMENT") {

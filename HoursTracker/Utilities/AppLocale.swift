@@ -6,6 +6,7 @@ enum AppLocale {
         case hebrew
         case english
         case russian
+        case thai
 
         /// Display name in the current app UI language (for “phone language is X”).
         var localizedDisplayName: String {
@@ -14,6 +15,7 @@ enum AppLocale {
             case .hebrew: return L10n.languageNameHebrew
             case .english: return L10n.languageNameEnglish
             case .russian: return L10n.languageNameRussian
+            case .thai: return L10n.languageNameThai
             }
         }
 
@@ -23,6 +25,7 @@ enum AppLocale {
             case .hebrew: return "he"
             case .english: return "en"
             case .russian: return "ru"
+            case .thai: return "th"
             }
         }
     }
@@ -89,7 +92,12 @@ enum AppLocale {
             let enCatalog = String(localized: String.LocalizationValue(key), locale: Locale(identifier: "en"))
             if enCatalog != key { return enCatalog }
         }
-        return Bundle.main.localizedString(forKey: key, value: key, table: nil)
+        // Last resort: the raw key, never `Bundle.main.localizedString(forKey:value:table:)`.
+        // That call resolves against the bundle's *ambient* preferred localization —
+        // the device's system language when the in-app override and English catalog
+        // both lack the key — which is exactly the "falls back to the system language
+        // instead of English" bug this function exists to prevent.
+        return key
     }
 
     /// Prefer the in-app language override; fall back to the device preferred languages.
@@ -110,6 +118,7 @@ enum AppLocale {
         case .hebrew: return .hebrew
         case .arabic: return .arabic
         case .russian: return .russian
+        case .thai: return .thai
         case .system:
             return language(fromPreferredLanguages: preferredLanguages)
         }
@@ -120,6 +129,7 @@ enum AppLocale {
         if preferred.hasPrefix("ar") { return .arabic }
         if preferred.hasPrefix("he") || preferred.hasPrefix("iw") { return .hebrew }
         if preferred.hasPrefix("ru") { return .russian }
+        if preferred.hasPrefix("th") { return .thai }
         return .english
     }
 
@@ -129,6 +139,7 @@ enum AppLocale {
         case .hebrew: return "עשית כניסה?"
         case .english: return "Did you clock in?"
         case .russian: return "Начали смену?"
+        case .thai: return "เข้างานแล้วหรือยัง?"
         }
     }
 
@@ -138,6 +149,7 @@ enum AppLocale {
         case .hebrew: return "החתמת יציאה?"
         case .english: return "Did you clock out?"
         case .russian: return "Закончили смену?"
+        case .thai: return "ลงเวลาออกแล้วหรือยัง?"
         }
     }
 
@@ -147,6 +159,7 @@ enum AppLocale {
         case .hebrew: return "עדיין בעבודה? לא שכחת להחתים יציאה?"
         case .english: return "Still at work? Did you forget to clock out?"
         case .russian: return "Всё ещё на работе? Не забыли закончить смену?"
+        case .thai: return "ยังทำงานอยู่ไหม? ลืมลงเวลาออกหรือเปล่า?"
         }
     }
 
@@ -156,6 +169,7 @@ enum AppLocale {
         case .hebrew: return "המשמרת מתחילה בעוד \(minutes) דקות — לא לשכוח להחתים כניסה"
         case .english: return "Your shift starts in \(minutes) minutes — don't forget to clock in"
         case .russian: return "Смена начнётся через \(minutes) мин. — не забудьте начать смену"
+        case .thai: return "กะงานของคุณจะเริ่มในอีก \(minutes) นาที — อย่าลืมลงเวลาเข้างาน"
         }
     }
 
@@ -165,6 +179,7 @@ enum AppLocale {
         case .hebrew: return "המשמרת מסתיימת בעוד \(minutes) דקות — לא לשכוח להחתים יציאה"
         case .english: return "Your shift ends in \(minutes) minutes — don't forget to clock out"
         case .russian: return "Смена закончится через \(minutes) мин. — не забудьте закончить смену"
+        case .thai: return "กะงานของคุณจะจบในอีก \(minutes) นาที — อย่าลืมลงเวลาออกงาน"
         }
     }
 
@@ -174,6 +189,7 @@ enum AppLocale {
         case .hebrew: return "ההפסקה מסתיימת בעוד \(minutes) דקות"
         case .english: return "Your break ends in \(minutes) minutes"
         case .russian: return "Перерыв закончится через \(minutes) мин."
+        case .thai: return "เวลาพักของคุณจะจบในอีก \(minutes) นาที"
         }
     }
 
@@ -183,6 +199,7 @@ enum AppLocale {
         case .hebrew: return "ההפסקה נגמרה — חוזרים לעבודה"
         case .english: return "Your break is over — back to work"
         case .russian: return "Перерыв окончен — пора за работу"
+        case .thai: return "หมดเวลาพักแล้ว — กลับไปทำงานกันเถอะ"
         }
     }
 
@@ -192,6 +209,7 @@ enum AppLocale {
         case .hebrew: return "יצאת מהעבודה? אל תשכח להחתים יציאה!"
         case .english: return "Leaving the workplace? Remember to clock out!"
         case .russian: return "Уходите с работы? Не забудьте закончить смену!"
+        case .thai: return "กำลังออกจากที่ทำงานหรือเปล่า? อย่าลืมลงเวลาออกงาน!"
         }
     }
 
@@ -201,6 +219,7 @@ enum AppLocale {
         case .hebrew: return "ידני"
         case .english: return "Manual"
         case .russian: return "Вручную"
+        case .thai: return "บันทึกเอง"
         }
     }
 
@@ -210,6 +229,7 @@ enum AppLocale {
         case .hebrew: return "אוטומטי"
         case .english: return "Automatic"
         case .russian: return "Автоматически"
+        case .thai: return "อัตโนมัติ"
         }
     }
 }

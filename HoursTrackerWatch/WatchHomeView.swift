@@ -105,6 +105,11 @@ struct WatchHomeView: View {
 
             if snapshot.isClockedIn, let curve = snapshot.livePay {
                 livePayText(curve)
+            } else if snapshot.todayHours > 0 {
+                // Completed state: today's shift is done, distinct from plain idle.
+                Label(AppLocale.tr("watch.shiftComplete"), systemImage: "checkmark.seal.fill")
+                    .font(.system(size: 12, weight: .semibold, design: .rounded))
+                    .foregroundStyle(WatchPalette.moneyGreen)
             }
 
             Button(action: toggleClock) {
@@ -348,6 +353,10 @@ enum WatchHomeMetric: String, CaseIterable {
 /// active session), unlike the user-customizable accent color.
 enum WatchPalette {
     static let coral = Color(hex: "FF6B5B")
+    /// Fixed Neon Green for the "shift complete" state — matches the phone/widget
+    /// palette rather than the user's personalized accent, same as the widget's
+    /// `doneDot` convention.
+    static let moneyGreen = Color(hex: "26F273")
 }
 
 /// Compact bar-per-day week view — same data as the phone's `HomeWeekSparkline`,

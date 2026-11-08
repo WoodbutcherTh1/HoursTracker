@@ -41,17 +41,18 @@ extension Color {
 
 /// User-customizable accent color for the app: drives the tab bar tint, the
 /// HoursTracker wordmark, and every neon-styled element across Home, Payslip
-/// Library/Detail, and the Forgot Clock In / launch splash screens. Defaults to
-/// the app's original green — nothing changes in appearance until the user opens
-/// the picker and picks something else. The coral "active session" / warning
-/// color stays fixed everywhere since it carries semantic meaning (currently
-/// clocked in, destructive action), not just decoration.
+/// Library/Detail, and the Forgot Clock In / launch splash screens. Ships with
+/// a Neon Cyan default (the 2026 refresh); anyone who already picked a color
+/// keeps it — this only changes what a fresh install starts with. The coral
+/// "active session" / warning color stays fixed everywhere since it carries
+/// semantic meaning (currently clocked in, destructive action), not just decoration.
 @MainActor
 final class HomeAccentTheme: ObservableObject {
     static let shared = HomeAccentTheme()
 
     private static let storageKey = "homeAccentColorHex"
-    static let defaultHex = "26F273"
+    /// Neon Cyan — the shipped default as of the 2026 theme refresh.
+    static let defaultHex = "00E5FF"
 
     @Published var accent: Color {
         didSet {
@@ -66,6 +67,13 @@ final class HomeAccentTheme: ObservableObject {
     func applyUIKitTint() {
         let color = UIColor(accent)
         UIView.appearance().tintColor = color
+        // Explicit, not just inherited from the window — SwiftUI's own `TabView` +
+        // `tabItem` bridges to a UIKit `UITabBar` internally, and relying solely on
+        // generic `tintColor` cascade (the two lines below) to reach it has proven
+        // unreliable elsewhere in this app (`Picker`/`Menu`/`confirmationDialog` all
+        // needed the same explicit treatment). Belt-and-suspenders against the
+        // selected tab icon silently staying on the shipped default color.
+        UITabBar.appearance().tintColor = color
         for scene in UIApplication.shared.connectedScenes {
             guard let windowScene = scene as? UIWindowScene else { continue }
             for window in windowScene.windows { window.tintColor = color }
@@ -94,7 +102,7 @@ final class HomeAccentTheme: ObservableObject {
     static let presets: [(name: String, hex: String)] = [
         ("Green", "26F273"),
         ("Mint", "35E0A8"),
-        ("Cyan", "2ED6E6"),
+        ("Cyan", defaultHex),
         ("Blue", "3B9CFF"),
         ("Violet", "9C6BFF"),
         ("Pink", "FF5FA8"),

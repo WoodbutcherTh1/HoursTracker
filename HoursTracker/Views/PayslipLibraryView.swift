@@ -39,7 +39,15 @@ struct PayslipLibraryView: View {
             if viewModel.payslips.isEmpty {
                 emptyState
             } else {
-                gridContent
+                VStack(spacing: 0) {
+                    PayslipDashboardHeader(
+                        totalNet: dashboardTotalNet,
+                        totalTaxes: dashboardTotalTaxes,
+                        count: viewModel.payslips.count,
+                        currencyCode: dashboardCurrencyCode
+                    )
+                    gridContent
+                }
             }
         }
         .navigationTitle(L10n.payslipLibraryTitle)
@@ -112,6 +120,24 @@ struct PayslipLibraryView: View {
         }
     }
 
+    /// Across every saved payslip — net pay and deductions add in their own
+    /// currency's units; mixed-currency libraries are rare enough that showing
+    /// everything under the first record's (or the active workplace's) currency
+    /// symbol is the right tradeoff over a more elaborate multi-currency total.
+    private var dashboardTotalNet: Decimal {
+        viewModel.payslips.reduce(Decimal(0)) { $0 + ($1.effectiveNetPay ?? 0) }
+    }
+
+    private var dashboardTotalTaxes: Decimal {
+        viewModel.payslips.reduce(Decimal(0)) { $0 + ($1.effectiveDeductionsTotal ?? 0) }
+    }
+
+    private var dashboardCurrencyCode: String {
+        viewModel.payslips.first?.userOverrides?.currencyCode
+            ?? viewModel.payslips.first?.extraction.currencyCode
+            ?? appViewModel.activeSettings.currencyCode
+    }
+
     private func deleteFromGrid(_ record: PayslipRecord) {
         pendingDeleteRecord = nil
         do {
@@ -163,20 +189,47 @@ struct PayslipLibraryView: View {
         .scrollContentBackground(.hidden)
     }
 
+    /// Explicitly Cyan→Green here (not the personalized accent) — the brief
+    /// calls for this exact glow on the empty state specifically, same brand
+    /// pairing as the Export button and the Account Sync button.
+    private static let emptyStateCyan = Color(hex: "00E5FF")
+    private static let emptyStateGreen = Color(hex: "26F273")
+
     private var emptyState: some View {
-        VStack(spacing: 20) {
-            Image(systemName: "doc.text.viewfinder")
-                .font(.system(size: 52))
-                .foregroundStyle(theme.accent)
-                .symbolRenderingMode(.hierarchical)
-                .shadow(color: theme.accent.opacity(0.35), radius: 16)
+        VStack(spacing: 22) {
+            Spacer(minLength: 0)
+
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [Self.emptyStateCyan.opacity(0.22), Self.emptyStateGreen.opacity(0.22)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 128, height: 128)
+                    .blur(radius: 18)
+
+                Image(systemName: "doc.text.viewfinder")
+                    .font(.system(size: 52))
+                    .foregroundStyle(
+                        LinearGradient(
+                            colors: [Self.emptyStateCyan, Self.emptyStateGreen],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .symbolRenderingMode(.hierarchical)
+                    .shadow(color: Self.emptyStateCyan.opacity(0.45), radius: 16)
+            }
 
             Text(L10n.payslipLibraryEmptyTitle)
-                .font(.title3.weight(.semibold))
+                .font(.title2.weight(.bold))
                 .foregroundStyle(.white)
                 .multilineTextAlignment(.center)
 
-            Text(L10n.payslipLibraryEmptySubtitle)
+            Text(L10n.payslipLibraryEmptyMotivation)
                 .font(.body)
                 .foregroundStyle(.white.opacity(0.55))
                 .multilineTextAlignment(.center)
@@ -186,20 +239,79 @@ struct PayslipLibraryView: View {
                 viewModel.showUpload = true
             } label: {
                 Label(L10n.payslipUploadAction, systemImage: "plus.circle.fill")
-                    .font(.subheadline.weight(.bold))
-                    .foregroundStyle(appBackground.background)
+                    .font(.headline)
+                    .foregroundStyle(.black)
                     .frame(maxWidth: .infinity)
-                    .padding(.vertical, 14)
-                    .background(theme.accent, in: Capsule())
-                    .shadow(color: theme.accent.opacity(0.35), radius: 12, y: 4)
+                    .padding(.vertical, 16)
+                    .background(
+                        LinearGradient(
+                            colors: [Self.emptyStateCyan, Self.emptyStateGreen],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        ),
+                        in: RoundedRectangle(cornerRadius: 16, style: .continuous)
+                    )
+                    .shadow(color: Self.emptyStateGreen.opacity(0.35), radius: 14, y: 6)
             }
             .buttonStyle(ScalePressButtonStyle())
-            .padding(.horizontal, 32)
+            .padding(.horizontal, 28)
 
-            Spacer()
+            Spacer(minLength: 0)
+            Spacer(minLength: 0)
         }
-        .padding(.top, 48)
+        .padding(.top, 24)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
+
+// MARK: - Dashboard header
+
+/// Totals across every saved payslip — Onyx card, Cyan border, Neon Green for
+/// the money figure, matching the fixed card styling below rather than the
+/// user's personalized accent (this is a library-wide summary, not a themed
+/// decoration).
+private struct PayslipDashboardHeader: View {
+    let totalNet: Decimal
+    let totalTaxes: Decimal
+    let count: Int
+    let currencyCode: String
+
+    private static let cyan = Color(hex: "00E5FF")
+    private static let green = Color(hex: "26F273")
+
+    var body: some View {
+        HStack(spacing: 10) {
+            stat(L10n.payslipDashboardNet, PayslipDisplayFormatting.money(totalNet, currencyCode: currencyCode), color: Self.green)
+            Divider().frame(height: 30).overlay(Color.white.opacity(0.1))
+            stat(L10n.payslipDashboardTaxes, PayslipDisplayFormatting.money(totalTaxes, currencyCode: currencyCode), color: Self.cyan)
+            Divider().frame(height: 30).overlay(Color.white.opacity(0.1))
+            stat(L10n.payslipDashboardCount, "\(count)", color: Self.cyan)
+        }
+        .padding(.vertical, 14)
+        .padding(.horizontal, 12)
+        .background(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(hex: "0D0D0D")))
+        .overlay(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .stroke(Self.cyan.opacity(0.35), lineWidth: 1)
+        )
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+    }
+
+    private func stat(_ label: String, _ value: String, color: Color) -> some View {
+        VStack(spacing: 4) {
+            Text(value)
+                .font(.system(size: 16, weight: .bold, design: .rounded))
+                .monospacedDigit()
+                .foregroundStyle(color)
+                .lineLimit(1)
+                .minimumScaleFactor(0.6)
+            Text(label.uppercased())
+                .font(.system(size: 9, weight: .semibold, design: .rounded))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .frame(maxWidth: .infinity)
     }
 }
 
@@ -208,6 +320,12 @@ struct PayslipLibraryView: View {
 private struct PayslipGridCard: View {
     let record: PayslipRecord
     var accent: Color = HomeNeon.accent
+    /// Fixed Cyan/Green card styling, distinct from `accent` (used only for the
+    /// thumbnail placeholder's spinner, which stays personalized like the rest
+    /// of the screen's chrome).
+    private static let cardBackground = Color(hex: "0D0D0D")
+    private static let cyan = Color(hex: "00E5FF")
+    private static let green = Color(hex: "26F273")
     let loadThumbnail: (@escaping (UIImage?) -> Void) -> Void
 
     @State private var thumbnail: UIImage?
@@ -224,7 +342,7 @@ private struct PayslipGridCard: View {
                     .clipShape(RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
                     .overlay {
                         RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                            .strokeBorder(accent.opacity(0.18), lineWidth: 1)
+                            .strokeBorder(Self.cyan.opacity(0.3), lineWidth: 1)
                     }
 
                 if needsReviewBadge {
@@ -245,16 +363,16 @@ private struct PayslipGridCard: View {
 
             Text(netLabel)
                 .font(.headline.monospacedDigit())
-                .foregroundStyle(accent)
+                .foregroundStyle(Self.green)
                 .lineLimit(1)
         }
         .padding(10)
         .background(
             RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                .fill(HomeNeon.card)
+                .fill(Self.cardBackground)
                 .overlay(
                     RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
-                        .stroke(accent.opacity(0.14), lineWidth: 1)
+                        .stroke(Self.cyan.opacity(0.3), lineWidth: 1)
                 )
         )
         .onAppear { requestThumbnailIfNeeded() }

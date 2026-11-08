@@ -15,19 +15,14 @@ struct SettingsView: View {
     @ObservedObject private var appBackground = AppBackgroundTheme.shared
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
     @ObservedObject private var accountAuth = SupabaseAuthManager.shared
-    @ObservedObject private var admin = AdminAPIClient.shared
     @ObservedObject private var notificationPrefs = NotificationPreferences.shared
     @EnvironmentObject private var appLock: AppLockController
     @EnvironmentObject private var appLanguage: AppLanguageController
 
     @State private var draft: WorkplaceSettings
-    /// What `draft` and the scanner fields were last loaded from or saved as —
-    /// "unsaved" means different from this, not from the live settings, so a
-    /// change arriving from iCloud doesn't light up Save by itself.
     @State private var saved: SavedSnapshot
     @ObservedObject private var unsavedChanges = SettingsUnsavedChanges.shared
     @State private var showAccountSheet = false
-    @State private var locationStatus: String = ""
     @State private var showDeleteAllConfirm = false
     @State private var showFullDataExport = false
     @State private var showFullDataImporter = false
@@ -37,7 +32,6 @@ struct SettingsView: View {
     @State private var showContactSupport = false
     @State private var showWidgetGuide = false
     @State private var widgetInstallCount: Int?
-    @State private var showArrivalExplainer = false
     @State private var showDisableSyncConfirm = false
     @State private var isEditingIDNumber = false
     @State private var smartScannerCloudEnabled = UserDefaultsSmartScannerCloudPreference.shared.isEnabled
@@ -74,7 +68,6 @@ struct SettingsView: View {
             || secondaryAPIKeyDraft != saved.secondaryKey
     }
 
-    /// Reloads every Save-backed field from what is stored now.
     private func reloadFromStore() {
         let snapshot = SavedSnapshot(settings: viewModel.activeSettings)
         saved = snapshot
@@ -88,8 +81,6 @@ struct SettingsView: View {
         withAnimation(.none) { reloadFromStore() }
     }
 
-    /// Icon-led section header: an accent-colored SF Symbol + rounded caps,
-    /// matching `MonthlyTrendCard` and the Home stat cards (B11).
     private func sectionHeader(_ title: String, icon: String) -> some View {
         Label {
             Text(title.uppercased(with: AppLocale.resolvedLocale))
@@ -102,26 +93,23 @@ struct SettingsView: View {
         }
     }
 
-    // MARK: - Navigation: Settings → group → sub-screen
+    // MARK: - Navigation Components
 
-    /// A row on the Settings list that opens a group. The icon-and-summary label keeps a
-    /// closed group useful at a glance; the group itself is a pushed screen, not an
-    /// accordion, so no screen ever shows more than one topic.
     private func groupLink<Destination: View>(
         _ key: String,
         title: String,
         icon: String,
         summary: String,
+        tint: Color? = nil,
         @ViewBuilder destination: @escaping () -> Destination
     ) -> some View {
-        // AnyView at every link keeps the view types shallow (see the note in `body`).
         NavigationLink {
-            AnyView(destination())
+            destination() // NO AnyView
         } label: {
             HStack(spacing: 12) {
                 Image(systemName: icon)
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(homeTheme.accent)
+                    .foregroundStyle(tint ?? homeTheme.accent)
                     .frame(width: 24)
                 VStack(alignment: .leading, spacing: 2) {
                     Text(title)
@@ -136,50 +124,64 @@ struct SettingsView: View {
         .accessibilityIdentifier("settings.group.\(key)")
     }
 
-    /// A row on a group screen that opens one sub-screen.
+    private func accentLabel(_ title: String, icon: String) -> some View {
+        Label {
+            Text(title)
+        } icon: {
+            Image(systemName: icon).foregroundStyle(homeTheme.accent)
+        }
+    }
+
     private func subLink<Destination: View>(
         _ key: String,
         title: String,
         icon: String,
+        tint: Color? = nil,
         @ViewBuilder destination: @escaping () -> Destination
     ) -> some View {
         NavigationLink {
-            AnyView(destination())
+            destination() // NO AnyView
         } label: {
             Label {
                 Text(title)
             } icon: {
-                Image(systemName: icon).foregroundStyle(homeTheme.accent)
+                Image(systemName: icon).foregroundStyle(tint ?? homeTheme.accent)
             }
         }
         .accessibilityIdentifier("settings.sub.\(key)")
     }
 
-    /// A pushed Settings screen. Edits go to the shared `draft`, so Save works from
-    /// any of them exactly as on the main list.
     private func settingsPage<Content: View>(
         _ title: String,
         @ViewBuilder content: () -> Content
     ) -> some View {
-        Form { content() }
-            .tint(homeTheme.accent)
-            .symbolRenderingMode(.monochrome)
-            .scrollContentBackground(.hidden)
-            .background(appBackground.background.ignoresSafeArea())
-            .scrollDismissesKeyboard(.interactively)
-            .keyboardDismissible()
-            .navigationTitle(title)
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarBackground(appBackground.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) { saveButton }
-            }
+        Form {
+            content()
+        }
+        // `Form`/`List` apply an implicit insertion animation while diffing their
+        // content on first render — on a pushed screen that reads as rows hidden
+        // then popping in (e.g. `dataGroupPage`'s `if isAdmin`/`if isCloudSyncSupported`
+        // sections). `disablesAnimations` kills that unconditionally so every page
+        // built from this helper renders complete on the very first frame.
+        .transaction { $0.disablesAnimations = true }
+        .listStyle(.insetGrouped)
+        .tint(homeTheme.accent)
+        .toggleStyle(SwitchToggleStyle(tint: homeTheme.accent))
+        .symbolRenderingMode(.monochrome)
+        .scrollContentBackground(.hidden)
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDismissible()
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(appBackground.background, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) { saveButton }
+        }
     }
 
-    // Level 2: a group that has several topics lists them; a short group shows its
-    // rows directly. Each section builder is type-erased (see the note in `body`).
+    // MARK: - Pages
 
     private var workGroupPage: some View {
         settingsPage(L10n.settingsGroupWork) {
@@ -195,7 +197,7 @@ struct SettingsView: View {
                     settingsPage(L10n.settingsPayHours) { Section { AnyView(payRows) } }
                 }
                 subLink("rules", title: L10n.settingsWorkRules, icon: "clock.badge.checkmark.fill") {
-                    settingsPage(L10n.settingsWorkRules) { Section { AnyView(workRulesRows) } }
+                    WorkRulesView(draft: $draft)
                 }
                 subLink("payroll", title: L10n.settingsSubPayrollTax, icon: "calendar.badge.clock") {
                     settingsPage(L10n.settingsSubPayrollTax) {
@@ -203,15 +205,17 @@ struct SettingsView: View {
                         Section { AnyView(taxRows) }
                     }
                 }
+            } footer: {
+                Text(L10n.settingsWorkGroupFooter)
+                    .font(.footnote)
+                    .foregroundColor(.secondary)
+                    .padding(.top, 8)
             }
         }
     }
 
     private var remindersGroupPage: some View {
-        settingsPage(L10n.settingsGroupReminders) {
-            Section { AnyView(locationRows) }
-            Section { AnyView(notificationsRows) }
-        }
+        RemindersView(viewModel: viewModel, draft: $draft)
     }
 
     private var privacyGroupPage: some View {
@@ -238,7 +242,7 @@ struct SettingsView: View {
             if viewModel.isCloudSyncSupported {
                 Section { AnyView(syncRows) }
             }
-            if admin.isAdmin {
+            if viewModel.isAdmin {
                 Section { AnyView(adminRows) }
             }
             Section { AnyView(toolsRows) }
@@ -246,329 +250,149 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        NavigationStack {
-            Form {
-                accountSection
-                // Each group opens its own screen. Each section is type-erased inside those
-                // screens: the nested opaque types of the big builders made Swift's runtime
-                // type resolution overflow the stack (EXC_BAD_ACCESS in
-                // swift_getTypeByMangledName) when Settings opened.
-                Section {
-                    groupLink("work", title: L10n.settingsGroupWork, icon: "briefcase.fill", summary: L10n.settingsGroupWorkSummary) { workGroupPage }
-                    groupLink("reminders", title: L10n.settingsGroupReminders, icon: "bell.badge.fill", summary: L10n.settingsGroupRemindersSummary) { remindersGroupPage }
-                    groupLink("privacy", title: L10n.settingsGroupPrivacy, icon: "lock.shield.fill", summary: L10n.settingsGroupPrivacySummary) { privacyGroupPage }
-                    groupLink("data", title: L10n.settingsGroupData, icon: "externaldrive.fill", summary: L10n.settingsGroupDataSummary) { dataGroupPage }
+        ZStack {
+            appBackground.background.ignoresSafeArea()
+            
+            NavigationStack {
+                Form {
+                    accountSection
+                    Section {
+                        groupLink("work", title: L10n.settingsGroupWork, icon: "briefcase.fill", summary: L10n.settingsGroupWorkSummary) { workGroupPage }
+                        groupLink("reminders", title: L10n.settingsGroupReminders, icon: "bell.badge.fill", summary: L10n.settingsGroupRemindersSummary) { remindersGroupPage }
+                        groupLink("privacy", title: L10n.settingsGroupPrivacy, icon: "lock.shield.fill", summary: L10n.settingsGroupPrivacySummary) { privacyGroupPage }
+                        groupLink("data", title: L10n.settingsGroupData, icon: "externaldrive.fill", summary: L10n.settingsGroupDataSummary) { dataGroupPage }
+                    }
+                    languageSection
+                    aboutSection
+                    dangerZoneSection
+                    shareAppSection
                 }
-                languageSection
-                aboutSection
-                shareAppSection
-            }
-            // Forces the List to fully rebuild whenever the app-wide accent color
-            // changes, instead of leaving already-rendered rows (Export/Import/
-            // Contact Support icons, etc.) stuck showing the previous tint until
-            // something else invalidates them.
-            .id(homeTheme.accent.hexString)
-            .tint(homeTheme.accent)
-            // Some symbols (the privacy hand) have a built-in blue multicolor variant;
-            // keep every icon monochrome so it takes the accent.
-            .symbolRenderingMode(.monochrome)
-            .scrollContentBackground(.hidden)
-            .background(appBackground.background.ignoresSafeArea())
-            .scrollDismissesKeyboard(.interactively)
-            .keyboardDismissible()
-            .navigationTitle(L10n.settingsTitle)
-            .toolbarBackground(appBackground.background, for: .navigationBar)
-            .toolbarBackground(.visible, for: .navigationBar)
-            .toolbarColorScheme(.dark, for: .navigationBar)
-            .toolbar {
-                ToolbarItem(placement: .confirmationAction) {
-                    saveButton
-                }
-                ToolbarItem(placement: .topBarLeading) {
-                    AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
-                }
-            }
-            // Asks the server whether this account is an admin; the server enforces
-            // it again on every admin call.
-            .task(id: accountAuth.currentUserID) { await admin.checkAccess() }
-            .onAppear {
-                // withAnimation(.none) prevents conditional rows (tax, location) from
-                // reflowing inside the tab-slide animation context.
-                // Unsaved edits survive leaving the tab or the app; only a clean
-                // screen is refreshed from the store.
-                if !hasUnsavedChanges {
-                    withAnimation(.none) { reloadFromStore() }
-                }
-                viewModel.refreshLocationPermissionStatuses()
-            }
-            .onChange(of: viewModel.activeSettings) { _, _ in
-                if !hasUnsavedChanges {
-                    withAnimation(.none) { reloadFromStore() }
-                }
-            }
-            // Switching workplace shows that workplace's own settings.
-            .onChange(of: viewModel.activeWorkplaceID) { _, _ in
-                withAnimation(.none) { reloadFromStore() }
-            }
-            .onChange(of: hasUnsavedChanges, initial: true) { _, dirty in
-                unsavedChanges.update(hasChanges: dirty, save: saveSettings, discard: discardChanges)
-            }
-            .confirmationDialog(
-                L10n.privacyDeleteAllConfirm,
-                isPresented: $showDeleteAllConfirm,
-                titleVisibility: .visible
-            ) {
-                Button(L10n.privacyDeleteAll, role: .destructive) {
-                    viewModel.deleteAllUserData()
-                    draft = viewModel.activeSettings
-                    viewModel.showSuccessToast(L10n.feedbackDataDeleted)
-                }
-                Button(L10n.editCancel, role: .cancel) {}
-            }
-            .confirmationDialog(
-                L10n.syncDisableConfirm,
-                isPresented: $showDisableSyncConfirm,
-                titleVisibility: .visible
-            ) {
-                Button(L10n.syncDisableKeepCloud, role: .destructive) {
-                    viewModel.disableICloudSync(deleteRemoteData: false)
-                }
-                Button(L10n.syncDisableDeleteCloud, role: .destructive) {
-                    viewModel.disableICloudSync(deleteRemoteData: true)
-                }
-                Button(L10n.editCancel, role: .cancel) {
-                    viewModel.isICloudSyncEnabled = true
-                }
-            }
-            .alert(L10n.settingsArrivalTitle, isPresented: $showArrivalExplainer) {
-                Button(L10n.settingsArrivalContinue) {
-                    draft.arrivalRemindersEnabled = true
-                }
-                Button(L10n.editCancel, role: .cancel) {
-                    draft.arrivalRemindersEnabled = false
-                }
-            } message: {
-                Text(L10n.settingsArrivalBody)
-            }
-            .sheet(isPresented: $showFullDataExport) {
-                FullDataExportSheet(viewModel: viewModel)
-            }
-            .sheet(isPresented: $showContactSupport) {
-                ContactSupportSheet(viewModel: viewModel)
-            }
-            .onReceive(NotificationCenter.default.publisher(for: WidgetNudge.openGuide)) { _ in
-                openWidgetGuideFromReminder()
-            }
-            .onAppear {
-                if WidgetNudge.pendingGuide { openWidgetGuideFromReminder() }
-            }
-            .sheet(isPresented: $showWidgetGuide) {
-                WidgetInstallGuideView(installedCount: widgetInstallCount)
-            }
-            .sheet(isPresented: $showAccountSheet) {
-                AccountSheet(viewModel: viewModel)
-            }
-            .fileImporter(
-                isPresented: $showFullDataImporter,
-                allowedContentTypes: [.json],
-                allowsMultipleSelection: false
-            ) { result in
-                handleFullDataImport(result)
-            }
-            .confirmationDialog(
-                L10n.fullImportConfirmTitle,
-                isPresented: $showImportConfirm,
-                titleVisibility: .visible
-            ) {
-                Button(L10n.fullImportReplace, role: .destructive) {
-                    applyFullDataImport(mode: .replace)
-                }
-                Button(L10n.fullImportMerge) {
-                    applyFullDataImport(mode: .merge)
-                }
-                Button(L10n.editCancel, role: .cancel) {
-                    pendingImportDocument = nil
-                }
-            } message: {
-                if let doc = pendingImportDocument {
-                    Text(L10n.fullImportConfirmMessage(doc.sessions.count, doc.appVersion))
-                } else {
-                    Text(L10n.fullImportConfirmFallback)
-                }
-            }
-            .alert(
-                L10n.errorTitle,
-                isPresented: Binding(
-                    get: { importErrorMessage != nil },
-                    set: { if !$0 { importErrorMessage = nil } }
-                )
-            ) {
-                Button(L10n.errorOK, role: .cancel) { importErrorMessage = nil }
-            } message: {
-                Text(importErrorMessage ?? "")
-            }
-        }
-    }
-
-    private func handleFullDataImport(_ result: Result<[URL], Error>) {
-        switch result {
-        case .failure(let error):
-            importErrorMessage = error.localizedDescription
-        case .success(let urls):
-            guard let url = urls.first else { return }
-            do {
-                let document = try FullDataExportManager().loadJSONDocument(from: url)
-                pendingImportDocument = document
-                showImportConfirm = true
-            } catch {
-                importErrorMessage = error.localizedDescription
-            }
-        }
-    }
-
-    private func applyFullDataImport(mode: FullDataImportMode) {
-        guard let document = pendingImportDocument else { return }
-        pendingImportDocument = nil
-        do {
-            try viewModel.importFullDataExport(document, mode: mode)
-            draft = viewModel.activeSettings
-            viewModel.showSuccessToast(L10n.fullImportSuccess)
-        } catch {
-            importErrorMessage = error.localizedDescription
-        }
-    }
-
-    private func saveSettings() {
-        // Leave days are marked in History, not here — keep the live ones so a draft
-        // opened earlier can't roll back a day marked meanwhile.
-        var toSave = draft
-        toSave.leaveDays = viewModel.activeSettings.leaveDays
-        // Saves the workplace being shown (main or another one).
-        viewModel.saveActiveWorkplaceSettings(toSave)
-        UserDefaultsSmartScannerCloudPreference.shared.isEnabled = smartScannerCloudEnabled
-        let trimmedKey = geminiAPIKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        try? KeychainStore.setString(trimmedKey, for: .geminiAPIKey)
-        let trimmedSecondary = secondaryAPIKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
-        try? KeychainStore.setString(trimmedSecondary, for: .secondaryAPIKey)
-        reloadFromStore()
-        UINotificationFeedbackGenerator().notificationOccurred(.success)
-        viewModel.showSuccessToast(L10n.settingsSaved)
-    }
-
-    /// Quiet while there is nothing to save; filled with the accent (and a dot) as
-    /// soon as something changed. A prominent system style so the fill covers the
-    /// whole toolbar capsule (on iOS 26 a custom background sat inside the glass).
-    private var saveButton: some View {
-        Button(action: saveSettings) {
-            HStack(spacing: 5) {
-                if hasUnsavedChanges {
-                    Circle()
-                        .fill(DS.Palette.ink)
-                        .frame(width: 6, height: 6)
-                        .accessibilityHidden(true)
-                }
-                Text(L10n.settingsSave)
-                    .font(.subheadline.weight(.semibold))
-            }
-            .foregroundStyle(hasUnsavedChanges ? DS.Palette.ink : Color.secondary)
-            .animation(DS.Motion.state, value: hasUnsavedChanges)
-        }
-        .buttonStyle(.borderedProminent)
-        .buttonBorderShape(.capsule)
-        .tint(homeTheme.accent)
-        .disabled(!hasUnsavedChanges)
-        .accessibilityValue(hasUnsavedChanges ? L10n.settingsUnsavedTitle : "")
-        .accessibilityIdentifier("settings.save")
-    }
-
-    private var smartScannerRows: some View {
-        Group {
-            sectionHeader(L10n.scannerSection, icon: "doc.text.viewfinder")
-            Toggle(L10n.scannerCloudEnabled, isOn: $smartScannerCloudEnabled)
-
-            Text(L10n.scannerCloudPrivacyNotice)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if smartScannerCloudEnabled {
-                SecureField(L10n.scannerGeminiAPIKey, text: $geminiAPIKeyDraft)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .onChange(of: geminiAPIKeyDraft) { _, _ in geminiKeyCheck = .idle }
-                keyCheckRow(state: geminiKeyCheck) {
-                    testKey(draft: geminiAPIKeyDraft, result: $geminiKeyCheck) {
-                        await ScannerAPIKeyValidator.checkGeminiKey($0)
+                .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
+                .tint(homeTheme.accent)
+                .toggleStyle(SwitchToggleStyle(tint: homeTheme.accent))
+                .symbolRenderingMode(.monochrome)
+                .scrollDismissesKeyboard(.interactively)
+                .keyboardDismissible()
+                .navigationTitle(L10n.settingsTitle)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbarBackground(appBackground.background, for: .navigationBar)
+                .toolbarBackground(.visible, for: .navigationBar)
+                .toolbarColorScheme(.dark, for: .navigationBar)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        saveButton
+                    }
+                    ToolbarItem(placement: .topBarLeading) {
+                        AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
                     }
                 }
-                Text(L10n.scannerGeminiAPIKeyHint)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
-                SecureField(L10n.scannerSecondaryAPIKey, text: $secondaryAPIKeyDraft)
-                    .textInputAutocapitalization(.never)
-                    .autocorrectionDisabled()
-                    .onChange(of: secondaryAPIKeyDraft) { _, _ in secondaryKeyCheck = .idle }
-                keyCheckRow(state: secondaryKeyCheck) {
-                    testKey(draft: secondaryAPIKeyDraft, result: $secondaryKeyCheck) {
-                        await ScannerAPIKeyValidator.checkOpenAICompatibleKey($0)
+                .onAppear {
+                    if !hasUnsavedChanges {
+                        reloadFromStore()
+                    }
+                    viewModel.refreshLocationPermissionStatuses()
+                }
+                .onChange(of: viewModel.activeSettings) { _, _ in
+                    if !hasUnsavedChanges {
+                        reloadFromStore()
                     }
                 }
-                Text(L10n.scannerSecondaryAPIKeyHint)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                .onChange(of: viewModel.activeWorkplaceID) { _, _ in
+                    reloadFromStore()
+                }
+                .onChange(of: hasUnsavedChanges, initial: true) { _, dirty in
+                    unsavedChanges.update(hasChanges: dirty, save: saveSettings, discard: discardChanges)
+                }
+                .confirmationDialog(
+                    L10n.privacyDeleteAllConfirm,
+                    isPresented: $showDeleteAllConfirm,
+                    titleVisibility: .visible
+                ) {
+                    Button(L10n.privacyDeleteAll, role: .destructive) {
+                        viewModel.deleteAllUserData()
+                        draft = viewModel.activeSettings
+                        viewModel.showSuccessToast(L10n.feedbackDataDeleted)
+                    }
+                    Button(L10n.editCancel, role: .cancel) {}
+                }
+                .confirmationDialog(
+                    L10n.syncDisableConfirm,
+                    isPresented: $showDisableSyncConfirm,
+                    titleVisibility: .visible
+                ) {
+                    Button(L10n.syncDisableKeepCloud, role: .destructive) {
+                        viewModel.disableICloudSync(deleteRemoteData: false)
+                    }
+                    Button(L10n.syncDisableDeleteCloud, role: .destructive) {
+                        viewModel.disableICloudSync(deleteRemoteData: true)
+                    }
+                    Button(L10n.editCancel, role: .cancel) {
+                        viewModel.isICloudSyncEnabled = true
+                    }
+                }
+                .sheet(isPresented: $showFullDataExport) {
+                    FullDataExportSheet(viewModel: viewModel)
+                }
+                .sheet(isPresented: $showContactSupport) {
+                    ContactSupportSheet(viewModel: viewModel)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: WidgetNudge.openGuide)) { _ in
+                    openWidgetGuideFromReminder()
+                }
+                .onAppear {
+                    if WidgetNudge.pendingGuide { openWidgetGuideFromReminder() }
+                }
+                .sheet(isPresented: $showWidgetGuide) {
+                    WidgetInstallGuideView(installedCount: widgetInstallCount)
+                }
+                .sheet(isPresented: $showAccountSheet) {
+                    AccountSheet(viewModel: viewModel)
+                }
+                .fileImporter(
+                    isPresented: $showFullDataImporter,
+                    allowedContentTypes: [.json],
+                    allowsMultipleSelection: false
+                ) { result in
+                    handleFullDataImport(result)
+                }
+                .confirmationDialog(
+                    L10n.fullImportConfirmTitle,
+                    isPresented: $showImportConfirm,
+                    titleVisibility: .visible
+                ) {
+                    Button(L10n.fullImportReplace, role: .destructive) {
+                        applyFullDataImport(mode: .replace)
+                    }
+                    Button(L10n.fullImportMerge) {
+                        applyFullDataImport(mode: .merge)
+                    }
+                    Button(L10n.editCancel, role: .cancel) {
+                        pendingImportDocument = nil
+                    }
+                } message: {
+                    if let doc = pendingImportDocument {
+                        Text(L10n.fullImportConfirmMessage(doc.sessions.count, doc.appVersion))
+                    } else {
+                        Text(L10n.fullImportConfirmFallback)
+                    }
+                }
+                .alert(
+                    L10n.errorTitle,
+                    isPresented: Binding(
+                        get: { importErrorMessage != nil },
+                        set: { if !$0 { importErrorMessage = nil } }
+                    )
+                ) {
+                    Button(L10n.errorOK, role: .cancel) { importErrorMessage = nil }
+                } message: {
+                    Text(importErrorMessage ?? "")
+                }
             }
         }
     }
 
-    /// Fires an async key check against `draft` and stores the outcome in `result`.
-    /// Shared by the Gemini and secondary-key rows — only the network call differs.
-    private func testKey(
-        draft: String,
-        result: Binding<KeyCheckUIState>,
-        check: @escaping (String) async -> APIKeyCheckResult
-    ) {
-        let key = draft
-        guard !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
-        result.wrappedValue = .checking
-        Task {
-            let outcome = await check(key)
-            result.wrappedValue = .result(outcome)
-        }
-    }
-
-    /// "Test Key" button + inline red/green status, shown under each API key field.
-    private func keyCheckRow(state: KeyCheckUIState, action: @escaping () -> Void) -> some View {
-        HStack(spacing: 8) {
-            Button(L10n.scannerTestKey, action: action)
-                .font(.caption.weight(.semibold))
-                .disabled(state == .checking)
-
-            switch state {
-            case .idle:
-                EmptyView()
-            case .checking:
-                ProgressView()
-                    .controlSize(.mini)
-                Text(L10n.scannerKeyCheckChecking)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            case .result(let outcome):
-                Image(systemName: outcome.isValid ? "checkmark.circle.fill" : "xmark.circle.fill")
-                    .foregroundStyle(outcome.isValid ? .green : .red)
-                Text(keyCheckMessage(for: outcome))
-                    .font(.caption)
-                    .foregroundStyle(outcome.isValid ? .green : .red)
-            }
-        }
-    }
-
-    private func keyCheckMessage(for outcome: APIKeyCheckResult) -> String {
-        switch outcome {
-        case .valid: return L10n.scannerKeyCheckValid
-        case .invalid: return L10n.scannerKeyCheckInvalid
-        case .networkError: return L10n.scannerKeyCheckNetworkError
-        }
-    }
+    // MARK: - Row Components & Helpers
 
     private var accountSection: some View {
         Section {
@@ -579,12 +403,13 @@ struct SettingsView: View {
                     ZStack {
                         Circle()
                             .fill(homeTheme.accent.opacity(0.15))
-                            .frame(width: 36, height: 36)
+                            .frame(width: 44, height: 44)
                         Image(systemName: accountAuth.isSignedIn ? "checkmark.seal.fill" : "person.crop.circle")
+                            .font(.system(size: 20))
                             .foregroundStyle(homeTheme.accent)
                     }
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(L10n.accountSection)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(profileDisplayName)
                             .font(.body.weight(.semibold))
                             .foregroundStyle(.primary)
                         Text(
@@ -595,10 +420,26 @@ struct SettingsView: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
+                        HStack(spacing: 6) {
+                            Text(verbatim: LocalPlaceholderUserID.current())
+                                .font(.caption2.monospaced().weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Button(action: copyPlaceholderUserID) {
+                                Image(systemName: "doc.on.doc")
+                                    .font(.caption2)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(L10n.settingsCopyUserID)
+                        }
                     }
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tertiary)
                 }
-                .padding(.vertical, 4)
+                .padding(.vertical, 6)
             }
+            .buttonStyle(.plain)
             .accessibilityIdentifier("settings.account")
         }
     }
@@ -638,188 +479,6 @@ struct SettingsView: View {
             }
             TextField(L10n.settingsEmployeeNumber, text: $draft.employeeNumber)
                 .accessibilityIdentifier("settings.employeeNumber")
-        }
-    }
-
-    /// iOS has no API to install a widget programmatically (still true in the
-    /// iOS 26 SDK — verified), so this is a one-tap guide: deep context plus
-    /// whether a widget is already placed, then hands off to Settings.
-    private func openWidgetGuideFromReminder() {
-        WidgetNudge.pendingGuide = false
-        Task {
-            widgetInstallCount = await WidgetBridge.installedWidgetCount()
-            showWidgetGuide = true
-        }
-    }
-
-    private var addWidgetButton: some View {
-        Button {
-            Task {
-                widgetInstallCount = await WidgetBridge.installedWidgetCount()
-                showWidgetGuide = true
-            }
-        } label: {
-            HStack {
-                Label(L10n.settingsAddWidgetButton, systemImage: "square.grid.2x2")
-                    .foregroundStyle(homeTheme.accent)
-                Spacer()
-                if let count = widgetInstallCount {
-                    Text(L10n.settingsWidgetInstalled(count))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                }
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .onAppear {
-            Task {
-                widgetInstallCount = await WidgetBridge.installedWidgetCount()
-            }
-        }
-    }
-
-    /// One switch per notification-sending feature. These are device preferences
-    /// (UserDefaults), not workplace settings, so they apply immediately — no Save.
-    private var notificationsRows: some View {
-        Group {
-            sectionHeader(L10n.settingsNotificationsSection, icon: "bell.badge.fill")
-            Picker(L10n.settingsNotificationsBreakLength, selection: $notificationPrefs.breakTargetMinutes) {
-                ForEach(breakTargetChoices, id: \.self) { minutes in
-                    Text(L10n.settingsNotificationsMinutes(minutes)).tag(minutes)
-                }
-            }
-
-            Toggle(L10n.settingsNotificationsBreakEndingSoon, isOn: $notificationPrefs.breakEndingSoonEnabled)
-
-            if notificationPrefs.breakEndingSoonEnabled {
-                Picker(L10n.settingsNotificationsBreakLead, selection: $notificationPrefs.breakLeadMinutes) {
-                    ForEach(NotificationPreferences.breakLeadTimeOptions, id: \.self) { minutes in
-                        Text(L10n.settingsNotificationsMinutes(minutes)).tag(minutes)
-                    }
-                }
-            }
-
-            Toggle(L10n.settingsNotificationsBreakOver, isOn: $notificationPrefs.breakOverEnabled)
-
-            Toggle(L10n.settingsNotificationsShiftStart, isOn: $notificationPrefs.shiftStartReminderEnabled)
-                .onChange(of: notificationPrefs.shiftStartReminderEnabled) { _, _ in viewModel.refreshShiftReminders() }
-            Toggle(L10n.settingsNotificationsShiftEnd, isOn: $notificationPrefs.shiftEndReminderEnabled)
-                .onChange(of: notificationPrefs.shiftEndReminderEnabled) { _, _ in viewModel.refreshShiftReminders() }
-
-            if notificationPrefs.shiftStartReminderEnabled || notificationPrefs.shiftEndReminderEnabled {
-                usualScheduleSummary
-            }
-
-            Toggle(L10n.settingsNotificationsShiftSummary, isOn: $notificationPrefs.shiftSummaryEnabled)
-
-            Toggle(L10n.settingsNotificationsAnnouncements, isOn: $notificationPrefs.announcementsEnabled)
-                .onChange(of: notificationPrefs.announcementsEnabled) { _, _ in
-                    AnnouncementCenter.shared.refresh(force: true)
-                }
-
-            if viewModel.areLocationNotificationsDenied {
-                Text(L10n.settingsNotificationsDenied)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                Button(L10n.settingsOpenSystemSettings) {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
-                    }
-                }
-            }
-            Text(L10n.settingsNotificationsHint).font(.footnote).foregroundStyle(.secondary)
-        }
-    }
-
-    /// What the shift reminders are timed against — the usual hours learned from the
-    /// worker's own shifts, per weekday — so the reminders never feel random.
-    @ViewBuilder
-    /// The learned weekly schedule lives on its own screen, so the Reminders group stays short.
-    private var usualScheduleSummary: some View {
-        NavigationLink {
-            UsualScheduleView(viewModel: viewModel)
-        } label: {
-            Label(L10n.settingsNotificationsUsualSchedule, systemImage: "calendar.badge.clock")
-        }
-    }
-
-    /// Offered break lengths, plus the stored value if it's a custom one.
-    private var breakTargetChoices: [Int] {
-        let options = NotificationPreferences.breakTargetOptions
-        let current = notificationPrefs.breakTargetMinutes
-        return options.contains(current) ? options : (options + [current]).sorted()
-    }
-
-    /// Recently deleted shifts (30 days) and the automatic daily backups (14 days).
-    private var dataSafetyRows: some View {
-        Group {
-            sectionHeader(L10n.dataSafetySection, icon: "externaldrive.badge.checkmark")
-            NavigationLink {
-                RecentlyDeletedView(viewModel: viewModel)
-            } label: {
-                Label(L10n.dataSafetyRecentlyDeleted, systemImage: "trash")
-            }
-            NavigationLink {
-                LocalBackupsView(viewModel: viewModel)
-            } label: {
-                Label(L10n.dataSafetyBackups, systemImage: "clock.arrow.circlepath")
-            }
-            Text(L10n.dataSafetyHint).font(.footnote).foregroundStyle(.secondary)
-        }
-    }
-
-    private var adminRows: some View {
-        Group {
-            sectionHeader(L10n.adminTitle, icon: "crown.fill")
-            NavigationLink {
-                AdminDashboardView()
-            } label: {
-                Label(L10n.adminSettingsEntry, systemImage: "crown")
-            }
-            Text(L10n.adminSettingsFooter).font(.footnote).foregroundStyle(.secondary)
-        }
-    }
-
-    private var securityRows: some View {
-        Group {
-            sectionHeader(L10n.appLockSection, icon: "lock.shield.fill")
-            Toggle(L10n.appLockEnabled, isOn: $appLock.isEnabled)
-            Text(L10n.appLockHint)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
-    }
-
-    /// Home-screen widgets and the Live Activity (Dynamic Island / Lock Screen)
-    /// show money by default — this lets users mask it everywhere outside the app.
-    /// The flag lives in the shared App Group suite so the widget extension reads
-    /// it without needing the app's settings file.
-    private var widgetPrivacyRows: some View {
-        Group {
-            sectionHeader(L10n.settingsHideWidgetPaySection, icon: "square.grid.2x2.fill")
-            addWidgetButton
-            Text(L10n.settingsAddWidgetHint)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Toggle(
-                L10n.settingsHideWidgetPay,
-                isOn: Binding(
-                    get: { WidgetBridge.hidePay },
-                    set: { newValue in
-                        WidgetBridge.hidePay = newValue
-                        // Widgets, Watch and the Live Activity re-render with the
-                        // (masked) figures.
-                        viewModel.refreshLiveSurfaces()
-                    }
-                )
-            )
-            Text(L10n.settingsHideWidgetPayHint)
-                .font(.caption)
-                .foregroundStyle(.secondary)
         }
     }
 
@@ -890,174 +549,6 @@ struct SettingsView: View {
                     .multilineTextAlignment(.trailing)
                     .frame(width: 100)
                     .accessibilityIdentifier("settings.weeklyOvertimeCap")
-            }
-        }
-    }
-
-    /// Wraps `expectedShiftStartHour`/`Minute` as a `Date` for the time picker;
-    /// used to auto-fill holiday/rest-day hours from the worker's typical start.
-    private var expectedShiftStartBinding: Binding<Date> {
-        Binding(
-            get: {
-                Calendar.current.date(
-                    bySettingHour: draft.expectedShiftStartHour,
-                    minute: draft.expectedShiftStartMinute,
-                    second: 0,
-                    of: Date()
-                ) ?? Date()
-            },
-            set: { newValue in
-                let parts = Calendar.current.dateComponents([.hour, .minute], from: newValue)
-                draft.expectedShiftStartHour = parts.hour ?? draft.expectedShiftStartHour
-                draft.expectedShiftStartMinute = parts.minute ?? draft.expectedShiftStartMinute
-            }
-        )
-    }
-
-    private var workRulesRows: some View {
-        Group {
-            sectionHeader(L10n.settingsWorkRules, icon: "clock.badge.checkmark.fill")
-            restDayRows
-            HolidaysSettingsLink(customization: $draft.holidayCustomization)
-            breakRulesRows
-            shiftStartAndCurrencyRows
-        }
-    }
-
-    // Split out of `workRulesRows`: one big inline ViewBuilder made Swift's runtime
-    // generic-metadata resolution hang the main thread on device when Settings opened.
-    private var restDayRows: some View {
-        Group {
-            Picker(L10n.settingsRestDay, selection: $draft.restDayWeekday) {
-                ForEach(1...7, id: \.self) { weekday in
-                    Text(Calendar.current.weekdaySymbols[weekday - 1]).tag(weekday)
-                }
-            }
-            .onChange(of: draft.restDayWeekday) { _, newValue in
-                if draft.secondRestDayWeekday == newValue {
-                    draft.secondRestDayWeekday = nil
-                }
-            }
-
-            Picker(
-                L10n.settingsSecondRestDay,
-                selection: Binding(
-                    get: { draft.secondRestDayWeekday ?? 0 },
-                    set: { draft.secondRestDayWeekday = $0 == 0 ? nil : $0 }
-                )
-            ) {
-                Text(L10n.settingsSecondRestDayNone).tag(0)
-                ForEach(1...7, id: \.self) { weekday in
-                    if weekday != draft.restDayWeekday {
-                        Text(Calendar.current.weekdaySymbols[weekday - 1]).tag(weekday)
-                    }
-                }
-            }
-
-        }
-    }
-
-    private var breakRulesRows: some View {
-        Group {
-            VStack(alignment: .leading, spacing: 4) {
-                Toggle(L10n.settingsBreaksArePaid, isOn: $draft.breaksArePaid)
-                Text(draft.breaksArePaid ? L10n.settingsBreaksArePaidOnHint : L10n.settingsBreaksArePaidOffHint)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            // The automatic break is an unpaid deduction — meaningless when the
-            // workplace pays for breaks.
-            if !draft.breaksArePaid {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text(L10n.settingsDefaultBreak)
-                        Spacer()
-                        breakMinutesStepper
-                    }
-                    breakMinutesQuickPicks
-                }
-                .padding(.vertical, 2)
-            }
-
-        }
-    }
-
-    private var shiftStartAndCurrencyRows: some View {
-        Group {
-            DatePicker(
-                L10n.settingsExpectedShiftStart,
-                selection: expectedShiftStartBinding,
-                displayedComponents: .hourAndMinute
-            )
-
-            Picker(L10n.settingsCurrency, selection: $draft.currencyCode) {
-                ForEach(PayFormatter.supportedCurrencyCodes, id: \.self) { code in
-                    Text("\(code) (\(PayFormatter.symbol(for: code)))").tag(code)
-                }
-            }
-            .accessibilityIdentifier("settings.currency")
-
-            DisclosureGroup(L10n.settingsWorkRulesNoteTitle) {
-                Text(L10n.settingsWorkRulesNote)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .padding(.top, 2)
-            }
-            .font(.caption)
-        }
-    }
-
-    /// Pill-shaped +/- control replacing the plain `Stepper` — a single capsule
-    /// with the value in the middle, matching the "one elegant container" ask
-    /// rather than two separate system stepper buttons.
-    private var breakMinutesStepper: some View {
-        HStack(spacing: 0) {
-            Button {
-                draft.defaultBreakMinutes = max(0, draft.defaultBreakMinutes - 5)
-            } label: {
-                Image(systemName: "minus")
-                    .font(.footnote.weight(.semibold))
-                    .frame(width: 30, height: 30)
-            }
-            .disabled(draft.defaultBreakMinutes <= 0)
-
-            Text("\(draft.defaultBreakMinutes)")
-                .font(.subheadline.weight(.semibold).monospacedDigit())
-                .frame(minWidth: 36)
-
-            Button {
-                draft.defaultBreakMinutes = min(120, draft.defaultBreakMinutes + 5)
-            } label: {
-                Image(systemName: "plus")
-                    .font(.footnote.weight(.semibold))
-                    .frame(width: 30, height: 30)
-            }
-            .disabled(draft.defaultBreakMinutes >= 120)
-        }
-        .buttonStyle(.plain)
-        .background(Capsule(style: .continuous).fill(Color(.tertiarySystemFill)))
-    }
-
-    /// One-tap presets so choosing a common break doesn't mean tapping +/- ten
-    /// times — 0/15/30/45 minutes covers the overwhelming majority of shifts.
-    private var breakMinutesQuickPicks: some View {
-        HStack(spacing: 6) {
-            ForEach([0, 15, 30, 45], id: \.self) { minutes in
-                Button {
-                    draft.defaultBreakMinutes = minutes
-                } label: {
-                    Text("\(minutes)")
-                        .font(.caption.weight(draft.defaultBreakMinutes == minutes ? .bold : .regular).monospacedDigit())
-                        .frame(minWidth: 30)
-                        .padding(.vertical, 5)
-                        .background(
-                            Capsule(style: .continuous)
-                                .fill(draft.defaultBreakMinutes == minutes ? Color.appAccent.opacity(0.18) : Color(.tertiarySystemFill))
-                        )
-                        .foregroundStyle(draft.defaultBreakMinutes == minutes ? Color.appAccent : Color.secondary)
-                }
-                .buttonStyle(.plain)
             }
         }
     }
@@ -1170,113 +661,6 @@ struct SettingsView: View {
         }
     }
 
-    private var locationRows: some View {
-        Group {
-            sectionHeader(L10n.settingsLocationReminders, icon: "location.fill")
-            Toggle(L10n.settingsArrivalReminders, isOn: Binding(
-                get: { draft.arrivalRemindersEnabled },
-                set: { newValue in
-                    if newValue {
-                        if draft.hasWorkplaceLocation {
-                            showArrivalExplainer = true
-                        } else {
-                            locationStatus = L10n.settingsArrivalNeedLocation
-                            draft.arrivalRemindersEnabled = false
-                        }
-                    } else {
-                        draft.arrivalRemindersEnabled = false
-                    }
-                }
-            ))
-            .accessibilityIdentifier("settings.arrivalReminders")
-
-            Text(L10n.settingsArrivalHint)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if showsLocationPermissionDenied {
-                Text(L10n.settingsLocationDenied)
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                Button(L10n.settingsOpenSystemSettings) {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
-                    }
-                }
-            }
-
-            if viewModel.areLocationNotificationsDenied && draft.arrivalRemindersEnabled {
-                Text(L10n.settingsNotificationsDenied)
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-                Button(L10n.settingsOpenSystemSettings) {
-                    if let url = URL(string: UIApplication.openSettingsURLString) {
-                        UIApplication.shared.open(url)
-                    }
-                }
-            }
-
-            HStack {
-                Text(L10n.settingsGeofenceRadius)
-                Spacer()
-                TextField("150", value: $draft.locationRadiusMeters, format: .number)
-                    .keyboardType(.numberPad)
-                    .multilineTextAlignment(.trailing)
-                    .frame(width: 80)
-                    .accessibilityIdentifier("settings.locationRadius")
-                Text("m")
-            }
-
-            if let lat = draft.locationLatitude, let lon = draft.locationLongitude {
-                Text(L10n.settingsLocationCoords(lat: lat, lon: lon))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            } else {
-                Text(L10n.settingsNoLocation)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
-
-            Button {
-                locationStatus = L10n.settingsRequestingLocation
-                viewModel.captureCurrentLocation()
-            } label: {
-                Label(L10n.settingsSetLocation, systemImage: "location.fill")
-            }
-            .onReceive(viewModel.locationUpdates) { location in
-                guard location != nil else { return }
-                viewModel.applyCapturedLocationIfAvailable()
-                draft = viewModel.activeSettings
-                locationStatus = L10n.settingsLocationUpdated
-            }
-            .onReceive(viewModel.locationCaptureErrors) { error in
-                guard error != nil else { return }
-                viewModel.refreshLocationPermissionStatuses()
-                if viewModel.locationAuthorizationStatus == .denied
-                    || viewModel.locationAuthorizationStatus == .restricted {
-                    locationStatus = L10n.settingsLocationDenied
-                } else {
-                    locationStatus = L10n.settingsLocationFailed
-                }
-            }
-
-            if !locationStatus.isEmpty {
-                Text(locationStatus)
-                    .font(.caption)
-                    .foregroundStyle(
-                        locationStatus == L10n.settingsLocationFailed
-                            || locationStatus == L10n.settingsLocationDenied
-                            ? .red : .green
-                    )
-            }
-        }
-    }
-
-    private var showsLocationPermissionDenied: Bool {
-        let status = viewModel.locationAuthorizationStatus
-        return status == .denied || status == .restricted
-    }
-
     private var syncRows: some View {
         Group {
             sectionHeader(L10n.syncSection, icon: "icloud.fill")
@@ -1312,7 +696,7 @@ struct SettingsView: View {
                     Button {
                         viewModel.syncNow()
                     } label: {
-                        Label(L10n.syncNow, systemImage: "icloud.and.arrow.up")
+                        accentLabel(L10n.syncNow, icon: "icloud.and.arrow.up")
                     }
                     .disabled(viewModel.isSyncing)
                 }
@@ -1326,91 +710,208 @@ struct SettingsView: View {
             NavigationLink {
                 ActivityLogView(viewModel: viewModel)
             } label: {
-                Label(L10n.logTitle, systemImage: "list.bullet.rectangle")
+                accentLabel(L10n.logTitle, icon: "list.bullet.rectangle")
             }
         }
     }
 
-    private var languageSection: some View {
-        Section {
-            Picker(L10n.settingsAppLanguage, selection: $appLanguage.preference) {
-                ForEach(AppLanguageOption.allCases) { option in
-                    Text(option.pickerLabel).tag(option)
-                }
-            }
-            .accessibilityIdentifier("settings.appLanguage")
-        } header: {
-            sectionHeader(L10n.settingsAppLanguage, icon: "globe")
-        } footer: {
-            Text(L10n.settingsAppLanguageHint)
-        }
-    }
+    private var smartScannerRows: some View {
+        Group {
+            sectionHeader(L10n.scannerSection, icon: "doc.text.viewfinder")
+            Toggle(L10n.scannerCloudEnabled, isOn: $smartScannerCloudEnabled)
 
-    private var aboutSection: some View {
-        Section {
-            LabeledContent(L10n.settingsVersion, value: appVersionString)
-
-            NavigationLink {
-                PrivacyPolicyView()
-            } label: {
-                Label(L10n.privacyTitle, systemImage: "hand.raised.fill")
-            }
-
-            NavigationLink {
-                TermsOfUseView()
-            } label: {
-                Label(AppLocale.tr("terms.title"), systemImage: "doc.text")
-            }
-
-            if let agreedOn = LegalConsent.shared.acceptedAt {
-                Text(String(
-                    format: AppLocale.tr("legal.acceptedOn %@"),
-                    AppLocale.makeDateFormatter(dateStyle: .medium).string(from: agreedOn)
-                ))
+            Text(L10n.scannerCloudPrivacyNotice)
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            }
 
-            Button {
-                showContactSupport = true
-            } label: {
-                Label(L10n.settingsSupport, systemImage: "envelope")
-            }
-            .accessibilityIdentifier("settings.contactSupport")
-
-            if let rateURL = URL(string: "https://apps.apple.com/app/id6790862413?action=write-review") {
-                Link(destination: rateURL) {
-                    Label(L10n.settingsRateApp, systemImage: "star.fill")
+            if smartScannerCloudEnabled {
+                SecureField(L10n.scannerGeminiAPIKey, text: $geminiAPIKeyDraft)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .onChange(of: geminiAPIKeyDraft) { _, _ in geminiKeyCheck = .idle }
+                keyCheckRow(state: geminiKeyCheck) {
+                    testKey(draft: geminiAPIKeyDraft, result: $geminiKeyCheck) {
+                        await ScannerAPIKeyValidator.checkGeminiKey($0)
+                    }
                 }
-                .tint(.yellow)
-            }
+                Text(L10n.scannerGeminiAPIKeyHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
 
-            Button {
-                showFullDataExport = true
-            } label: {
-                Label(L10n.fullExportTitle, systemImage: "externaldrive.badge.timemachine")
+                SecureField(L10n.scannerSecondaryAPIKey, text: $secondaryAPIKeyDraft)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .onChange(of: secondaryAPIKeyDraft) { _, _ in secondaryKeyCheck = .idle }
+                keyCheckRow(state: secondaryKeyCheck) {
+                    testKey(draft: secondaryAPIKeyDraft, result: $secondaryKeyCheck) {
+                        await ScannerAPIKeyValidator.checkOpenAICompatibleKey($0)
+                    }
+                }
+                Text(L10n.scannerSecondaryAPIKeyHint)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
             }
-
-            Button {
-                showFullDataImporter = true
-            } label: {
-                Label(L10n.fullImportTitle, systemImage: "square.and.arrow.down.on.square")
-            }
-
-            Button(role: .destructive) {
-                showDeleteAllConfirm = true
-            } label: {
-                Label(L10n.privacyDeleteAll, systemImage: "trash")
-            }
-        } header: {
-            sectionHeader(L10n.settingsAbout, icon: "info.circle.fill")
         }
     }
 
-    // MARK: - Workplaces
+    private func testKey(
+        draft: String,
+        result: Binding<KeyCheckUIState>,
+        check: @escaping (String) async -> APIKeyCheckResult
+    ) {
+        let key = draft
+        guard !key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return }
+        result.wrappedValue = .checking
+        Task {
+            let outcome = await check(key)
+            result.wrappedValue = .result(outcome)
+        }
+    }
 
-    /// Several jobs, each with its own shifts, pay and settings. The settings
-    /// below this section belong to the workplace picked here.
+    private func keyCheckRow(state: KeyCheckUIState, action: @escaping () -> Void) -> some View {
+        HStack(spacing: 8) {
+            Button(L10n.scannerTestKey, action: action)
+                .font(.caption.weight(.semibold))
+                .disabled(state == .checking)
+
+            switch state {
+            case .idle:
+                EmptyView()
+            case .checking:
+                ProgressView()
+                    .controlSize(.mini)
+                Text(L10n.scannerKeyCheckChecking)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            case .result(let outcome):
+                Image(systemName: outcome.isValid ? "checkmark.circle.fill" : "xmark.circle.fill")
+                    .foregroundStyle(outcome.isValid ? .green : .red)
+                Text(keyCheckMessage(for: outcome))
+                    .font(.caption)
+                    .foregroundStyle(outcome.isValid ? .green : .red)
+            }
+        }
+    }
+
+    private func keyCheckMessage(for outcome: APIKeyCheckResult) -> String {
+        switch outcome {
+        case .valid: return L10n.scannerKeyCheckValid
+        case .invalid: return L10n.scannerKeyCheckInvalid
+        case .networkError: return L10n.scannerKeyCheckNetworkError
+        }
+    }
+
+    private var profileDisplayName: String {
+        let trimmed = draft.workerFullName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? L10n.settingsProfileFallbackName : trimmed
+    }
+
+    private func copyPlaceholderUserID() {
+        UIPasteboard.general.string = LocalPlaceholderUserID.current()
+        UISelectionFeedbackGenerator().selectionChanged()
+        viewModel.showSuccessToast(L10n.settingsUserIDCopied)
+    }
+
+    private func openWidgetGuideFromReminder() {
+        WidgetNudge.pendingGuide = false
+        Task {
+            widgetInstallCount = await WidgetBridge.installedWidgetCount()
+            showWidgetGuide = true
+        }
+    }
+
+    private var addWidgetButton: some View {
+        Button {
+            Task {
+                widgetInstallCount = await WidgetBridge.installedWidgetCount()
+                showWidgetGuide = true
+            }
+        } label: {
+            HStack {
+                Label(L10n.settingsAddWidgetButton, systemImage: "square.grid.2x2")
+                    .foregroundStyle(homeTheme.accent)
+                Spacer()
+                HStack(spacing: 4) {
+                    Text(L10n.settingsWidgetInstalled(widgetInstallCount ?? 0))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .redacted(reason: widgetInstallCount == nil ? .placeholder : [])
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .task {
+            widgetInstallCount = await WidgetBridge.installedWidgetCount()
+        }
+    }
+
+    private var dataSafetyRows: some View {
+        Group {
+            sectionHeader(L10n.dataSafetySection, icon: "externaldrive.badge.checkmark")
+            NavigationLink {
+                RecentlyDeletedView(viewModel: viewModel)
+            } label: {
+                accentLabel(L10n.dataSafetyRecentlyDeleted, icon: "trash")
+            }
+            NavigationLink {
+                LocalBackupsView(viewModel: viewModel)
+            } label: {
+                accentLabel(L10n.dataSafetyBackups, icon: "clock.arrow.circlepath")
+            }
+            Text(L10n.dataSafetyHint).font(.footnote).foregroundStyle(.secondary)
+        }
+    }
+
+    private var adminRows: some View {
+        Group {
+            sectionHeader(L10n.adminTitle, icon: "crown.fill")
+            NavigationLink {
+                AdminDashboardView()
+            } label: {
+                accentLabel(L10n.adminSettingsEntry, icon: "crown")
+            }
+            .badge(AdminMockBadges.unreadSupport)
+            Text(L10n.adminSettingsFooter).font(.footnote).foregroundStyle(.secondary)
+        }
+    }
+
+    private var securityRows: some View {
+        Group {
+            sectionHeader(L10n.appLockSection, icon: "lock.shield.fill")
+            Toggle(L10n.appLockEnabled, isOn: $appLock.isEnabled)
+            Text(L10n.appLockHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var widgetPrivacyRows: some View {
+        Group {
+            sectionHeader(L10n.settingsHideWidgetPaySection, icon: "square.grid.2x2.fill")
+            addWidgetButton
+            Text(L10n.settingsAddWidgetHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Toggle(
+                L10n.settingsHideWidgetPay,
+                isOn: Binding(
+                    get: { WidgetBridge.hidePay },
+                    set: { newValue in
+                        WidgetBridge.hidePay = newValue
+                        viewModel.refreshLiveSurfaces()
+                    }
+                )
+            )
+            Text(L10n.settingsHideWidgetPayHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
     private var workplacesRows: some View {
         Group {
             sectionHeader(L10n.workplacesTitle, icon: "building.2.crop.circle")
@@ -1435,7 +936,7 @@ struct SettingsView: View {
                 newWorkplaceName = ""
                 showAddWorkplace = true
             } label: {
-                Label(L10n.workplaceAdd, systemImage: "plus.circle.fill")
+                accentLabel(L10n.workplaceAdd, icon: "plus.circle.fill")
             }
             .accessibilityIdentifier("settings.addWorkplace")
             Text(viewModel.hasMultipleWorkplaces ? L10n.workplacesHintActive : L10n.workplacesHint)
@@ -1471,7 +972,6 @@ struct SettingsView: View {
         }
     }
 
-    /// Last row of Settings: share the App Store link with friends.
     private var shareAppSection: some View {
         Section {
             if let appURL = URL(string: "https://apps.apple.com/app/id6790862413") {
@@ -1480,12 +980,168 @@ struct SettingsView: View {
                     subject: Text(L10n.brandName),
                     message: Text(L10n.settingsShareAppMessage)
                 ) {
-                    Label(L10n.settingsShareApp, systemImage: "square.and.arrow.up")
+                    accentLabel(L10n.settingsShareApp, icon: "square.and.arrow.up")
                 }
                 .accessibilityIdentifier("settings.shareApp")
             }
         } footer: {
             Text(L10n.settingsShareAppHint)
+        }
+    }
+
+    private var languageSection: some View {
+        Section {
+            Picker(L10n.settingsAppLanguage, selection: $appLanguage.preference) {
+                ForEach(AppLanguageOption.allCases) { option in
+                    Text(option.pickerLabel).tag(option)
+                }
+            }
+            .accessibilityIdentifier("settings.appLanguage")
+        } header: {
+            sectionHeader(L10n.settingsAppLanguage, icon: "globe")
+        } footer: {
+            Text(L10n.settingsAppLanguageHint)
+        }
+    }
+
+    private var aboutSection: some View {
+        Section {
+            LabeledContent(L10n.settingsVersion, value: appVersionString)
+
+            NavigationLink {
+                PrivacyPolicyView()
+            } label: {
+                accentLabel(L10n.privacyTitle, icon: "hand.raised.fill")
+            }
+
+            NavigationLink {
+                TermsOfUseView()
+            } label: {
+                accentLabel(AppLocale.tr("terms.title"), icon: "doc.text")
+            }
+
+            if let agreedOn = LegalConsent.shared.acceptedAt {
+                Text(String(
+                    format: AppLocale.tr("legal.acceptedOn %@"),
+                    AppLocale.makeDateFormatter(dateStyle: .medium).string(from: agreedOn)
+                ))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            }
+
+            Button {
+                showContactSupport = true
+            } label: {
+                accentLabel(L10n.settingsSupport, icon: "envelope")
+            }
+            .accessibilityIdentifier("settings.contactSupport")
+
+            if let rateURL = URL(string: "https://apps.apple.com/app/id6790862413?action=write-review") {
+                Link(destination: rateURL) {
+                    Label {
+                        Text(L10n.settingsRateApp).foregroundStyle(.yellow)
+                    } icon: {
+                        Image(systemName: "star.fill").foregroundStyle(.yellow)
+                    }
+                }
+            }
+
+            Button {
+                showFullDataExport = true
+            } label: {
+                accentLabel(L10n.fullExportTitle, icon: "externaldrive.badge.timemachine")
+            }
+
+            Button {
+                showFullDataImporter = true
+            } label: {
+                accentLabel(L10n.fullImportTitle, icon: "square.and.arrow.down.on.square")
+            }
+        } header: {
+            sectionHeader(L10n.settingsAbout, icon: "info.circle.fill")
+        }
+    }
+
+    private var dangerZoneSection: some View {
+        Section {
+            Button(role: .destructive) {
+                showDeleteAllConfirm = true
+            } label: {
+                Label(L10n.privacyDeleteAll, systemImage: "trash")
+                    .foregroundStyle(.red)
+            }
+            .accessibilityIdentifier("settings.deleteAllData")
+        } header: {
+            Label(L10n.settingsDangerZone, systemImage: "exclamationmark.triangle.fill")
+                .font(.system(size: 12, weight: .bold, design: .rounded))
+                .foregroundStyle(.red)
+        } footer: {
+            Text(L10n.settingsDangerZoneHint)
+        }
+    }
+
+    private var saveButton: some View {
+        Button(action: saveSettings) {
+            HStack(spacing: 5) {
+                if hasUnsavedChanges {
+                    Circle()
+                        .fill(DS.Palette.ink)
+                        .frame(width: 6, height: 6)
+                        .accessibilityHidden(true)
+                }
+                Text(L10n.settingsSave)
+                    .font(.subheadline.weight(.semibold))
+            }
+            .foregroundStyle(hasUnsavedChanges ? DS.Palette.ink : Color.secondary)
+            .animation(DS.Motion.state, value: hasUnsavedChanges)
+        }
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.capsule)
+        .tint(homeTheme.accent)
+        .disabled(!hasUnsavedChanges)
+        .accessibilityValue(hasUnsavedChanges ? L10n.settingsUnsavedTitle : "")
+        .accessibilityIdentifier("settings.save")
+    }
+
+    private func saveSettings() {
+        var toSave = draft
+        toSave.leaveDays = viewModel.activeSettings.leaveDays
+        viewModel.saveActiveWorkplaceSettings(toSave)
+        UserDefaultsSmartScannerCloudPreference.shared.isEnabled = smartScannerCloudEnabled
+        let trimmedKey = geminiAPIKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        try? KeychainStore.setString(trimmedKey, for: .geminiAPIKey)
+        let trimmedSecondary = secondaryAPIKeyDraft.trimmingCharacters(in: .whitespacesAndNewlines)
+        try? KeychainStore.setString(trimmedSecondary, for: .secondaryAPIKey)
+        reloadFromStore()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        viewModel.showSuccessToast(L10n.settingsSaved)
+    }
+
+    private func handleFullDataImport(_ result: Result<[URL], Error>) {
+        switch result {
+        case .failure(let error):
+            importErrorMessage = error.localizedDescription
+        case .success(let urls):
+            guard let url = urls.first else { return }
+            do {
+                let document = try FullDataExportManager().loadJSONDocument(from: url)
+                pendingImportDocument = document
+                showImportConfirm = true
+            } catch {
+                importErrorMessage = error.localizedDescription
+            }
+        }
+    }
+
+    private func applyFullDataImport(mode: FullDataImportMode) {
+        guard let document = pendingImportDocument else { return }
+        pendingImportDocument = nil
+        do {
+            try viewModel.importFullDataExport(document, mode: mode)
+            draft = viewModel.activeSettings
+            viewModel.showSuccessToast(L10n.fullImportSuccess)
+        } catch {
+            importErrorMessage = error.localizedDescription
         }
     }
 
@@ -1530,8 +1186,6 @@ struct SettingsView: View {
     }
 }
 
-
-/// Full view of the usual weekly hours the app learned from the worker's own shifts.
 struct UsualScheduleView: View {
     @ObservedObject var viewModel: AppViewModel
 
@@ -1559,11 +1213,11 @@ struct UsualScheduleView: View {
                 Text(L10n.settingsNotificationsHint)
             }
         }
+        .listStyle(.insetGrouped)
         .navigationTitle(L10n.settingsNotificationsUsualSchedule)
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// Learned weekdays in the locale's week order.
     private func orderedWeekdays(in schedule: ShiftSchedule) -> [Int] {
         let first = Calendar.current.firstWeekday
         return (0..<7).map { (first - 1 + $0) % 7 + 1 }.filter { schedule.windows[$0] != nil }

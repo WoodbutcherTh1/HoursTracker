@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 /// In-app support chat. Messages go to the admin inbox; a matching auto-reply can answer
 /// straight away. Conversations are keyed by this install's id, so there is no sign-in.
@@ -6,6 +7,8 @@ struct SupportChatSheet: View {
     @Environment(\.dismiss) private var dismiss
     @StateObject private var model = SupportChatModel()
     @FocusState private var inputFocused: Bool
+    @State private var attachmentPickerItem: PhotosPickerItem?
+    @State private var attachmentPreview: UIImage?
 
     var body: some View {
         NavigationStack {
@@ -19,6 +22,9 @@ struct SupportChatSheet: View {
                         .padding(.horizontal, 16)
                         .padding(.vertical, 6)
                 }
+                if attachmentPreview != nil {
+                    attachmentPreviewBar
+                }
                 inputBar
             }
             .background(Color(.systemBackground).ignoresSafeArea())
@@ -30,7 +36,44 @@ struct SupportChatSheet: View {
                 }
             }
             .task { await model.load() }
+            .onChange(of: attachmentPickerItem) { _, newItem in
+                guard let newItem else { return }
+                Task {
+                    if let data = try? await newItem.loadTransferable(type: Data.self),
+                       let image = UIImage(data: data) {
+                        attachmentPreview = image
+                    }
+                }
+            }
         }
+    }
+
+    /// Local-only preview of a picked photo, with an explicit disclosure that it
+    /// hasn't actually reached support yet — see `LocalSupportAttachmentStore`.
+    private var attachmentPreviewBar: some View {
+        HStack(spacing: 10) {
+            if let attachmentPreview {
+                Image(uiImage: attachmentPreview)
+                    .resizable()
+                    .scaledToFill()
+                    .frame(width: 40, height: 40)
+                    .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            }
+            Text(L10n.supportChatAttachmentLocalOnly)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 4)
+            Button {
+                attachmentPreview = nil
+                attachmentPickerItem = nil
+            } label: {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.secondary)
+            }
+            .accessibilityLabel(L10n.editCancel)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
     }
 
     private var messageList: some View {
@@ -93,6 +136,14 @@ struct SupportChatSheet: View {
 
     private var inputBar: some View {
         HStack(alignment: .bottom, spacing: 10) {
+            PhotosPicker(selection: $attachmentPickerItem, matching: .images) {
+                Image(systemName: "camera.fill")
+                    .font(.system(size: 20))
+                    .foregroundStyle(Color.appAccent)
+                    .frame(width: 32, height: 32)
+            }
+            .accessibilityLabel(L10n.supportChatAttachPhoto)
+
             TextField(L10n.supportChatPlaceholder, text: $model.draft, axis: .vertical)
                 .lineLimit(1...5)
                 .focused($inputFocused)
@@ -104,6 +155,13 @@ struct SupportChatSheet: View {
                 )
             Button {
                 inputFocused = false
+                if let attachmentPreview {
+                    // Saved on-device only — see `LocalSupportAttachmentStore` for
+                    // why there's nowhere to send it yet.
+                    LocalSupportAttachmentStore.save(attachmentPreview)
+                    self.attachmentPreview = nil
+                    attachmentPickerItem = nil
+                }
                 Task { await model.send() }
             } label: {
                 Image(systemName: "arrow.up.circle.fill")

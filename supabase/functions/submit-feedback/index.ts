@@ -19,6 +19,18 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
 const RATE_LIMIT_COUNT = 10
 const RATE_LIMIT_WINDOW_MINUTES = 60
 
+// This endpoint is reachable directly over HTTP by anyone holding the app's
+// publishable key (by design — see submit-feedback's own doc comment), so none
+// of these bounds can be "the app already limits it client-side". Unbounded
+// text/caption/filename risked a resource-exhaustion payload and, worse,
+// documentName/caption were spliced into the multipart body with no escaping:
+// a value containing a quote or CRLF could break out of its field and forge
+// other form fields (e.g. chat_id) in the request Telegram receives.
+const MAX_TEXT = 4000
+const MAX_CAPTION = 500
+const MAX_DOCUMENT_NAME = 200
+const MAX_DOCUMENT_BASE64 = 12_000_000 // ~9MB raw — generous for a text activity log
+
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY)
 
 interface FeedbackPayload {
@@ -58,6 +70,14 @@ Deno.serve(async (req) => {
   if (!body.text && !(body.documentBase64 && body.documentName)) {
     return json({ error: "Missing text or document" }, 400)
   }
+  if (body.text && body.text.length > MAX_TEXT) return json({ error: "Text too long" }, 400)
+  if (body.caption && body.caption.length > MAX_CAPTION) return json({ error: "Caption too long" }, 400)
+  if (body.documentName && body.documentName.length > MAX_DOCUMENT_NAME) {
+    return json({ error: "Document name too long" }, 400)
+  }
+  if (body.documentBase64 && body.documentBase64.length > MAX_DOCUMENT_BASE64) {
+    return json({ error: "Document too large" }, 413)
+  }
 
   if (body.text) {
     const sendResult = await fetch(`https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`, {
@@ -89,10 +109,18 @@ Deno.serve(async (req) => {
   return json({ success: true }, 200)
 })
 
-async function sendDocument(base64: string, fileName: string, caption: string) {
+async function sendDocument(base64: string, rawFileName: string, rawCaption: string) {
   const fileBytes = Uint8Array.from(atob(base64), (c) => c.charCodeAt(0))
   const boundary = `----hourstracker-${crypto.randomUUID()}`
   const enc = new TextEncoder()
+
+  // Both values are spliced directly into the raw multipart body below. Without
+  // stripping CR/LF (and, for fileName, the quote that closes its header
+  // parameter), a value like `a.txt"\r\n--boundary\r\nContent-Disposition: ...`
+  // could inject extra form fields — e.g. a forged chat_id — into what Telegram
+  // receives. Plain spaces are a fine, visible replacement for free-form text.
+  const fileName = sanitizeField(rawFileName).replace(/"/g, "'")
+  const caption = sanitizeField(rawCaption)
 
   const head = [
     `--${boundary}\r\n`,
@@ -118,6 +146,10 @@ async function sendDocument(base64: string, fileName: string, caption: string) {
   if (!res.ok) {
     throw new Error(`sendDocument failed: ${res.status} ${await res.text()}`)
   }
+}
+
+function sanitizeField(value: string): string {
+  return value.replace(/[\r\n]+/g, " ").trim()
 }
 
 function json(data: unknown, status: number) {

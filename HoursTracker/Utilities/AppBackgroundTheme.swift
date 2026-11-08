@@ -7,9 +7,10 @@ import SwiftUI
 /// the chrome behind the tab bar.
 ///
 /// Same shape as `HomeAccentTheme`: a `@Published` color mirrored into `UserDefaults`
-/// as hex, a curated preset list, and a `reset()` back to the shipped default. The
-/// default is the exact color `HomeNeon.bg` has always been, so nothing changes in
-/// appearance until someone picks another one.
+/// as hex, a curated preset list, and a `reset()` back to the shipped default. As of
+/// the 2026 theme refresh the shipped default is Onyx (pure black); anyone who
+/// already picked a background keeps it — this only changes what a fresh install
+/// starts with.
 ///
 /// Every preset is deliberately darker than `HomeNeon.card` in all three channels, so
 /// cards, sheets, and rows keep reading as lifted *above* the background whichever one
@@ -19,8 +20,8 @@ final class AppBackgroundTheme: ObservableObject {
     static let shared = AppBackgroundTheme()
 
     private static let storageKey = "appBackgroundColorHex"
-    /// `HomeNeon.bg` — Color(red: 0.04, green: 0.05, blue: 0.06).
-    static let defaultHex = "0A0D0F"
+    /// Onyx — pure black, the shipped default as of the 2026 theme refresh.
+    static let defaultHex = "000000"
 
     @Published var background: Color {
         didSet {

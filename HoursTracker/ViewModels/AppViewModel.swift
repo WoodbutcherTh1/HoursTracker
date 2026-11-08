@@ -29,6 +29,21 @@ final class AppViewModel: ObservableObject {
     /// Live pay for the open shift — what Home, the Watch, the widgets and the Live
     /// Activity all read, so they show the same figure. Nil when clocked out.
     @Published private(set) var liveCurve: LivePayCurve?
+    /// Resolved once at launch (see `checkAdminStatus()`) instead of when Settings'
+    /// Data page first appears — the page used to ask `AdminAPIClient.checkAccess()`
+    /// itself via `.task`, which could flip this well after the page was already on
+    /// screen. Resolving it at app launch, long before Settings is ever opened,
+    /// removes that race entirely. Does not update again if the account is signed
+    /// in or out mid-session — a relaunch picks up the change.
+    @Published private(set) var isAdmin = false
+    /// The highest gross/net this shift has shown so far. `OvertimeCalculator`
+    /// re-prices the whole shift from scratch on every rebuild of `liveCurve` (a
+    /// break starting/ending, a settings edit) rather than adding a marginal
+    /// amount, so a fresh rebuild is not guaranteed to land above what the last one
+    /// already displayed. `makeLivePayCurve` clamps every new curve to this floor —
+    /// the one choke point all three surfaces build from — so pay can visibly only
+    /// hold or rise over the life of a shift, never drop back down a push later.
+    var livePayHighWaterMark: (sessionID: UUID, gross: Double, net: Double)?
     /// The shift just deleted, while its "Undo" banner is on screen.
     @Published private(set) var undoableDeletion: WorkSession?
     /// Every shift the showing Undo banner restores when it came from a multi-delete.
@@ -206,7 +221,7 @@ final class AppViewModel: ObservableObject {
         self.deletedSessions = deletedSessions
         self.backups = backups
         syncState = store.syncState
-        load()
+        load(report: false)
         // An open shift from a previous launch: build its live pay curve right away so
         // Home and the widgets show the shared figure from the first frame.
         refreshLiveCurve()
@@ -214,6 +229,7 @@ final class AppViewModel: ObservableObject {
         refreshReminders()
         refreshLocationPermissionStatuses()
         startLiveActivityRefreshLoop()
+        checkAdminStatus()
     }
 
     deinit {
@@ -264,6 +280,7 @@ final class AppViewModel: ObservableObject {
         )
         sessions.append(session)
         persist()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
         refreshReminders()
         // First clock-in is the natural moment to ask for notification access, if
         // it hasn't been asked yet — the clock-out reminder is about to be useful.
@@ -374,6 +391,7 @@ final class AppViewModel: ObservableObject {
             ShiftSummaryNotifier.post(session: sessions[index], breakdown: breakdown, showsNet: livePayShowsNet)
         }
         persist()
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
         refreshReminders()
         syncWidget()
         refreshAppShortcuts()
@@ -900,7 +918,44 @@ final class AppViewModel: ObservableObject {
     /// A no-op when the last load was fine, so in-memory state is never clobbered.
     func retryLoadIfNeeded() {
         guard sessionsLoadUnavailable || settingsLoadUnavailable else { return }
-        load()
+        load(report: false)
+        if sessionsLoadUnavailable || settingsLoadUnavailable {
+            recoverLoadWithBackoff()
+        } else {
+            finishLoadRecovery()
+        }
+    }
+
+    private var loadRecoveryTask: Task<Void, Never>?
+
+    /// The data was unreadable at launch (Data Protection still locked right after a widget
+    /// tap woke the app). Try again a few times over ~7 seconds; only if it is still
+    /// unreadable, tell the user. A first-launch error must not outlive a successful retry.
+    private func recoverLoadWithBackoff() {
+        guard loadRecoveryTask == nil else { return }
+        loadRecoveryTask = Task { @MainActor [weak self] in
+            for delay in [0.4, 1.0, 2.0, 4.0] {
+                try? await Task.sleep(for: .seconds(delay))
+                guard let self, self.sessionsLoadUnavailable || self.settingsLoadUnavailable else { break }
+                self.load(report: false)
+            }
+            guard let self else { return }
+            self.loadRecoveryTask = nil
+            if self.sessionsLoadUnavailable || self.settingsLoadUnavailable {
+                self.errorMessage = L10n.errorSaveFailed
+            } else {
+                self.finishLoadRecovery()
+            }
+        }
+    }
+
+    /// The data came back: drop a stale error and refresh everything that was built from
+    /// the empty stand-in (live pay, widgets, reminders).
+    private func finishLoadRecovery() {
+        if errorMessage == L10n.errorSaveFailed { errorMessage = nil }
+        refreshLiveCurve()
+        refreshReminders()
+        syncWidget()
     }
 
     /// Today's automatic backup (once a day). Taken at launch and whenever the app
@@ -1229,7 +1284,10 @@ final class AppViewModel: ObservableObject {
             range: range,
             language: language,
             dayTypes: dayTypes,
-            includeNotes: includeNotes
+            includeNotes: includeNotes,
+            workplaceNameResolver: { [weak self] id in
+                self?.workplaceOption(for: id).name ?? ""
+            }
         )
         let url = try exportManager.export(report: report, format: format, language: language)
         ActivityLogStore.shared.log(
@@ -1243,7 +1301,11 @@ final class AppViewModel: ObservableObject {
 
     // MARK: - Private
 
-    private func load() {
+    /// `report`: show the "could not save" alert when the data is unreadable. The first
+    /// load at launch passes false — a launch from a widget tap often loses a short Data
+    /// Protection race, and `retryLoadIfNeeded` / `recoverLoadWithBackoff` report only if
+    /// the data is still unreadable after a few seconds.
+    private func load(report: Bool = true) {
         switch store.loadSessionsResult() {
         case .loaded(let loaded):
             sessions = loaded
@@ -1255,7 +1317,7 @@ final class AppViewModel: ObservableObject {
             // Keep the (default empty) in-memory `sessions` value, but flag it
             // so `persist()` will NOT overwrite the intact-but-unreadable file.
             sessionsLoadUnavailable = true
-            errorMessage = L10n.errorSaveFailed
+            if report { errorMessage = L10n.errorSaveFailed }
         }
 
         switch store.loadSettingsResult() {
@@ -1267,7 +1329,7 @@ final class AppViewModel: ObservableObject {
             settingsLoadUnavailable = false
         case .temporarilyUnavailable:
             settingsLoadUnavailable = true
-            errorMessage = L10n.errorSaveFailed
+            if report { errorMessage = L10n.errorSaveFailed }
         }
     }
 
@@ -1316,6 +1378,18 @@ final class AppViewModel: ObservableObject {
     /// week ahead, so it's topped up whenever the app is used).
     func refreshShiftReminders() {
         ShiftReminderScheduler.reschedule(sessions: sessions, settings: activeSettings)
+    }
+
+    /// Asks the server once at launch whether this account is an admin — see
+    /// `isAdmin`. Delegates to `AdminAPIClient`, which already owns the
+    /// network call and the "once per signed-in account" de-dupe; this just
+    /// mirrors its result onto the view model so Settings reads a value
+    /// that's already resolved by the time the Data page can be opened.
+    private func checkAdminStatus() {
+        Task {
+            await AdminAPIClient.shared.checkAccess()
+            await MainActor.run { self.isAdmin = AdminAPIClient.shared.isAdmin }
+        }
     }
 
     /// Push current sessions and settings to the WidgetKit extension
@@ -1367,6 +1441,7 @@ final class AppViewModel: ObservableObject {
         guard let open = activeSession else {
             liveCurve = nil
             liveCurveInputs = nil
+            livePayHighWaterMark = nil
             return nil
         }
         let inputs = LiveCurveInputs(session: open, settings: workplaceSettings(for: open.workplaceID), sessionCount: sessions.count)

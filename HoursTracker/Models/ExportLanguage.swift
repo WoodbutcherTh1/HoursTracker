@@ -8,6 +8,7 @@ enum ExportLanguage: CaseIterable, Identifiable, Equatable {
     case hebrew
     case arabic
     case russian
+    case thai
 
     var id: Self { self }
 
@@ -20,6 +21,7 @@ enum ExportLanguage: CaseIterable, Identifiable, Equatable {
             case .hebrew: return Locale(identifier: "he")
             case .english: return Locale(identifier: "en")
             case .russian: return Locale(identifier: "ru")
+            case .thai: return Locale(identifier: "th")
             }
         case .english:
             return Locale(identifier: "en")
@@ -29,6 +31,8 @@ enum ExportLanguage: CaseIterable, Identifiable, Equatable {
             return Locale(identifier: "ar")
         case .russian:
             return Locale(identifier: "ru")
+        case .thai:
+            return Locale(identifier: "th")
         }
     }
 
@@ -40,6 +44,7 @@ enum ExportLanguage: CaseIterable, Identifiable, Equatable {
         case .hebrew: return .hebrew
         case .arabic: return .arabic
         case .russian: return .russian
+        case .thai: return .thai
         }
     }
 }

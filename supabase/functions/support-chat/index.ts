@@ -31,6 +31,13 @@ const APNS_BUNDLE_ID = Deno.env.get("APNS_BUNDLE_ID") ?? "com.hourstracker.app"
 
 const MAX_BODY = 1000
 const LANGUAGES = ["en", "he", "ar"]
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// "list"/"status" had no rate limit at all — unlike "send" (10/hour below), anyone
+// holding the app's publishable key could poll with arbitrary deviceId guesses for
+// free, with no cost and no backoff. 60/hour is generous for a real device opening
+// the chat sheet repeatedly, but turns guessing into a slow, rate-limited slog.
+const READ_LIMIT = 60
+const READ_WINDOW_MINUTES = 60
 
 interface Message {
   id: string
@@ -63,9 +70,18 @@ Deno.serve(async (req) => {
   }
 
   const deviceId = String(body.deviceId ?? "").trim()
-  if (deviceId.length < 16 || deviceId.length > 64) return json({ error: "invalid_device" }, 400)
+  if (!UUID_RE.test(deviceId)) return json({ error: "invalid_device" }, 400)
 
   try {
+    if (body.action === "list" || body.action === "status") {
+      const { data: allowed } = await supabase.rpc("check_rate_limit", {
+        p_bucket: "support-read",
+        p_key: deviceId,
+        p_limit: READ_LIMIT,
+        p_window_minutes: READ_WINDOW_MINUTES,
+      })
+      if (allowed === false) return json({ error: "rate_limited" }, 429)
+    }
     if (body.action === "list") {
       const thread = await findThread(deviceId)
       if (thread && body.markRead === true) {
