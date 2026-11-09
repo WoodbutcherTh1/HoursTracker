@@ -176,9 +176,6 @@ struct MainTabView: View {
     @State private var selectedTab: AppTab = .home
     /// The tab the user tried to open while Settings had unsaved changes.
     @State private var pendingTab: AppTab?
-    /// Bumped for a tab when the user leaves it: its view is rebuilt, so it comes back
-    /// closed — no expanded calendar, open group, pushed screen or selection left over.
-    @State private var tabResetTokens: [AppTab: Int] = [:]
     @ObservedObject private var unsavedSettings = SettingsUnsavedChanges.shared
     @AppStorage("hasSeenOnboarding.v1") private var hasSeenOnboarding = false
     @ObservedObject private var legal = LegalConsent.shared
@@ -218,9 +215,19 @@ struct MainTabView: View {
 
     var body: some View {
         let _ = appLanguage.preference // keep tab labels tied to language changes
+        // Each tab now resets its own transient UI (expanded calendar, open
+        // sheets/dialogs, selection, pushed screens) from its own `.onDisappear` —
+        // "comes back closed," same intent as the removed `.id(tabResetTokens[...])`
+        // below, but without forcing SwiftUI to destroy and rebuild the tab's entire
+        // view (and the UIKit UIHostingController TabView backs it with) on every
+        // single switch. That destroy-and-rebuild-on-every-switch pattern is the
+        // suspected cause of an EXC_BAD_ACCESS crash reported on-device during rapid
+        // tab switching — not confirmed with a symbolicated crash log, but
+        // architecturally the single highest-risk thing in this file, so it's the
+        // first thing removed. `HomeView` already proved `.onAppear`/`.onDisappear`
+        // fire reliably per tab switch here (see its pre-existing `isHomeVisible`).
         TabView(selection: tabSelection) {
             HomeView(viewModel: viewModel)
-                .id(tabResetTokens[.home] ?? 0)
                 .tabItem {
                     Label(L10n.tabHome, systemImage: "clock.fill")
                         .accessibilityIdentifier("tab.home")
@@ -241,7 +248,6 @@ struct MainTabView: View {
                 }
 
             HistoryView(viewModel: viewModel)
-                .id(tabResetTokens[.history] ?? 0)
                 .tabItem {
                     Label(L10n.tabHistory, systemImage: "list.bullet.rectangle")
                         .accessibilityIdentifier("tab.history")
@@ -249,15 +255,18 @@ struct MainTabView: View {
                 .tag(AppTab.history)
 
             PayslipsTabView(viewModel: viewModel)
-                .id(tabResetTokens[.payslips] ?? 0)
                 .tabItem {
                     Label(L10n.tabPayslips, systemImage: "doc.text.viewfinder")
                         .accessibilityIdentifier("tab.payslips")
                 }
                 .tag(AppTab.payslips)
 
+            // Export deliberately keeps its state across tab switches now — format,
+            // date range, and language are meaningful choices the user made, not UI
+            // chrome to clear. The old .id() reset nuked these every time you glanced
+            // at another tab, which was never asked for by the "comes back closed"
+            // intent (that was about expanded calendars/selections/pushed screens).
             ExportView(viewModel: viewModel)
-                .id(tabResetTokens[.export] ?? 0)
                 .tabItem {
                     Label(L10n.tabExport, systemImage: "square.and.arrow.up")
                         .accessibilityIdentifier("tab.export")
@@ -265,7 +274,6 @@ struct MainTabView: View {
                 .tag(AppTab.export)
 
             SettingsView(viewModel: viewModel)
-                .id(tabResetTokens[.settings] ?? 0)
                 .tabItem {
                     Label(L10n.tabSettings, systemImage: "gearshape.fill")
                         .accessibilityIdentifier("tab.settings")
@@ -273,10 +281,6 @@ struct MainTabView: View {
                 .tag(AppTab.settings)
         }
         .tint(homeTheme.accent)
-        // Coming back to any tab later: everything closed, top of the page.
-        .onChange(of: selectedTab) { old, new in
-            tabResetTokens[old, default: 0] += 1
-        }
         // Leaving Settings with unsaved changes: save, discard, or stay.
         .alert(
             L10n.settingsUnsavedTitle,

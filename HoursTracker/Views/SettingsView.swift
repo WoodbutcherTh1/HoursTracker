@@ -47,6 +47,9 @@ struct SettingsView: View {
     @State private var showAddWorkplace = false
     @State private var newWorkplaceName = ""
     @State private var workplacePendingDelete: AppViewModel.WorkplaceOption?
+    /// Bumped on `.onDisappear` to pop the inner NavigationStack back to root —
+    /// see where that stack opens for why this is scoped to just the stack.
+    @State private var navigationResetID = 0
 
     init(viewModel: AppViewModel) {
         self.viewModel = viewModel
@@ -252,7 +255,13 @@ struct SettingsView: View {
     var body: some View {
         ZStack {
             appBackground.background.ignoresSafeArea()
-            
+
+            // Scoped to just the stack itself — popping a NavigationStack back to
+            // root by resetting its `.id()` is a routine, well-understood operation
+            // (apps do it constantly). This is deliberately narrower than the removed
+            // tab-level `.id(tabResetTokens[.settings])`, which reset SettingsView's
+            // entire view (and the UIKit UIHostingController TabView backs it with) —
+            // the suspected actual cause of the EXC_BAD_ACCESS this is fixing.
             NavigationStack {
                 Form {
                     accountSection
@@ -388,6 +397,32 @@ struct SettingsView: View {
                 } message: {
                     Text(importErrorMessage ?? "")
                 }
+            }
+            // Scoped to the stack itself, not the whole view — see the comment above
+            // where this NavigationStack opens. Bumping this pops any pushed
+            // sub-settings page back to root; it's a routine, well-understood
+            // operation for a NavigationStack, unlike destroying SettingsView's
+            // entire view (which the removed tab-level `.id()` used to do).
+            .id(navigationResetID)
+            .onDisappear {
+                // "Comes back closed" — same intent as the removed tab-level `.id()`
+                // reset in MainTabView.
+                navigationResetID += 1
+                if !hasUnsavedChanges { reloadFromStore() }
+                showAccountSheet = false
+                showDeleteAllConfirm = false
+                showFullDataExport = false
+                showFullDataImporter = false
+                pendingImportDocument = nil
+                showImportConfirm = false
+                importErrorMessage = nil
+                showContactSupport = false
+                showWidgetGuide = false
+                showDisableSyncConfirm = false
+                isEditingIDNumber = false
+                showAddWorkplace = false
+                newWorkplaceName = ""
+                workplacePendingDelete = nil
             }
         }
     }

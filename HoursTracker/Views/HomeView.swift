@@ -167,7 +167,18 @@ struct HomeView: View {
             .task(id: themeTipDueDate) { await runThemeTip() }
             .task(id: viewModel.activeSession?.id) { await runLockScreenTip() }
             .onAppear { isHomeVisible = true }
-            .onDisappear { isHomeVisible = false }
+            .onDisappear {
+                isHomeVisible = false
+                // "Comes back closed" — same intent as the removed tab-level `.id()`
+                // reset in MainTabView, scoped to just this view's own sheets.
+                showScanner = false
+                showForgotClockIn = false
+                showThemePicker = false
+                showUserGuide = false
+                showAbout = false
+                showFeedback = false
+                showControlRoomPreview = false
+            }
             .toolbarBackground(appBackground.background, for: .navigationBar)
             .toolbarBackground(.visible, for: .navigationBar)
             .toolbarColorScheme(.dark, for: .navigationBar)

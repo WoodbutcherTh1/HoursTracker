@@ -279,7 +279,25 @@ struct HistoryView: View {
                 alignToCurrentPayrollPeriod()
             }
             .onDisappear {
+                // "Comes back closed" — same intent as the removed tab-level `.id()`
+                // reset in MainTabView, but scoped to just this view's own transient
+                // UI instead of destroying and rebuilding the whole tab. Deliberately
+                // leaves `periodAnchor` alone — which month/period you were viewing is
+                // real navigation state, not UI chrome, and resetting it would be a
+                // surprising regression, not a fix.
                 endSelection()
+                isCalendarExpanded = false
+                selectedDay = nil
+                pendingWeekIndex = nil
+                selectedSession = nil
+                editingSession = nil
+                sessionPendingDelete = nil
+                menuSession = nil
+                showScanner = false
+                showManualEntry = false
+                shareItem = nil
+                showPayBreakdown = false
+                showBulkDeleteConfirm = false
             }
             .onChange(of: viewModel.activeSettings.payrollStartDay) { _, _ in
                 alignToCurrentPayrollPeriod()

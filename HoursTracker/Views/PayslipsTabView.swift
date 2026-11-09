@@ -10,9 +10,10 @@ struct PayslipsTabView: View {
 
     @StateObject private var payslipLibraryViewModel = PayslipLibraryViewModel()
     @State private var payslipDeleteError: String?
+    @State private var path = NavigationPath()
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             PayslipLibraryView(appViewModel: viewModel, viewModel: payslipLibraryViewModel)
                 .toolbar {
                     ToolbarItem(placement: .topBarLeading) {
@@ -44,6 +45,10 @@ struct PayslipsTabView: View {
                     Text(payslipDeleteError ?? "")
                 }
         }
+        // "Comes back closed" — same intent as the removed tab-level `.id()` reset
+        // in MainTabView: pop any pushed PayslipDetailView, but without destroying
+        // `payslipLibraryViewModel` (no reason to re-fetch the library every switch).
+        .onDisappear { path = NavigationPath() }
         .background(appBackground.background.ignoresSafeArea())
     }
 }
