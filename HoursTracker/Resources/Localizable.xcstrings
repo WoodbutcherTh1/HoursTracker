@@ -1811,7 +1811,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your data has been restored"
+            "value" : "Restored your data"
           }
         },
         "he" : {
@@ -2365,31 +2365,31 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تمت المزامنة مع حسابك"
+            "value" : "تمت مزامنة بياناتك"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Synced to your account"
+            "value" : "Synced your data"
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "סונכרן לחשבון שלך"
+            "value" : "הנתונים שלך סונכרנו"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Синхронизировано с аккаунтом"
+            "value" : "Ваши данные синхронизированы"
           }
         },
         "th" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ซิงค์กับบัญชีของคุณแล้ว"
+            "value" : "ซิงค์ข้อมูลของคุณแล้ว"
           }
         }
       }
@@ -11921,31 +11921,31 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تعذّر حفظ آخر تغيير على الجهاز. حاول مرة أخرى."
+            "value" : "تعذّر علينا حفظ آخر تغيير. حاول مرة أخرى."
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your latest change could not be saved to the device. Please try again."
+            "value" : "We couldn't save your latest change. Please try again."
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "לא ניתן היה לשמור את השינוי האחרון במכשיר. נסה שוב."
+            "value" : "לא הצלחנו לשמור את השינוי האחרון. נסו שוב."
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Не удалось сохранить последнее изменение на устройстве. Попробуйте ещё раз."
+            "value" : "Нам не удалось сохранить последнее изменение. Попробуйте ещё раз."
           }
         },
         "th" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "ไม่สามารถบันทึกการเปลี่ยนแปลงล่าสุดลงในอุปกรณ์ได้ กรุณาลองใหม่อีกครั้ง"
+            "value" : "ไม่สามารถบันทึกการเปลี่ยนแปลงล่าสุดได้ กรุณาลองใหม่อีกครั้ง"
           }
         }
       }
@@ -14307,13 +14307,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your data was exported"
+            "value" : "Exported your data"
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "הנתונים יוצאו"
+            "value" : "הנתונים שלך יוצאו"
           }
         },
         "ru" : {
@@ -14651,31 +14651,31 @@
         "ar" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "تم استيراد البيانات"
+            "value" : "تم استيراد بياناتك"
           }
         },
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Data imported"
+            "value" : "Imported your data"
           }
         },
         "he" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "הנתונים יובאו"
+            "value" : "הנתונים שלך יובאו"
           }
         },
         "ru" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Данные импортированы"
+            "value" : "Ваши данные импортированы"
           }
         },
         "th" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "นำเข้าข้อมูลแล้ว"
+            "value" : "นำเข้าข้อมูลของคุณแล้ว"
           }
         }
       }
