@@ -559,7 +559,7 @@ struct HomeWeekSparkline: View {
     private var chart: some View {
         GeometryReader { geo in
             let barHeights = heights
-            let columnWidth = geo.size.width / 7
+            let columnWidth = max(0, geo.size.width) / 7
             let barMaxHeight = max(0, geo.size.height - labelRowHeight - 4)
 
             TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isVisible)) { timeline in

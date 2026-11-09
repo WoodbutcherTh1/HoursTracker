@@ -413,9 +413,17 @@ struct SettingsView: View {
                 // SAME SwiftUI transaction as TabView's own tab-switch update, and
                 // two navigation-identity changes in one transaction is exactly what
                 // produced "NavigationRequestObserver tried to update multiple times
-                // per frame" and the follow-on freeze. The plain state resets below
-                // aren't navigation-identity changes, so they stay synchronous.
-                DispatchQueue.main.async { navigationResetID += 1 }
+                // per frame" and the follow-on freeze. `disablesAnimations` on top of
+                // the dispatch: without it, the bump can still inherit whatever
+                // animation is active on the tick it lands on and merge back into the
+                // TabView's own transition — the same double-update the dispatch
+                // alone is trying to avoid. The plain state resets below aren't
+                // navigation-identity changes, so they stay synchronous.
+                DispatchQueue.main.async {
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) { navigationResetID += 1 }
+                }
                 if !hasUnsavedChanges { reloadFromStore() }
                 showAccountSheet = false
                 showDeleteAllConfirm = false

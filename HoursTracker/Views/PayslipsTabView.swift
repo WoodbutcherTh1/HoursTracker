@@ -56,9 +56,16 @@ struct PayslipsTabView: View {
         // navigation-identity changes in one transaction is exactly what produced
         // "NavigationRequestObserver tried to update multiple times per frame" and
         // the follow-on freeze. Dispatching to the next tick lets that transaction
-        // finish committing first.
+        // finish committing first. `disablesAnimations` on top of that: without it,
+        // this reset can still inherit whatever animation was active on the tick it
+        // lands on and get merged into the TabView's own transition, which is the
+        // same double-update the dispatch is trying to avoid.
         .onDisappear {
-            DispatchQueue.main.async { path = NavigationPath() }
+            DispatchQueue.main.async {
+                var transaction = Transaction()
+                transaction.disablesAnimations = true
+                withTransaction(transaction) { path = NavigationPath() }
+            }
         }
         .background(appBackground.background.ignoresSafeArea())
     }

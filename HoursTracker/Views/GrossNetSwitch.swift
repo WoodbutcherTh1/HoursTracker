@@ -68,8 +68,8 @@ struct GrossNetSwitch: View {
         .background {
             GeometryReader { proxy in
                 Color.clear
-                    .onAppear { cellWidth = proxy.size.width / 2 }
-                    .onChange(of: proxy.size.width) { _, width in cellWidth = width / 2 }
+                    .onAppear { cellWidth = max(0, proxy.size.width) / 2 }
+                    .onChange(of: proxy.size.width) { _, width in cellWidth = max(0, width) / 2 }
             }
         }
         .padding(DS.Space.xxs)

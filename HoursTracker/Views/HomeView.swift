@@ -103,42 +103,71 @@ struct HomeView: View {
                 appBackground.background.ignoresSafeArea()
 
                 GeometryReader { geo in
-                    let metrics = HomeLayoutMetrics(width: geo.size.width, height: geo.size.height)
+                    // Clamp once at the source: during a tab-switch transition (and
+                    // briefly on iOS 26's floating tab bar) this GeometryReader can
+                    // report a transient zero or negative size before layout settles.
+                    // Every frame calculation below derives from these two values, so
+                    // clamping here — instead of at each call site — is what actually
+                    // guarantees no `.frame()` downstream ever sees a negative or
+                    // non-finite dimension.
+                    let availableWidth = max(0, geo.size.width)
+                    let availableHeight = max(0, geo.size.height)
+                    let metrics = HomeLayoutMetrics(width: availableWidth, height: availableHeight)
                     // ScrollView instead of a hard `.frame(maxHeight: .infinity)`: on
                     // shorter screens, larger Dynamic Type, or a taller system tab bar,
                     // the fixed-height sparkline at the bottom could previously overflow
                     // past the safe area and render underneath the tab bar. `minHeight`
                     // keeps the old vertically-centered look when everything fits, and
                     // lets content scroll instead of getting clipped when it doesn't.
-                    let fit = HomeFitScale.factor(available: geo.size.height, natural: naturalContentHeight)
-                    // Fits as designed: stretch to the visible height so the Spacers spread the
-                    // layout (tall phones). Too tall: scale the whole layout down to fit instead
-                    // of pinning controls over the tab bar or cutting them off.
-                    ViewThatFits(in: .vertical) {
+                    let fit = HomeFitScale.factor(available: availableHeight, natural: naturalContentHeight)
+                    ZStack {
+                        // Hidden measurement probe: always laid out at the real
+                        // `availableWidth`, never at `availableWidth / fit`. Measuring
+                        // at a fit-dependent width used to feed `naturalContentHeight`
+                        // back into the very `fit` value that chose that width — a
+                        // closed loop that could oscillate every frame instead of
+                        // settling, which is what produced the "NavigationRequestObserver
+                        // tried to update multiple times per frame" freeze and invalid
+                        // (momentarily negative/non-finite) frame sizes. This probe is
+                        // the only thing that writes `naturalContentHeight`, so `fit` is
+                        // now a pure function of the previous frame's stable measurement.
                         homeContent(metrics: metrics)
                             .padding(.horizontal, metrics.horizontalPadding)
-                            .frame(minHeight: geo.size.height)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .background(
+                                GeometryReader { proxy in
+                                    Color.clear.preference(key: HomeNaturalHeightKey.self, value: max(0, proxy.size.height))
+                                }
+                            )
+                            .frame(width: availableWidth)
+                            .hidden()
+                            .accessibilityHidden(true)
+                            .allowsHitTesting(false)
 
-                        ScrollView {
+                        // Fits as designed: stretch to the visible height so the Spacers spread the
+                        // layout (tall phones). Too tall: scale the whole layout down to fit instead
+                        // of pinning controls over the tab bar or cutting them off.
+                        ViewThatFits(in: .vertical) {
                             homeContent(metrics: metrics)
                                 .padding(.horizontal, metrics.horizontalPadding)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .background(
-                                    GeometryReader { proxy in
-                                        Color.clear.preference(key: HomeNaturalHeightKey.self, value: proxy.size.height)
-                                    }
-                                )
-                                .frame(width: geo.size.width / fit)
-                                .scaleEffect(fit, anchor: .top)
-                                .frame(
-                                    width: geo.size.width,
-                                    height: max(geo.size.height, naturalContentHeight * fit),
-                                    alignment: .top
-                                )
+                                .frame(minHeight: availableHeight)
+
+                            ScrollView {
+                                homeContent(metrics: metrics)
+                                    .padding(.horizontal, metrics.horizontalPadding)
+                                    .fixedSize(horizontal: false, vertical: true)
+                                    .frame(width: max(0, availableWidth / fit))
+                                    .scaleEffect(fit, anchor: .top)
+                                    .frame(
+                                        width: availableWidth,
+                                        height: max(availableHeight, naturalContentHeight * fit),
+                                        alignment: .top
+                                    )
+                            }
+                            .scrollBounceBehavior(.basedOnSize)
                         }
-                        .scrollBounceBehavior(.basedOnSize)
-                        .onPreferenceChange(HomeNaturalHeightKey.self) { naturalContentHeight = $0 }
                     }
+                    .onPreferenceChange(HomeNaturalHeightKey.self) { naturalContentHeight = $0 }
                     // BUG #3: on shorter screens the door (Clock In / Clock Out) ended up
                     // under the tab bar. There it is pinned above the tab bar and the rest
                     // scrolls behind it, so the main action is always one tap away.
