@@ -186,6 +186,31 @@ targets:
         TARGETED_DEVICE_FAMILY: "4"
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_PREVIEWS: YES
+    postbuildScripts:
+      # Xcode's build system has, on at least two separate occasions, replaced the
+      # Localizable.xcstrings symlink above with a real materialized copy during a
+      # build (root cause not pinned down — not reproducible on demand, likely a
+      # resource-processing race, not tied to one specific build step). A
+      # materialized copy silently drifts from the main catalog over time (see
+      # MASTER_MAP.md §4.5) since nothing re-syncs it. This runs last in every
+      # build and puts the symlink back the moment it notices, closing the drift
+      # window to "at most one build" instead of "until someone happens to run
+      # git status".
+      - name: "Restore Watch Localizable.xcstrings symlink"
+        basedOnDependencyAnalysis: false
+        script: |
+          #!/bin/bash
+          set -uo pipefail
+          LINK="$SRCROOT/HoursTrackerWatch/Resources/Localizable.xcstrings"
+          if [ -L "$LINK" ]; then
+            exit 0
+          fi
+          if [ -f "$LINK" ]; then
+            echo "warning: Xcode materialized HoursTrackerWatch/Resources/Localizable.xcstrings during this build — restoring the symlink to HoursTracker/Resources/Localizable.xcstrings"
+            rm -f "$LINK"
+            ln -s "../../HoursTracker/Resources/Localizable.xcstrings" "$LINK"
+          fi
+          exit 0
   HoursTrackerWidget:
     type: app-extension
     platform: iOS
