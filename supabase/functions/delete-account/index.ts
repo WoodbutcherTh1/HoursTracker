@@ -9,6 +9,7 @@
 // Deployed with verify_jwt = true: only a signed-in session reaches this code.
 // SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are auto-injected by the Edge Runtime.
 import { createClient } from "jsr:@supabase/supabase-js@2"
+import { APPLE_CLIENT_ID, appleClientSecret } from "../_shared/apple.ts"
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
@@ -26,6 +27,36 @@ Deno.serve(async (req) => {
   const { data, error: userError } = await supabase.auth.getUser(token)
   const userId = data?.user?.id
   if (userError || !userId) return json({ error: "Not signed in" }, 401)
+
+  // Apple (App Store Review Guideline 5.1.1(v)): revoke the Apple token if
+  // this account ever signed in with Apple. Best-effort — Apple being briefly
+  // unreachable must never block someone from deleting their own account,
+  // which is a hard requirement independent of Apple's own availability.
+  const { data: appleRow } = await supabase
+    .from("apple_refresh_tokens")
+    .select("refresh_token")
+    .eq("user_id", userId)
+    .maybeSingle()
+  if (appleRow?.refresh_token) {
+    try {
+      const clientSecret = await appleClientSecret()
+      const revokeResponse = await fetch("https://appleid.apple.com/auth/revoke", {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: APPLE_CLIENT_ID,
+          client_secret: clientSecret,
+          token: appleRow.refresh_token,
+          token_type_hint: "refresh_token",
+        }),
+      })
+      if (!revokeResponse.ok) {
+        console.error("delete-account: Apple revoke failed", revokeResponse.status, await revokeResponse.text())
+      }
+    } catch (err) {
+      console.error("delete-account: Apple revoke threw", err)
+    }
+  }
 
   const { error: devicesError } = await supabase.from("devices").delete().eq("user_id", userId)
   if (devicesError) {

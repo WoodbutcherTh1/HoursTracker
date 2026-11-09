@@ -304,7 +304,15 @@ final class SupabaseAuthManager: ObservableObject {
     /// Apple shares the person's name only on the very first authorization, so
     /// when it is present it is written to the account's metadata straight away
     /// — after that Apple never sends it again.
-    func signInWithApple(idToken: String, rawNonce: String, fullName: PersonNameComponents?) async throws {
+    ///
+    /// `authorizationCode`, when present, is handed to the `apple-token-exchange`
+    /// Edge Function so it can be exchanged for a refresh token and stored —
+    /// this is the ONLY time that's possible. Apple's authorization code is
+    /// one-time-use and expires within minutes, so by the time an account is
+    /// actually deleted (hours, weeks, months later) it is long gone; the
+    /// stored refresh token is what `delete-account` uses to revoke access
+    /// then (App Store Review Guideline 5.1.1(v)).
+    func signInWithApple(idToken: String, rawNonce: String, fullName: PersonNameComponents?, authorizationCode: String?) async throws {
         do {
             _ = try await client.auth.signInWithIdToken(
                 credentials: OpenIDConnectCredentials(provider: .apple, idToken: idToken, nonce: rawNonce)
@@ -322,6 +330,33 @@ final class SupabaseAuthManager: ObservableObject {
         }
         if !metadata.isEmpty {
             _ = try? await client.auth.update(user: UserAttributes(data: metadata))
+        }
+
+        if let authorizationCode {
+            await exchangeAppleAuthorizationCode(authorizationCode)
+        }
+    }
+
+    /// Best-effort — a failure here must never block sign-in. Losing the
+    /// ability to revoke this one session's Apple token later is a far smaller
+    /// problem than failing the sign-in itself. Logged, not surfaced to the UI.
+    private func exchangeAppleAuthorizationCode(_ code: String) async {
+        do {
+            let accessToken = try await client.auth.session.accessToken
+            var request = URLRequest(
+                url: SupabaseConfig.projectURL.appendingPathComponent("functions/v1/apple-token-exchange")
+            )
+            request.httpMethod = "POST"
+            request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
+            request.setValue(SupabaseConfig.publishableKey, forHTTPHeaderField: "apikey")
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+            request.httpBody = try JSONEncoder().encode(["code": code])
+            let (_, response) = try await URLSession.shared.data(for: request)
+            if let http = response as? HTTPURLResponse, !(200..<300).contains(http.statusCode) {
+                Self.logger.error("apple-token-exchange returned status \(http.statusCode, privacy: .public)")
+            }
+        } catch {
+            Self.logger.error("apple-token-exchange failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 

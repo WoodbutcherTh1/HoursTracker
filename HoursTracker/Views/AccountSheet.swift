@@ -605,10 +605,15 @@ private struct AccountWelcomeView: View {
                 else {
                     throw AccountAuthError.server(L10n.accountErrorSocial)
                 }
+                // Unlike fullName/email, Apple issues a fresh authorizationCode on
+                // EVERY sign-in, not just the first — so this keeps the stored
+                // refresh token current even if a user signs out and back in later.
+                let authorizationCode = credential.authorizationCode.flatMap { String(data: $0, encoding: .utf8) }
                 try await SupabaseAuthManager.shared.signInWithApple(
                     idToken: idToken,
                     rawNonce: nonce,
-                    fullName: credential.fullName
+                    fullName: credential.fullName,
+                    authorizationCode: authorizationCode
                 )
                 let restored = await SocialSignInFinisher.finish(viewModel: viewModel)
                 await MainActor.run {

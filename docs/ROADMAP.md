@@ -36,26 +36,29 @@ The calculator handles the daily 100/125/150 split; Israeli law has more dimensi
 
 ## Phase 3 — UX & platform features
 
-> **Status (mostly done):** permission handling landed ahead of schedule — Always-location and notifications are now requested only when the user opts into arrival reminders in Settings, replacing the launch-time request this phase originally called out. **Geofence exit detection** now implemented: exiting the workplace region while a session is open sends a "leaving work? clock out!" notification. **Live Activity / Dynamic Island** and **home-screen widget** now implemented: the Lock Screen banner and Dynamic Island show a live elapsed-time + estimated-pay counter while a shift is running; the home-screen widget shows today's hours and earnings (small, medium and large sizes). Widgets are now **interactive** (Clock In / Clock Out AppIntent buttons), deep-link into the right tab, respect a **hide-pay privacy toggle**, and work in StandBy (iOS 17) as-is. **Monthly summary view** now shipped: History shows a six-month hours bar chart plus average monthly pay (Swift Charts). **Onboarding flow** now shipped: a three-page first-launch explainer presented once (AppLock/location copy is opt-in as before). Still open: multiple workplaces.
+> **Status (done):** permission handling landed ahead of schedule — Always-location and notifications are now requested only when the user opts into arrival reminders in Settings, replacing the launch-time request this phase originally called out. **Geofence exit detection** now implemented: exiting the workplace region while a session is open sends a "leaving work? clock out!" notification. **Live Activity / Dynamic Island** and **home-screen widget** now implemented: the Lock Screen banner and Dynamic Island show a live elapsed-time + estimated-pay counter while a shift is running; the home-screen widget shows today's hours and earnings (small, medium and large sizes). Widgets are now **interactive** (Clock In / Clock Out AppIntent buttons), deep-link into the right tab, respect a **hide-pay privacy toggle**, and work in StandBy (iOS 17) as-is. **Monthly summary view** now shipped: History shows a six-month hours bar chart plus average monthly pay (Swift Charts). **Onboarding flow** now shipped: a three-page first-launch explainer presented once (AppLock/location copy is opt-in as before). **Multiple workplaces** shipped: `AdditionalWorkplace.swift` + `AppViewModel+Workplaces.swift`, a workplace switcher in History, and per-workplace settings/geofences.
 
 - ~~Live Activity / Dynamic Island~~ — done. Lock Screen banner + Dynamic Island show elapsed time + estimated pay during an active shift (masked when the hide-pay toggle is on).
 - ~~Home-screen widget~~ — done. Small / medium / large widgets show today's and this week's hours and earnings, with status indicators (Working / Done / Off) and Clock In / Clock Out buttons (iOS 17 AppIntents).
 - ~~Monthly summary view~~ — done. Six-month hours chart + average monthly pay in History.
-- **Multiple workplaces** — settings, rates, and geofences are singletons today (`WorkplaceSettings`, one `workplace-geofence` region). Support a workplace list, each with its own rates and geofence, and tag sessions with a workplace.
+- ~~Multiple workplaces~~ — done. See `WorkplaceSwitcher.swift`, `Models/AdditionalWorkplace.swift`.
 - ~~Onboarding flow~~ — done. Three-page first-launch explainer (one-tap tracking, Israeli pay rules, privacy-first) presented once via `MainTabView`.
 - ~~Geofence exit detection~~ — done. `didExitRegion` sends a "leaving work?" notification when a session is open.
 - ~~Quick actions + deep links~~ — done. Long-press the app icon to clock in/out, add hours, or scan; widget areas deep-link to the correct tab (`hourstracker://`).
 
 ## Phase 4 — Distribution & polish
 
-> **Status (mostly done):** app icon, privacy manifest (`PrivacyInfo.xcprivacy`), in-app privacy policy, delete-all-data action, localized Info.plist strings, encryption-exemption flag, and reviewer-friendly permission copy have all landed. Remaining below.
+> **Status (mostly done, build 30 / v1.11):** app icon, privacy manifest (`PrivacyInfo.xcprivacy`), in-app privacy policy + hosted copy (`docs/privacy-policy.html`, GitHub Pages), delete-all-data action, localized Info.plist strings, encryption-exemption flag, and reviewer-friendly permission copy have all landed. **Sign-in is now three methods, all live**: Email (Supabase OTP), Google (Supabase-hosted OAuth, published to Production), and Apple (native `ASAuthorizationController`, tested on-device). **Security audit complete** (2026-11-08, see `MASTER_MAP.md` §4.4): `ai-assist`/`support-chat` rate-limit and UUID-validate device IDs, `submit-feedback` sanitizes/length-caps input; all fixes deployed and smoke-tested. **Apple account-deletion token revocation** implemented (2026-11-09) — required for App Store Review Guideline 5.1.1(v); see `docs/SOCIAL_SIGN_IN.md`. `data` (CloudKit) is still parked, see below. Remaining below.
 
 - ~~App icon and branding~~ — done.
+- ~~Social sign-in (Google + Apple)~~ — done. See `docs/SOCIAL_SIGN_IN.md`.
+- ~~Backend security audit~~ — done. See `MASTER_MAP.md` §4.4 and §5.
+- ~~Apple account-deletion token revocation~~ — done. `apple-token-exchange` stores a refresh token right after a native Apple sign-in (the one-time authorization code it's exchanged from expires in minutes, so it can't be used later); `delete-account` reads it to call Apple's `/auth/revoke` before removing the account.
 - **Accessibility pass** — Dynamic Type audit on the custom-drawn views, VoiceOver labels on the timer and clock buttons; RTL is already exercised via ar/he.
 - **Unify localization** — now three mechanisms: the String Catalog, `AppLocale`'s hardcoded notification strings, and `ExportCopy`'s per-language report table. Each exists for a reason (background language selection; report language independent of UI locale), but string changes touch up to three places — consolidate behind one lookup that takes an explicit locale.
 - **Data export/import safety** — a full JSON backup/restore (the persistence format is already JSON) protects users who lose the device, especially now that cloud sync is off by default.
-- **TestFlight / App Store submission** — screenshots in all three languages, App Store metadata, review notes for the opt-in Always-location usage.
-- **Cloud sync (parked)** — CloudKit is compiled out behind `HTCloudKitEnabled` because personal-team provisioning cannot carry iCloud entitlements. Revisit (with `CKSyncEngine`) once a paid Apple Developer team is available — see `docs/CKSYNCENGINE.md` for the feasibility assessment (deferred: push delivery needs the paid entitlements).
+- **TestFlight / App Store submission** — screenshots in all five languages, App Store metadata (`docs/APP_STORE_METADATA.md`, kept in sync with the in-app copy), review notes for the opt-in Always-location usage.
+- **Cloud sync (parked, no longer blocked on account tier)** — CloudKit is compiled out behind `HTCloudKitEnabled`; the original blocker (personal-team provisioning can't carry iCloud push entitlements) no longer applies now that the project is on a paid Apple Developer account. Deliberately **not** picked up this week — see `docs/CKSYNCENGINE.md` for the feasibility assessment and recommended sequencing (interim improvements first, then the `CKSyncEngine` transport migration).
 
 ## Phase 5 — Assistant & natural-language retrieval
 
@@ -69,6 +72,10 @@ Still open:
 
 ## Suggested sequencing
 
+The version-number mapping below is historical (this is how 0.2–1.3 actually
+played out); the app is at **1.11 (build 30)** now, well past all of it.
+Treat this table as a record of what shipped when, not a forward-looking plan.
+
 | Milestone | Contents | Outcome |
 |---|---|---|
 | 0.2 | Phase 1 complete | Trustworthy storage/sync, CI, real test suite |
@@ -77,3 +84,9 @@ Still open:
 | 0.5 | Multiple workplaces | General-audience ready |
 | 1.0 | Phase 4 complete | App Store release |
 | 1.3 | Phase 5 — assistant & payslip library | Natural-language access to own data |
+| 1.10–1.11 | Contractor/company employment, editable holidays, support chat, grouped Settings, Google + Apple Sign-In, backend security audit, Apple account-deletion token revocation | Current submission (this week's deadline) |
+
+**What's actually next, in priority order given this week's Thursday deadline:**
+1. Submission blockers only (this week) — Apple account-deletion token revocation (done), anything else App Review flags.
+2. Accessibility pass, localization unification, full export/import safety — next cycle, not blocking submission.
+3. CKSyncEngine migration — deliberately deferred past this week; no longer blocked on account tier, see `docs/CKSYNCENGINE.md`.

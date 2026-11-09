@@ -16,6 +16,9 @@ verify_jwt = false
 [functions.delete-account]
 verify_jwt = true
 
+[functions.apple-token-exchange]
+verify_jwt = true
+
 # Same reasoning as admin-api: the publishable key is not a JWT. support-chat
 # reads an optional user session itself; support-admin checks the admins table.
 [functions.support-chat]
