@@ -48,7 +48,18 @@ struct PayslipsTabView: View {
         // "Comes back closed" — same intent as the removed tab-level `.id()` reset
         // in MainTabView: pop any pushed PayslipDetailView, but without destroying
         // `payslipLibraryViewModel` (no reason to re-fetch the library every switch).
-        .onDisappear { path = NavigationPath() }
+        //
+        // Deferred one run-loop tick (plain `.async`, no delay — NOT a timed sleep,
+        // which would just move the race to wherever the delay runs out instead of
+        // removing it): mutating `path` synchronously inside `onDisappear` lands in
+        // the SAME SwiftUI transaction as TabView's own tab-switch update, and two
+        // navigation-identity changes in one transaction is exactly what produced
+        // "NavigationRequestObserver tried to update multiple times per frame" and
+        // the follow-on freeze. Dispatching to the next tick lets that transaction
+        // finish committing first.
+        .onDisappear {
+            DispatchQueue.main.async { path = NavigationPath() }
+        }
         .background(appBackground.background.ignoresSafeArea())
     }
 }

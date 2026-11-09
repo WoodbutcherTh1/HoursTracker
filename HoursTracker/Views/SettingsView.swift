@@ -407,7 +407,15 @@ struct SettingsView: View {
             .onDisappear {
                 // "Comes back closed" — same intent as the removed tab-level `.id()`
                 // reset in MainTabView.
-                navigationResetID += 1
+                //
+                // The id bump specifically is deferred one run-loop tick (plain
+                // `.async`, no delay): bumping it synchronously here lands in the
+                // SAME SwiftUI transaction as TabView's own tab-switch update, and
+                // two navigation-identity changes in one transaction is exactly what
+                // produced "NavigationRequestObserver tried to update multiple times
+                // per frame" and the follow-on freeze. The plain state resets below
+                // aren't navigation-identity changes, so they stay synchronous.
+                DispatchQueue.main.async { navigationResetID += 1 }
                 if !hasUnsavedChanges { reloadFromStore() }
                 showAccountSheet = false
                 showDeleteAllConfirm = false
