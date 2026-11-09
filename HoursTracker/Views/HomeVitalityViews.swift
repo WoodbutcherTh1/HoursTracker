@@ -510,6 +510,11 @@ struct HomeWeekSparkline: View {
     /// (open shifts are intentionally excluded from `dailyHours` totals).
     var isTodayShiftOpen: Bool = false
     var accent: Color = HomeNeon.accent
+    /// False while another tab is showing (TabView keeps Home alive off screen) or
+    /// a sheet covers it. This chart's bar-ridge and weekday-pulse animations run
+    /// at up to 30fps via `TimelineView(.animation(...))` — continuously redrawing
+    /// a chart nobody can see is wasted CPU, same reasoning as `LiveTimerView`.
+    var isVisible: Bool = true
 
     private let loopSeconds: Double = 5.5
     private let chartHeight: CGFloat = 56
@@ -557,7 +562,7 @@ struct HomeWeekSparkline: View {
             let columnWidth = geo.size.width / 7
             let barMaxHeight = max(0, geo.size.height - labelRowHeight - 4)
 
-            TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+            TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isVisible)) { timeline in
                 let t = timeline.date.timeIntervalSinceReferenceDate
                 let ridgeHeights = ridgeHeightFractions(baseHeights: barHeights, pulseTime: t)
                 let tops = barTopPoints(
@@ -721,7 +726,7 @@ struct HomeWeekSparkline: View {
     private var weekdayRow: some View {
         HStack(spacing: 0) {
             ForEach(Array(weekdayLabels.enumerated()), id: \.offset) { index, label in
-                TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
+                TimelineView(.animation(minimumInterval: 1.0 / 20.0, paused: !isVisible)) { timeline in
                     let t = timeline.date.timeIntervalSinceReferenceDate
                     let isToday = highlightedDayIndex == index
                     let pulse = (sin(t * (isToday ? 3.4 : 2.2) + Double(index) * 0.7) + 1) / 2

@@ -8,7 +8,11 @@ struct LiveTimerView: View {
     /// Time to leave out of the count (recorded breaks), so the clock stops while
     /// the worker is on break and resumes where it left off.
     var excludedSeconds: ((Date) -> TimeInterval)?
-    var onTick: ((Date) -> Void)?
+    /// False while another tab is showing (TabView keeps this view alive off
+    /// screen) or a sheet covers Home. Ticking a timer nobody can see is wasted
+    /// CPU every second, forever, for as long as a shift stays open — pause it
+    /// and freeze on the last real elapsed time instead.
+    var isVisible: Bool = true
 
     var body: some View {
         // `TimelineView` instead of `Timer.publish`/`@State` — the latter froze after
@@ -17,18 +21,30 @@ struct LiveTimerView: View {
         // previous one's subscription didn't always reconnect cleanly afterward.
         // `TimelineView` has no subscription to lose; it's driven directly by the
         // system and always reflects the real current date on every redraw.
-        TimelineView(.periodic(from: startDate, by: 1)) { context in
-            Text(elapsedFormatted(now: context.date))
-                .htFont(size: fontSize, relativeTo: .largeTitle, weight: .light, design: .rounded)
-                .monospacedDigit()
-                .foregroundStyle(.white)
-                .lineLimit(1)
-                .minimumScaleFactor(0.6)
-                .contentTransition(.numericText())
-                .onChange(of: context.date) { _, newDate in
-                    onTick?(newDate)
-                }
+        //
+        // No `onTick` callback out to a parent `@State` anymore (removed 2026-11-09) —
+        // that forced the *entire* HomeView body to re-run every second, including
+        // three unrelated `OvertimeCalculator.aggregate` calls for the stat cards.
+        // Anything that genuinely needs the live date now reads it from its own
+        // `TimelineView` scope (see `liveCard`), so only that small subtree re-renders
+        // every second instead of the whole screen.
+        if isVisible {
+            TimelineView(.periodic(from: startDate, by: 1)) { context in
+                timerText(at: context.date)
+            }
+        } else {
+            timerText(at: Date())
         }
+    }
+
+    private func timerText(at now: Date) -> some View {
+        Text(elapsedFormatted(now: now))
+            .htFont(size: fontSize, relativeTo: .largeTitle, weight: .light, design: .rounded)
+            .monospacedDigit()
+            .foregroundStyle(.white)
+            .lineLimit(1)
+            .minimumScaleFactor(0.6)
+            .contentTransition(.numericText())
     }
 
     private func elapsedFormatted(now: Date) -> String {
@@ -68,7 +84,6 @@ struct HomeView: View {
     @State private var showLockScreenTip = false
     /// False while another tab is showing — TabView keeps Home alive off screen.
     @State private var isHomeVisible = true
-    @State private var liveNow = Date()
 
     private var timeFormatter: DateFormatter {
         AppLocale.makeDateFormatter(timeStyle: .short)
@@ -312,7 +327,8 @@ struct HomeView: View {
                 weekdayLabels: weekDayLabels,
                 highlightedDayIndex: todayWeekdayIndex,
                 isTodayShiftOpen: hasOpenShiftToday,
-                accent: homeTheme.accent
+                accent: homeTheme.accent,
+                isVisible: isHomeVisible
             )
             .padding(.bottom, 2)
 
@@ -554,7 +570,8 @@ struct HomeView: View {
                 weekdayLabels: weekDayLabels,
                 highlightedDayIndex: todayWeekdayIndex,
                 isTodayShiftOpen: hasOpenShiftToday,
-                accent: HomeNeon.coral
+                accent: HomeNeon.coral,
+                isVisible: isHomeVisible
             )
 
         }
@@ -696,8 +713,13 @@ struct HomeView: View {
     /// 22:00 and 06:00, see `ShiftKind`). Display only: pay uses `WorkSession.isNightShift`,
     /// set at clock-out. A shift that began yesterday says so: it counts on the day it started.
     private func shiftKindLabel(_ session: WorkSession) -> some View {
-        let kind = session.shiftKind(now: liveNow, calendar: calendar)
-        let startedYesterday = !calendar.isDate(session.clockIn, inSameDayAs: liveNow)
+        // Plain `Date()`, not a ticking source — shift kind (morning/evening/night)
+        // and "started yesterday" change at most a few times a day, not every
+        // second, so this doesn't need TimelineView; SwiftUI re-renders it
+        // naturally whenever something else changes.
+        let now = Date()
+        let kind = session.shiftKind(now: now, calendar: calendar)
+        let startedYesterday = !calendar.isDate(session.clockIn, inSameDayAs: now)
         let name: String
         let icon: String
         let tint: Color
@@ -785,25 +807,24 @@ struct HomeView: View {
                 startDate: session.clockIn,
                 fontSize: metrics.isCompact ? 42 : 48,
                 excludedSeconds: { breaksArePaid ? 0 : session.recordedBreakSeconds(now: $0) },
-                onTick: { date in liveNow = date }
+                isVisible: isHomeVisible
             )
             .environment(\.layoutDirection, .leftToRight)
             .opacity(isPaused ? 0.45 : 1)
 
-            VStack(spacing: DS.Space.xxs) {
-                Text(verbatim: livePayText(for: session, at: liveNow))
-                    .htFont(size: 28, relativeTo: .title, weight: .semibold, design: .rounded)
-                    .monospacedDigit()
-                    .environment(\.layoutDirection, .leftToRight)
-                    .foregroundStyle(homeTheme.accent)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.7)
-                    .contentTransition(.numericText())
-                    .accessibilityLabel(L10n.homeLivePay)
-                    .accessibilityValue(livePayText(for: session, at: liveNow))
-                Text(livePayMode == .net ? L10n.sumNoteNet : L10n.sumNoteGross)
-                    .dsFont(.meta)
-                    .foregroundStyle(DS.Palette.textTertiary)
+            // Scoped to its own TimelineView rather than reading a HomeView-level
+            // `@State` updated by LiveTimerView's onTick (removed 2026-11-09) — that
+            // forced the entire HomeView body, including three unrelated
+            // OvertimeCalculator.aggregate calls for the stat cards, to re-run every
+            // second. This way only this small text block re-renders each tick — and
+            // only while Home is actually the visible tab; paused otherwise, same as
+            // LiveTimerView above.
+            if isHomeVisible {
+                TimelineView(.periodic(from: session.clockIn, by: 1)) { context in
+                    livePayBlock(session: session, now: context.date)
+                }
+            } else {
+                livePayBlock(session: session, now: Date())
             }
 
             // Widgets, Watch and the Live Activity follow the same choice.
@@ -822,6 +843,24 @@ struct HomeView: View {
         )
         .background(DSHeroGlow(color: stateColor))
         .animation(DS.Motion.state, value: session.isOnBreak)
+    }
+
+    private func livePayBlock(session: WorkSession, now: Date) -> some View {
+        VStack(spacing: DS.Space.xxs) {
+            Text(verbatim: livePayText(for: session, at: now))
+                .htFont(size: 28, relativeTo: .title, weight: .semibold, design: .rounded)
+                .monospacedDigit()
+                .environment(\.layoutDirection, .leftToRight)
+                .foregroundStyle(homeTheme.accent)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
+                .contentTransition(.numericText())
+                .accessibilityLabel(L10n.homeLivePay)
+                .accessibilityValue(livePayText(for: session, at: now))
+            Text(livePayMode == .net ? L10n.sumNoteNet : L10n.sumNoteGross)
+                .dsFont(.meta)
+                .foregroundStyle(DS.Palette.textTertiary)
+        }
     }
 
     /// The running shift's pay at `now`, read from the view model's live pay curve —
