@@ -45,6 +45,14 @@ struct LiveTimerView: View {
             .lineLimit(1)
             .minimumScaleFactor(0.6)
             .contentTransition(.numericText())
+            // Without this VoiceOver reads the raw digit string ("zero zero colon
+            // one two colon ..."); `.updatesFrequently` tells it this value ticks
+            // on its own so it doesn't re-announce every single second a listener
+            // happens to be focused here.
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(L10n.homeTimerElapsedLabel)
+            .accessibilityValue(elapsedFormatted(now: now))
+            .accessibilityAddTraits(.updatesFrequently)
     }
 
     private func elapsedFormatted(now: Date) -> String {
@@ -354,6 +362,7 @@ struct HomeView: View {
             HomeWeekSparkline(
                 dailyHours: weekDailyHours,
                 weekdayLabels: weekDayLabels,
+                weekdayFullNames: weekDayFullNames,
                 highlightedDayIndex: todayWeekdayIndex,
                 isTodayShiftOpen: hasOpenShiftToday,
                 accent: homeTheme.accent,
@@ -984,6 +993,16 @@ struct HomeView: View {
         return (0..<7).map { offset in
             guard let day = calendar.date(byAdding: .day, value: offset, to: interval.start) else { return "" }
             return HistoryPeriodHelper.weekdayLetter(for: day)
+        }
+    }
+
+    /// Full weekday names for the sparkline's VoiceOver description — the single
+    /// letters in `weekDayLabels` are fine on screen but ambiguous spoken aloud.
+    private var weekDayFullNames: [String] {
+        let interval = weekInterval
+        return (0..<7).map { offset in
+            guard let day = calendar.date(byAdding: .day, value: offset, to: interval.start) else { return "" }
+            return HistoryPeriodHelper.weekdayFull(for: day)
         }
     }
 

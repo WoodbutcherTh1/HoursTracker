@@ -48,6 +48,9 @@ struct HoursLiveActivityView: View {
                     }
                 }
                 .frame(width: 44, height: 44)
+                // Purely decorative — the same elapsed-time info is read from the
+                // stats text next to it.
+                .accessibilityHidden(true)
 
                 // Stats
                 VStack(alignment: .leading, spacing: 3) {
@@ -67,6 +70,7 @@ struct HoursLiveActivityView: View {
                             )
                         )
                 }
+                .accessibilityElement(children: .combine)
 
                 Spacer()
 
@@ -77,6 +81,7 @@ struct HoursLiveActivityView: View {
                             Image(systemName: "cup.and.saucer.fill")
                                 .font(.system(size: 9))
                                 .foregroundStyle(LATheme.coral)
+                                .accessibilityHidden(true)
                             Text(timerInterval: min(breakStart, breakEnd)...breakEnd, countsDown: true)
                                 .font(.system(size: 13, weight: .bold, design: .rounded).monospacedDigit())
                                 .foregroundStyle(LATheme.textPrimary)
@@ -93,6 +98,7 @@ struct HoursLiveActivityView: View {
                             .foregroundStyle(LATheme.textSecondary)
                     }
                 }
+                .accessibilityElement(children: .combine)
             }
 
             // Full control from the Lock Screen — runs in the app, never opens it.
@@ -123,14 +129,19 @@ struct HoursLiveActivityMinimal: View {
 
     var body: some View {
         HStack(spacing: 4) {
+            // Not purely decorative here — break vs. working isn't said anywhere
+            // else in this compact view, so the icon carries real state and needs
+            // a spoken label instead of its raw SF Symbol name.
             Image(systemName: state.isOnBreak ? "cup.and.saucer.fill" : "bolt.fill")
                 .font(.system(size: 11, weight: .bold))
                 .foregroundStyle(state.isOnBreak ? LATheme.coral : LATheme.accent)
+                .accessibilityLabel(state.isOnBreak ? WidgetL10n.onBreak : WidgetL10n.clockedIn)
             paidClockText(state, fallback: formattedTime(state.elapsedTime))
                 .font(.system(size: 12, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(LATheme.textPrimary)
                 .frame(maxWidth: 56)
         }
+        .accessibilityElement(children: .combine)
     }
 
     private func formattedTime(_ interval: TimeInterval) -> String {
@@ -160,6 +171,8 @@ struct HoursLiveActivityExpanded: View {
                                 endPoint: .bottomTrailing
                             )
                         )
+                        // The text right next to it already says "Clocked In" / "On break".
+                        .accessibilityHidden(true)
                     Text(verbatim: state.isOnBreak ? WidgetL10n.onBreak : WidgetL10n.clockedIn)
                         .font(.system(size: 14, weight: .bold, design: .rounded))
                         .foregroundStyle(state.isOnBreak ? LATheme.coral : LATheme.textPrimary)
@@ -191,6 +204,7 @@ struct HoursLiveActivityExpanded: View {
                         .foregroundStyle(LATheme.textTertiary)
                         .textCase(.uppercase)
                 }
+                .accessibilityElement(children: .combine)
 
                 Spacer()
 
@@ -214,6 +228,7 @@ struct HoursLiveActivityExpanded: View {
                         .foregroundStyle(LATheme.textTertiary)
                         .textCase(.uppercase)
                 }
+                .accessibilityElement(children: .combine)
             }
 
             // Bottom bar — rate + standard hours
@@ -222,6 +237,7 @@ struct HoursLiveActivityExpanded: View {
                     Circle()
                         .fill(LATheme.accent.opacity(0.3))
                         .frame(width: 5, height: 5)
+                        .accessibilityHidden(true)
                     Text(WidgetBridge.format(amount: attributes.hourlyRate, currencyCode: attributes.currencyCode))
                         .font(.system(size: 10, weight: .semibold, design: .rounded))
                         .foregroundStyle(LATheme.textSecondary)
@@ -229,6 +245,7 @@ struct HoursLiveActivityExpanded: View {
                         .font(.system(size: 10, weight: .medium, design: .rounded))
                         .foregroundStyle(LATheme.textTertiary)
                 }
+                .accessibilityElement(children: .combine)
                 Spacer()
                 if attributes.standardDayHours > 0 {
                     Text(verbatim: WidgetL10n.standardDay(String(format: "%.1f", attributes.standardDayHours)))

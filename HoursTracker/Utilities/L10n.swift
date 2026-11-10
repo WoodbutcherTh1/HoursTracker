@@ -263,6 +263,9 @@ enum L10n {
         String(format: t("home.status.break %@"), "\(time)")
     }
     static var homeTimerPaused: String { t("home.timer.paused") }
+    /// VoiceOver label for the live shift timer — the digits are read as the
+    /// accessibility value (e.g. "Elapsed time, 2:15:03").
+    static var homeTimerElapsedLabel: String { t("home.timer.accessibilityLabel") }
     static var homeRateMissing: String { t("home.rate.missing") }
     static func homeRateCurrent(_ amount: String) -> String {
         String(format: t("home.rate.current %@"), amount)

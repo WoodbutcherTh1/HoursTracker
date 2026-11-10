@@ -73,17 +73,19 @@ struct MonthlyTrendCard: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack(spacing: 6) {
                 Image(systemName: "chart.bar.fill")
-                    .font(.system(size: 12, weight: .semibold))
+                    .htFont(size: 12, relativeTo: .footnote, weight: .semibold)
                     .foregroundStyle(homeTheme.accent)
+                    .accessibilityHidden(true)
                 Text(L10n.historyMonthlyTrend.uppercased())
-                    .font(.system(size: 11, weight: .bold, design: .rounded))
+                    .htFont(size: 11, relativeTo: .footnote, weight: .bold, design: .rounded)
                     .foregroundStyle(Color.secondary)
                     .tracking(0.6)
                 Spacer()
                 Text(L10n.historyTrendHours)
-                    .font(.system(size: 10, weight: .medium, design: .rounded))
+                    .htFont(size: 10, relativeTo: .caption2, weight: .medium, design: .rounded)
                     .foregroundStyle(Color.secondary.opacity(0.7))
             }
+            .accessibilityElement(children: .combine)
 
             if showsEmptyState && points.allSatisfy({ $0.hours == 0 }) {
                 emptyState
@@ -141,12 +143,20 @@ struct MonthlyTrendCard: View {
                 )
             )
             .cornerRadius(4)
+            // Swift Charts is silent to VoiceOver by default — a per-mark label +
+            // value is what turns each bar into a navigable accessibility element
+            // (and unlocks the system's audio-graph gesture). The annotation Text
+            // below says the same thing visually, so it's hidden from VoiceOver
+            // to avoid announcing each bar's hours twice.
+            .accessibilityLabel(point.label)
+            .accessibilityValue("\(String(format: "%.0f", point.hours)) \(L10n.manualHours)")
             .annotation(position: .top) {
                 if point.hours > 0 {
                     Text(String(format: "%.0f", point.hours))
-                        .font(.system(size: 9, weight: .semibold, design: .rounded))
+                        .htFont(size: 9, relativeTo: .caption2, weight: .semibold, design: .rounded)
                         .foregroundStyle(Color.secondary)
                         .monospacedDigit()
+                        .accessibilityHidden(true)
                 }
             }
         }
@@ -189,13 +199,15 @@ struct MonthlyTrendCard: View {
     private func trendFootStat(icon: String, value: String, color: Color) -> some View {
         HStack(spacing: 5) {
             Image(systemName: icon)
-                .font(.system(size: 10, weight: .semibold))
+                .htFont(size: 10, relativeTo: .caption2, weight: .semibold)
                 .foregroundStyle(color)
+                .accessibilityHidden(true)
             Text(value)
-                .font(.system(size: 11, weight: .semibold, design: .rounded))
+                .htFont(size: 11, relativeTo: .footnote, weight: .semibold, design: .rounded)
                 .foregroundStyle(Color.secondary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
         }
+        .accessibilityElement(children: .combine)
     }
 }

@@ -504,6 +504,10 @@ struct HomeCompactStatsStrip: View {
 struct HomeWeekSparkline: View {
     let dailyHours: [Double]
     let weekdayLabels: [String]
+    /// Full weekday names ("Monday"), used only for the VoiceOver description —
+    /// `weekdayLabels` above is the single letters the bars are captioned with on
+    /// screen, which read ambiguously aloud (Tuesday and Thursday both say "T").
+    var weekdayFullNames: [String] = []
     /// Index 0...6 of "today" within the current week row; that day glows.
     var highlightedDayIndex: Int? = nil
     /// When true, today's column shows a live "loading" state instead of a frozen 00:00
@@ -532,6 +536,20 @@ struct HomeWeekSparkline: View {
         hours.reduce(0, +)
     }
 
+    /// One "Monday, 2:15" (or "Tuesday, loading" for today's still-open shift)
+    /// per day, so VoiceOver gets the same per-day breakdown the bars show
+    /// sighted users — the chart previously spoke only the week total.
+    private var dayAccessibilityDescriptions: [String] {
+        let names = weekdayFullNames.count == 7 ? weekdayFullNames : weekdayLabels
+        return hours.indices.map { index in
+            let name = index < names.count ? names[index] : ""
+            if isTodayShiftOpen, highlightedDayIndex == index {
+                return "\(name), \(L10n.homeReadyToStart)"
+            }
+            return "\(name), \(HistoryPeriodHelper.formatHoursClock(hours[index]))"
+        }
+    }
+
     static func liveOpenHeightFraction(pulseTime t: Double, index: Int, isToday: Bool) -> Double {
         let pulse = liveOpenPulse(pulseTime: t, index: index, isToday: isToday)
         return 0.28 + 0.42 * pulse
@@ -551,8 +569,10 @@ struct HomeWeekSparkline: View {
         .padding(.horizontal, 4)
         .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
-        .accessibilityLabel(
-            L10n.homeWeekTotal(HistoryPeriodHelper.formatHoursClock(weekTotal))
+        .accessibilityLabel(L10n.homeStatWeek)
+        .accessibilityValue(
+            (dayAccessibilityDescriptions + [L10n.homeWeekTotal(HistoryPeriodHelper.formatHoursClock(weekTotal))])
+                .joined(separator: ", ")
         )
     }
 

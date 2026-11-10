@@ -206,6 +206,17 @@ enum HistoryPeriodHelper {
         return formatter.string(from: date)
     }
 
+    /// Full weekday name ("Monday") for VoiceOver — the single-letter
+    /// `weekdayLetter` above is ambiguous read aloud (Tuesday and Thursday both
+    /// say "T").
+    static func weekdayFull(for date: Date, locale: Locale = AppLocale.resolvedLocale) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = locale
+        formatter.calendar = Calendar(identifier: .gregorian)
+        formatter.setLocalizedDateFormatFromTemplate("EEEE")
+        return formatter.string(from: date)
+    }
+
     static func shortRangeLabel(for period: PayrollPeriod, locale: Locale = AppLocale.resolvedLocale) -> String {
         let f = DateFormatter()
         f.locale = locale

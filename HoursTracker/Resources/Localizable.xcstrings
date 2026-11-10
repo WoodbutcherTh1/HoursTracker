@@ -20142,6 +20142,42 @@
         }
       }
     },
+    "home.timer.accessibilityLabel" : {
+      "comment" : "VoiceOver label for the live shift timer; the digits are read as the accessibility value.",
+      "extractionState" : "manual",
+      "localizations" : {
+        "ar" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "الوقت المنقضي"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elapsed time"
+          }
+        },
+        "he" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "זמן שעבר"
+          }
+        },
+        "ru" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Прошедшее время"
+          }
+        },
+        "th" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "เวลาที่ผ่านไป"
+          }
+        }
+      }
+    },
     "home.tip.lockScreen" : {
       "extractionState" : "manual",
       "localizations" : {
