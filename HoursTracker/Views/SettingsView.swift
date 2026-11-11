@@ -86,9 +86,8 @@ struct SettingsView: View {
 
     private func sectionHeader(_ title: String, icon: String) -> some View {
         Label {
-            Text(title.uppercased(with: AppLocale.resolvedLocale))
-                .font(.system(size: 12, weight: .bold, design: .rounded))
-                .tracking(0.5)
+            Text(title)
+                .dsFont(.sectionHeader)
         } icon: {
             Image(systemName: icon)
                 .font(.system(size: 12, weight: .semibold))

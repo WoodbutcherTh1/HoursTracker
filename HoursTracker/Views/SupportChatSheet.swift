@@ -205,6 +205,10 @@ final class SupportChatModel: ObservableObject {
     func load() async {
         isLoading = true
         defer { isLoading = false }
+        if let prefill = SupportInbox.shared.pendingPrefillDraft {
+            SupportInbox.shared.pendingPrefillDraft = nil
+            if draft.isEmpty { draft = prefill }
+        }
         if await call(["action": "list", "markRead": "true"]) {
             SupportInbox.shared.chatOpened()
         }

@@ -80,24 +80,33 @@ enum DS {
 /// crowd inside Hebrew/Arabic layouts. Floors: 14pt content, 12pt metadata,
 /// never below 11pt.
 enum DSText {
-    case numHero, numLarge
-    case titleScreen, titleSection, headline, body, callout, sub, meta
+    case numHero, numLarge, statMono
+    case titleScreen, titleSection, sectionHeader, headline, body, callout, sub, meta, caption
 
     fileprivate var spec: (size: CGFloat, style: Font.TextStyle, weight: Font.Weight, rounded: Bool) {
         switch self {
         case .numHero: return (48, .largeTitle, .bold, true)
         case .numLarge: return (28, .title, .semibold, true)
-        case .titleScreen: return (28, .title, .bold, false)
+        // Inline stat/number value (e.g. a row's trailing figure) — monospaced
+        // *design*, not just monospaced digits, per the premium numeric scale.
+        case .statMono: return (17, .body, .bold, false)
+        // Rounded design on top of the premium look; the "AI-rushed" flatness this
+        // replaces was every screen title sharing the system body typeface.
+        case .titleScreen: return (28, .title, .bold, true)
         case .titleSection: return (20, .title3, .semibold, false)
+        // All-caps, letter-spaced eyebrow label above a group of content.
+        // `.tracking` is applied in `dsFont` below since it isn't part of `Font`.
+        case .sectionHeader: return (12, .footnote, .bold, true)
         case .headline: return (17, .headline, .semibold, false)
         case .body: return (17, .body, .regular, false)
         case .callout: return (16, .callout, .regular, false)
         case .sub: return (14, .subheadline, .regular, false)
         case .meta: return (12, .footnote, .regular, false)
+        case .caption: return (11, .caption2, .regular, false)
         }
     }
 
-    var isNumber: Bool { spec.rounded }
+    var isNumber: Bool { self == .numHero || self == .numLarge }
 }
 
 extension View {
@@ -110,6 +119,17 @@ extension View {
             self.htFont(size: spec.size, relativeTo: spec.style, weight: weight ?? spec.weight, design: .rounded)
                 .monospacedDigit()
                 .environment(\.layoutDirection, .leftToRight)
+        } else if token == .statMono {
+            self.htFont(size: spec.size, relativeTo: spec.style, weight: weight ?? spec.weight, design: .monospaced)
+        } else if token == .sectionHeader {
+            self.htFont(size: spec.size, relativeTo: spec.style, weight: weight ?? spec.weight, design: .rounded)
+                .tracking(0.5)
+                .textCase(.uppercase)
+        } else if token == .titleScreen {
+            self.htFont(size: spec.size, relativeTo: spec.style, weight: weight ?? spec.weight, design: .rounded)
+        } else if token == .body {
+            self.htFont(size: spec.size, relativeTo: spec.style, weight: weight ?? spec.weight)
+                .lineSpacing(4)
         } else {
             self.htFont(size: spec.size, relativeTo: spec.style, weight: weight ?? spec.weight)
         }

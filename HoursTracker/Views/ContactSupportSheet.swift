@@ -75,9 +75,13 @@ struct ContactSupportSheet: View {
             Form {
                 heroSection
                 chatSection
-                nameSection
-                categorySection
-                messageSection
+                if sendState == .success {
+                    chatBridgeSection
+                } else {
+                    nameSection
+                    categorySection
+                    messageSection
+                }
             }
             .scrollContentBackground(.hidden)
             // Presented from the Form itself, not from a row: list rows are recycled when
@@ -92,8 +96,8 @@ struct ContactSupportSheet: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button(L10n.editCancel) { dismiss() }
-                        .disabled(sendState != .idle)
+                    Button(sendState == .success ? L10n.keyboardDone : L10n.editCancel) { dismiss() }
+                        .disabled(sendState == .sending)
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     sendBarButton
@@ -176,6 +180,46 @@ struct ContactSupportSheet: View {
             .accessibilityIdentifier("feedback.chat")
         } footer: {
             Text(L10n.contactSupportOrSend)
+        }
+    }
+
+    /// Shown in place of the message form once the one-way feedback went through.
+    /// The Telegram message that was just sent is anonymous by design (see
+    /// `TelegramFeedbackSender`) — this is the one chance to offer a way back
+    /// into a conversation that can actually get a reply.
+    private var chatBridgeSection: some View {
+        Section {
+            VStack(spacing: 14) {
+                Label(L10n.contactSupportSuccess, systemImage: "checkmark.circle.fill")
+                    .dsFont(.headline)
+                    .foregroundStyle(DS.Palette.success)
+
+                VStack(alignment: .leading, spacing: 6) {
+                    Text(L10n.contactSupportChatBridgeTitle)
+                        .dsFont(.sub, weight: .semibold)
+                        .foregroundStyle(.primary)
+                    Text(L10n.contactSupportChatBridgeBody)
+                        .dsFont(.body)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                Button {
+                    showChat = true
+                } label: {
+                    Text(L10n.contactSupportChatBridgeButton)
+                        .dsFont(.headline)
+                        .foregroundStyle(.black)
+                        .frame(maxWidth: .infinity)
+                        .frame(minHeight: 48)
+                }
+                .buttonStyle(.plain)
+                .background(theme.accent, in: RoundedRectangle(cornerRadius: DS.Radius.lg, style: .continuous))
+                .accessibilityIdentifier("feedback.chatBridge")
+            }
+            .padding(.vertical, 6)
+            .listRowBackground(Color.clear)
         }
     }
 
@@ -305,14 +349,9 @@ struct ContactSupportSheet: View {
         switch result {
         case .success:
             UINotificationFeedbackGenerator().notificationOccurred(.success)
-            sendState = .success
-            Task {
-                try? await Task.sleep(for: .seconds(0.6))
-                await MainActor.run {
-                    viewModel.showSuccessToast(L10n.contactSupportSuccess)
-                    dismiss()
-                }
-            }
+            // Stay open instead of auto-dismissing: this is the one moment to offer
+            // the chat bridge (`chatBridgeSection`) before the sheet closes for good.
+            withAnimation { sendState = .success }
         case .notConfigured:
             sendState = .idle
             errorMessage = L10n.contactSupportUnavailable

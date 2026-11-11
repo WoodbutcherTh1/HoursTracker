@@ -384,7 +384,7 @@ struct ExportView: View {
     private var whatsIncludedCard: some View {
         VStack(alignment: .leading, spacing: 6) {
             Text(L10n.exportWhatsIncludedTitle)
-                .font(.caption.weight(.semibold))
+                .dsFont(.sectionHeader)
                 .foregroundStyle(.white)
 
             LazyVGrid(columns: [GridItem(.flexible(), spacing: 8), GridItem(.flexible(), spacing: 8)], spacing: 6) {
@@ -607,12 +607,13 @@ private struct ExportReceiptPreview: View {
     private func segment(_ label: String, _ value: String, emphasized: Bool = false) -> some View {
         VStack(spacing: 1) {
             Text(value)
-                .font(.system(size: emphasized ? 16 : 14, weight: .bold, design: .default).monospacedDigit())
+                .htFont(size: emphasized ? 16 : 14, relativeTo: .body, weight: .bold, design: .monospaced)
                 .foregroundStyle(emphasized ? Color(hex: "26F273") : .primary)
                 .lineLimit(1)
                 .minimumScaleFactor(0.7)
             Text(label.uppercased())
-                .font(.system(size: 9, weight: .medium))
+                .htFont(size: 9, relativeTo: .caption2, weight: .medium, design: .rounded)
+                .tracking(0.3)
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
         }

@@ -50,6 +50,10 @@ final class SupportInbox: ObservableObject {
     @Published private(set) var promptVisible = false
     /// Drives the root-level chat sheet.
     @Published var showChat = false
+    /// Consumed once by `SupportChatModel.load()` and cleared — a draft the caller
+    /// (an announcement's "reply to developer", the feedback-sheet bridge) wants
+    /// waiting in the compose box the next time the chat opens.
+    @Published var pendingPrefillDraft: String?
 
     private static let logger = Logger(subsystem: "com.hourstracker.app", category: "support")
     private var lastPrompted: String?
@@ -100,6 +104,13 @@ final class SupportInbox: ObservableObject {
     func openChat() {
         promptVisible = false
         showChat = true
+    }
+
+    /// Opens the chat with a draft already waiting in the compose box — an
+    /// announcement's "reply to developer" or the post-feedback chat bridge.
+    func openChat(prefill: String) {
+        pendingPrefillDraft = prefill
+        openChat()
     }
 
     func dismissPrompt() {

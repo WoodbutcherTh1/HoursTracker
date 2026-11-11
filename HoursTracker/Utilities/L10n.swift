@@ -518,6 +518,16 @@ enum L10n {
     static var settingsNotificationsAnnouncements: String { t("settings.notifications.announcements") }
     static var announcementHeader: String { t("announcement.header") }
     static var announcementDismiss: String { t("announcement.dismiss") }
+    static var announcementLater: String { t("announcement.later") }
+    static var announcementOpen: String { t("announcement.open") }
+    static var announcementLike: String { t("announcement.like") }
+    static var announcementDislike: String { t("announcement.dislike") }
+    static var announcementFeedbackThanks: String { t("announcement.feedbackThanks") }
+    static var announcementReplyToDeveloper: String { t("announcement.replyToDeveloper") }
+    static var announcementDetailsTitle: String { t("announcement.detailsTitle") }
+    static var contactSupportChatBridgeTitle: String { t("contactSupport.chatBridge.title") }
+    static var contactSupportChatBridgeBody: String { t("contactSupport.chatBridge.body") }
+    static var contactSupportChatBridgeButton: String { t("contactSupport.chatBridge.button") }
     static var dataSafetySection: String { t("dataSafety.section") }
     static var dataSafetyHint: String { t("dataSafety.hint") }
     static var dataSafetyRecentlyDeleted: String { t("dataSafety.recentlyDeleted") }

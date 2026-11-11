@@ -83,9 +83,14 @@ final class HomeAccentTheme: ObservableObject {
     private init(defaults: UserDefaults = .standard) {
         let hex = defaults.string(forKey: Self.storageKey) ?? Self.defaultHex
         accent = Color(hex: hex)
-        // `didSet` doesn't run inside init; the windows may not exist yet, so the app
-        // re-applies this when it becomes active.
-        UIView.appearance().tintColor = UIColor(accent)
+        // `didSet` doesn't run inside init. Apply the *full* tint here (appearance
+        // proxies, not just the window loop) so UITabBar/Menu/Picker/confirmationDialog
+        // never get a chance to render system-default blue before anything exists to
+        // tint — `AppDelegate` forces this singleton to initialize before any window is
+        // created (see its `didFinishLaunchingWithOptions`). The window loop inside
+        // `applyUIKitTint()` simply has nothing to iterate yet, which is harmless; the
+        // scenePhase-active re-apply later still covers windows created afterward.
+        applyUIKitTint()
     }
 
     func reset() {

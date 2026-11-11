@@ -14,6 +14,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         _ application: UIApplication,
         didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
     ) -> Bool {
+        // Force the accent-theme singleton to initialize right now, before UIKit
+        // creates the window/scene — its `init` applies the full UIKit tint
+        // (appearance proxies for UITabBar/Menu/Picker/etc.), so none of that
+        // chrome gets a chance to render system-default blue first.
+        _ = HomeAccentTheme.shared
         #if DEBUG
         // Screenshot automation (see HoursTrackerUITests/ScreenshotTests.swift): skip the
         // first-launch onboarding cover before SwiftUI's `@AppStorage` reads the flag, so

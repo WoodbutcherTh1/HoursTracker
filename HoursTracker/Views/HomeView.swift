@@ -368,10 +368,21 @@ struct HomeView: View {
                 accent: homeTheme.accent,
                 isVisible: isHomeVisible
             )
-            .padding(.bottom, 2)
+            // Extra clearance below the last element: at larger Dynamic Type sizes
+            // `homeContent`'s natural height can still end close enough to the
+            // floating (iOS 26 style) tab bar that it reads as "under" it — this is
+            // separate from the ViewThatFits/scale-to-fit mechanism above (which
+            // only prevents the *viewport* from clipping content, not from the last
+            // row landing flush against the bar). A fixed reserve is simplest and
+            // doesn't touch that measurement-feedback-loop code at all.
+            .padding(.bottom, Self.sparklineBottomReserve)
 
         }
     }
+
+    /// Clears the floating tab bar's visual footprint + a small margin, regardless
+    /// of Dynamic Type size or scroll position.
+    private static let sparklineBottomReserve: CGFloat = 32
 
     private func greetingHeader(metrics: HomeLayoutMetrics) -> some View {
         HomeGreetingRow(
@@ -611,6 +622,7 @@ struct HomeView: View {
                 accent: HomeNeon.coral,
                 isVisible: isHomeVisible
             )
+            .padding(.bottom, Self.sparklineBottomReserve)
 
         }
     }

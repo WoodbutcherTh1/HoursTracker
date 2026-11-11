@@ -188,6 +188,8 @@ struct MainTabView: View {
     @ObservedObject private var whatsNew = WhatsNewCenter.shared
     @ObservedObject private var updateReminder = UpdateReminderCenter.shared
     @Environment(\.scenePhase) private var scenePhase
+    @State private var showAnnouncementDetails = false
+    @State private var pendingSupportChatPrefill: String?
 
     /// A scan that completes while the assistant is already open stays queued rather
     /// than yanking the assistant away mid-conversation: the existing "ready for review"
@@ -326,17 +328,41 @@ struct MainTabView: View {
             }
         }
         .animation(.easeInOut(duration: 0.25), value: viewModel.undoableDeletion?.id)
-        // Owner announcements (in the user's language), one at a time, until "Got it".
-        .overlay(alignment: .top) {
-            if let announcement = announcements.current {
-                AnnouncementBanner(announcement: announcement) {
-                    announcements.dismissCurrent()
-                }
-                .padding(.top, 8)
-                .transition(.move(edge: .top).combined(with: .opacity))
+        // Owner announcements (in the user's language), one at a time, until "Later"
+        // or "Open" — a center overlay, not the old top banner, so it can't be
+        // glanced past. Hidden while its own details sheet is up so the two never
+        // visually stack.
+        .overlay {
+            if let announcement = announcements.current, !showAnnouncementDetails {
+                AnnouncementCenterOverlay(
+                    announcement: announcement,
+                    onLater: { announcements.dismissCurrent() },
+                    onOpen: { showAnnouncementDetails = true }
+                )
+                .transition(.scale(scale: 0.85).combined(with: .opacity))
             }
         }
-        .animation(.easeInOut(duration: 0.3), value: announcements.current?.id)
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: announcements.current?.id)
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: showAnnouncementDetails)
+        // Opening the details sheet never changes `announcements.current` itself —
+        // only dismissing it (here, via `onDismiss`) marks the announcement seen,
+        // same as "Later" did before. A reply-to-developer tap is deferred until
+        // this sheet has actually closed, so it never fights the chat sheet for
+        // presentation (see `MainSheetRoute`'s doc comment above).
+        .sheet(isPresented: $showAnnouncementDetails, onDismiss: {
+            announcements.dismissCurrent()
+            if let prefill = pendingSupportChatPrefill {
+                pendingSupportChatPrefill = nil
+                supportInbox.openChat(prefill: prefill)
+            }
+        }) {
+            if let announcement = announcements.current {
+                AnnouncementDetailsSheet(announcement: announcement) {
+                    pendingSupportChatPrefill = "בנוגע להודעה: \(announcement.title)\n"
+                    showAnnouncementDetails = false
+                }
+            }
+        }
         // First launch after an update: what's new, once; About keeps it for 24 hours.
         .overlay {
             if whatsNew.showPopup, hasSeenOnboarding, legal.isAccepted,
