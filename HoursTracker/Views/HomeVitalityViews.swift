@@ -179,16 +179,15 @@ struct HomeAnimatedDoorButton: View {
                             .frame(width: doorWidth + 12, height: doorHeight + 12)
                     }
 
-                    TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isBreathing)) { context in
-                        doorScene
-                            .frame(width: doorWidth, height: doorHeight)
-                            // Flattens the gradient-filled frame/room/leaf stack (plus the
-                            // leaf's 3D rotation) into one Metal layer before the shadow is
-                            // computed, so breathing's 30fps redraw composites a single
-                            // bitmap instead of several overlapping translucent shapes.
-                            .drawingGroup()
-                            .shadow(color: glowColor.opacity(0.3), radius: 10, y: 4)
-                            .scaleEffect(breathingScale(at: context.date))
+                    // Hard-removed, not paused: when breathing isn't needed (Home hidden,
+                    // backgrounded, covered, or Reduce Motion) there is no TimelineView
+                    // node in the hierarchy at all — not an animation sitting idle.
+                    if isBreathing {
+                        TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { context in
+                            doorSceneView(scale: breathingScale(at: context.date))
+                        }
+                    } else {
+                        doorSceneView(scale: 1)
                     }
                 }
                 .frame(width: doorWidth + (compact ? 44 : 56), height: doorHeight + (compact ? 22 : 28))
@@ -220,6 +219,18 @@ struct HomeAnimatedDoorButton: View {
         guard isBreathing else { return 1 }
         let phase = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: 3) / 3
         return 1 + 0.015 * (1 - cos(phase * 2 * .pi))
+    }
+
+    private func doorSceneView(scale: CGFloat) -> some View {
+        doorScene
+            .frame(width: doorWidth, height: doorHeight)
+            // Flattens the gradient-filled frame/room/leaf stack (plus the leaf's 3D
+            // rotation) into one Metal layer before the shadow is computed, so
+            // breathing's 30fps redraw composites a single bitmap instead of several
+            // overlapping translucent shapes.
+            .drawingGroup()
+            .shadow(color: glowColor.opacity(0.3), radius: 10, y: 4)
+            .scaleEffect(scale)
     }
 
     private var doorScene: some View {
@@ -526,16 +537,26 @@ struct HomeHourglassIndicator: View {
     var isVisible: Bool = true
 
     var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isVisible)) { timeline in
-            let t = timeline.date.timeIntervalSinceReferenceDate
-            let turns = t.truncatingRemainder(dividingBy: 1.6) / 1.6
-            Image(systemName: "hourglass")
-                .htFont(size: 14, relativeTo: .subheadline, weight: .semibold)
-                .foregroundStyle(accent)
-                .rotationEffect(.degrees(turns * 360))
+        // Hard-removed, not paused: no TimelineView node exists at all while hidden.
+        Group {
+            if isVisible {
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+                    let t = timeline.date.timeIntervalSinceReferenceDate
+                    let turns = t.truncatingRemainder(dividingBy: 1.6) / 1.6
+                    icon.rotationEffect(.degrees(turns * 360))
+                }
+            } else {
+                icon
+            }
         }
         .frame(height: 18)
         .accessibilityHidden(true)
+    }
+
+    private var icon: some View {
+        Image(systemName: "hourglass")
+            .htFont(size: 14, relativeTo: .subheadline, weight: .semibold)
+            .foregroundStyle(accent)
     }
 }
 
@@ -562,6 +583,10 @@ struct HomeWeekSparkline: View {
     private let loopSeconds: Double = 5.5
     private let chartHeight: CGFloat = 56
     private let labelRowHeight: CGFloat = 13
+    /// Hard floor for the whole sparkline (bars + weekday row + total line) so
+    /// nothing above it in a compressed/scaled layout can squeeze it down far
+    /// enough for the weekday letters or dot to disappear under the tab bar.
+    private static let minHeight: CGFloat = 130
 
     private var hours: [Double] {
         dailyHours.count == 7 ? dailyHours : Array(repeating: 0, count: 7)
@@ -606,6 +631,7 @@ struct HomeWeekSparkline: View {
                 .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 4)
+        .frame(minHeight: Self.minHeight)
         // The bars (an HStack) mirror automatically under RTL, but the glowing
         // ridge/dot/markers above them are drawn at raw, unmirrored x coordinates
         // (`barTopPoints`) — left unpinned, that put the two layers out of sync, so
@@ -629,80 +655,26 @@ struct HomeWeekSparkline: View {
             let columnWidth = max(0, geo.size.width) / 7
             let barMaxHeight = max(0, geo.size.height - labelRowHeight - 4)
 
-            TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isVisible)) { timeline in
-                let t = timeline.date.timeIntervalSinceReferenceDate
-                let ridgeHeights = ridgeHeightFractions(baseHeights: barHeights, pulseTime: t)
-                let tops = barTopPoints(
-                    heights: ridgeHeights,
+            // Hard-removed, not paused: while Home isn't visible there is no
+            // TimelineView node in the hierarchy at all, so nothing ticks off screen.
+            if isVisible {
+                TimelineView(.animation(minimumInterval: 1.0 / 30.0)) { timeline in
+                    chartFrame(
+                        t: timeline.date.timeIntervalSinceReferenceDate,
+                        barHeights: barHeights,
+                        columnWidth: columnWidth,
+                        barMaxHeight: barMaxHeight,
+                        chartHeight: geo.size.height
+                    )
+                }
+            } else {
+                chartFrame(
+                    t: 0,
+                    barHeights: barHeights,
                     columnWidth: columnWidth,
                     barMaxHeight: barMaxHeight,
                     chartHeight: geo.size.height
                 )
-                let ridge = ridgePath(points: tops)
-                let travel = CGFloat((t / loopSeconds).truncatingRemainder(dividingBy: 1))
-                let trailStart = max(0, travel - 0.18)
-
-                ZStack(alignment: .topLeading) {
-                    // Soft gradient area under the curve — behind the bars, so they
-                    // stay crisp on top of it.
-                    if tops.count > 1, ridgeHeights.contains(where: { $0 > 0 }) {
-                        ridgeAreaPath(points: tops, chartHeight: geo.size.height)
-                            .fill(
-                                LinearGradient(
-                                    colors: [accent.opacity(0.26), accent.opacity(0)],
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                    }
-
-                    HStack(alignment: .bottom, spacing: 0) {
-                        ForEach(0..<7, id: \.self) { index in
-                            dayColumn(
-                                index: index,
-                                hours: hours[index],
-                                heightFraction: barHeights[index],
-                                barMaxHeight: barMaxHeight,
-                                pulseTime: t
-                            )
-                            .frame(width: columnWidth)
-                        }
-                    }
-
-                    if tops.count > 1, ridgeHeights.contains(where: { $0 > 0 }) {
-                        ridge
-                            .stroke(accent.opacity(0.22), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
-
-                        // The tail is the curve itself, cut into short pieces that fade and thin
-                        // out behind the dot, so it bends with the line instead of a straight streak.
-                        Group {
-                            ForEach(0..<Self.trailSteps, id: \.self) { k in
-                                let from = trailStart + (travel - trailStart) * CGFloat(k) / CGFloat(Self.trailSteps)
-                                let to = trailStart + (travel - trailStart) * CGFloat(k + 1) / CGFloat(Self.trailSteps)
-                                let f = Double(k + 1) / Double(Self.trailSteps)
-                                ridge
-                                    .trim(from: from, to: to)
-                                    .stroke(
-                                        k == Self.trailSteps - 1 ? Color.white.opacity(0.95) : accent.opacity(0.06 + 0.86 * f),
-                                        style: StrokeStyle(lineWidth: 1.0 + 1.8 * f, lineCap: .round, lineJoin: .round)
-                                    )
-                            }
-                        }
-                        .shadow(color: accent.opacity(0.55), radius: 5)
-
-                        // The dot sits on the same curve, at the head of the tail.
-                        if travel > 0.001, let point = ridge.trimmedPath(from: 0, to: travel).currentPoint {
-                            travelingShine(at: point, pulse: t)
-                        }
-
-                        // A static marker at every day's point on the curve — distinct
-                        // from the single traveling comet above, and always in `accent`
-                        // so it matches the chosen theme (Cyan by default).
-                        ForEach(Array(tops.enumerated()), id: \.offset) { index, point in
-                            dayMarker(at: point, hasHours: hours[index] > 0.01, isToday: highlightedDayIndex == index)
-                        }
-                    }
-                }
             }
         }
         .frame(height: chartHeight + labelRowHeight)
@@ -710,6 +682,87 @@ struct HomeWeekSparkline: View {
         // shadows into one Metal layer so the 30fps redraw composites a single
         // bitmap instead of a dozen overlapping translucent shapes every frame.
         .drawingGroup()
+    }
+
+    private func chartFrame(
+        t: Double,
+        barHeights: [Double],
+        columnWidth: CGFloat,
+        barMaxHeight: CGFloat,
+        chartHeight: CGFloat
+    ) -> some View {
+        let ridgeHeights = ridgeHeightFractions(baseHeights: barHeights, pulseTime: t)
+        let tops = barTopPoints(
+            heights: ridgeHeights,
+            columnWidth: columnWidth,
+            barMaxHeight: barMaxHeight,
+            chartHeight: chartHeight
+        )
+        let ridge = ridgePath(points: tops)
+        let travel = CGFloat((t / loopSeconds).truncatingRemainder(dividingBy: 1))
+        let trailStart = max(0, travel - 0.18)
+
+        return ZStack(alignment: .topLeading) {
+            // Soft gradient area under the curve — behind the bars, so they
+            // stay crisp on top of it.
+            if tops.count > 1, ridgeHeights.contains(where: { $0 > 0 }) {
+                ridgeAreaPath(points: tops, chartHeight: chartHeight)
+                    .fill(
+                        LinearGradient(
+                            colors: [accent.opacity(0.26), accent.opacity(0)],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+            }
+
+            HStack(alignment: .bottom, spacing: 0) {
+                ForEach(0..<7, id: \.self) { index in
+                    dayColumn(
+                        index: index,
+                        hours: hours[index],
+                        heightFraction: barHeights[index],
+                        barMaxHeight: barMaxHeight,
+                        pulseTime: t
+                    )
+                    .frame(width: columnWidth)
+                }
+            }
+
+            if tops.count > 1, ridgeHeights.contains(where: { $0 > 0 }) {
+                ridge
+                    .stroke(accent.opacity(0.22), style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+
+                // The tail is the curve itself, cut into short pieces that fade and thin
+                // out behind the dot, so it bends with the line instead of a straight streak.
+                Group {
+                    ForEach(0..<Self.trailSteps, id: \.self) { k in
+                        let from = trailStart + (travel - trailStart) * CGFloat(k) / CGFloat(Self.trailSteps)
+                        let to = trailStart + (travel - trailStart) * CGFloat(k + 1) / CGFloat(Self.trailSteps)
+                        let f = Double(k + 1) / Double(Self.trailSteps)
+                        ridge
+                            .trim(from: from, to: to)
+                            .stroke(
+                                k == Self.trailSteps - 1 ? Color.white.opacity(0.95) : accent.opacity(0.06 + 0.86 * f),
+                                style: StrokeStyle(lineWidth: 1.0 + 1.8 * f, lineCap: .round, lineJoin: .round)
+                            )
+                    }
+                }
+                .shadow(color: accent.opacity(0.55), radius: 5)
+
+                // The dot sits on the same curve, at the head of the tail.
+                if travel > 0.001, let point = ridge.trimmedPath(from: 0, to: travel).currentPoint {
+                    travelingShine(at: point, pulse: t)
+                }
+
+                // A static marker at every day's point on the curve — distinct
+                // from the single traveling comet above, and always in `accent`
+                // so it matches the chosen theme (Cyan by default).
+                ForEach(Array(tops.enumerated()), id: \.offset) { index, point in
+                    dayMarker(at: point, hasHours: hours[index] > 0.01, isToday: highlightedDayIndex == index)
+                }
+            }
+        }
     }
 
     private func dayColumn(
@@ -797,45 +850,54 @@ struct HomeWeekSparkline: View {
     private var weekdayRow: some View {
         HStack(spacing: 0) {
             ForEach(Array(weekdayLabels.enumerated()), id: \.offset) { index, label in
-                TimelineView(.animation(minimumInterval: 1.0 / 20.0, paused: !isVisible)) { timeline in
-                    let t = timeline.date.timeIntervalSinceReferenceDate
-                    let isToday = highlightedDayIndex == index
-                    let pulse = (sin(t * (isToday ? 3.4 : 2.2) + Double(index) * 0.7) + 1) / 2
-                    VStack(spacing: 4) {
-                        Text(label)
-                            .font(.caption2.weight(isToday ? .bold : .semibold))
-                            .foregroundStyle(
-                                isToday
-                                    ? accent.opacity(0.75 + 0.25 * pulse)
-                                    : Color.white.opacity(0.40 + 0.25 * pulse)
-                            )
-                            .shadow(color: isToday ? accent.opacity(0.7 * pulse) : .clear, radius: isToday ? 6 : 0)
-
-                        ZStack {
-                            if isToday {
-                                Circle()
-                                    .fill(accent.opacity(0.28 + 0.35 * pulse))
-                                    .frame(width: 14 + 4 * pulse, height: 14 + 4 * pulse)
-                                    .blur(radius: 3)
-                            }
-                            Circle()
-                                .fill(accent.opacity(isToday ? (0.75 + 0.25 * pulse) : (0.30 + 0.35 * pulse)))
-                                .frame(width: isToday ? 7 : 5, height: isToday ? 7 : 5)
-                                .shadow(
-                                    color: accent.opacity(isToday ? 0.85 * pulse : 0.35 * pulse),
-                                    radius: isToday ? 5 : 2
-                                )
-                        }
-                        .frame(height: 12)
+                // Hard-removed, not paused: no TimelineView node exists per column
+                // while Home isn't visible.
+                if isVisible {
+                    TimelineView(.animation(minimumInterval: 1.0 / 20.0)) { timeline in
+                        weekdayColumn(index: index, label: label, t: timeline.date.timeIntervalSinceReferenceDate)
                     }
-                    .frame(maxWidth: .infinity)
-                    .scaleEffect(isToday ? 1.08 : 1.0)
+                } else {
+                    weekdayColumn(index: index, label: label, t: 0)
                 }
             }
         }
         // Same reasoning as `chart`: seven columns' worth of blurred glow circles
         // and text shadows collapse into one composited layer per frame.
         .drawingGroup()
+    }
+
+    private func weekdayColumn(index: Int, label: String, t: Double) -> some View {
+        let isToday = highlightedDayIndex == index
+        let pulse = (sin(t * (isToday ? 3.4 : 2.2) + Double(index) * 0.7) + 1) / 2
+        return VStack(spacing: 4) {
+            Text(label)
+                .font(.caption2.weight(isToday ? .bold : .semibold))
+                .foregroundStyle(
+                    isToday
+                        ? accent.opacity(0.75 + 0.25 * pulse)
+                        : Color.white.opacity(0.40 + 0.25 * pulse)
+                )
+                .shadow(color: isToday ? accent.opacity(0.7 * pulse) : .clear, radius: isToday ? 6 : 0)
+
+            ZStack {
+                if isToday {
+                    Circle()
+                        .fill(accent.opacity(0.28 + 0.35 * pulse))
+                        .frame(width: 14 + 4 * pulse, height: 14 + 4 * pulse)
+                        .blur(radius: 3)
+                }
+                Circle()
+                    .fill(accent.opacity(isToday ? (0.75 + 0.25 * pulse) : (0.30 + 0.35 * pulse)))
+                    .frame(width: isToday ? 7 : 5, height: isToday ? 7 : 5)
+                    .shadow(
+                        color: accent.opacity(isToday ? 0.85 * pulse : 0.35 * pulse),
+                        radius: isToday ? 5 : 2
+                    )
+            }
+            .frame(height: 12)
+        }
+        .frame(maxWidth: .infinity)
+        .scaleEffect(isToday ? 1.08 : 1.0)
     }
 
     private func travelingShine(at point: CGPoint, pulse t: Double) -> some View {

@@ -143,6 +143,10 @@ struct LegalConsentView: View {
         }
         .environment(\.layoutDirection, Self.isRTL(language) ? .rightToLeft : .leftToRight)
         .environment(\.locale, Locale(identifier: language.localeIdentifier))
+        // HARD FIX: this is the very first screen a new install sees, presented as a
+        // sibling of `MainTabView` rather than inside it, so it never inherited any
+        // tint — its `NavigationLink`s and language `Menu` fell back to system blue.
+        .tint(HomeNeon.accent)
         .interactiveDismissDisabled()
     }
 

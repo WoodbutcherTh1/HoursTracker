@@ -69,6 +69,11 @@ struct UserGuideSheet: View {
                 }
             }
             .tabViewStyle(.page(indexDisplayMode: .never))
+            // HARD FIX: without this, the real reused components some slides embed —
+            // e.g. GuideShiftDetailPage's day-type `Picker` inside a bare `Form` —
+            // fall back to the system default tint (blue) instead of the user's
+            // chosen accent, since nothing above this TabView ever set one.
+            .tint(homeTheme.accent)
             .safeAreaInset(edge: .bottom, spacing: 0) {
                 footer
             }

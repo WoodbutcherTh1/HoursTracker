@@ -89,6 +89,10 @@ struct OnboardingView: View {
         }
         .environment(\.layoutDirection, appLanguage.layoutDirection)
         .preferredColorScheme(.dark)
+        // HARD FIX: pin the tint explicitly at the root rather than relying on it
+        // propagating in from `MainTabView`'s TabView — any native control added here
+        // (the language `Menu`/`Picker`, alerts) otherwise falls back to system blue.
+        .tint(accent)
         .sensoryFeedback(.success, trigger: successTick)
         .sensoryFeedback(.selection, trigger: selectionTick)
         .onAppear {

@@ -180,6 +180,15 @@ struct HomeView: View {
                                     )
                             }
                             .scrollBounceBehavior(.basedOnSize)
+                            // Hard fix: a fixed-height clear spacer reserved via
+                            // `safeAreaInset` on the ScrollView itself — not padding on the
+                            // content VStack — so the sparkline's weekday row always has
+                            // real, non-negotiable room above the floating tab bar no
+                            // matter what Dynamic Type size or fit-scaling does to the
+                            // content above it.
+                            .safeAreaInset(edge: .bottom) {
+                                Color.clear.frame(height: 120)
+                            }
                         }
                     }
                     .onPreferenceChange(HomeNaturalHeightKey.self) { naturalContentHeight = $0 }
