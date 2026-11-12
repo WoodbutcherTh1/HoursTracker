@@ -225,11 +225,21 @@ final class AppViewModel: ObservableObject {
         // An open shift from a previous launch: build its live pay curve right away so
         // Home and the widgets show the shared figure from the first frame.
         refreshLiveCurve()
+        // The view model takes today's backup at launch — this one stays synchronous
+        // and deterministic (restore flows, and their tests, read `backups.list()`
+        // immediately after construction and expect it to already be there).
         takeDailyBackupIfNeeded()
-        refreshReminders()
-        refreshLocationPermissionStatuses()
-        startLiveActivityRefreshLoop()
-        checkAdminStatus()
+        // None of this needs to finish before the very first frame renders, so it no
+        // longer runs inline here — it was blocking that first frame on a
+        // notification-center round trip and a location-permission lookup before
+        // SwiftUI ever got to draw.
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            self.refreshReminders()
+            self.refreshLocationPermissionStatuses()
+            self.startLiveActivityRefreshLoop()
+            self.checkAdminStatus()
+        }
     }
 
     deinit {

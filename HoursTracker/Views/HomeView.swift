@@ -180,15 +180,6 @@ struct HomeView: View {
                                     )
                             }
                             .scrollBounceBehavior(.basedOnSize)
-                            // Hard fix: a fixed-height clear spacer reserved via
-                            // `safeAreaInset` on the ScrollView itself — not padding on the
-                            // content VStack — so the sparkline's weekday row always has
-                            // real, non-negotiable room above the floating tab bar no
-                            // matter what Dynamic Type size or fit-scaling does to the
-                            // content above it.
-                            .safeAreaInset(edge: .bottom) {
-                                Color.clear.frame(height: 120)
-                            }
                         }
                     }
                     .onPreferenceChange(HomeNaturalHeightKey.self) { naturalContentHeight = $0 }
@@ -385,23 +376,20 @@ struct HomeView: View {
                 accent: homeTheme.accent,
                 isVisible: isHomeVisible
             )
-            // Extra clearance below the last element: at larger Dynamic Type sizes
-            // `homeContent`'s natural height can still end close enough to the
-            // floating (iOS 26 style) tab bar that it reads as "under" it — this is
-            // separate from the ViewThatFits/scale-to-fit mechanism above (which
-            // only prevents the *viewport* from clipping content, not from the last
-            // row landing flush against the bar). A fixed reserve is simplest and
-            // doesn't touch that measurement-feedback-loop code at all.
-            .padding(.bottom, Self.sparklineBottomReserve)
 
+            // HARDCODED FIX: a literal fixed-height Spacer, not padding and not a
+            // safe-area inset. `ViewThatFits` picks whichever of its two branches
+            // fits first — on most phones that's the plain, non-scrolling branch
+            // above, which never touches the ScrollView at all, so anything reserved
+            // only on the ScrollView's safe area never applies. This Spacer is baked
+            // directly into `homeContent`, so both ViewThatFits branches get it.
+            Spacer().frame(height: Self.sparklineBottomReserve)
         }
     }
 
     /// Clears the floating tab bar's visual footprint + a small margin, regardless
-    /// of Dynamic Type size or scroll position. 32pt still left the sparkline's
-    /// weekday letters/dots peeking out from under the iOS 26 floating tab bar on
-    /// several devices; 80pt clears it with room to spare.
-    private static let sparklineBottomReserve: CGFloat = 80
+    /// of Dynamic Type size, scroll position, or which `ViewThatFits` branch wins.
+    private static let sparklineBottomReserve: CGFloat = 120
 
     private func greetingHeader(metrics: HomeLayoutMetrics) -> some View {
         HomeGreetingRow(
@@ -648,8 +636,9 @@ struct HomeView: View {
                 accent: HomeNeon.coral,
                 isVisible: isHomeVisible
             )
-            .padding(.bottom, Self.sparklineBottomReserve)
 
+            // HARDCODED FIX — see the matching comment in `clockedOutView`.
+            Spacer().frame(height: Self.sparklineBottomReserve)
         }
     }
 

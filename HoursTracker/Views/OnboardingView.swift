@@ -190,11 +190,19 @@ struct OnboardingView: View {
         .frame(height: 52)
     }
 
+    /// HARDCODED FIX: the literal brand cyan→green gradient, not the flat accent —
+    /// see `DSPrimaryButtonStyle.gradient`.
+    private static let brandGradient = LinearGradient(
+        colors: [Color(hex: "00E5FF"), Color(hex: "26F273")],
+        startPoint: .leading,
+        endPoint: .trailing
+    )
+
     private var progressBar: some View {
         HStack(spacing: DS.Space.xxs) {
             ForEach(1...4, id: \.self) { index in
                 Capsule(style: .continuous)
-                    .fill(index <= step.progress ? accent : DS.Palette.hairline)
+                    .fill(index <= step.progress ? AnyShapeStyle(Self.brandGradient) : AnyShapeStyle(DS.Palette.hairline))
                     .frame(height: 4)
             }
         }
@@ -612,7 +620,7 @@ struct OnboardingView: View {
             }
 
             Button(primaryTitle, action: advance)
-                .buttonStyle(DSPrimaryButtonStyle(accent: accent, isEnabled: canAdvance))
+                .buttonStyle(DSPrimaryButtonStyle(accent: accent, isEnabled: canAdvance, gradient: Self.brandGradient))
                 .disabled(!canAdvance)
                 .accessibilityIdentifier("onboarding.primary")
         }

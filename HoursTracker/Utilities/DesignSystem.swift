@@ -155,6 +155,12 @@ extension View {
 struct DSPrimaryButtonStyle: ButtonStyle {
     var accent: Color
     var isEnabled = true
+    /// Overrides the flat `accent` fill when set. HARDCODED FIX: Onboarding's primary
+    /// CTA ships the literal brand cyan→green gradient instead of a single flat
+    /// color — a solid fill of the default Neon Cyan accent was being seen/reported
+    /// as plain system blue, so the two-color gradient makes the brand identity
+    /// unambiguous regardless of how a single hue reads on a given screen.
+    var gradient: LinearGradient?
 
     func makeBody(configuration: Configuration) -> some View {
         configuration.label
@@ -162,7 +168,11 @@ struct DSPrimaryButtonStyle: ButtonStyle {
             .foregroundStyle(DS.Palette.ink.opacity(isEnabled ? 1 : 0.5))
             .frame(maxWidth: .infinity)
             .frame(minHeight: 56)
-            .background(Capsule(style: .continuous).fill(accent.opacity(isEnabled ? 1 : 0.35)))
+            .background(
+                Capsule(style: .continuous)
+                    .fill(gradient.map { AnyShapeStyle($0) } ?? AnyShapeStyle(accent))
+                    .opacity(isEnabled ? 1 : 0.35)
+            )
             .shadow(color: configuration.isPressed && isEnabled ? accent.opacity(0.25) : .clear, radius: 16)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
             .animation(DS.Motion.press, value: configuration.isPressed)
