@@ -110,7 +110,14 @@ struct HomeView: View {
                 // when clocked out, the live card when clocked in) and follows the state.
                 appBackground.background.ignoresSafeArea()
 
-                GeometryReader { geo in
+                // Skip the whole measurement/aggregation subtree while another tab is
+                // showing. TabView keeps Home mounted, so without this guard any
+                // `viewModel` change anywhere in the app — not just on Home — still
+                // re-ran the stat cards' OvertimeCalculator aggregates and the
+                // GeometryReader/ViewThatFits layout math to render pixels nobody could
+                // see, which is what made switching tabs feel laggy app-wide.
+                if isHomeVisible {
+                    GeometryReader { geo in
                     // Clamp once at the source: during a tab-switch transition (and
                     // briefly on iOS 26's floating tab bar) this GeometryReader can
                     // report a transient zero or negative size before layout settles.
@@ -184,6 +191,7 @@ struct HomeView: View {
                             pinnedDoor(metrics: metrics)
                         }
                     }
+                }
                 }
             }
             // Two icons at most. The theme picker lives in the greeting row, the
@@ -381,8 +389,10 @@ struct HomeView: View {
     }
 
     /// Clears the floating tab bar's visual footprint + a small margin, regardless
-    /// of Dynamic Type size or scroll position.
-    private static let sparklineBottomReserve: CGFloat = 32
+    /// of Dynamic Type size or scroll position. 32pt still left the sparkline's
+    /// weekday letters/dots peeking out from under the iOS 26 floating tab bar on
+    /// several devices; 80pt clears it with room to spare.
+    private static let sparklineBottomReserve: CGFloat = 80
 
     private func greetingHeader(metrics: HomeLayoutMetrics) -> some View {
         HomeGreetingRow(
@@ -599,11 +609,18 @@ struct HomeView: View {
                     HomeCompactStatsStrip.Item(
                         id: $0.rawValue,
                         title: $0.title,
-                        value: statValue(for: $0)
+                        value: statValue(for: $0),
+                        // Today's total only counts completed sessions (`todayHours`);
+                        // with a shift actively running and nothing completed yet today,
+                        // that reads "00:00" right next to a live-ticking timer — looks
+                        // like a bug, not a true zero. Show a spinning hourglass instead
+                        // until there's a real number to report.
+                        showsHourglass: $0 == .today && todayHours <= 0.01
                     )
                 },
                 accent: homeTheme.accent,
-                compact: metrics.isCompact
+                compact: metrics.isCompact,
+                isVisible: isHomeVisible
             )
 
             if !metrics.pinsDoor {

@@ -182,6 +182,11 @@ struct HomeAnimatedDoorButton: View {
                     TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isBreathing)) { context in
                         doorScene
                             .frame(width: doorWidth, height: doorHeight)
+                            // Flattens the gradient-filled frame/room/leaf stack (plus the
+                            // leaf's 3D rotation) into one Metal layer before the shadow is
+                            // computed, so breathing's 30fps redraw composites a single
+                            // bitmap instead of several overlapping translucent shapes.
+                            .drawingGroup()
                             .shadow(color: glowColor.opacity(0.3), radius: 10, y: 4)
                             .scaleEffect(breathingScale(at: context.date))
                     }
@@ -452,11 +457,19 @@ struct HomeCompactStatsStrip: View {
         let id: String
         let title: String
         let value: String
+        /// True only for "Today" while a shift is active and nothing has posted to
+        /// today's total yet — a frozen 00:00 next to a running timer reads as broken,
+        /// so a small spinning hourglass stands in for the value until there's a real
+        /// number to show.
+        var showsHourglass: Bool = false
     }
 
     let items: [Item]
     var accent: Color = HomeNeon.accent
     var compact: Bool = false
+    /// False while another tab is showing — pauses the hourglass's spin, same reasoning
+    /// as every other Home animation.
+    var isVisible: Bool = true
 
     var body: some View {
         HStack(spacing: 0) {
@@ -473,18 +486,23 @@ struct HomeCompactStatsStrip: View {
                         .foregroundStyle(DS.Palette.textSecondary)
                         .lineLimit(1)
                         .minimumScaleFactor(0.6)
-                    Text(item.value)
-                        .htFont(size: 15, relativeTo: .subheadline, weight: .semibold, design: .rounded)
-                        .monospacedDigit()
-                        .environment(\.layoutDirection, .leftToRight)
-                        .foregroundStyle(accent)
-                        .lineLimit(1)
-                        .minimumScaleFactor(0.6)
-                        .contentTransition(.numericText())
+                    if item.showsHourglass {
+                        HomeHourglassIndicator(accent: accent, isVisible: isVisible)
+                    } else {
+                        Text(item.value)
+                            .htFont(size: 15, relativeTo: .subheadline, weight: .semibold, design: .rounded)
+                            .monospacedDigit()
+                            .environment(\.layoutDirection, .leftToRight)
+                            .foregroundStyle(accent)
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.6)
+                            .contentTransition(.numericText())
+                    }
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.horizontal, 4)
                 .accessibilityElement(children: .combine)
+                .accessibilityValue(item.showsHourglass ? L10n.homeWeekLoading : item.value)
             }
         }
         .padding(.vertical, compact ? 7 : 9)
@@ -497,6 +515,27 @@ struct HomeCompactStatsStrip: View {
                         .stroke(Color.white.opacity(0.06), lineWidth: 1)
                 )
         )
+    }
+}
+
+/// Small spinning hourglass shown in place of a stat value that has nothing real to
+/// report yet (see `HomeCompactStatsStrip.Item.showsHourglass`) — reads as "still
+/// counting" instead of the frozen "00:00" it replaces.
+struct HomeHourglassIndicator: View {
+    var accent: Color = HomeNeon.accent
+    var isVisible: Bool = true
+
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 30.0, paused: !isVisible)) { timeline in
+            let t = timeline.date.timeIntervalSinceReferenceDate
+            let turns = t.truncatingRemainder(dividingBy: 1.6) / 1.6
+            Image(systemName: "hourglass")
+                .htFont(size: 14, relativeTo: .subheadline, weight: .semibold)
+                .foregroundStyle(accent)
+                .rotationEffect(.degrees(turns * 360))
+        }
+        .frame(height: 18)
+        .accessibilityHidden(true)
     }
 }
 
@@ -567,6 +606,14 @@ struct HomeWeekSparkline: View {
                 .frame(maxWidth: .infinity)
         }
         .padding(.horizontal, 4)
+        // The bars (an HStack) mirror automatically under RTL, but the glowing
+        // ridge/dot/markers above them are drawn at raw, unmirrored x coordinates
+        // (`barTopPoints`) — left unpinned, that put the two layers out of sync, so
+        // the "today" dot rendered over the wrong weekday column (and the wrong
+        // bar) in Hebrew/Arabic. Pinning the whole chart left-to-right, like every
+        // other date/number display in this app, keeps the bars, labels and dot on
+        // one shared coordinate frame.
+        .environment(\.layoutDirection, .leftToRight)
         .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L10n.homeStatWeek)
@@ -659,6 +706,10 @@ struct HomeWeekSparkline: View {
             }
         }
         .frame(height: chartHeight + labelRowHeight)
+        // Flattens the bars, gradient fill, ridge stroke, trail segments and glow
+        // shadows into one Metal layer so the 30fps redraw composites a single
+        // bitmap instead of a dozen overlapping translucent shapes every frame.
+        .drawingGroup()
     }
 
     private func dayColumn(
@@ -782,6 +833,9 @@ struct HomeWeekSparkline: View {
                 }
             }
         }
+        // Same reasoning as `chart`: seven columns' worth of blurred glow circles
+        // and text shadows collapse into one composited layer per frame.
+        .drawingGroup()
     }
 
     private func travelingShine(at point: CGPoint, pulse t: Double) -> some View {
