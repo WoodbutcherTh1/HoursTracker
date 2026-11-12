@@ -156,6 +156,8 @@ struct AdminDashboardView: View {
 /// Compose an announcement in the three app languages, pick the audience, check
 /// the recipient count, confirm, send.
 struct AdminComposeView: View {
+    private enum ComposeField: Hashable { case title, body }
+
     @State private var draft = AnnouncementDraft()
     @State private var language = AppLocale.current.localeIdentifier
     @State private var versionsText = ""
@@ -166,6 +168,7 @@ struct AdminComposeView: View {
     @State private var confirmSend = false
     @State private var result: AnnouncementSendResult?
     @State private var errorMessage: String?
+    @FocusState private var focusedField: ComposeField?
 
     var body: some View {
         Form {
@@ -233,9 +236,32 @@ struct AdminComposeView: View {
 
             TextField(L10n.adminTitleField, text: binding(\.titles))
                 .environment(\.layoutDirection, language == "en" ? .leftToRight : .rightToLeft)
-            TextField(L10n.adminBodyField, text: binding(\.bodies), axis: .vertical)
-                .lineLimit(4...12)
-                .environment(\.layoutDirection, language == "en" ? .leftToRight : .rightToLeft)
+                .focused($focusedField, equals: .title)
+
+            // Not `TextField(..., axis: .vertical)`: inside a Form (UITableView-backed),
+            // that grows the row's height together with the content, and a long paste
+            // jumps the line count in one step — the table view has to reload/re-measure
+            // that row mid-paste, which drops first responder and dismisses the keyboard
+            // (reported on a physical device; this is a known SwiftUI/UIKit interaction,
+            // not something `@FocusState` alone fixes). A `TextEditor` in a fixed-range
+            // frame keeps the row's own height constant — it scrolls internally past
+            // `maxHeight` instead of asking the Form to re-layout — so nothing ever
+            // triggers that reload. Same pattern `ContactSupportSheet`'s message field
+            // already uses.
+            ZStack(alignment: .topLeading) {
+                if (draft.bodies[language] ?? "").isEmpty {
+                    Text(L10n.adminBodyField)
+                        .foregroundStyle(Color(uiColor: .placeholderText))
+                        .padding(.top, 8)
+                        .padding(.leading, 4)
+                        .allowsHitTesting(false)
+                }
+                TextEditor(text: binding(\.bodies))
+                    .scrollContentBackground(.hidden)
+                    .frame(minHeight: 110, maxHeight: 200)
+                    .focused($focusedField, equals: .body)
+            }
+            .environment(\.layoutDirection, language == "en" ? .leftToRight : .rightToLeft)
 
             Button {
                 Task { await translate() }
@@ -334,9 +360,30 @@ struct AdminComposeView: View {
             .filter { !$0.isEmpty }
     }
 
+    /// Same shape the server's `parseTarget` accepts (`supabase/functions/admin-api`) —
+    /// checked here first so a non-email entry (e.g. a public `HT-XXXXX` id, which this
+    /// field has never accepted — only the unrelated, still-mocked user-lookup search
+    /// above does) fails with a specific local message instead of the server's generic
+    /// "Invalid target" 400. The server silently drops anything that doesn't match this
+    /// pattern rather than erroring per-entry, so without this check the admin never
+    /// learns *which* entry was the problem.
+    private static let emailPattern = try! NSRegularExpression(pattern: #"^[^@\s]+@[^@\s]+\.[^@\s]+$"#)
+
+    private static func isValidEmail(_ value: String) -> Bool {
+        emailPattern.firstMatch(in: value, range: NSRange(value.startIndex..., in: value)) != nil
+    }
+
     // MARK: Actions
 
     private func countThenConfirm() async {
+        if draft.target.kind == .users {
+            let entries = Self.split(emailsText)
+            let invalid = entries.filter { !Self.isValidEmail($0) }
+            guard invalid.isEmpty else {
+                errorMessage = L10n.adminInvalidEmails(invalid.joined(separator: ", "))
+                return
+            }
+        }
         working = true
         defer { working = false }
         do {

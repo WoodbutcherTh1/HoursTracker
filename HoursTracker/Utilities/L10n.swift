@@ -491,6 +491,9 @@ enum L10n {
     static func adminUnmatchedEmails(_ value: CustomStringConvertible) -> String {
         String(format: t("admin.unmatchedEmails %@"), "\(value)")
     }
+    static func adminInvalidEmails(_ value: CustomStringConvertible) -> String {
+        String(format: t("admin.invalidEmails %@"), "\(value)")
+    }
     static var adminNoRecipients: String { t("admin.noRecipients") }
     static var adminDelivery: String { t("admin.delivery") }
     static var adminDeliverPush: String { t("admin.deliverPush") }
