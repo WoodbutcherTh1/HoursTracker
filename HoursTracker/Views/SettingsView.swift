@@ -277,6 +277,7 @@ struct SettingsView: View {
                 }
                 .listStyle(.insetGrouped)
                 .scrollContentBackground(.hidden)
+                .background(Color.black)
                 .tint(homeTheme.accent)
                 .toggleStyle(SwitchToggleStyle(tint: homeTheme.accent))
                 .symbolRenderingMode(.monochrome)

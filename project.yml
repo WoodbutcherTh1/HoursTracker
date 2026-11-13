@@ -184,7 +184,6 @@ targets:
         CODE_SIGN_STYLE: Automatic
         DEVELOPMENT_TEAM: FQUC6DU87N
         TARGETED_DEVICE_FAMILY: "4"
-        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         ENABLE_PREVIEWS: YES
     postbuildScripts:
       # Xcode's build system has, on at least two separate occasions, replaced the
