@@ -175,8 +175,100 @@ enum WidgetBridge {
     /// Darwin notification name — works across the app ↔ widget processes.
     static let darwinActionNotification = "com.hourstracker.widget.action" as CFString
 
-    private static var suite: UserDefaults? {
-        UserDefaults(suiteName: suiteName)
+    /// The shared App Group store. Created once and reused — re-opening the suite on
+    /// every access is itself a `cfprefsd` round-trip, which is part of what made the
+    /// old per-call `UserDefaults(suiteName:)` expensive.
+    private static let suite = UserDefaults(suiteName: suiteName)
+
+    // MARK: - In-memory cache (app-side 0ms reads)
+
+    /// The shared-suite flags the app reads during view-`body` evaluation. Reading
+    /// these straight from `UserDefaults(suiteName:)` on the main thread can block for
+    /// ~500ms while `cfprefsd` refreshes the domain ("Contents Need Refresh: Yes"), so
+    /// the app warms this snapshot once off the main thread (see `warmSharedCache()`)
+    /// and then reads it in constant time. `Equatable` so the change-observer can skip
+    /// no-op refreshes; `Sendable` because it's handed between the I/O queue and callers.
+    struct SharedSuiteSnapshot: Equatable, Sendable {
+        var hidePay: Bool
+        var livePayShowsNet: Bool
+
+        static let fallback = SharedSuiteSnapshot(hidePay: false, livePayShowsNet: false)
+    }
+
+    /// Serial queue for the one-time warm and any refresh reads — keeps every
+    /// `cfprefsd` touch off the main thread. `.utility` so it never contends with UI.
+    private static let ioQueue = DispatchQueue(label: "com.hourstracker.appgroup.io", qos: .utility)
+    private static let cacheLock = NSLock()
+    /// `nil` until `warmSharedCache()` runs. While `nil`, getters fall back to a direct
+    /// (synchronous) suite read — identical to the old behaviour, so the widget
+    /// extension (which never warms the cache) is completely unaffected.
+    private static var cachedSnapshot: SharedSuiteSnapshot?
+    /// Touched only on `ioQueue`, so it needs no extra synchronization.
+    private static var didInstallChangeObserver = false
+
+    private static func cachedValue<T>(_ keyPath: KeyPath<SharedSuiteSnapshot, T>) -> T? {
+        cacheLock.lock(); defer { cacheLock.unlock() }
+        return cachedSnapshot?[keyPath: keyPath]
+    }
+
+    /// Applies an in-place change to the cache iff it's already warm. Called from the
+    /// setters so a write the app makes is reflected immediately (no suite round-trip).
+    private static func mutateCache(_ transform: (inout SharedSuiteSnapshot) -> Void) {
+        cacheLock.lock(); defer { cacheLock.unlock() }
+        guard var snapshot = cachedSnapshot else { return }
+        transform(&snapshot)
+        cachedSnapshot = snapshot
+    }
+
+    private static func storeSnapshot(_ snapshot: SharedSuiteSnapshot) {
+        cacheLock.lock(); cachedSnapshot = snapshot; cacheLock.unlock()
+    }
+
+    /// Reads the cached flags straight off the suite. MUST be called off the main
+    /// thread — this is the call that can hit `cfprefsd` for hundreds of milliseconds.
+    private static func readSnapshotFromSuite() -> SharedSuiteSnapshot {
+        SharedSuiteSnapshot(
+            hidePay: suite?.bool(forKey: hidePayKey) ?? false,
+            livePayShowsNet: suite?.bool(forKey: livePayShowsNetKey) ?? false
+        )
+    }
+
+    /// The current cached flags, or a direct read if the cache isn't warm yet. Safe to
+    /// call from a SwiftUI `body` once the cache is warm (reads are constant time).
+    static var sharedSnapshot: SharedSuiteSnapshot {
+        cacheLock.lock()
+        let cached = cachedSnapshot
+        cacheLock.unlock()
+        return cached ?? readSnapshotFromSuite()
+    }
+
+    /// Primes the in-memory cache off the main thread and keeps it current. Call once
+    /// at app launch (the app, not the widget extension). No-op to call more than once.
+    static func warmSharedCache() {
+        ioQueue.async {
+            storeSnapshot(readSnapshotFromSuite())
+            installChangeObserverIfNeeded()
+        }
+    }
+
+    /// Best-effort refresh when the shared defaults change. Our own setters already
+    /// update the cache synchronously; this additionally catches writes from elsewhere
+    /// (e.g. the Watch/widget process) when the system delivers the notification.
+    private static func installChangeObserverIfNeeded() {
+        guard !didInstallChangeObserver else { return }
+        didInstallChangeObserver = true
+        NotificationCenter.default.addObserver(
+            forName: UserDefaults.didChangeNotification,
+            object: suite,
+            queue: nil
+        ) { _ in
+            ioQueue.async {
+                let fresh = readSnapshotFromSuite()
+                cacheLock.lock()
+                if cachedSnapshot != fresh { cachedSnapshot = fresh }
+                cacheLock.unlock()
+            }
+        }
     }
 
     // MARK: - Write
@@ -200,6 +292,7 @@ enum WidgetBridge {
             suite?.removeObject(forKey: livePayKey)
         }
         suite?.set(showsNet, forKey: livePayShowsNetKey)
+        mutateCache { $0.livePayShowsNet = showsNet }
     }
 
     /// Completed-shift pay for today / this week / this month, priced by the app's real
@@ -226,7 +319,7 @@ enum WidgetBridge {
     }
 
     static var livePayShowsNet: Bool {
-        suite?.bool(forKey: livePayShowsNetKey) ?? false
+        cachedValue(\.livePayShowsNet) ?? (suite?.bool(forKey: livePayShowsNetKey) ?? false)
     }
 
     // NOTE: no `reloadTimelines` here — `WidgetCenter` requires linking WidgetKit
@@ -237,8 +330,11 @@ enum WidgetBridge {
 
     /// When true, widgets and the Live Activity mask money amounts («••••»).
     static var hidePay: Bool {
-        get { suite?.bool(forKey: hidePayKey) ?? false }
-        set { suite?.set(newValue, forKey: hidePayKey) }
+        get { cachedValue(\.hidePay) ?? (suite?.bool(forKey: hidePayKey) ?? false) }
+        set {
+            suite?.set(newValue, forKey: hidePayKey)
+            mutateCache { $0.hidePay = newValue }
+        }
     }
 
     /// Formats a pay amount, masking it entirely when privacy hiding is on.

@@ -61,6 +61,10 @@ struct HoursTrackerApp: App {
             .environmentObject(appLock)
             .environmentObject(appLanguage)
             .onAppear {
+                // Prime the shared App Group cache off the main thread so later reads of
+                // WidgetBridge.hidePay (Settings body, Watch snapshot) don't block on
+                // cfprefsd. Must run before those views evaluate — kick it off first.
+                WidgetBridge.warmSharedCache()
                 ExportTempFileStore.wipeAll()
                 PayslipStore.shared.sweepOrphanedFiles()
                 viewModel.retryLoadIfNeeded()

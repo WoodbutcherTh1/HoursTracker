@@ -12,6 +12,21 @@ import WatchConnectivity
 /// Not `@MainActor` itself (`WCSessionDelegate` callbacks land on an arbitrary
 /// background queue) — every touch of `AppViewModel` hops to the main actor
 /// explicitly instead.
+///
+/// ## Threading
+/// `WCSession` IPC (`activate()`, `isPaired`, `isWatchAppInstalled`,
+/// `updateApplicationContext(_:)`) is XPC to the paired-device daemon and can block
+/// its caller for hundreds of milliseconds to multiple seconds. Running any of it on
+/// the main thread shows up as a tab-switch hitch, so all of it is confined to
+/// `bgQueue`. The flow on a state change is:
+///   1. **bgQueue** — fast-exit guard (`isPaired`/`isWatchAppInstalled`). A phone with
+///      no paired/installed Watch stops here and does *zero* main-thread work.
+///   2. **main actor** — build the `WatchSnapshot` (reads `AppViewModel` state) and a
+///      dedup digest.
+///   3. **bgQueue** — drop the push if the semantic payload is unchanged, else send it.
+/// `lastSyncedDigest`/`hasActivated` are only ever touched inside `bgQueue` (serial),
+/// so they need no other synchronization; `viewModel`/`appLock`/`historyPeriodOffset`
+/// are only ever touched on the main actor.
 final class WatchConnectivityManager: NSObject {
     static let shared = WatchConnectivityManager()
 
@@ -19,7 +34,24 @@ final class WatchConnectivityManager: NSObject {
     private weak var appLock: AppLockController?
     /// Payroll periods away from "now" the Watch's History tab is currently viewing.
     /// Purely view state for the Watch — not persisted, and not part of `AppViewModel`.
+    /// Main-actor-confined (only read/written inside `@MainActor` work below).
     private var historyPeriodOffset = 0
+
+    /// Dedicated serial background queue for all WCSession XPC — activation, state
+    /// reads, and context updates. Serial so `lastSyncedDigest`/`hasActivated` stay
+    /// race-free without extra locks.
+    private let bgQueue = DispatchQueue(
+        label: "com.hourstracker.wcsession.background",
+        qos: .background
+    )
+
+    /// JSON of the last transmitted snapshot (with `generatedAt` normalized out) — lets
+    /// us skip redundant `updateApplicationContext` calls when nothing semantic changed.
+    /// `bgQueue`-confined.
+    private var lastSyncedDigest: String?
+    /// `bgQueue`-confined guard so repeated `configure(...)` calls (e.g. a view
+    /// reappearing) don't re-activate the session.
+    private var hasActivated = false
 
     private override init() {
         super.init()
@@ -28,21 +60,76 @@ final class WatchConnectivityManager: NSObject {
     func configure(viewModel: AppViewModel, appLock: AppLockController) {
         self.viewModel = viewModel
         self.appLock = appLock
-        guard WCSession.isSupported() else { return }
-        WCSession.default.delegate = self
-        WCSession.default.activate()
+        activateInBackground()
     }
 
-    /// Pushes the current state to the Watch. Safe to call often — cheap when
-    /// the session isn't activated/paired yet (no-ops rather than erroring).
+    /// Activates `WCSession` entirely off the main thread. Safe to call more than once;
+    /// only the first call activates.
+    func activateInBackground() {
+        bgQueue.async { [weak self] in
+            guard let self, !self.hasActivated, WCSession.isSupported() else { return }
+            self.hasActivated = true
+            let session = WCSession.default
+            session.delegate = self
+            session.activate()
+        }
+    }
+
+    /// Pushes the current state to the Watch. Safe to call often — cheap when the
+    /// session isn't activated/paired yet, and does no main-thread work at all unless a
+    /// Watch app is actually paired and installed.
     func pushSnapshot() {
+        bgQueue.async { [weak self] in
+            guard let self, WCSession.isSupported() else { return }
+            let session = WCSession.default
+            // Fast-exit on the background queue. These reads are the XPC calls that
+            // used to block the main thread; gating here means an unpaired phone never
+            // even builds the snapshot on a state change.
+            guard session.activationState == .activated,
+                  session.isPaired,
+                  session.isWatchAppInstalled else { return }
+            self.buildAndSendSnapshot()
+        }
+    }
+
+    /// Builds the snapshot on the main actor (it reads `AppViewModel`), then hands a
+    /// plain `Data` payload + dedup digest back to `bgQueue` for the actual send.
+    private func buildAndSendSnapshot() {
         Task { @MainActor [weak self] in
             guard let self, let viewModel = self.viewModel else { return }
             let snapshot = viewModel.watchSnapshot(historyPeriodOffset: self.historyPeriodOffset)
-            guard WCSession.isSupported() else { return }
+            guard let payload = try? JSONEncoder().encode(snapshot) else { return }
+            // `generatedAt` is a fresh timestamp on every call and would defeat dedup,
+            // so it's zeroed for the digest only — the real payload keeps it.
+            var digestSource = snapshot
+            digestSource.generatedAt = .distantPast
+            let digest = (try? JSONEncoder().encode(digestSource))
+                .map { String(decoding: $0, as: UTF8.self) }
+            self.deliver(snapshotData: payload, digest: digest)
+        }
+    }
+
+    /// Sends the encoded snapshot over `updateApplicationContext`, skipping the XPC call
+    /// when the semantic payload is identical to the last one we sent. Reconstructs the
+    /// exact message `WatchSnapshot.asMessage()` produces — only `Data`/`String` (both
+    /// Sendable) cross the queue boundary.
+    private func deliver(snapshotData: Data, digest: String?) {
+        bgQueue.async { [weak self] in
+            guard let self else { return }
             let session = WCSession.default
-            guard session.activationState == .activated else { return }
-            try? session.updateApplicationContext(snapshot.asMessage())
+            // State can change between the entry guard and here (e.g. Watch app removed
+            // mid-session), so re-check before touching IPC.
+            guard session.activationState == .activated,
+                  session.isPaired,
+                  session.isWatchAppInstalled else { return }
+            if let digest, digest == self.lastSyncedDigest { return }
+            do {
+                try session.updateApplicationContext([WatchMessageKey.snapshot: snapshotData])
+                self.lastSyncedDigest = digest
+            } catch {
+                // Non-fatal background sync failure; leave `lastSyncedDigest` untouched
+                // so the next genuinely-new state still attempts a push.
+            }
         }
     }
 }
@@ -56,10 +143,18 @@ extension WatchConnectivityManager: WCSessionDelegate {
         pushSnapshot()
     }
 
+    /// Pairing/installation changed (Watch app installed or removed, device paired or
+    /// unpaired). Clear the dedup cache so the next eligible push isn't suppressed, then
+    /// re-push the current state.
+    func sessionWatchStateDidChange(_ session: WCSession) {
+        bgQueue.async { [weak self] in self?.lastSyncedDigest = nil }
+        pushSnapshot()
+    }
+
     func sessionDidBecomeInactive(_ session: WCSession) {}
 
     func sessionDidDeactivate(_ session: WCSession) {
-        session.activate()
+        bgQueue.async { session.activate() }
     }
 
     /// Every request the Watch sends — clock in/out, History paging, Settings
