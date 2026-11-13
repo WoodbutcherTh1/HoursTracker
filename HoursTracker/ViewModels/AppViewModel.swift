@@ -221,20 +221,33 @@ final class AppViewModel: ObservableObject {
         self.deletedSessions = deletedSessions
         self.backups = backups
         syncState = store.syncState
+        // BRUTE FORCE: only two calls are left synchronous in init, and both are
+        // load-bearing, not just "nice to run early":
+        // - `load()` is the data the very first frame renders — `sessions`/`settings`
+        //   start at `[]`/`.default` otherwise, so every cold launch (not just
+        //   onboarding) would flash "no shift, no hours, rate card" before snapping
+        //   to the real data a moment later. That is a worse, more visible bug than
+        //   the hang this is fixing.
+        // - `takeDailyBackupIfNeeded()` is a tested, deterministic contract —
+        //   `DataSafetyTests.testRestoreBackupReplacesDataAndSavesCurrentStateFirst`
+        //   reads `backups.list()` immediately after construction with no `await`;
+        //   deferring this one broke that test outright on the first attempt.
+        // Everything else below is genuinely deferrable and now runs off the init
+        // path entirely, after an explicit delay, so it cannot contend with the
+        // very first frame for main-thread time.
         load(report: false)
-        // An open shift from a previous launch: build its live pay curve right away so
-        // Home and the widgets show the shared figure from the first frame.
-        refreshLiveCurve()
-        // The view model takes today's backup at launch — this one stays synchronous
-        // and deterministic (restore flows, and their tests, read `backups.list()`
-        // immediately after construction and expect it to already be there).
         takeDailyBackupIfNeeded()
-        // None of this needs to finish before the very first frame renders, so it no
-        // longer runs inline here — it was blocking that first frame on a
-        // notification-center round trip and a location-permission lookup before
-        // SwiftUI ever got to draw.
         Task { @MainActor [weak self] in
+            try? await Task.sleep(for: .milliseconds(500))
             guard let self else { return }
+            // An open shift from a previous launch: the live pay curve used to be
+            // built synchronously right here so Home and the widgets showed the
+            // shared figure from the first frame. It is now the same half-second
+            // behind everything else in this block — a returning user with an open
+            // shift may see the live card catch up a beat after the door and header
+            // appear, which is the explicit trade-off for never blocking the first
+            // frame on it.
+            self.refreshLiveCurve()
             self.refreshReminders()
             self.refreshLocationPermissionStatuses()
             self.startLiveActivityRefreshLoop()

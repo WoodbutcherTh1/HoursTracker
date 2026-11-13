@@ -75,16 +75,29 @@ struct OnboardingView: View {
             VStack(spacing: 0) {
                 topBar
 
-                ZStack(alignment: .top) {
-                    stepContent
-                        .id(step)
-                        .transition(stepTransition)
+                // HARD FIX: wrapped in a ScrollView so the system can actually shrink
+                // the scrollable content away from the keyboard instead of fighting a
+                // fixed `.frame(maxHeight: .infinity)` region — the rate/hours steps'
+                // text field and slider were leaving "Next" covered by the keyboard.
+                ScrollView {
+                    ZStack(alignment: .top) {
+                        stepContent
+                            .id(step)
+                            .transition(stepTransition)
+                    }
+                    .padding(.top, DS.Space.xxl)
+                    .padding(.horizontal, DS.Space.lg)
+                    .frame(maxWidth: .infinity, alignment: .top)
                 }
-                .padding(.top, DS.Space.xxl)
-                .padding(.horizontal, DS.Space.lg)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .scrollDismissesKeyboard(.interactively)
 
                 bottomActions
+                    // HARD FIX: extra fixed clearance below the primary button, on top
+                    // of the system's own keyboard safe-area inset, so "Next" never
+                    // sits flush against the keyboard's top edge.
+                    .safeAreaInset(edge: .bottom) {
+                        Color.clear.frame(height: 20)
+                    }
             }
         }
         .environment(\.layoutDirection, appLanguage.layoutDirection)

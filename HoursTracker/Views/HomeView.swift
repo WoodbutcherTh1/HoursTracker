@@ -180,6 +180,18 @@ struct HomeView: View {
                                     )
                             }
                             .scrollBounceBehavior(.basedOnSize)
+                            // Brute-force, un-scaled reserve: everything inside this
+                            // ScrollView (including the sparkline's own hardcoded bottom
+                            // padding below) sits inside `.scaleEffect(fit, ...)` above —
+                            // when the clocked-in layout (more rows: live card, compact
+                            // stats, break control, door) doesn't fit and `fit` < 1, that
+                            // transform shrinks a fixed padding/spacer right along with
+                            // everything else, so it stops guaranteeing real screen
+                            // pixels. This inset is on the ScrollView container itself,
+                            // outside that transform, so it can't be shrunk by it.
+                            .safeAreaInset(edge: .bottom) {
+                                Color.clear.frame(height: 150)
+                            }
                         }
                     }
                     .onPreferenceChange(HomeNaturalHeightKey.self) { naturalContentHeight = $0 }
@@ -376,20 +388,14 @@ struct HomeView: View {
                 accent: homeTheme.accent,
                 isVisible: isHomeVisible
             )
-
-            // HARDCODED FIX: a literal fixed-height Spacer, not padding and not a
-            // safe-area inset. `ViewThatFits` picks whichever of its two branches
-            // fits first — on most phones that's the plain, non-scrolling branch
-            // above, which never touches the ScrollView at all, so anything reserved
-            // only on the ScrollView's safe area never applies. This Spacer is baked
-            // directly into `homeContent`, so both ViewThatFits branches get it.
-            Spacer().frame(height: Self.sparklineBottomReserve)
+            // HARDCODED FIX: padding on the sparkline view itself, not a sibling spacer.
+            .padding(.bottom, Self.sparklineBottomReserve)
         }
     }
 
     /// Clears the floating tab bar's visual footprint + a small margin, regardless
     /// of Dynamic Type size, scroll position, or which `ViewThatFits` branch wins.
-    private static let sparklineBottomReserve: CGFloat = 120
+    private static let sparklineBottomReserve: CGFloat = 150
 
     private func greetingHeader(metrics: HomeLayoutMetrics) -> some View {
         HomeGreetingRow(
@@ -636,9 +642,14 @@ struct HomeView: View {
                 accent: HomeNeon.coral,
                 isVisible: isHomeVisible
             )
-
-            // HARDCODED FIX — see the matching comment in `clockedOutView`.
-            Spacer().frame(height: Self.sparklineBottomReserve)
+            // HARDCODED FIX: padding on the sparkline view itself — this is the
+            // clocked-in layout specifically, which has more rows above it (live
+            // card, compact stats, break control, door) than clocked-out, so it's
+            // the one most likely to hit the ScrollView+scaleEffect branch where a
+            // sibling Spacer's fixed height used to get shrunk along with
+            // everything else. The ScrollView-level safeAreaInset above now backs
+            // this up with a second, un-scaled 150pt reserve for that branch.
+            .padding(.bottom, Self.sparklineBottomReserve)
         }
     }
 
