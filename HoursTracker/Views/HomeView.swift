@@ -92,6 +92,10 @@ struct HomeView: View {
     @State private var showLockScreenTip = false
     /// False while another tab is showing — TabView keeps Home alive off screen.
     @State private var isHomeVisible = true
+    /// Bumped on every `onAppear`; the deferred `onDisappear` hide (below) checks
+    /// this hasn't moved on before applying, so a quick leave-and-return (faster
+    /// than one run-loop tick) can't have its stale hide stomp on the fresh show.
+    @State private var homeVisibilityToken = 0
 
     private var timeFormatter: DateFormatter {
         AppLocale.makeDateFormatter(timeStyle: .short)
@@ -102,6 +106,17 @@ struct HomeView: View {
     private var breaksArePaid: Bool { viewModel.activeSettings.breaksArePaid }
 
     @State private var naturalContentHeight: CGFloat = 0
+
+    /// How much the GeometryReader is shrunk at the bottom so content clears iOS 26's
+    /// floating ("Liquid Glass") tab bar. Clock state needs different amounts:
+    /// - **Clocked in**: the tall live-timer layout needs a big reserve so the sparkline
+    ///   isn't pushed under the bar.
+    /// - **Clocked out**: the short layout is stretched to fill the available height, so
+    ///   a big reserve just opens a dead black gap between the graph and the bar; a small
+    ///   one lets it drop to a comfortable margin above the bar.
+    /// Tunable knobs — nudge per state if the gap/clearance isn't quite right.
+    private static let homeBottomReserveClockedIn: CGFloat = 120
+    private static let homeBottomReserveClockedOut: CGFloat = 40
 
     var body: some View {
         NavigationStack {
@@ -180,18 +195,6 @@ struct HomeView: View {
                                     )
                             }
                             .scrollBounceBehavior(.basedOnSize)
-                            // Brute-force, un-scaled reserve: everything inside this
-                            // ScrollView (including the sparkline's own hardcoded bottom
-                            // padding below) sits inside `.scaleEffect(fit, ...)` above —
-                            // when the clocked-in layout (more rows: live card, compact
-                            // stats, break control, door) doesn't fit and `fit` < 1, that
-                            // transform shrinks a fixed padding/spacer right along with
-                            // everything else, so it stops guaranteeing real screen
-                            // pixels. This inset is on the ScrollView container itself,
-                            // outside that transform, so it can't be shrunk by it.
-                            .safeAreaInset(edge: .bottom) {
-                                Color.clear.frame(height: 150)
-                            }
                         }
                     }
                     .onPreferenceChange(HomeNaturalHeightKey.self) { naturalContentHeight = $0 }
@@ -204,11 +207,21 @@ struct HomeView: View {
                         }
                     }
                 }
+                // BULLETPROOF floating-tab-bar clearance: physically shrink the
+                // GeometryReader by the bar's footprint BEFORE any scaling runs.
+                // `.padding` reduces the frame deterministically, so geo.size.height —
+                // and therefore `availableHeight` — is already short by
+                // `homeBottomReserve`. ViewThatFits/HomeFitScale then fit-or-scroll the
+                // content into the region ABOVE the bar in BOTH clock states, and the
+                // reserved strip just shows the safe-area-ignoring background (no visible
+                // band). Earlier attempts failed because they lived inside the scaled
+                // content or used safeAreaInset, which this custom layout fought — a
+                // frame-shrinking pad can't be fought.
+                .padding(.bottom, viewModel.activeSession != nil
+                    ? Self.homeBottomReserveClockedIn
+                    : Self.homeBottomReserveClockedOut)
                 }
             }
-            // Two icons at most. The theme picker lives in the greeting row, the
-            // scanner behind the "Import timesheet" button on the screen, and the
-            // wordmark in About (the brand mark). SwiftUI mirrors both sides in RTL.
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
@@ -238,11 +251,44 @@ struct HomeView: View {
             }
             .task(id: themeTipDueDate) { await runThemeTip() }
             .task(id: viewModel.activeSession?.id) { await runLockScreenTip() }
-            .onAppear { isHomeVisible = true }
+            .onAppear {
+                homeVisibilityToken += 1
+                isHomeVisible = true
+                // The measurement probe (and the `fit` it drives) only runs while
+                // `isHomeVisible` — reset it on return so a tab switch never reuses a
+                // stale height measured against a different state (e.g. the active
+                // session changed via the widget or Watch while this tab was hidden),
+                // which could otherwise scale the layout wrong for the first frame or
+                // two after switching back.
+                naturalContentHeight = 0
+            }
             .onDisappear {
-                isHomeVisible = false
+                // Deferred one run-loop tick (plain `.async`, no delay) for the same
+                // reason `PayslipsTabView`/`SettingsView` defer their own `onDisappear`
+                // navigation-identity resets: flipping `isHomeVisible` here mounts or
+                // tears down the GeometryReader/ViewThatFits subtree below, and doing
+                // that synchronously lands in the SAME SwiftUI transaction as TabView's
+                // own tab-switch update — two structural changes in one transaction is
+                // exactly what produces "NavigationRequestObserver tried to update
+                // multiple times per frame" and the follow-on freeze/lag switching
+                // tabs. `disablesAnimations` on top: without it this can inherit
+                // whatever animation is active on the tick it lands on and merge back
+                // into the TabView's own transition, the same double-update the
+                // dispatch alone is trying to avoid.
+                let token = homeVisibilityToken
+                DispatchQueue.main.async {
+                    // A quick leave-and-return landed an `onAppear` (which bumped the
+                    // token) before this tick ran — Home is visible again, so applying
+                    // the stale hide here would incorrectly blank the screen the user
+                    // is currently looking at.
+                    guard token == homeVisibilityToken else { return }
+                    var transaction = Transaction()
+                    transaction.disablesAnimations = true
+                    withTransaction(transaction) { isHomeVisible = false }
+                }
                 // "Comes back closed" — same intent as the removed tab-level `.id()`
-                // reset in MainTabView, scoped to just this view's own sheets.
+                // reset in MainTabView, scoped to just this view's own sheets. Plain
+                // state, not navigation identity, so these stay synchronous.
                 showScanner = false
                 showForgotClockIn = false
                 showThemePicker = false
@@ -388,14 +434,12 @@ struct HomeView: View {
                 accent: homeTheme.accent,
                 isVisible: isHomeVisible
             )
-            // HARDCODED FIX: padding on the sparkline view itself, not a sibling spacer.
-            .padding(.bottom, Self.sparklineBottomReserve)
+            // Bottom clearance for the floating tab bar is reserved OUTSIDE this scaled
+            // content now — see the `.safeAreaInset(edge: .bottom)` on the outer ZStack
+            // in `body`. Putting it here (inside `homeContent`) let HomeFitScale shrink
+            // it, so it never actually cleared the iOS 26 floating bar.
         }
     }
-
-    /// Clears the floating tab bar's visual footprint + a small margin, regardless
-    /// of Dynamic Type size, scroll position, or which `ViewThatFits` branch wins.
-    private static let sparklineBottomReserve: CGFloat = 150
 
     private func greetingHeader(metrics: HomeLayoutMetrics) -> some View {
         HomeGreetingRow(
@@ -642,14 +686,8 @@ struct HomeView: View {
                 accent: HomeNeon.coral,
                 isVisible: isHomeVisible
             )
-            // HARDCODED FIX: padding on the sparkline view itself — this is the
-            // clocked-in layout specifically, which has more rows above it (live
-            // card, compact stats, break control, door) than clocked-out, so it's
-            // the one most likely to hit the ScrollView+scaleEffect branch where a
-            // sibling Spacer's fixed height used to get shrunk along with
-            // everything else. The ScrollView-level safeAreaInset above now backs
-            // this up with a second, un-scaled 150pt reserve for that branch.
-            .padding(.bottom, Self.sparklineBottomReserve)
+            // Bottom clearance reserved outside this scaled content — see the
+            // `.safeAreaInset(edge: .bottom)` on the outer ZStack in `body`.
         }
     }
 
@@ -768,18 +806,21 @@ struct HomeView: View {
                     .lineLimit(1)
                     .minimumScaleFactor(0.8)
             }
+            // A real row in the stack, not an `.overlay` — an overlay paints on top
+            // of whatever is already laid out below it (here, the night/morning/
+            // evening shift badge) instead of making room, which is what let this
+            // toast's two-line Hebrew text cover the badge. Inserting it in the
+            // stack instead pushes the badge down for as long as the toast is
+            // showing, so the two can never occupy the same pixels.
+            if showLockScreenTip {
+                lockScreenTipToast
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+            }
             shiftKindLabel(session)
         }
         .frame(maxWidth: .infinity)
         .accessibilityElement(children: .combine)
         .animation(DS.Motion.state, value: session.isOnBreak)
-        // The toast sits over the status row and the top of the Pay Card.
-        .overlay(alignment: .top) {
-            if showLockScreenTip {
-                lockScreenTipToast
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-            }
-        }
         .zIndex(1)
     }
 
@@ -972,6 +1013,8 @@ struct HomeView: View {
     }
 
     private var todayHours: Double {
+        if let stats = viewModel.homeStats { return stats.todayHours }
+        // Cold fallback: used only until the first off-main precompute lands.
         let today = calendar.startOfDay(for: Date())
         return completedSessions
             .filter { calendar.isDate($0.date, inSameDayAs: today) }
@@ -984,6 +1027,7 @@ struct HomeView: View {
     }
 
     private var weekHours: Double {
+        if let stats = viewModel.homeStats { return stats.weekHours }
         let interval = weekInterval
         return completedSessions
             .filter { interval.contains($0.date) }
@@ -991,6 +1035,7 @@ struct HomeView: View {
     }
 
     private var monthShiftCount: Int {
+        if let stats = viewModel.homeStats { return stats.monthShiftCount }
         let now = Date()
         return completedSessions.filter {
             calendar.isDate($0.date, equalTo: now, toGranularity: .month)
@@ -1001,25 +1046,29 @@ struct HomeView: View {
     /// filters as `todayHours`/`weekHours`/`monthShiftCount`, run through the
     /// overtime engine so the figure includes OT tiers, not just base rate × hours.
     private var todayPayBreakdown: DayPayBreakdown {
+        if let stats = viewModel.homeStats { return stats.todayPay }
         let today = calendar.startOfDay(for: Date())
         let sessions = completedSessions.filter { calendar.isDate($0.date, inSameDayAs: today) }
         return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.activeSettings)
     }
 
     private var weekPayBreakdown: DayPayBreakdown {
+        if let stats = viewModel.homeStats { return stats.weekPay }
         let interval = weekInterval
         let sessions = completedSessions.filter { interval.contains($0.date) }
         return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.activeSettings)
     }
 
     private var monthPayBreakdown: DayPayBreakdown {
+        if let stats = viewModel.homeStats { return stats.monthPay }
         let now = Date()
         let sessions = completedSessions.filter { calendar.isDate($0.date, equalTo: now, toGranularity: .month) }
         return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.activeSettings)
     }
 
     private var weekDailyHours: [Double] {
-        HistoryPeriodHelper.dailyHoursForWeek(
+        if let stats = viewModel.homeStats { return stats.weekDailyHours }
+        return HistoryPeriodHelper.dailyHoursForWeek(
             containing: Date(),
             sessions: viewModel.workSessions,
             calendar: calendar

@@ -75,6 +75,21 @@ final class WatchConnectivityManager: NSObject {
         }
     }
 
+    /// Whether a Watch is currently paired and its session active. Reads WCSession on
+    /// the background queue so callers (e.g. `AnnouncementCenter`) never touch Watch
+    /// Connectivity IPC on the main actor. This is the single entry point for that
+    /// check — all WCSession access on the phone goes through this manager's `bgQueue`.
+    func isWatchPaired() async -> Bool {
+        await withCheckedContinuation { continuation in
+            bgQueue.async {
+                let paired = WCSession.isSupported()
+                    && WCSession.default.activationState == .activated
+                    && WCSession.default.isPaired
+                continuation.resume(returning: paired)
+            }
+        }
+    }
+
     /// Pushes the current state to the Watch. Safe to call often — cheap when the
     /// session isn't activated/paired yet, and does no main-thread work at all unless a
     /// Watch app is actually paired and installed.
@@ -192,7 +207,8 @@ extension WatchConnectivityManager: WCSessionDelegate {
                 self.appLock?.isEnabled = request.boolValue ?? false
             case .toggleHideWidgetPay:
                 WidgetBridge.hidePay = request.boolValue ?? false
-                WidgetBridge.reloadWidgetTimelines()
+                // Reload after the (now off-main) hidePay suite write — see WidgetBridge.ioAsync.
+                WidgetBridge.ioAsync { WidgetBridge.reloadWidgetTimelines() }
             case .toggleCloudSync:
                 let enabled = request.boolValue ?? false
                 if enabled {

@@ -50,7 +50,10 @@ extension WidgetBridge {
         update(settings: snapshot(from: settings))
         update(sessions: sessions.map { snapshot(from: $0, breaksArePaid: settings.breaksArePaid) })
         update(periodPay: periodPay(settings: settings, sessions: sessions))
-        reloadWidgetTimelines()
+        // The `update(...)` calls above enqueue their suite writes on WidgetBridge's
+        // serial I/O queue; enqueue the reload there too so it runs after the writes
+        // land (and never blocks the main thread).
+        WidgetBridge.ioAsync { reloadWidgetTimelines() }
     }
 
     /// Finished-shift totals from the same engine History and the Watch use. The running

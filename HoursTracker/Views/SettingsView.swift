@@ -47,9 +47,6 @@ struct SettingsView: View {
     @State private var showAddWorkplace = false
     @State private var newWorkplaceName = ""
     @State private var workplacePendingDelete: AppViewModel.WorkplaceOption?
-    /// Bumped on `.onDisappear` to pop the inner NavigationStack back to root —
-    /// see where that stack opens for why this is scoped to just the stack.
-    @State private var navigationResetID = 0
 
     init(viewModel: AppViewModel) {
         self.viewModel = viewModel
@@ -398,32 +395,15 @@ struct SettingsView: View {
                     Text(importErrorMessage ?? "")
                 }
             }
-            // Scoped to the stack itself, not the whole view — see the comment above
-            // where this NavigationStack opens. Bumping this pops any pushed
-            // sub-settings page back to root; it's a routine, well-understood
-            // operation for a NavigationStack, unlike destroying SettingsView's
-            // entire view (which the removed tab-level `.id()` used to do).
-            .id(navigationResetID)
             .onDisappear {
-                // "Comes back closed" — same intent as the removed tab-level `.id()`
-                // reset in MainTabView.
-                //
-                // The id bump specifically is deferred one run-loop tick (plain
-                // `.async`, no delay): bumping it synchronously here lands in the
-                // SAME SwiftUI transaction as TabView's own tab-switch update, and
-                // two navigation-identity changes in one transaction is exactly what
-                // produced "NavigationRequestObserver tried to update multiple times
-                // per frame" and the follow-on freeze. `disablesAnimations` on top of
-                // the dispatch: without it, the bump can still inherit whatever
-                // animation is active on the tick it lands on and merge back into the
-                // TabView's own transition — the same double-update the dispatch
-                // alone is trying to avoid. The plain state resets below aren't
-                // navigation-identity changes, so they stay synchronous.
-                DispatchQueue.main.async {
-                    var transaction = Transaction()
-                    transaction.disablesAnimations = true
-                    withTransaction(transaction) { navigationResetID += 1 }
-                }
+                // Plain transient-UI resets on leave. The former `.id(navigationResetID)`
+                // "comes back closed" reset was REMOVED: bumping that id from inside this
+                // same view's onDisappear changed the NavigationStack's identity, which
+                // re-fired onAppear/onDisappear and bumped the id again — an infinite
+                // render loop that starved the main thread and killed the app (code 9).
+                // None of these plain @State resets change navigation identity, so they
+                // can't re-trigger the lifecycle. Settings now keeps its navigation
+                // position across tab switches (standard, loop-free behavior).
                 if !hasUnsavedChanges { reloadFromStore() }
                 showAccountSheet = false
                 showDeleteAllConfirm = false

@@ -90,21 +90,6 @@ struct ExportView: View {
                     }
                     .buttonStyle(.plain)
 
-                    Button {
-                        export()
-                    } label: {
-                        Label(L10n.exportShareDirectly, systemImage: "paperplane.fill")
-                            .font(.subheadline.weight(.semibold))
-                            .foregroundStyle(Color(hex: "00E5FF"))
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 9)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 14, style: .continuous)
-                                    .stroke(Color(hex: "00E5FF").opacity(0.5), lineWidth: 1.5)
-                            )
-                    }
-                    .buttonStyle(.plain)
-
                     if let errorMessage {
                         Text(errorMessage)
                             .foregroundStyle(.red)

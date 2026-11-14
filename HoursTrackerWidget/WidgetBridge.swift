@@ -203,8 +203,6 @@ enum WidgetBridge {
     /// (synchronous) suite read — identical to the old behaviour, so the widget
     /// extension (which never warms the cache) is completely unaffected.
     private static var cachedSnapshot: SharedSuiteSnapshot?
-    /// Touched only on `ioQueue`, so it needs no extra synchronization.
-    private static var didInstallChangeObserver = false
 
     private static func cachedValue<T>(_ keyPath: KeyPath<SharedSuiteSnapshot, T>) -> T? {
         cacheLock.lock(); defer { cacheLock.unlock() }
@@ -242,64 +240,65 @@ enum WidgetBridge {
         return cached ?? readSnapshotFromSuite()
     }
 
-    /// Primes the in-memory cache off the main thread and keeps it current. Call once
-    /// at app launch (the app, not the widget extension). No-op to call more than once.
+    /// Primes the in-memory cache off the main thread. Call once at app launch (the app,
+    /// not the widget extension). Idempotent. The cache is kept current by the setters
+    /// themselves (`hidePay`, `update(livePay:showsNet:)` both `mutateCache`), so no
+    /// `UserDefaults.didChangeNotification` observer is needed — and dropping it avoids
+    /// the extra cfprefsd traffic that observer generated on every write.
     static func warmSharedCache() {
         ioQueue.async {
             storeSnapshot(readSnapshotFromSuite())
-            installChangeObserverIfNeeded()
-        }
-    }
-
-    /// Best-effort refresh when the shared defaults change. Our own setters already
-    /// update the cache synchronously; this additionally catches writes from elsewhere
-    /// (e.g. the Watch/widget process) when the system delivers the notification.
-    private static func installChangeObserverIfNeeded() {
-        guard !didInstallChangeObserver else { return }
-        didInstallChangeObserver = true
-        NotificationCenter.default.addObserver(
-            forName: UserDefaults.didChangeNotification,
-            object: suite,
-            queue: nil
-        ) { _ in
-            ioQueue.async {
-                let fresh = readSnapshotFromSuite()
-                cacheLock.lock()
-                if cachedSnapshot != fresh { cachedSnapshot = fresh }
-                cacheLock.unlock()
-            }
         }
     }
 
     // MARK: - Write
 
+    /// Runs a block on the shared serial I/O queue. All suite WRITES go through here so
+    /// the main thread never blocks on `cfprefsd` — which, once the group domain is
+    /// flagged "needs refresh" or detaches, can take seconds per `set`/`removeObject`.
+    /// Because the queue is serial and FIFO, a block enqueued after a write (e.g. a
+    /// widget-timeline reload) is guaranteed to run after that write has landed.
+    static func ioAsync(_ block: @escaping () -> Void) {
+        ioQueue.async(execute: block)
+    }
+
     static func update(settings: WidgetSettings) {
-        guard let data = try? JSONEncoder().encode(settings) else { return }
-        suite?.set(data, forKey: settingsKey)
+        ioAsync {
+            guard let data = try? JSONEncoder().encode(settings) else { return }
+            suite?.set(data, forKey: settingsKey)
+        }
     }
 
     static func update(sessions: [WidgetSession]) {
-        guard let data = try? JSONEncoder().encode(sessions) else { return }
-        suite?.set(data, forKey: sessionsKey)
-        suite?.set(Date(), forKey: lastUpdateKey)
+        ioAsync {
+            guard let data = try? JSONEncoder().encode(sessions) else { return }
+            suite?.set(data, forKey: sessionsKey)
+            suite?.set(Date(), forKey: lastUpdateKey)
+        }
     }
 
     /// The open shift's live pay curve (nil when clocked out) and which figure to show.
     static func update(livePay: LivePayCurve?, showsNet: Bool) {
-        if let livePay, let data = try? JSONEncoder().encode(livePay) {
-            suite?.set(data, forKey: livePayKey)
-        } else {
-            suite?.removeObject(forKey: livePayKey)
-        }
-        suite?.set(showsNet, forKey: livePayShowsNetKey)
+        // Cache update stays synchronous so in-process reads are instant and correct;
+        // only the suite write (the slow part) moves off the main thread.
         mutateCache { $0.livePayShowsNet = showsNet }
+        ioAsync {
+            if let livePay, let data = try? JSONEncoder().encode(livePay) {
+                suite?.set(data, forKey: livePayKey)
+            } else {
+                suite?.removeObject(forKey: livePayKey)
+            }
+            suite?.set(showsNet, forKey: livePayShowsNetKey)
+        }
     }
 
     /// Completed-shift pay for today / this week / this month, priced by the app's real
     /// engine (tiers, weekly overtime, rest-day and holiday rates, tax for net).
     static func update(periodPay: WidgetPeriodPay) {
-        guard let data = try? JSONEncoder().encode(periodPay) else { return }
-        suite?.set(data, forKey: periodPayKey)
+        ioAsync {
+            guard let data = try? JSONEncoder().encode(periodPay) else { return }
+            suite?.set(data, forKey: periodPayKey)
+        }
     }
 
     /// The stored totals, or nil when the app hasn't written any or they belong to a
@@ -332,8 +331,10 @@ enum WidgetBridge {
     static var hidePay: Bool {
         get { cachedValue(\.hidePay) ?? (suite?.bool(forKey: hidePayKey) ?? false) }
         set {
-            suite?.set(newValue, forKey: hidePayKey)
+            // Cache updates synchronously (reads stay instant); the suite write — the
+            // part that can block on cfprefsd — moves off the main thread.
             mutateCache { $0.hidePay = newValue }
+            ioAsync { suite?.set(newValue, forKey: hidePayKey) }
         }
     }
 

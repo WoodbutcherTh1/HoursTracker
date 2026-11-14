@@ -1,7 +1,6 @@
 import Foundation
 import os
 import UIKit
-import WatchConnectivity
 import WidgetKit
 
 /// A message from the app owner, already in this device's language (the server
@@ -208,9 +207,10 @@ final class AnnouncementCenter: ObservableObject {
                 continuation.resume(returning: ((try? result.get()) ?? []).isEmpty == false)
             }
         }
-        let hasWatch = WCSession.isSupported()
-            && WCSession.default.activationState == .activated
-            && WCSession.default.isPaired
+        // Read Watch pairing off the main actor — WatchConnectivityManager owns all
+        // WCSession IPC on its background queue, so this never blocks the main thread
+        // (makePayload runs on the @MainActor-isolated AnnouncementCenter).
+        let hasWatch = await WatchConnectivityManager.shared.isWatchPaired()
         #if DEBUG
         let environment = "sandbox"
         #else

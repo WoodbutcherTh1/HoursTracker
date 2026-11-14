@@ -1,5 +1,6 @@
 import Foundation
 import SwiftUI
+import Combine
 import CoreLocation
 import UserNotifications
 import UIKit
@@ -70,6 +71,28 @@ final class AppViewModel: ObservableObject {
     /// itself cannot present a file share sheet. See `WatchConnectivityManager`.
     @Published var pendingWatchExport: ShareableFile?
 
+    /// Precomputed Home-tab stat-card + sparkline values. Home's `body` reads these
+    /// instead of running `OvertimeCalculator.aggregate` inline, which was the heavy
+    /// synchronous work that stalled the main thread on every switch to the Home tab.
+    /// `nil` only until the first off-main compute lands; Home falls back to the old
+    /// synchronous path for that first cold render (see HomeView). Recomputed off the
+    /// main thread whenever the inputs change — a plain tab switch changes nothing, so
+    /// it reads this cache and does zero pricing work. See `recomputeHomeStats()`.
+    @Published private(set) var homeStats: HomeStats?
+
+    /// One coherent batch of Home's derived figures — a single `@Published` write so
+    /// SwiftUI updates the stat cards and sparkline in one frame.
+    struct HomeStats: Equatable, Sendable {
+        var todayHours: Double
+        var weekHours: Double
+        var monthShiftCount: Int
+        var todayPay: DayPayBreakdown
+        var weekPay: DayPayBreakdown
+        var monthPay: DayPayBreakdown
+        /// Hours per weekday for the week sparkline (includes the open shift).
+        var weekDailyHours: [Double]
+    }
+
     private let store: SyncingStore
     private let locationManager: LocationReminderManaging
     private let exportManager = ExportManager()
@@ -86,6 +109,10 @@ final class AppViewModel: ObservableObject {
     private var liveCurveInputs: LiveCurveInputs?
     private var undoClearTask: Task<Void, Never>?
     private var accountBackupTask: Task<Void, Never>?
+    /// In-flight Home-stats recompute; cancelled and superseded when inputs change
+    /// again before it finishes (e.g. a workplace switch mid-compute).
+    private var homeStatsTask: Task<Void, Never>?
+    private var homeStatsCancellables: Set<AnyCancellable> = []
     private let deletedSessions: DeletedSessionsStore
     private let backups: LocalBackupStore
 
@@ -221,6 +248,12 @@ final class AppViewModel: ObservableObject {
         self.deletedSessions = deletedSessions
         self.backups = backups
         syncState = store.syncState
+        // Warm the shared App Group cache off the main thread at the earliest possible
+        // point — AppViewModel.shared is constructed before any view renders — so the
+        // first touch of the group suite happens on WidgetBridge's I/O queue, not on the
+        // main thread during a view body. (Also kicked from HoursTrackerApp.onAppear;
+        // the call is idempotent.)
+        WidgetBridge.warmSharedCache()
         // BRUTE FORCE: only two calls are left synchronous in init, and both are
         // load-bearing, not just "nice to run early":
         // - `load()` is the data the very first frame renders — `sessions`/`settings`
@@ -237,6 +270,7 @@ final class AppViewModel: ObservableObject {
         // very first frame for main-thread time.
         load(report: false)
         takeDailyBackupIfNeeded()
+        setupHomeStatsPipeline()
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .milliseconds(500))
             guard let self else { return }
@@ -1282,6 +1316,85 @@ final class AppViewModel: ObservableObject {
             .sorted { $0.date > $1.date }
     }
 
+    // MARK: - Home stats precompute
+
+    /// Recomputes `homeStats` off the main thread whenever the inputs it's derived
+    /// from change — the active workplace's sessions, the settings, or the selected
+    /// workplace — plus a day rollover (so "today"/"this week" stay correct when the
+    /// app is left open past midnight with no data change). Debounced so a burst of
+    /// changes (e.g. a clock-out writes sessions and settings together) coalesces into
+    /// one compute. A plain tab switch changes none of these, so switching to Home
+    /// triggers no recompute — it just reads the warm cache.
+    private func setupHomeStatsPipeline() {
+        Publishers.CombineLatest3($sessions, $settings, $activeWorkplaceID)
+            .debounce(for: .milliseconds(50), scheduler: DispatchQueue.main)
+            .sink { [weak self] _ in self?.recomputeHomeStats() }
+            .store(in: &homeStatsCancellables)
+
+        NotificationCenter.default.publisher(for: .NSCalendarDayChanged)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in self?.recomputeHomeStats() }
+            .store(in: &homeStatsCancellables)
+    }
+
+    /// Resolves the (cheap) active-workplace session/settings slices on the main actor,
+    /// then prices the three stat-card periods on a background task and assigns the
+    /// finished `HomeStats` back on the main actor in a single `@Published` write.
+    private func recomputeHomeStats() {
+        homeStatsTask?.cancel()
+        // Cheap on-main work: filtering by workplace is a plain in-memory pass. The
+        // expensive part — OvertimeCalculator pricing — happens off-main below.
+        let allWork = workSessions
+        let completed = allWork.filter { $0.clockOut != nil }
+        let settings = activeSettings
+        let now = Date()
+
+        homeStatsTask = Task.detached(priority: .userInitiated) { [weak self] in
+            let calendar = Calendar.current
+            let today = calendar.startOfDay(for: now)
+            let weekInterval = calendar.dateInterval(of: .weekOfYear, for: now)
+                ?? DateInterval(start: now, end: now)
+
+            let todaySessions = completed.filter { calendar.isDate($0.date, inSameDayAs: today) }
+            let weekSessions = completed.filter { weekInterval.contains($0.date) }
+            let monthSessions = completed.filter { calendar.isDate($0.date, equalTo: now, toGranularity: .month) }
+
+            // Bail between the expensive passes if a newer recompute superseded us
+            // (e.g. the user switched workplace rapidly).
+            if Task.isCancelled { return }
+            let todayPay = OvertimeCalculator.aggregate(sessions: todaySessions, settings: settings, calendar: calendar)
+            if Task.isCancelled { return }
+            let weekPay = OvertimeCalculator.aggregate(sessions: weekSessions, settings: settings, calendar: calendar)
+            if Task.isCancelled { return }
+            let monthPay = OvertimeCalculator.aggregate(sessions: monthSessions, settings: settings, calendar: calendar)
+            if Task.isCancelled { return }
+
+            let stats = HomeStats(
+                todayHours: todaySessions.reduce(0) { $0 + $1.totalHours },
+                weekHours: weekSessions.reduce(0) { $0 + $1.totalHours },
+                monthShiftCount: monthSessions.count,
+                todayPay: todayPay,
+                weekPay: weekPay,
+                monthPay: monthPay,
+                // Sparkline uses every shift (including the open one), not just completed.
+                weekDailyHours: HistoryPeriodHelper.dailyHoursForWeek(
+                    containing: now, sessions: allWork, calendar: calendar
+                )
+            )
+
+            if Task.isCancelled { return }
+            await self?.applyHomeStats(stats)
+        }
+    }
+
+    /// Assigns the finished stats on the main actor in one `@Published` write (so the
+    /// stat cards + sparkline refresh in a single frame). Skips the write when nothing
+    /// changed to avoid a needless SwiftUI invalidation.
+    @MainActor
+    private func applyHomeStats(_ stats: HomeStats) {
+        if homeStats != stats { homeStats = stats }
+    }
+
     /// Day-aware: same-day sessions share one daily overtime/gas allowance.
     func breakdown(for session: WorkSession) -> DayPayBreakdown {
         // Priced within its own workplace (its rules, its week for overtime).
@@ -1386,7 +1499,8 @@ final class AppViewModel: ObservableObject {
             errorMessage = L10n.errorSaveFailed
         }
         WidgetBridge.update(settings: WidgetBridge.snapshot(from: activeSettings))
-        WidgetBridge.reloadWidgetTimelines()
+        // Reload after the (now off-main) suite write lands — see WidgetBridge.ioAsync.
+        WidgetBridge.ioAsync { WidgetBridge.reloadWidgetTimelines() }
         refreshAppShortcuts()
         WatchConnectivityManager.shared.pushSnapshot()
     }

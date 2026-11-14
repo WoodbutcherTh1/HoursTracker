@@ -488,7 +488,10 @@ struct MainTabView: View {
         // (wired in `ExportView`) can present it.
         .onChange(of: viewModel.pendingWatchExport) { _, newValue in
             if newValue != nil {
-                selectedTab = .export
+                // Next runloop tick — never change tab selection inside the same frame
+                // that delivered this change (avoids NavigationRequestObserver's
+                // "tried to update multiple times per frame").
+                DispatchQueue.main.async { selectedTab = .export }
             }
         }
         // First-launch onboarding — dismissed permanently once completed. Waits
@@ -534,29 +537,36 @@ struct MainTabView: View {
 
     private func handleDeepLink(_ url: URL) {
         guard url.scheme == "hourstracker" else { return }
-        switch url.host {
-        case "tab":
-            if let tab = AppTab(rawValue: url.lastPathComponent) {
-                selectedTab = tab
-            }
-        case "widgetGuide":
-            // The widget reminder was tapped: Settings, with the install guide open.
-            selectedTab = .settings
-            WidgetNudge.pendingGuide = true
-            NotificationCenter.default.post(name: WidgetNudge.openGuide, object: nil)
-        case "action":
-            switch url.lastPathComponent {
-            case "clockIn":
-                viewModel.clockIn()
-            case "clockOut":
-                viewModel.clockOut()
-            case "scan":
-                viewModel.showScannerSheet = true
+        // Deep links arrive from `.onOpenURL`, `.onAppear`, and `.onReceive` — all of
+        // which can fire during a SwiftUI update. Defer the tab-selection / navigation
+        // state changes to the next runloop tick so they never mutate navigation state
+        // twice within one frame ("NavigationRequestObserver tried to update multiple
+        // times per frame").
+        DispatchQueue.main.async {
+            switch url.host {
+            case "tab":
+                if let tab = AppTab(rawValue: url.lastPathComponent) {
+                    selectedTab = tab
+                }
+            case "widgetGuide":
+                // The widget reminder was tapped: Settings, with the install guide open.
+                selectedTab = .settings
+                WidgetNudge.pendingGuide = true
+                NotificationCenter.default.post(name: WidgetNudge.openGuide, object: nil)
+            case "action":
+                switch url.lastPathComponent {
+                case "clockIn":
+                    viewModel.clockIn()
+                case "clockOut":
+                    viewModel.clockOut()
+                case "scan":
+                    viewModel.showScannerSheet = true
+                default:
+                    break
+                }
             default:
                 break
             }
-        default:
-            break
         }
     }
 }

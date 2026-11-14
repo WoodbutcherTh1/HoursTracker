@@ -1,6 +1,6 @@
 import Foundation
 
-struct DayPayBreakdown: Equatable {
+struct DayPayBreakdown: Equatable, Sendable {
     /// Base-rate hours: 100% on regular days, 150% on rest days / holidays.
     let regularHours: Double
     /// First overtime tier: 125% on regular days, 175% on rest days / holidays.
