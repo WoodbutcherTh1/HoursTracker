@@ -1,20 +1,20 @@
 import SwiftUI
+import UIKit
 
 /// Settings → Admin (visible only to accounts the server lists in `public.admins`).
 /// Aggregate stats, and composing/sending announcements in he / ar / en.
-// TODO: backend — `AdminAPIClient.stats()` doesn't report an unread support
-// count yet. Shared by the Admin row in Settings and the Support Inbox row
-// here, so the badge UI (and where it should eventually read from) is in
-// place ahead of that endpoint, and both places agree on the number.
-enum AdminMockBadges {
-    static let unreadSupport = 3
-}
-
 struct AdminDashboardView: View {
     @State private var stats: AdminStats?
     @State private var loadingStats = false
     @State private var errorMessage: String?
     @State private var userLookupQuery = ""
+    @ObservedObject private var supportModel = AdminSupportModel.shared
+    /// Only runs while this screen is actually on screen (started in `onAppear`,
+    /// invalidated in `onDisappear`) — a background admin isn't polling Supabase.
+    @State private var unreadPollTimer: Timer?
+    /// Belt-and-suspenders refresh while the dashboard is open; the badge's real
+    /// updates are event-driven (open, foreground, inbox dismissed), not this.
+    private static let unreadPollInterval: TimeInterval = 60
 
     var body: some View {
         List {
@@ -48,7 +48,8 @@ struct AdminDashboardView: View {
                 } label: {
                     Label(L10n.adminSupportTitle, systemImage: "bubble.left.and.bubble.right")
                 }
-                .badge(AdminMockBadges.unreadSupport)
+                .badge(supportModel.unreadCount)
+                .tint(.red)
                 NavigationLink {
                     AdminAutoRepliesView()
                 } label: {
@@ -59,7 +60,24 @@ struct AdminDashboardView: View {
         .navigationTitle(L10n.adminTitle)
         .searchable(text: $userLookupQuery, prompt: Text(L10n.adminUserLookupPrompt))
         .refreshable { await loadStats() }
-        .task { await loadStats() }
+        .task {
+            await loadStats()
+            // Opened: the badge should reflect reality right away, not whatever
+            // it last happened to be.
+            await supportModel.loadUnreadCount()
+        }
+        .onAppear {
+            unreadPollTimer = Timer.scheduledTimer(withTimeInterval: Self.unreadPollInterval, repeats: true) { _ in
+                Task { await supportModel.loadUnreadCount() }
+            }
+        }
+        .onDisappear {
+            unreadPollTimer?.invalidate()
+            unreadPollTimer = nil
+        }
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
+            Task { await supportModel.loadUnreadCount() }
+        }
         .adminErrorAlert($errorMessage)
     }
 

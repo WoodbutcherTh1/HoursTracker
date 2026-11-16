@@ -3,6 +3,7 @@
 //
 // POST {"action": ...}
 //   threads                      → { threads } (newest first, with unread flag and who wrote)
+//   unread_count                 → { count }   (threads awaiting an admin reply)
 //   messages   {threadId}        → { messages } (user messages carry the sender's context)
 //   reply      {threadId, body}  → { messages }   (marks the thread answered, pushes the user)
 //   mark_read  {threadId}        → { ok }
@@ -67,6 +68,14 @@ Deno.serve(async (req) => {
           has_account: t.user_id != null,
         }))
         return json({ threads }, 200)
+      }
+      case "unread_count": {
+        const { count, error } = await supabase
+          .from("support_threads")
+          .select("id", { count: "exact", head: true })
+          .eq("unread_admin", true)
+        if (error) throw error
+        return json({ count: count ?? 0 }, 200)
       }
       case "messages":
         return json({ messages: await messagesFor(String(body.threadId ?? "")) }, 200)

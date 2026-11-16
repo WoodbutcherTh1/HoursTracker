@@ -104,6 +104,9 @@ enum L10n {
     static var summaryRegular: String { t("summary.regular") }
     static var summaryOT125: String { t("summary.ot125") }
     static var summaryOT150: String { t("summary.ot150") }
+    /// Clarifies that OT125/OT150 hours are paid at those higher multipliers,
+    /// not just counted — addresses user confusion seen in support reports.
+    static var summaryOvertimeMultiplierNote: String { t("summary.overtimeMultiplierNote") }
     static var summaryTodaysPay: String { t("summary.todaysPay") }
     static var summaryDone: String { t("summary.done") }
     static var summaryDeleteThisShift: String { t("summary.deleteThisShift") }
@@ -856,6 +859,9 @@ enum L10n {
     static var settingsAbout: String { t("settings.about") }
     static var settingsVersion: String { t("settings.version") }
     static var settingsSupport: String { t("settings.support") }
+    static var settingsInboxEntry: String { t("settings.inboxEntry") }
+    static var inboxTitle: String { t("inbox.title") }
+    static var inboxEmpty: String { t("inbox.empty") }
     static var settingsRateApp: String { t("settings.rateApp") }
     static var accountDelete: String { t("account.delete") }
     static var accountDeleteConfirmTitle: String { t("account.delete.confirmTitle") }

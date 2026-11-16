@@ -16,6 +16,8 @@ struct SettingsView: View {
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
     @ObservedObject private var accountAuth = SupabaseAuthManager.shared
     @ObservedObject private var notificationPrefs = NotificationPreferences.shared
+    @ObservedObject private var supportModel = AdminSupportModel.shared
+    @ObservedObject private var announcements = AnnouncementCenter.shared
     @EnvironmentObject private var appLock: AppLockController
     @EnvironmentObject private var appLanguage: AppLanguageController
 
@@ -243,6 +245,9 @@ struct SettingsView: View {
             }
             if viewModel.isAdmin {
                 Section { AnyView(adminRows) }
+                    // One-shot, not a 30s poll like the Dashboard's own task —
+                    // this row just needs to not show a stale 0 on first paint.
+                    .task { await supportModel.loadUnreadCount() }
             }
             Section { AnyView(toolsRows) }
         }
@@ -905,7 +910,8 @@ struct SettingsView: View {
             } label: {
                 accentLabel(L10n.adminSettingsEntry, icon: "crown")
             }
-            .badge(AdminMockBadges.unreadSupport)
+            .badge(supportModel.unreadCount)
+            .tint(.red)
             Text(L10n.adminSettingsFooter).font(.footnote).foregroundStyle(.secondary)
         }
     }
@@ -1059,6 +1065,15 @@ struct SettingsView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
             }
+
+            NavigationLink {
+                UserInboxView()
+            } label: {
+                accentLabel(L10n.settingsInboxEntry, icon: "tray.full")
+            }
+            .badge(announcements.unreadHistoryCount)
+            .tint(.red)
+            .accessibilityIdentifier("settings.inbox")
 
             Button {
                 showContactSupport = true

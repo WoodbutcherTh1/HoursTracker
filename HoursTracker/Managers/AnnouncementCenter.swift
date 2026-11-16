@@ -12,6 +12,17 @@ struct Announcement: Codable, Equatable, Identifiable {
     let createdAt: Date?
 }
 
+/// One row of the persistent Inbox (Settings → Inbox) — like `Announcement`,
+/// but also carries whether this device has already seen it, since the Inbox
+/// lists the full history, not just what's still pending.
+struct AnnouncementHistoryItem: Codable, Equatable, Identifiable {
+    let id: UUID
+    let title: String
+    let body: String
+    let createdAt: Date?
+    var seen: Bool
+}
+
 /// What this install tells the `register-device` Edge Function. Deliberately
 /// small: a random install id (not the vendor id), the push token, the in-app
 /// language and app version, whether a Watch / widget is in use, and a bare
@@ -41,6 +52,10 @@ final class AnnouncementCenter: ObservableObject {
 
     /// The announcement shown in the in-app banner, one at a time.
     @Published private(set) var current: Announcement?
+    /// Total unseen announcements for this device — drives the Inbox badge in
+    /// Settings. Kept in sync from each `register` response rather than a
+    /// separate round trip; `acknowledge(_:)` also updates it optimistically.
+    @Published private(set) var unreadHistoryCount = 0
 
     private static let logger = Logger(subsystem: "com.hourstracker.app", category: "announcements")
     private static let functionURL = SupabaseConfig.projectURL
@@ -128,9 +143,29 @@ final class AnnouncementCenter: ObservableObject {
         guard let response: RegisterResponse = await post(payload) else { return }
         defaults.set(encoded, forKey: Key.lastPayload)
         defaults.set(Date(), forKey: Key.lastRegistered)
+        if let unreadCount = response.unreadCount {
+            unreadHistoryCount = unreadCount
+        }
         if payload.announcementsEnabled {
             enqueue(response.announcements ?? [])
         }
+    }
+
+    // MARK: Persistent Inbox (Settings → Inbox)
+
+    /// The full in-app history (seen + unseen, newest first) for the Inbox screen.
+    func fetchHistory() async -> [AnnouncementHistoryItem] {
+        let request = HistoryRequest(deviceId: installID, language: AppLocale.current.localeIdentifier)
+        let response: HistoryResponse? = await post(request)
+        return response?.announcements ?? []
+    }
+
+    /// Marks announcements seen (e.g. the Inbox marking everything read on open)
+    /// and updates the badge count to match, without waiting for the next refresh.
+    func acknowledge(_ ids: [UUID]) async {
+        guard !ids.isEmpty else { return }
+        let _: RegisterResponse? = await post(AckRequest(deviceId: installID, seenIds: ids))
+        unreadHistoryCount = max(0, unreadHistoryCount - ids.count)
     }
 
     /// Unit/UI test runs (CI simulators) must never register as real devices —
@@ -150,6 +185,7 @@ final class AnnouncementCenter: ObservableObject {
         guard let shown = current else { return }
         current = nil
         let deviceId = installID
+        unreadHistoryCount = max(0, unreadHistoryCount - 1)
         Task {
             let _: RegisterResponse? = await post(AckRequest(deviceId: deviceId, seenIds: [shown.id]))
             showNext()
@@ -165,6 +201,7 @@ final class AnnouncementCenter: ObservableObject {
         }
         queue = []
         current = nil
+        unreadHistoryCount = 0
         guard let deviceId else { return }
         Task {
             let _: RegisterResponse? = await post(ForgetRequest(deviceId: deviceId))
@@ -186,6 +223,17 @@ final class AnnouncementCenter: ObservableObject {
 
     private struct RegisterResponse: Decodable {
         let announcements: [Announcement]?
+        let unreadCount: Int?
+    }
+
+    private struct HistoryRequest: Encodable {
+        var action = "history"
+        let deviceId: UUID
+        let language: String
+    }
+
+    private struct HistoryResponse: Decodable {
+        let announcements: [AnnouncementHistoryItem]?
     }
 
     private func enqueue(_ items: [Announcement]) {

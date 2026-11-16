@@ -5,6 +5,8 @@
 // so broadcasts reach each user in their own language. Also returns the
 // announcements addressed to this device that it hasn't shown yet, and lets
 // the device acknowledge them or remove itself (Settings → Delete all data).
+// "history" returns the full in-app copy (seen + unseen, newest first) for the
+// persistent Inbox screen (Settings → Inbox).
 //
 // Deployed with verify_jwt = false (see ../../config.toml) because the app's
 // publishable key is not a JWT. The caller's account, when there is one, is
@@ -27,7 +29,7 @@ const APNS_TOKEN_RE = /^[0-9a-f]{64,200}$/i
 const LANGUAGES = new Set(["en", "he", "ar"])
 
 interface RegisterPayload {
-  action?: "register" | "ack" | "forget"
+  action?: "register" | "ack" | "forget" | "history"
   deviceId?: string
   apnsToken?: string | null
   apnsEnv?: string
@@ -81,10 +83,42 @@ Deno.serve(async (req) => {
     }
     case "register":
       return await register(req, deviceId, body)
+    case "history":
+      return await history(deviceId, body)
     default:
       return json({ error: "Unknown action" }, 400)
   }
 })
+
+/// The full in-app copy of this device's announcements (seen and unseen), for
+/// the persistent Inbox (Settings → Inbox) — unlike `register`'s `announcements`
+/// field, which is capped at 5 and only the unseen ones for the one-at-a-time
+/// overlay.
+async function history(deviceId: string, body: RegisterPayload) {
+  const language = LANGUAGES.has(body.language ?? "") ? body.language! : "en"
+  const { data, error } = await supabase
+    .from("announcement_targets")
+    .select("seen_at, announcements!inner(id, title, body, created_at, expires_at, in_app)")
+    .eq("device_id", deviceId)
+    .eq("announcements.in_app", true)
+    .gt("announcements.expires_at", new Date().toISOString())
+    .order("created_at", { referencedTable: "announcements", ascending: false })
+    .limit(50)
+  if (error) return failure("history", error)
+
+  const announcements = (data ?? []).map((row) => {
+    // deno-lint-ignore no-explicit-any
+    const a = (row as any).announcements
+    return {
+      id: a.id,
+      title: localized(a.title, language),
+      body: localized(a.body, language),
+      createdAt: a.created_at,
+      seen: row.seen_at != null,
+    }
+  })
+  return json({ success: true, announcements }, 200)
+}
 
 async function register(req: Request, deviceId: string, body: RegisterPayload) {
   const language = LANGUAGES.has(body.language ?? "") ? body.language! : "en"
@@ -131,7 +165,19 @@ async function register(req: Request, deviceId: string, body: RegisterPayload) {
       createdAt: a.created_at,
     }
   })
-  return json({ success: true, announcements }, 200)
+
+  // Total unseen count (not capped at 5) — drives the Inbox badge in Settings
+  // without the client having to fetch the full history just to count it.
+  const { count: unreadCount, error: countError } = await supabase
+    .from("announcement_targets")
+    .select("announcement_id, announcements!inner(in_app, expires_at)", { count: "exact", head: true })
+    .eq("device_id", deviceId)
+    .is("seen_at", null)
+    .eq("announcements.in_app", true)
+    .gt("announcements.expires_at", new Date().toISOString())
+  if (countError) return failure("unreadCount", countError)
+
+  return json({ success: true, announcements, unreadCount: unreadCount ?? 0 }, 200)
 }
 
 /// The signed-in account behind the request, or null for the publishable key /

@@ -3,7 +3,7 @@ import SwiftUI
 /// Admin side of the support chat: the conversations, and a reply box per conversation.
 /// Talks to `supabase/functions/support-admin`, which checks the admin list on every call.
 struct AdminSupportInboxView: View {
-    @StateObject private var model = AdminSupportModel()
+    @ObservedObject private var model = AdminSupportModel.shared
 
     var body: some View {
         List {
@@ -48,6 +48,11 @@ struct AdminSupportInboxView: View {
         .navigationTitle(L10n.adminSupportTitle)
         .refreshable { await model.loadThreads() }
         .task { await model.loadThreads() }
+        // Dismissed (back to the Dashboard or Settings): make sure the badge
+        // reflects whatever got marked read while this screen was open.
+        .onDisappear {
+            Task { await model.loadUnreadCount() }
+        }
     }
 }
 
@@ -231,9 +236,18 @@ final class AdminSupportModel: ObservableObject {
         let context: SenderContext?
     }
 
+    /// Shared so the Settings row and the Admin Dashboard's Support Inbox row
+    /// (and the inbox itself, once opened) all agree on the same unread count
+    /// instead of each polling and drifting independently.
+    static let shared = AdminSupportModel()
+
     @Published private(set) var threads: [Thread] = []
     @Published private(set) var isLoading = false
     @Published private(set) var notice: String?
+    /// Threads awaiting an admin reply — drives the red badge on the Support
+    /// Inbox row. Refreshed independently of `loadThreads()` so the badge can
+    /// update without paging in every thread.
+    @Published private(set) var unreadCount = 0
 
     private let session: URLSession
     private static let functionURL = SupabaseConfig.projectURL.appendingPathComponent("functions/v1/support-admin")
@@ -242,12 +256,20 @@ final class AdminSupportModel: ObservableObject {
         self.session = session
     }
 
+    func loadUnreadCount() async {
+        struct Envelope: Decodable { let count: Int }
+        if let envelope: Envelope = await call(["action": "unread_count"]) {
+            unreadCount = envelope.count
+        }
+    }
+
     func loadThreads() async {
         isLoading = true
         defer { isLoading = false }
         struct Envelope: Decodable { let threads: [Thread] }
         if let envelope: Envelope = await call(["action": "threads"]) {
             threads = envelope.threads
+            unreadCount = envelope.threads.filter(\.unreadAdmin).count
         }
     }
 

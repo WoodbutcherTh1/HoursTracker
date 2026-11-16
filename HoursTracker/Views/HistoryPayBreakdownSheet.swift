@@ -26,6 +26,12 @@ struct HistoryPayBreakdownSheet: View {
                         summaryRow(L10n.summaryRegular, value: L10n.hoursLong(breakdown.regularHours))
                         summaryRow(L10n.summaryOT125, value: L10n.hoursLong(breakdown.ot125Hours))
                         summaryRow(L10n.summaryOT150, value: L10n.hoursLong(breakdown.ot150Hours))
+                        if breakdown.ot125Hours > 0 || breakdown.ot150Hours > 0 {
+                            Text(L10n.summaryOvertimeMultiplierNote)
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
                         Divider()
                         summaryRow(
                             L10n.historyTotalHours,

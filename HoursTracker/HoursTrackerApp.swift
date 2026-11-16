@@ -44,9 +44,13 @@ struct HoursTrackerApp: App {
 
                 if showLaunchSplash {
                     LaunchHourglassSplash()
-                        .transition(.opacity)
+                        // "Rockets toward the viewer" exit: a big scale-up paired with a
+                        // fade, as if flying through the screen into the main app —
+                        // folded in from the v1.12 splash mockup (see git history for
+                        // SplashScreenMockup.swift) rather than kept as a separate file.
+                        .transition(.scale(scale: 15).combined(with: .opacity))
                         .zIndex(100)
-                        .animation(.easeInOut(duration: 0.45), value: showLaunchSplash)
+                        .animation(.spring(response: 1.1, dampingFraction: 0.8, blendDuration: 0.2), value: showLaunchSplash)
                 }
             }
             .environment(\.locale, appLanguage.locale)
