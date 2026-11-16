@@ -1,3 +1,4 @@
+import BackgroundTasks
 import UIKit
 import UserNotifications
 
@@ -82,6 +83,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
         #endif
         UNUserNotificationCenter.current().delegate = self
         ShiftReminderScheduler.registerCategories()
+        // Must be registered unconditionally before this method returns, on every
+        // launch — whether or not a refresh ever actually gets scheduled.
+        LiveActivityBackgroundRefresher.register()
         // Widget buttons (clock in/out, breaks) are LiveActivityIntents that iOS runs
         // in this process — possibly a background launch with no UI — so apply them
         // straight to the shared view model instead of waiting for the app to open.

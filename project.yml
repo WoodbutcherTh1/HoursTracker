@@ -102,6 +102,16 @@ targets:
         # is false and LiveActivityManager.start() silently no-ops, so the Lock Screen banner
         # and Dynamic Island never appear even though the widget extension is otherwise correct.
         NSSupportsLiveActivities: true
+        # Background Modes -> Background fetch, required for BGAppRefreshTask
+        # (LiveActivityBackgroundRefresher) to run at all. This is the "fetch"
+        # mode, not "location" — the Build 15+ note above is about a different
+        # mode and does not apply here.
+        UIBackgroundModes:
+          - fetch
+        # Must list every identifier passed to BGTaskScheduler.register, or
+        # registration silently fails at launch.
+        BGTaskSchedulerPermittedIdentifiers:
+          - com.hourstracker.app.liveactivity-refresh
         # Extra names Siri accepts for the app in Siri phrases ("Start my shift in …"),
         # so Arabic / Hebrew / Russian speakers can say it the way it sounds (iOS allows 3 at most).
         INAlternativeAppNames:

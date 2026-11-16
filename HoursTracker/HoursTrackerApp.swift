@@ -140,6 +140,10 @@ struct HoursTrackerApp: App {
                     if viewModel.activeSession != nil {
                         viewModel.syncWidget()
                     }
+                    // Best-effort follow-up pushes for however long iOS keeps this
+                    // suspended — see LiveActivityBackgroundRefresher's doc comment
+                    // for why this is a mitigation, not a guarantee.
+                    LiveActivityBackgroundRefresher.scheduleIfNeeded(hasOpenSession: viewModel.activeSession != nil)
                     ExportTempFileStore.wipeAll()
                     if SettingsUnsavedChanges.shared.hasChanges {
                         SettingsUnsavedReminder.schedule()
