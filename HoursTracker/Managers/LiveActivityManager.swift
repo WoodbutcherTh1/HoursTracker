@@ -35,11 +35,17 @@ enum LiveActivityManager {
         let state = makeState(session: session, settings: settings, curve: curve, showsNet: showsNet)
 
         do {
-            activity = try Activity.request(
+            let started = try Activity.request(
                 attributes: attributes,
                 content: .init(state: state, staleDate: nil),
-                pushType: nil
+                pushType: .token
             )
+            activity = started
+            // Guaranteed path for background freshness: the server re-delivers
+            // this exact state via APNs every 60s regardless of what iOS does
+            // or doesn't grant this process in the background.
+            LiveActivityPushSync.track(started)
+            LiveActivityPushSync.push(state)
         } catch {
             #if DEBUG
             print("[LiveActivity] Failed to start: \(error)")
@@ -69,6 +75,7 @@ enum LiveActivityManager {
         Task {
             await activity.update(.init(state: state, staleDate: nil))
         }
+        LiveActivityPushSync.push(state)
     }
 
     // MARK: - End
@@ -98,6 +105,8 @@ enum LiveActivityManager {
                 await activity.end(.init(state: state, staleDate: nil), dismissalPolicy: .immediate)
             }
         }
+        // Tells the server to stop re-delivering — there's nothing left to keep fresh.
+        LiveActivityPushSync.stop()
     }
 
     /// Ends every HoursTracker Live Activity at once — before a new one starts, and
@@ -113,6 +122,7 @@ enum LiveActivityManager {
                 await activity.end(nil, dismissalPolicy: .immediate)
             }
         }
+        LiveActivityPushSync.stop()
     }
 
     // MARK: - Helpers

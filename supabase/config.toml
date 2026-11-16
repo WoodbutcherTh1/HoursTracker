@@ -26,3 +26,8 @@ verify_jwt = false
 
 [functions.support-admin]
 verify_jwt = false
+
+# "update"/"clear" use the publishable key like register-device; "tick" is
+# authenticated by the x-cron-secret header instead of a session.
+[functions.live-activity-push]
+verify_jwt = false
