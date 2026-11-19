@@ -1,0 +1,18 @@
+{
+  "default": {
+    "title": {
+      "font": "../../_frame_assets/fonts/Silom.ttf",
+      "color": "#FFFFFF",
+      "font_size": 86
+    },
+    "background": "../../_frame_assets/background.png",
+    "padding": "90x170",
+    "show_complete_frame": false,
+    "title_below_image": true
+  },
+  "data": [
+    { "filter": "1" },
+    { "filter": "2" },
+    { "filter": "3" }
+  ]
+}

@@ -1,0 +1,771 @@
+{
+  "schemaVersion": 3,
+  "appName": "HoursTracker",
+  "themeId": "bloom-roast",
+  "fontId": "futura",
+  "connectedCanvas": true,
+  "locales": [
+    "he",
+    "ar",
+    "en",
+    "ru",
+    "th"
+  ],
+  "locale": "he",
+  "device": "iphone",
+  "orientation": "portrait",
+  "appIcon": "/app-icon.png",
+  "slidesByDevice": {
+    "iphone": [
+      {
+        "id": "ht_s1_hero",
+        "layout": "device-bottom",
+        "label": {
+          "en": "HOME",
+          "he": "בית",
+          "ar": "الرئيسية",
+          "ru": "ГЛАВНАЯ",
+          "th": "หน้าแรก"
+        },
+        "headline": {
+          "en": "Clock in with\none tap",
+          "he": "כניסה בלחיצה\nאחת",
+          "ar": "ابدأ الوردية\nبضغطة واحدة",
+          "ru": "Смена одним\nкасанием",
+          "th": "เริ่มกะ\nแค่แตะเดียว"
+        },
+        "screenshot": "/screenshots/apple/iphone/{locale}/01.png",
+        "imageElements": [
+          {
+            "id": "image:mascot1",
+            "src": "/mascot/pose1.png",
+            "transform": {
+              "x": 961.645283018868,
+              "y": 2416.928301886794,
+              "width": 380,
+              "height": 534,
+              "rotation": -6,
+              "zIndex": 5
+            },
+            "fit": "contain"
+          }
+        ],
+        "transforms": {
+          "device": {
+            "x": 143.2621584905661,
+            "y": 729.4460377358491,
+            "width": 1011.8303999999999,
+            "height": 2064.96,
+            "rotation": 0,
+            "zIndex": 3
+          },
+          "caption": {
+            "x": 105.60000000000001,
+            "y": 229.44,
+            "width": 1108.8,
+            "height": 803.0400000000001,
+            "rotation": 0,
+            "zIndex": 4
+          }
+        },
+        "screenshotSecondary": "/screenshots/apple/iphone/{locale}/01.png",
+        "inverted": false
+      },
+      {
+        "id": "ht_s2_graph",
+        "layout": "device-bottom",
+        "label": {
+          "en": "INSIGHTS",
+          "he": "תובנות",
+          "ar": "الرؤى",
+          "ru": "АНАЛИТИКА",
+          "th": "สถิติ"
+        },
+        "headline": {
+          "en": "A beautiful\nweekly graph",
+          "he": "גרף שבועי\nיפהפה",
+          "ar": "رسم أسبوعي\nأنيق",
+          "ru": "Красивый\nнедельный график",
+          "th": "กราฟรายสัปดาห์\nสวยงาม"
+        },
+        "screenshot": "/screenshots/apple/iphone/{locale}/02.png",
+        "imageElements": [
+          {
+            "id": "image:mascot2",
+            "src": "/mascot/pose2.png",
+            "transform": {
+              "x": 2307.2150943396255,
+              "y": 2408.2264150943424,
+              "width": 380,
+              "height": 511,
+              "rotation": 5,
+              "zIndex": 5
+            },
+            "fit": "contain"
+          }
+        ],
+        "transforms": {
+          "caption": {
+            "x": 148.89056603773383,
+            "y": 196.97207547169828,
+            "width": 1108.8,
+            "height": 803.0400000000001,
+            "rotation": 0,
+            "zIndex": 4
+          },
+          "device": {
+            "x": 121.61687547169731,
+            "y": 734.8573584905658,
+            "width": 1011.8303999999999,
+            "height": 2064.96,
+            "rotation": 0,
+            "zIndex": 3
+          }
+        }
+      },
+      {
+        "id": "ht_s3_calendar",
+        "layout": "device-top",
+        "label": {
+          "en": "PAYROLL",
+          "he": "שכר",
+          "ar": "الرواتب",
+          "ru": "ЗАРПЛАТА",
+          "th": "เงินเดือน"
+        },
+        "headline": {
+          "en": "Monthly payroll\noverview",
+          "he": "מבט חודשי\nלפי מחזור השכר",
+          "ar": "نظرة شهرية حسب\nدورة راتبك",
+          "ru": "Месячный обзор\nпо периоду",
+          "th": "สรุปรายเดือน\nตามรอบจ่ายเงิน"
+        },
+        "screenshot": "/screenshots/apple/iphone/{locale}/03.png",
+        "imageElements": [
+          {
+            "id": "image:mascot3",
+            "src": "/mascot/pose3.png",
+            "transform": {
+              "x": -360.83773584905975,
+              "y": 2483.92452830189,
+              "width": 360,
+              "height": 484,
+              "rotation": -4,
+              "zIndex": 5
+            },
+            "fit": "contain"
+          }
+        ],
+        "typography": {
+          "labelScale": 1.45
+        },
+        "transforms": {
+          "device": {
+            "x": 175.7300830188724,
+            "y": 719.7056603773589,
+            "width": 1011.8304,
+            "height": 2064.96,
+            "rotation": 0,
+            "zIndex": 3
+          },
+          "caption": {
+            "x": 89.3094453486824,
+            "y": 197.15849270014235,
+            "width": 1082,
+            "height": 825,
+            "rotation": 0,
+            "zIndex": 4
+          }
+        }
+      }
+    ],
+    "android": [
+      {
+        "id": "s_mwnxj9ep_5",
+        "layout": "hero",
+        "label": {
+          "en": "MEET YOUR APP"
+        },
+        "headline": {
+          "en": "Sell one\nidea per slide."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9ep_6",
+        "layout": "device-bottom",
+        "label": {
+          "en": "FEATURE 01"
+        },
+        "headline": {
+          "en": "Your headline\nlives here."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9ep_7",
+        "layout": "two-devices",
+        "label": {
+          "en": "FEATURE 02"
+        },
+        "headline": {
+          "en": "Show two\nscreens at once."
+        },
+        "screenshot": "",
+        "screenshotSecondary": ""
+      },
+      {
+        "id": "s_mwnxj9ep_8",
+        "layout": "device-top",
+        "label": {
+          "en": "FEATURE 03"
+        },
+        "headline": {
+          "en": "Flip the contrast\nfor visual rhythm."
+        },
+        "screenshot": "",
+        "inverted": true
+      },
+      {
+        "id": "s_mwnxj9ep_9",
+        "layout": "no-device",
+        "label": {
+          "en": "MORE"
+        },
+        "headline": {
+          "en": "And so\nmuch more."
+        },
+        "screenshot": ""
+      }
+    ],
+    "ipad": [
+      {
+        "id": "s_mwnxj9ep_a",
+        "layout": "hero",
+        "label": {
+          "en": "MEET YOUR APP"
+        },
+        "headline": {
+          "en": "Made for\nthe big screen."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9ep_b",
+        "layout": "device-bottom",
+        "label": {
+          "en": "FEATURE 01"
+        },
+        "headline": {
+          "en": "Built for\nfocus."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9ep_c",
+        "layout": "device-top",
+        "label": {
+          "en": "FEATURE 02"
+        },
+        "headline": {
+          "en": "Always within reach."
+        },
+        "screenshot": "",
+        "inverted": true
+      }
+    ],
+    "tvos": [
+      {
+        "id": "s_mwnxj9eq_d",
+        "layout": "hero",
+        "label": {
+          "en": "MEET YOUR APP"
+        },
+        "headline": {
+          "en": "Made for\nthe living room."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_e",
+        "layout": "split-landscape",
+        "label": {
+          "en": "FEATURE 01"
+        },
+        "headline": {
+          "en": "One idea\nper screen."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_f",
+        "layout": "device-top",
+        "label": {
+          "en": "FEATURE 02"
+        },
+        "headline": {
+          "en": "Flip the contrast."
+        },
+        "screenshot": "",
+        "inverted": true
+      },
+      {
+        "id": "s_mwnxj9eq_g",
+        "layout": "no-device",
+        "label": {
+          "en": "MORE"
+        },
+        "headline": {
+          "en": "And so\nmuch more."
+        },
+        "screenshot": ""
+      }
+    ],
+    "watchos": [
+      {
+        "id": "s_mwnxj9eq_h",
+        "layout": "hero",
+        "label": {
+          "en": "MEET YOUR APP"
+        },
+        "headline": {
+          "en": "On your\nwrist."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_i",
+        "layout": "device-bottom",
+        "label": {
+          "en": "FEATURE 01"
+        },
+        "headline": {
+          "en": "One glance.\nDone."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_j",
+        "layout": "device-top",
+        "label": {
+          "en": "FEATURE 02"
+        },
+        "headline": {
+          "en": "Always\nwith you."
+        },
+        "screenshot": "",
+        "inverted": true
+      }
+    ],
+    "carplay": [
+      {
+        "id": "s_mwnxj9eq_k",
+        "layout": "split-landscape",
+        "label": {
+          "en": "CARPLAY"
+        },
+        "headline": {
+          "en": "Eyes on\nthe road."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_l",
+        "layout": "device-bottom",
+        "label": {
+          "en": "FEATURE 01"
+        },
+        "headline": {
+          "en": "Everything, one tap away."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_m",
+        "layout": "device-top",
+        "label": {
+          "en": "FEATURE 02"
+        },
+        "headline": {
+          "en": "Made for every drive."
+        },
+        "screenshot": "",
+        "inverted": true
+      }
+    ],
+    "mac": [
+      {
+        "id": "s_mwnxj9eq_n",
+        "layout": "hero",
+        "label": {
+          "en": "MEET YOUR APP"
+        },
+        "headline": {
+          "en": "Made for\nyour Mac."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_o",
+        "layout": "split-landscape",
+        "label": {
+          "en": "FEATURE 01"
+        },
+        "headline": {
+          "en": "Everything in\none window."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_p",
+        "layout": "device-top",
+        "label": {
+          "en": "FEATURE 02"
+        },
+        "headline": {
+          "en": "One shortcut away."
+        },
+        "screenshot": "",
+        "inverted": true
+      },
+      {
+        "id": "s_mwnxj9eq_q",
+        "layout": "two-devices",
+        "label": {
+          "en": "FEATURE 03"
+        },
+        "headline": {
+          "en": "Work across windows."
+        },
+        "screenshot": "",
+        "screenshotSecondary": ""
+      },
+      {
+        "id": "s_mwnxj9eq_r",
+        "layout": "no-device",
+        "label": {
+          "en": "MORE"
+        },
+        "headline": {
+          "en": "And so\nmuch more."
+        },
+        "screenshot": ""
+      }
+    ],
+    "android-7": [
+      {
+        "id": "s_mwnxj9eq_s",
+        "layout": "hero",
+        "label": {
+          "en": "MEET YOUR APP"
+        },
+        "headline": {
+          "en": "Pocket-sized\npower."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_t",
+        "layout": "split-landscape",
+        "label": {
+          "en": "FEATURE 01"
+        },
+        "headline": {
+          "en": "Wide canvas,\nbigger ideas."
+        },
+        "screenshot": ""
+      }
+    ],
+    "android-10": [
+      {
+        "id": "s_mwnxj9eq_u",
+        "layout": "hero",
+        "label": {
+          "en": "MEET YOUR APP"
+        },
+        "headline": {
+          "en": "Made for\nthe big screen."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_v",
+        "layout": "split-landscape",
+        "label": {
+          "en": "FEATURE 01"
+        },
+        "headline": {
+          "en": "Wide canvas,\nbigger ideas."
+        },
+        "screenshot": ""
+      }
+    ],
+    "feature-graphic": [
+      {
+        "id": "s_mwnxj9eq_w",
+        "layout": "feature-graphic",
+        "label": {},
+        "headline": {
+          "en": "Your tagline goes here."
+        },
+        "screenshot": ""
+      }
+    ],
+    "duo-outer": [
+      {
+        "id": "s_mwnxj9eq_x",
+        "layout": "hero",
+        "label": {
+          "en": "MEET YOUR APP"
+        },
+        "headline": {
+          "en": "Everything,\none hand."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_y",
+        "layout": "device-bottom",
+        "label": {
+          "en": "FEATURE 01"
+        },
+        "headline": {
+          "en": "One idea\nper screen."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_z",
+        "layout": "two-devices",
+        "label": {
+          "en": "OPEN IT"
+        },
+        "headline": {
+          "en": "Open it for\nthe full view."
+        },
+        "screenshot": "",
+        "screenshotSecondary": ""
+      },
+      {
+        "id": "s_mwnxj9eq_10",
+        "layout": "device-top",
+        "label": {
+          "en": "FEATURE 02"
+        },
+        "headline": {
+          "en": "Flip the contrast."
+        },
+        "screenshot": "",
+        "inverted": true
+      },
+      {
+        "id": "s_mwnxj9eq_11",
+        "layout": "no-device",
+        "label": {
+          "en": "MORE"
+        },
+        "headline": {
+          "en": "And so\nmuch more."
+        },
+        "screenshot": ""
+      }
+    ],
+    "duo-outer-landscape": [
+      {
+        "id": "s_mwnxj9eq_12",
+        "layout": "hero",
+        "label": {
+          "en": "TURN IT"
+        },
+        "headline": {
+          "en": "Made for the wide view."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_13",
+        "layout": "split-landscape",
+        "label": {
+          "en": "FEATURE 01"
+        },
+        "headline": {
+          "en": "One idea\nper screen."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_14",
+        "layout": "device-top",
+        "label": {
+          "en": "FEATURE 02"
+        },
+        "headline": {
+          "en": "Flip the contrast."
+        },
+        "screenshot": "",
+        "inverted": true
+      }
+    ],
+    "duo-inner": [
+      {
+        "id": "s_mwnxj9eq_15",
+        "layout": "hero",
+        "label": {
+          "en": "UNFOLD IT"
+        },
+        "headline": {
+          "en": "Room for\nthe whole view."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_16",
+        "layout": "device-bottom",
+        "label": {
+          "en": "FEATURE 01"
+        },
+        "headline": {
+          "en": "One idea\nper screen."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_17",
+        "layout": "two-devices",
+        "label": {
+          "en": "FOLDED + OPEN"
+        },
+        "headline": {
+          "en": "Turn it, open it,\nkeep going."
+        },
+        "screenshot": "",
+        "screenshotSecondary": ""
+      },
+      {
+        "id": "s_mwnxj9eq_18",
+        "layout": "device-top",
+        "label": {
+          "en": "FEATURE 02"
+        },
+        "headline": {
+          "en": "Flip the contrast."
+        },
+        "screenshot": "",
+        "inverted": true
+      }
+    ],
+    "duo-inner-landscape": [
+      {
+        "id": "s_mwnxj9eq_19",
+        "layout": "hero",
+        "label": {
+          "en": "UNFOLD IT"
+        },
+        "headline": {
+          "en": "Lead with the two-pane view."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_1a",
+        "layout": "two-devices",
+        "label": {
+          "en": "FOLDED + OPEN"
+        },
+        "headline": {
+          "en": "Same moment, closed and open."
+        },
+        "screenshot": "",
+        "screenshotSecondary": ""
+      },
+      {
+        "id": "s_mwnxj9eq_1b",
+        "layout": "split-landscape",
+        "label": {
+          "en": "FEATURE 02"
+        },
+        "headline": {
+          "en": "One idea\nper screen."
+        },
+        "screenshot": ""
+      },
+      {
+        "id": "s_mwnxj9eq_1c",
+        "layout": "device-top",
+        "label": {
+          "en": "FEATURE 03"
+        },
+        "headline": {
+          "en": "Show what only the wide screen can."
+        },
+        "screenshot": "",
+        "inverted": true
+      },
+      {
+        "id": "s_mwnxj9eq_1d",
+        "layout": "no-device",
+        "label": {
+          "en": "MORE"
+        },
+        "headline": {
+          "en": "And so much more."
+        },
+        "screenshot": ""
+      }
+    ],
+    "creative-universal": [
+      {
+        "id": "s_mwnxj9eq_1e",
+        "layout": "split-landscape",
+        "label": {
+          "en": "NEW"
+        },
+        "headline": {
+          "en": "Your app,\nat a glance."
+        },
+        "screenshot": ""
+      }
+    ],
+    "creative-header": [
+      {
+        "id": "s_mwnxj9eq_1f",
+        "layout": "split-landscape",
+        "label": {
+          "en": "NEW"
+        },
+        "headline": {
+          "en": "Your app,\nat a glance."
+        },
+        "screenshot": ""
+      }
+    ],
+    "creative-search": [
+      {
+        "id": "s_mwnxj9eq_1g",
+        "layout": "split-landscape",
+        "label": {
+          "en": "NEW"
+        },
+        "headline": {
+          "en": "Your app,\nat a glance."
+        },
+        "screenshot": ""
+      }
+    ]
+  },
+  "scene": {
+    "backdrop": "gradient",
+    "span": false,
+    "decoration": "sparkles",
+    "shadow": 0,
+    "glow": 0,
+    "tilt": 0,
+    "headlineWeight": 700,
+    "headlineScale": 1,
+    "headlineCase": "as-typed",
+    "captionAlign": "auto"
+  },
+  "crossScreenMockupsByDevice": {
+    "iphone": []
+  }
+}
