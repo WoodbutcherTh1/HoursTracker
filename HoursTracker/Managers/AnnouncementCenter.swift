@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import os
 import UIKit
@@ -57,6 +58,16 @@ final class AnnouncementCenter: ObservableObject {
     /// separate round trip; `acknowledge(_:)` also updates it optimistically.
     @Published private(set) var unreadHistoryCount = 0
 
+    /// `refreshNow()`'s server round trip is debounced + deduped before hitting
+    /// the public `unreadHistoryCount` — a device with a large backlog (the
+    /// owner's own test announcements) could otherwise coincide with another
+    /// publish (e.g. `AdminSupportModel.unreadCount`) in the same moment and
+    /// double up re-renders of anything observing both. User-initiated paths
+    /// (`acknowledge`, `dismissCurrent`) still write immediately for instant
+    /// feedback — see `setUnreadHistoryCount(_:immediate:)`.
+    private let unreadHistoryCountRaw = CurrentValueSubject<Int, Never>(0)
+    private var cancellables = Set<AnyCancellable>()
+
     private static let logger = Logger(subsystem: "com.hourstracker.app", category: "announcements")
     private static let functionURL = SupabaseConfig.projectURL
         .appendingPathComponent("functions/v1/register-device")
@@ -79,6 +90,19 @@ final class AnnouncementCenter: ObservableObject {
     init(defaults: UserDefaults = .standard, session: URLSession = .shared) {
         self.defaults = defaults
         self.session = session
+        unreadHistoryCountRaw
+            .debounce(for: .milliseconds(150), scheduler: RunLoop.main)
+            .removeDuplicates()
+            .sink { [weak self] value in self?.unreadHistoryCount = value }
+            .store(in: &cancellables)
+    }
+
+    /// `immediate: true` also writes `unreadHistoryCount` synchronously (user-initiated
+    /// actions that need instant feedback); either way the raw subject is updated so a
+    /// later debounced server emission can't overwrite it with a stale number.
+    private func setUnreadHistoryCount(_ value: Int, immediate: Bool) {
+        unreadHistoryCountRaw.send(value)
+        if immediate { unreadHistoryCount = value }
     }
 
     /// Random per-install id, created on first use and dropped by `forget()`.
@@ -144,7 +168,7 @@ final class AnnouncementCenter: ObservableObject {
         defaults.set(encoded, forKey: Key.lastPayload)
         defaults.set(Date(), forKey: Key.lastRegistered)
         if let unreadCount = response.unreadCount {
-            unreadHistoryCount = unreadCount
+            setUnreadHistoryCount(unreadCount, immediate: false)
         }
         if payload.announcementsEnabled {
             enqueue(response.announcements ?? [])
@@ -165,7 +189,7 @@ final class AnnouncementCenter: ObservableObject {
     func acknowledge(_ ids: [UUID]) async {
         guard !ids.isEmpty else { return }
         let _: RegisterResponse? = await post(AckRequest(deviceId: installID, seenIds: ids))
-        unreadHistoryCount = max(0, unreadHistoryCount - ids.count)
+        setUnreadHistoryCount(max(0, unreadHistoryCount - ids.count), immediate: true)
     }
 
     /// Unit/UI test runs (CI simulators) must never register as real devices —
@@ -185,7 +209,7 @@ final class AnnouncementCenter: ObservableObject {
         guard let shown = current else { return }
         current = nil
         let deviceId = installID
-        unreadHistoryCount = max(0, unreadHistoryCount - 1)
+        setUnreadHistoryCount(max(0, unreadHistoryCount - 1), immediate: true)
         Task {
             let _: RegisterResponse? = await post(AckRequest(deviceId: deviceId, seenIds: [shown.id]))
             showNext()
@@ -201,7 +225,7 @@ final class AnnouncementCenter: ObservableObject {
         }
         queue = []
         current = nil
-        unreadHistoryCount = 0
+        setUnreadHistoryCount(0, immediate: true)
         guard let deviceId else { return }
         Task {
             let _: RegisterResponse? = await post(ForgetRequest(deviceId: deviceId))
@@ -283,7 +307,9 @@ final class AnnouncementCenter: ObservableObject {
         guard !Self.isAutomatedRun else { return nil }
         var request = URLRequest(url: Self.functionURL)
         request.httpMethod = "POST"
-        request.timeoutInterval = 20
+        // A stuck/slow register-device round trip should fail fast, not sit
+        // there — this is in the hot path of app-foreground/clock-in/out.
+        request.timeoutInterval = 5
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(SupabaseConfig.publishableKey, forHTTPHeaderField: "apikey")
         // Signed in: the session token lets the server link the device to the
@@ -300,14 +326,28 @@ final class AnnouncementCenter: ObservableObject {
                 Self.logger.error("register-device failed: \(status)")
                 return nil
             }
-            return try Self.decoder.decode(Response.self, from: data)
+            // Off the main actor: the owner's own device can accumulate a large
+            // history/announcements backlog (every announcement ever sent while
+            // testing), and the decoder's custom date strategy allocates an
+            // ISO8601DateFormatter per row — decoding that on @MainActor is
+            // exactly the kind of work that would only hang for the owner/admin.
+            return try await Self.decodeOffMain(Response.self, from: data)
         } catch {
             Self.logger.error("register-device error: \(error.localizedDescription)")
             return nil
         }
     }
 
-    static let decoder: JSONDecoder = {
+    private static func decodeOffMain<T: Decodable>(_ type: T.Type, from data: Data) async throws -> T {
+        try await Task.detached(priority: .userInitiated) {
+            try Self.decoder.decode(T.self, from: data)
+        }.value
+    }
+
+    /// Pure, thread-safe constant (no mutable state) — `nonisolated` so the
+    /// off-main `Task.detached` decode in `decodeOffMain`/`AdminAPIClient` can
+    /// read it directly instead of hopping back to the main actor just to fetch it.
+    nonisolated static let decoder: JSONDecoder = {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom { decoder in
             let raw = try decoder.singleValueContainer().decode(String.self)

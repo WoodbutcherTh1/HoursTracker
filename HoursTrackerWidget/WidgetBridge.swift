@@ -317,8 +317,14 @@ enum WidgetBridge {
         return try? JSONDecoder().decode(LivePayCurve.self, from: data)
     }
 
+    /// `false` (not a synchronous suite read) until the cache warms — a read here
+    /// happens on the main thread (e.g. from a SwiftUI `body`), and falling back to
+    /// `UserDefaults(suiteName:)` directly is the exact ~500ms cfprefsd stall
+    /// `readSnapshotFromSuite()` is documented to cause. The brief window before
+    /// `warmSharedCache()` finishes shows the default instead of the true value;
+    /// it self-corrects the moment the cache lands.
     static var livePayShowsNet: Bool {
-        cachedValue(\.livePayShowsNet) ?? (suite?.bool(forKey: livePayShowsNetKey) ?? false)
+        cachedValue(\.livePayShowsNet) ?? false
     }
 
     // NOTE: no `reloadTimelines` here — `WidgetCenter` requires linking WidgetKit
@@ -328,8 +334,10 @@ enum WidgetBridge {
     // MARK: - Privacy: hide pay amounts
 
     /// When true, widgets and the Live Activity mask money amounts («••••»).
+    /// Same reasoning as `livePayShowsNet` above: never falls back to a synchronous
+    /// suite read on the calling thread, only the warmed cache or a safe default.
     static var hidePay: Bool {
-        get { cachedValue(\.hidePay) ?? (suite?.bool(forKey: hidePayKey) ?? false) }
+        get { cachedValue(\.hidePay) ?? false }
         set {
             // Cache updates synchronously (reads stay instant); the suite write — the
             // part that can block on cfprefsd — moves off the main thread.

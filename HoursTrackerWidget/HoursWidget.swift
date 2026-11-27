@@ -309,15 +309,24 @@ struct HoursTimelineProvider: TimelineProvider {
     func getTimeline(in context: Context, completion: @escaping (Timeline<HoursEntry>) -> Void) {
         let now = Date()
         let entry = buildEntry(at: now)
-        // While the paid clock runs, lay out one entry per minute for the next hour
-        // from the app's live pay curve: the money ticks up minute by minute with no
-        // app involvement (the hours tick by themselves via a system timer). Entries
-        // are free; only reloads count against WidgetKit's budget.
+        // While the paid clock runs, lay out entries well ahead from the app's live
+        // pay curve so money keeps ticking up with no further app involvement — same
+        // idea as the hours figure ticking via a system timer. Entries are free; only
+        // reloads count against WidgetKit's budget, and — same staleness the Live
+        // Activity had before its push fix — a reload is NOT guaranteed while the app
+        // is backgrounded, so this window has to outlast a realistic gap between
+        // reloads, not just "the next few minutes." One-minute steps for the first
+        // hour (closest to a reload, most likely glanced at), then 5-minute steps out
+        // to 12 hours — comfortably inside AppViewModel.livePayCurveHorizon (16h), so
+        // pay(at:) is still reading real sampled points, not extrapolating past them.
         if entry.isOpen, let curve = entry.livePay, !curve.isPaused {
-            let entries = [entry] + (1...60).map { minute in
+            let fineEntries = (1...60).map { minute in
                 buildEntry(at: now.addingTimeInterval(TimeInterval(minute * 60)))
             }
-            completion(Timeline(entries: entries, policy: .atEnd))
+            let coarseEntries = stride(from: 65, through: 12 * 60, by: 5).map { minute in
+                buildEntry(at: now.addingTimeInterval(TimeInterval(minute * 60)))
+            }
+            completion(Timeline(entries: [entry] + fineEntries + coarseEntries, policy: .atEnd))
             return
         }
         let refreshInterval: TimeInterval = entry.isOpen ? 180 : 900
@@ -964,6 +973,16 @@ struct HoursLiveActivity: Widget {
                 state: context.state
             )
             .environment(\.layoutDirection, WidgetL10n.layoutDirection)
+            // Without these, the Lock Screen banner has no guaranteed opaque
+            // backing — our own `.background(LATheme.background)` inside
+            // `HoursLiveActivityView` only paints that view's own bounds; the
+            // system can still composite a transparent/material layer outside
+            // it on some passes (redacted/placeholder renders, transitions,
+            // Always-On Display), which is what produced the "text floating on
+            // the lock screen photo" report. These tell ActivityKit what to use
+            // as the guaranteed background and system-chrome tint everywhere.
+            .activityBackgroundTint(WidgetTheme.background)
+            .activitySystemActionForegroundColor(WidgetTheme.textPrimary)
         } dynamicIsland: { context in
             DynamicIsland {
                 DynamicIslandExpandedRegion(.center) {

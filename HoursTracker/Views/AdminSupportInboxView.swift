@@ -1,4 +1,7 @@
 import SwiftUI
+import Combine
+import os
+import UIKit
 
 /// Admin side of the support chat: the conversations, and a reply box per conversation.
 /// Talks to `supabase/functions/support-admin`, which checks the admin list on every call.
@@ -75,6 +78,12 @@ struct AdminSupportThreadView: View {
                 }
                 .padding(14)
             }
+            // See the matching fix in `SupportChatSheet` — `.interactively`/`.immediately`
+            // tear the keyboard's remote text input session down the moment a scroll
+            // gesture starts, including the long-press-drag a `.contextMenu` uses,
+            // leaving the keyboard unresponsive. `.never` removes that race.
+            .scrollDismissesKeyboard(.never)
+            .onTapGesture { focused = false }
             HStack(alignment: .bottom, spacing: 10) {
                 TextField(L10n.supportChatPlaceholder, text: $reply, axis: .vertical)
                     .lineLimit(1...5)
@@ -135,6 +144,9 @@ struct AdminSupportThreadView: View {
         return HStack {
             if !fromUser { Spacer(minLength: 40) }
             VStack(alignment: fromUser ? .leading : .trailing, spacing: 3) {
+                // `.textSelection(.enabled)` fights the reply field's keyboard session
+                // the same way it did in `SupportChatSheet` — a `.contextMenu` "Copy" is
+                // the gesture-free alternative.
                 Text(message.body)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 8)
@@ -143,6 +155,13 @@ struct AdminSupportThreadView: View {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .fill(message.sender == "admin" ? Color.appAccent : Color(.secondarySystemBackground))
                     )
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = message.body
+                        } label: {
+                            Label(L10n.supportChatCopy, systemImage: "doc.on.doc")
+                        }
+                    }
                 if fromUser, let context = message.context {
                     Text(context.summary)
                         .font(.caption2)
@@ -241,6 +260,8 @@ final class AdminSupportModel: ObservableObject {
     /// instead of each polling and drifting independently.
     static let shared = AdminSupportModel()
 
+    private static let logger = Logger(subsystem: "com.hourstracker.app", category: "admin-support")
+
     @Published private(set) var threads: [Thread] = []
     @Published private(set) var isLoading = false
     @Published private(set) var notice: String?
@@ -249,17 +270,30 @@ final class AdminSupportModel: ObservableObject {
     /// update without paging in every thread.
     @Published private(set) var unreadCount = 0
 
+    /// `loadThreads()` and `loadUnreadCount()` can both complete within the same
+    /// moment (e.g. `AdminDashboardView`'s `.task` fires both on appear) — raw
+    /// writes go here first, debounced + deduped into the public `unreadCount`
+    /// so `SettingsView`/`AdminDashboardView` (both `@ObservedObject` on this
+    /// whole model) don't re-render twice for what is really one update.
+    private let unreadCountRaw = CurrentValueSubject<Int, Never>(0)
+    private var cancellables = Set<AnyCancellable>()
+
     private let session: URLSession
     private static let functionURL = SupabaseConfig.projectURL.appendingPathComponent("functions/v1/support-admin")
 
     init(session: URLSession = .shared) {
         self.session = session
+        unreadCountRaw
+            .debounce(for: .milliseconds(150), scheduler: RunLoop.main)
+            .removeDuplicates()
+            .sink { [weak self] value in self?.unreadCount = value }
+            .store(in: &cancellables)
     }
 
     func loadUnreadCount() async {
         struct Envelope: Decodable { let count: Int }
         if let envelope: Envelope = await call(["action": "unread_count"]) {
-            unreadCount = envelope.count
+            unreadCountRaw.send(envelope.count)
         }
     }
 
@@ -269,7 +303,7 @@ final class AdminSupportModel: ObservableObject {
         struct Envelope: Decodable { let threads: [Thread] }
         if let envelope: Envelope = await call(["action": "threads"]) {
             threads = envelope.threads
-            unreadCount = envelope.threads.filter(\.unreadAdmin).count
+            unreadCountRaw.send(envelope.threads.filter(\.unreadAdmin).count)
         }
     }
 
@@ -299,7 +333,11 @@ final class AdminSupportModel: ObservableObject {
         }
         var request = URLRequest(url: Self.functionURL)
         request.httpMethod = "POST"
-        request.timeoutInterval = 30
+        // Admin endpoints return aggregate data (every support thread across every
+        // user, not just this device's) — unbounded by anything a normal account
+        // would ever trigger. 5s, not the old 30s: a stuck/slow admin call should
+        // fail fast, not sit there while whatever called it (eventually) times out.
+        request.timeoutInterval = 5
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(SupabaseConfig.publishableKey, forHTTPHeaderField: "apikey")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -311,6 +349,22 @@ final class AdminSupportModel: ObservableObject {
                 notice = L10n.adminSupportFailed
                 return nil
             }
+            // Off the main actor: an admin's thread list can be large, and the
+            // custom date strategy below allocates an ISO8601DateFormatter per
+            // row — decoding that on @MainActor is exactly the kind of main-thread
+            // work that would show up as a UI hang only for an admin account.
+            let decoded = try await Self.decodeOffMain(Response.self, from: data)
+            notice = nil
+            return decoded
+        } catch {
+            Self.logger.error("support-admin decode/response error: \(error.localizedDescription, privacy: .public)")
+            notice = L10n.adminSupportFailed
+            return nil
+        }
+    }
+
+    private static func decodeOffMain<T: Decodable>(_ type: T.Type, from data: Data) async throws -> T {
+        try await Task.detached(priority: .userInitiated) {
             let decoder = JSONDecoder()
             decoder.dateDecodingStrategy = .custom { decoder in
                 let container = try decoder.singleValueContainer()
@@ -320,11 +374,7 @@ final class AdminSupportModel: ObservableObject {
                 if let date = withFraction.date(from: raw) { return date }
                 return ISO8601DateFormatter().date(from: raw) ?? Date()
             }
-            notice = nil
-            return try decoder.decode(Response.self, from: data)
-        } catch {
-            notice = L10n.adminSupportFailed
-            return nil
-        }
+            return try decoder.decode(T.self, from: data)
+        }.value
     }
 }

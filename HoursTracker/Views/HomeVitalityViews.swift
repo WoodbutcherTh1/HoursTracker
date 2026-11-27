@@ -580,23 +580,13 @@ struct HomeWeekSparkline: View {
     /// a chart nobody can see is wasted CPU, same reasoning as `LiveTimerView`.
     var isVisible: Bool = true
 
-    /// True app layout direction (RTL for Hebrew/Arabic). Read here even though the
-    /// chart body pins its CHILDREN to `.leftToRight` for coordinate consistency (see
-    /// `body`): under RTL we reverse the per-day DATA so the week reads right-to-left
-    /// (Sunday in the rightmost column) while bars, ridge, dot and labels stay in sync.
+    /// True app layout direction (RTL for Hebrew/Arabic). The data stays in chronological
+    /// Sun…Sat order; RTL correctness is achieved by letting the bar/label HStacks mirror
+    /// (the chart no longer pins itself LTR) and manually flipping the explicit X of the
+    /// ridge/dot/markers in `barTopPoints`, so the whole week — bars, line and the moving
+    /// dot — flows right-to-left (Sunday on the far right).
     @Environment(\.layoutDirection) private var layoutDirection
     private var isRTL: Bool { layoutDirection == .rightToLeft }
-
-    /// `highlightedDayIndex` mapped to the on-screen column (reversed under RTL).
-    private var highlightColumn: Int? {
-        guard let index = highlightedDayIndex else { return nil }
-        return isRTL ? (6 - index) : index
-    }
-
-    /// Weekday letters in on-screen column order (reversed under RTL → Sunday rightmost).
-    private var orderedWeekdayLabels: [String] {
-        isRTL ? Array(weekdayLabels.reversed()) : weekdayLabels
-    }
 
     private let loopSeconds: Double = 5.5
     private let chartHeight: CGFloat = 56
@@ -606,12 +596,8 @@ struct HomeWeekSparkline: View {
     /// enough for the weekday letters or dot to disappear under the tab bar.
     private static let minHeight: CGFloat = 130
 
-    /// Per-day hours in ON-SCREEN column order: reversed under RTL so the week reads
-    /// right-to-left (Sunday rightmost). `heights`, the bars and the ridge all derive
-    /// from this, so they stay in sync on the chart's shared (LTR-pinned) coordinates.
     private var hours: [Double] {
-        let base = dailyHours.count == 7 ? dailyHours : Array(repeating: 0, count: 7)
-        return isRTL ? Array(base.reversed()) : base
+        dailyHours.count == 7 ? dailyHours : Array(repeating: 0, count: 7)
     }
 
     private var heights: [Double] {
@@ -626,9 +612,8 @@ struct HomeWeekSparkline: View {
     /// per day, so VoiceOver gets the same per-day breakdown the bars show
     /// sighted users — the chart previously spoke only the week total.
     private var dayAccessibilityDescriptions: [String] {
-        // VoiceOver stays in logical Sun…Sat order regardless of the visual RTL flip, so
-        // it reads `dailyHours`/`highlightedDayIndex` directly rather than the reversed
-        // `hours`/`highlightColumn` the drawing uses.
+        // VoiceOver reads in chronological Sun…Sat order; the RTL flip is purely visual
+        // (handled in `barTopPoints` + the mirrored HStacks), so this is untouched by it.
         let logicalHours = dailyHours.count == 7 ? dailyHours : Array(repeating: 0, count: 7)
         let names = weekdayFullNames.count == 7 ? weekdayFullNames : weekdayLabels
         return logicalHours.indices.map { index in
@@ -658,15 +643,11 @@ struct HomeWeekSparkline: View {
         }
         .padding(.horizontal, 4)
         .frame(minHeight: Self.minHeight)
-        // Keep ALL chart layers on ONE coordinate frame: the bars (an HStack) would
-        // auto-mirror under RTL, but the ridge/dot/markers are drawn at raw x
-        // coordinates (`barTopPoints`) that don't — so an unpinned chart renders the
-        // "today" dot over the wrong column in Hebrew/Arabic. Rather than mirror the
-        // frame, we pin it left-to-right AND reverse the per-day DATA under RTL (see
-        // `hours`, `highlightColumn`, `orderedWeekdayLabels`). Net result in Hebrew: the
-        // week reads right-to-left (Sunday rightmost) with bars, ridge, dot and labels
-        // all in sync.
-        .environment(\.layoutDirection, .leftToRight)
+        // Draw everything chronologically left-to-right, then mirror the WHOLE chart for
+        // RTL with one environment flip. SwiftUI mirrors the bars, the ridge line, the
+        // dot and the weekday labels together, so Sunday lands on the right and the line
+        // flows right-to-left — no per-element x math to keep in sync.
+        .environment(\.layoutDirection, isRTL ? .rightToLeft : .leftToRight)
         .allowsHitTesting(false)
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(L10n.homeStatWeek)
@@ -786,7 +767,7 @@ struct HomeWeekSparkline: View {
                 // from the single traveling comet above, and always in `accent`
                 // so it matches the chosen theme (Cyan by default).
                 ForEach(Array(tops.enumerated()), id: \.offset) { index, point in
-                    dayMarker(at: point, hasHours: hours[index] > 0.01, isToday: highlightColumn == index)
+                    dayMarker(at: point, hasHours: hours[index] > 0.01, isToday: highlightedDayIndex == index)
                 }
             }
         }
@@ -799,7 +780,7 @@ struct HomeWeekSparkline: View {
         barMaxHeight: CGFloat,
         pulseTime t: Double
     ) -> some View {
-        let isToday = highlightColumn == index
+        let isToday = highlightedDayIndex == index
         let isLiveOpen = isToday && isTodayShiftOpen
         let pulse = Self.liveOpenPulse(pulseTime: t, index: index, isToday: isToday)
         // Open shift today: breathe the bar instead of showing a misleading empty/00:00 value.
@@ -876,7 +857,7 @@ struct HomeWeekSparkline: View {
 
     private var weekdayRow: some View {
         HStack(spacing: 0) {
-            ForEach(Array(orderedWeekdayLabels.enumerated()), id: \.offset) { index, label in
+            ForEach(Array(weekdayLabels.enumerated()), id: \.offset) { index, label in
                 // Hard-removed, not paused: no TimelineView node exists per column
                 // while Home isn't visible.
                 if isVisible {
@@ -894,7 +875,7 @@ struct HomeWeekSparkline: View {
     }
 
     private func weekdayColumn(index: Int, label: String, t: Double) -> some View {
-        let isToday = highlightColumn == index
+        let isToday = highlightedDayIndex == index
         let pulse = (sin(t * (isToday ? 3.4 : 2.2) + Double(index) * 0.7) + 1) / 2
         return VStack(spacing: 4) {
             Text(label)
@@ -975,14 +956,14 @@ struct HomeWeekSparkline: View {
 
     /// Tops of bars in chart coordinates (label row sits above the bars).
     private func ridgeHeightFractions(baseHeights: [Double], pulseTime t: Double) -> [Double] {
-        // `baseHeights` is in on-screen (RTL-reversed) order, so match "today" by its
-        // on-screen column, not the logical day index.
-        guard isTodayShiftOpen, let highlightColumn, baseHeights.indices.contains(highlightColumn) else {
+        // `baseHeights` is chronological (index 0 = Sunday); the RTL mirroring happens in
+        // `barTopPoints`, so "today" is matched by its plain day index here.
+        guard isTodayShiftOpen, let highlightedDayIndex, baseHeights.indices.contains(highlightedDayIndex) else {
             return baseHeights
         }
 
         return baseHeights.enumerated().map { index, fraction in
-            guard index == highlightColumn else { return fraction }
+            guard index == highlightedDayIndex else { return fraction }
             return Self.liveOpenHeightFraction(pulseTime: t, index: index, isToday: true)
         }
     }
@@ -993,7 +974,12 @@ struct HomeWeekSparkline: View {
         barMaxHeight: CGFloat,
         chartHeight: CGFloat
     ) -> [CGPoint] {
-        heights.enumerated().map { index, fraction in
+        // Always drawn left-to-right in chronological order (index 0 = Sunday). RTL
+        // mirroring of the WHOLE chart — bars, this ridge line, the dot and the labels —
+        // is handled by the `.environment(\.layoutDirection, .rightToLeft)` applied to
+        // the sparkline in `body`, so no manual x-flip here (that fought the mirrored
+        // bars and left the line flowing the wrong way).
+        return heights.enumerated().map { index, fraction in
             let barHeight = CGFloat(fraction) * barMaxHeight
             let x = columnWidth * (CGFloat(index) + 0.5)
             let y = chartHeight - max(barHeight, fraction > 0 ? 3 : 2)

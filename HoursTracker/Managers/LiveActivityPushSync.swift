@@ -1,5 +1,7 @@
 import ActivityKit
 import Foundation
+import UIKit
+import os
 
 /// Forwards this device's Live Activity push token and latest `ContentState`
 /// to the backend (see `supabase/functions/live-activity-push`), so a 60s
@@ -18,6 +20,7 @@ import Foundation
 enum LiveActivityPushSync {
     private static let functionURL = SupabaseConfig.projectURL.appendingPathComponent("functions/v1/live-activity-push")
     private static var tokenObservationTask: Task<Void, Never>?
+    private static let logger = Logger(subsystem: "com.hourstracker.app", category: "live-activity-push")
 
     /// Starts watching this activity's push token. Tokens arrive asynchronously
     /// a short time after `Activity.request` — `push(state:)` calls before the
@@ -71,7 +74,10 @@ enum LiveActivityPushSync {
            let stateJSON = try? JSONSerialization.jsonObject(with: stateData) {
             body["contentState"] = stateJSON
         }
-        guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else { return }
+        guard let httpBody = try? JSONSerialization.data(withJSONObject: body) else {
+            logger.error("[\(action, privacy: .public)] failed to build request body")
+            return
+        }
 
         var request = URLRequest(url: functionURL)
         request.httpMethod = "POST"
@@ -80,10 +86,31 @@ enum LiveActivityPushSync {
         request.setValue(SupabaseConfig.publishableKey, forHTTPHeaderField: "apikey")
         request.setValue("Bearer \(SupabaseConfig.publishableKey)", forHTTPHeaderField: "Authorization")
         request.httpBody = httpBody
-        // Best-effort, same risk tolerance as the rest of this sync path (e.g.
-        // LiveActivityManager.update already fires its activity.update() without
-        // checking the result) — a dropped forward just means the next regular
-        // push (60s loop, BGAppRefreshTask, or clock-out) catches up.
-        _ = try? await URLSession.shared.data(for: request)
+
+        // The realistic way this gets exercised — clock in, glance at the Lock
+        // Screen, lock the phone again — backgrounds the app moments after this
+        // call starts. Without an explicit assertion, iOS can suspend the process
+        // mid-flight and silently kill the request: no error, no completion, no
+        // trace, which is exactly how this went undetected (server-side code was
+        // fine the whole time; nothing was ever actually arriving). This buys the
+        // ~30s iOS grants to let an in-flight request survive that.
+        let taskID = UIApplication.shared.beginBackgroundTask(withName: "live-activity-push") {
+            logger.error("[\(action, privacy: .public)] background task expired before the request finished")
+        }
+        defer {
+            if taskID != .invalid {
+                UIApplication.shared.endBackgroundTask(taskID)
+            }
+        }
+
+        do {
+            let (_, response) = try await URLSession.shared.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            if !(200..<300).contains(status) {
+                logger.error("[\(action, privacy: .public)] server rejected request: HTTP \(status, privacy: .public)")
+            }
+        } catch {
+            logger.error("[\(action, privacy: .public)] request failed: \(error.localizedDescription, privacy: .public)")
+        }
     }
 }

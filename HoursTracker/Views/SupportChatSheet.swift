@@ -1,5 +1,6 @@
 import SwiftUI
 import PhotosUI
+import UIKit
 
 /// In-app support chat. Messages go to the admin inbox; a matching auto-reply can answer
 /// straight away. Conversations are keyed by this install's id, so there is no sign-in.
@@ -100,7 +101,16 @@ struct SupportChatSheet: View {
                 .padding(.horizontal, 14)
                 .padding(.vertical, 12)
             }
-            .scrollDismissesKeyboard(.interactively)
+            // Both `.interactively` AND `.immediately` tear the keyboard's remote text
+            // input session down the moment a scroll gesture starts on this
+            // `ScrollView` — including the long-press-drag that native text selection
+            // on the bubbles uses, which raced with the OS tearing down the session
+            // mid-selection (`RTIInputSystemClient ... dismissAutoFillPanel` errors,
+            // then a keyboard/copy-paste that stops responding). `.never` removes that
+            // race; the explicit tap-to-dismiss below covers the "scroll to dismiss"
+            // convenience without fighting text selection.
+            .scrollDismissesKeyboard(.never)
+            .onTapGesture { inputFocused = false }
             .onChange(of: model.messages.count) { _, _ in
                 if let last = model.messages.last {
                     withAnimation { proxy.scrollTo(last.id, anchor: .bottom) }
@@ -119,6 +129,13 @@ struct SupportChatSheet: View {
                         .font(.caption2.weight(.semibold))
                         .foregroundStyle(.secondary)
                 }
+                // `.textSelection(.enabled)` here fought the input field's keyboard
+                // session: the bubble's long-press-drag (text selection) and the
+                // `ScrollView`'s own drag both grabbed the same gesture, tearing the
+                // keyboard's remote text input session down mid-selection
+                // (`RTIInputSystemClient ... dismissAutoFillPanel`) and leaving the
+                // keyboard unresponsive. A `.contextMenu` "Copy" is the standard,
+                // gesture-free way chat apps offer copy without that race.
                 Text(message.body)
                     .font(.body)
                     .foregroundStyle(fromUser ? Color.white : Color.primary)
@@ -128,6 +145,13 @@ struct SupportChatSheet: View {
                         RoundedRectangle(cornerRadius: 16, style: .continuous)
                             .fill(fromUser ? Color.appAccent : Color(.secondarySystemBackground))
                     )
+                    .contextMenu {
+                        Button {
+                            UIPasteboard.general.string = message.body
+                        } label: {
+                            Label(L10n.supportChatCopy, systemImage: "doc.on.doc")
+                        }
+                    }
             }
             if !fromUser { Spacer(minLength: 40) }
         }

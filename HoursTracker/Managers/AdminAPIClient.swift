@@ -1,4 +1,5 @@
 import Foundation
+import os
 
 /// Aggregate numbers for the owner dashboard. Counts only — the server never
 /// returns anyone's shifts, pay or identity (see `admin_stats()` in the migration).
@@ -129,6 +130,7 @@ final class AdminAPIClient: ObservableObject {
     @Published private(set) var isAdmin = false
     private var checkedUserID: UUID?
 
+    private static let logger = Logger(subsystem: "com.hourstracker.app", category: "admin-api")
     private static let functionURL = SupabaseConfig.projectURL.appendingPathComponent("functions/v1/admin-api")
     private let session: URLSession
 
@@ -192,7 +194,9 @@ final class AdminAPIClient: ObservableObject {
         }
         var request = URLRequest(url: Self.functionURL)
         request.httpMethod = "POST"
-        request.timeoutInterval = 60
+        // Was 60s — far too long for `checkAccess()`, which runs unconditionally
+        // at every launch for a signed-in account. A stuck call should fail fast.
+        request.timeoutInterval = 5
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(SupabaseConfig.publishableKey, forHTTPHeaderField: "apikey")
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
@@ -213,7 +217,23 @@ final class AdminAPIClient: ObservableObject {
         case 429: throw AdminAPIError.rateLimited
         default: throw AdminAPIError.server(status)
         }
-        return try AnnouncementCenter.decoder.decode(Response.self, from: data)
+        // Off the main actor: `stats()`/`history()` return aggregate, whole-app
+        // data (every account, every announcement ever sent) — unbounded by
+        // anything a normal account's calls return. Decoding that synchronously
+        // on @MainActor is exactly the kind of work that would only hang for
+        // the admin account that can actually trigger a large response.
+        do {
+            return try await Self.decodeOffMain(Response.self, from: data)
+        } catch {
+            Self.logger.error("admin-api decode error: \(error.localizedDescription, privacy: .public)")
+            throw AdminAPIError.network(error.localizedDescription)
+        }
+    }
+
+    private static func decodeOffMain<T: Decodable>(_ type: T.Type, from data: Data) async throws -> T {
+        try await Task.detached(priority: .userInitiated) {
+            try AnnouncementCenter.decoder.decode(T.self, from: data)
+        }.value
     }
 }
 

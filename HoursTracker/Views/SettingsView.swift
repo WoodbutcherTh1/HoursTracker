@@ -10,200 +10,192 @@ enum KeyCheckUIState: Equatable {
     case result(APIKeyCheckResult)
 }
 
-struct SettingsView: View {
-    @ObservedObject var viewModel: AppViewModel
-    @ObservedObject private var appBackground = AppBackgroundTheme.shared
-    @ObservedObject private var homeTheme = HomeAccentTheme.shared
-    @ObservedObject private var accountAuth = SupabaseAuthManager.shared
-    @ObservedObject private var notificationPrefs = NotificationPreferences.shared
+/// The Admin Dashboard row + its unread-support badge. Its own `@ObservedObject`
+/// (not `SettingsView`'s) is the whole point: a publish from `AdminSupportModel`
+/// invalidates only this tiny view, not the rest of `SettingsView.body`.
+struct AdminDashboardLink: View {
     @ObservedObject private var supportModel = AdminSupportModel.shared
+    @ObservedObject private var homeTheme = HomeAccentTheme.shared
+
+    var body: some View {
+        NavigationLink {
+            AdminDashboardView()
+        } label: {
+            Label {
+                Text(L10n.adminSettingsEntry)
+            } icon: {
+                Image(systemName: "crown").foregroundStyle(homeTheme.accent)
+            }
+        }
+        .badge(supportModel.unreadCount)
+        .tint(.red)
+    }
+}
+
+/// Same reasoning as `AdminDashboardLink`: owns `AnnouncementCenter` itself so a
+/// publish there doesn't invalidate the rest of `SettingsView.body`. Not
+/// admin-only — every signed-in-or-not user sees this row.
+struct UserInboxLink: View {
     @ObservedObject private var announcements = AnnouncementCenter.shared
-    @EnvironmentObject private var appLock: AppLockController
-    @EnvironmentObject private var appLanguage: AppLanguageController
+    @ObservedObject private var homeTheme = HomeAccentTheme.shared
 
-    @State private var draft: WorkplaceSettings
-    @State private var saved: SavedSnapshot
-    @ObservedObject private var unsavedChanges = SettingsUnsavedChanges.shared
-    @State private var showAccountSheet = false
-    @State private var showDeleteAllConfirm = false
-    @State private var showFullDataExport = false
-    @State private var showFullDataImporter = false
-    @State private var pendingImportDocument: FullDataExportDocument?
-    @State private var showImportConfirm = false
-    @State private var importErrorMessage: String?
-    @State private var showContactSupport = false
-    @State private var showWidgetGuide = false
-    @State private var widgetInstallCount: Int?
-    @State private var showDisableSyncConfirm = false
-    @State private var isEditingIDNumber = false
-    @State private var smartScannerCloudEnabled = UserDefaultsSmartScannerCloudPreference.shared.isEnabled
-    @State private var geminiAPIKeyDraft = KeychainStore.string(for: .geminiAPIKey) ?? ""
-    @State private var secondaryAPIKeyDraft = KeychainStore.string(for: .secondaryAPIKey) ?? ""
-    @State private var geminiKeyCheck: KeyCheckUIState = .idle
-    @State private var secondaryKeyCheck: KeyCheckUIState = .idle
-
-    private var syncDateFormatter: DateFormatter {
-        AppLocale.makeDateFormatter(dateStyle: .short, timeStyle: .short)
+    var body: some View {
+        NavigationLink {
+            UserInboxView()
+        } label: {
+            Label {
+                Text(L10n.settingsInboxEntry)
+            } icon: {
+                Image(systemName: "tray.full").foregroundStyle(homeTheme.accent)
+            }
+        }
+        .badge(announcements.unreadHistoryCount)
+        .tint(.red)
+        .accessibilityIdentifier("settings.inbox")
     }
+}
 
-    @State private var showAddWorkplace = false
-    @State private var newWorkplaceName = ""
-    @State private var workplacePendingDelete: AppViewModel.WorkplaceOption?
+// MARK: - Shared Settings chrome (free functions, not SettingsView methods)
 
-    init(viewModel: AppViewModel) {
-        self.viewModel = viewModel
-        _draft = State(initialValue: viewModel.activeSettings)
-        _saved = State(initialValue: SavedSnapshot(settings: viewModel.activeSettings))
+/// `SettingsView.body`'s own generic signature used to absorb the FULL nested
+/// type of every sub-page it builds (`workGroupPage`'s destinations included),
+/// because `groupLink`/`subLink`/`settingsPage` were instance methods — a
+/// `NavigationLink`'s `Destination` generic parameter bakes in the full static
+/// type of whatever it's given, even though that content is only ever
+/// constructed lazily at runtime. A page extracted into its own concrete
+/// `View` struct (e.g. `WorkGroupPage`) stops that: `Destination` becomes that
+/// one simple named type, not its entire internal composition. These free
+/// functions let both `SettingsView` and extracted page structs render
+/// identical chrome without the page needing a reference back to `SettingsView`.
+@ViewBuilder
+func settingsSectionHeader(_ title: String, icon: String, accent: Color) -> some View {
+    Label {
+        Text(title).dsFont(.sectionHeader)
+    } icon: {
+        Image(systemName: icon)
+            .font(.system(size: 12, weight: .semibold))
+            .foregroundStyle(accent)
     }
+}
 
-    private struct SavedSnapshot: Equatable {
-        var settings: WorkplaceSettings
-        var scannerCloudEnabled = UserDefaultsSmartScannerCloudPreference.shared.isEnabled
-        var geminiKey = KeychainStore.string(for: .geminiAPIKey) ?? ""
-        var secondaryKey = KeychainStore.string(for: .secondaryAPIKey) ?? ""
+@ViewBuilder
+func settingsAccentLabel(_ title: String, icon: String, accent: Color) -> some View {
+    Label {
+        Text(title)
+    } icon: {
+        Image(systemName: icon).foregroundStyle(accent)
     }
+}
 
-    private var hasUnsavedChanges: Bool {
-        draft != saved.settings
-            || smartScannerCloudEnabled != saved.scannerCloudEnabled
-            || geminiAPIKeyDraft != saved.geminiKey
-            || secondaryAPIKeyDraft != saved.secondaryKey
-    }
-
-    private func reloadFromStore() {
-        let snapshot = SavedSnapshot(settings: viewModel.activeSettings)
-        saved = snapshot
-        draft = snapshot.settings
-        smartScannerCloudEnabled = snapshot.scannerCloudEnabled
-        geminiAPIKeyDraft = snapshot.geminiKey
-        secondaryAPIKeyDraft = snapshot.secondaryKey
-    }
-
-    private func discardChanges() {
-        withAnimation(.none) { reloadFromStore() }
-    }
-
-    private func sectionHeader(_ title: String, icon: String) -> some View {
+@ViewBuilder
+func settingsSubLink<Destination: View>(
+    _ key: String,
+    title: String,
+    icon: String,
+    accent: Color,
+    tint: Color? = nil,
+    @ViewBuilder destination: @escaping () -> Destination
+) -> some View {
+    NavigationLink {
+        destination() // NO AnyView
+    } label: {
         Label {
             Text(title)
-                .dsFont(.sectionHeader)
         } icon: {
-            Image(systemName: icon)
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(homeTheme.accent)
+            Image(systemName: icon).foregroundStyle(tint ?? accent)
         }
     }
+    .accessibilityIdentifier("settings.sub.\(key)")
+}
 
-    // MARK: - Navigation Components
+@ViewBuilder
+func settingsSubPage<Content: View, SaveButton: View>(
+    _ title: String,
+    accent: Color,
+    background: Color,
+    @ViewBuilder content: () -> Content,
+    @ViewBuilder saveButton: () -> SaveButton
+) -> some View {
+    Form {
+        content()
+    }
+    // See the identical comment on the old `settingsPage` instance method this
+    // was extracted from: `disablesAnimations` kills Form's implicit insertion
+    // animation so conditional sections render complete on the first frame.
+    .transaction { $0.disablesAnimations = true }
+    .listStyle(.insetGrouped)
+    .tint(accent)
+    .toggleStyle(SwitchToggleStyle(tint: accent))
+    .symbolRenderingMode(.monochrome)
+    .scrollContentBackground(.hidden)
+    .scrollDismissesKeyboard(.interactively)
+    .keyboardDismissible()
+    .navigationTitle(title)
+    .navigationBarTitleDisplayMode(.inline)
+    .toolbarBackground(background, for: .navigationBar)
+    .toolbarBackground(.visible, for: .navigationBar)
+    .toolbarColorScheme(.dark, for: .navigationBar)
+    .toolbar {
+        ToolbarItem(placement: .confirmationAction) { saveButton() }
+    }
+}
 
-    private func groupLink<Destination: View>(
-        _ key: String,
-        title: String,
-        icon: String,
-        summary: String,
-        tint: Color? = nil,
-        @ViewBuilder destination: @escaping () -> Destination
-    ) -> some View {
-        NavigationLink {
-            destination() // NO AnyView
-        } label: {
-            HStack(spacing: 12) {
-                Image(systemName: icon)
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(tint ?? homeTheme.accent)
-                    .frame(width: 24)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(title)
-                        .font(.body.weight(.semibold))
-                    Text(summary)
-                        .font(.footnote)
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .padding(.vertical, 2)
-        }
-        .accessibilityIdentifier("settings.group.\(key)")
+/// `workGroupPage`'s own `struct` boundary — see the note on `settingsSectionHeader`
+/// above for why this (not `.equatable()`) is the actual fix for a body this size.
+struct WorkGroupPage: View {
+    @ObservedObject var viewModel: AppViewModel
+    @Binding var draft: WorkplaceSettings
+    @Binding var isEditingIDNumber: Bool
+    @Binding var showAddWorkplace: Bool
+    @Binding var newWorkplaceName: String
+    @Binding var workplacePendingDelete: AppViewModel.WorkplaceOption?
+    let hasUnsavedChanges: Bool
+    let onSave: () -> Void
+
+    @ObservedObject private var homeTheme = HomeAccentTheme.shared
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
+
+    private func sectionHeader(_ title: String, icon: String) -> some View {
+        settingsSectionHeader(title, icon: icon, accent: homeTheme.accent)
     }
 
     private func accentLabel(_ title: String, icon: String) -> some View {
-        Label {
-            Text(title)
-        } icon: {
-            Image(systemName: icon).foregroundStyle(homeTheme.accent)
-        }
+        settingsAccentLabel(title, icon: icon, accent: homeTheme.accent)
     }
 
     private func subLink<Destination: View>(
-        _ key: String,
-        title: String,
-        icon: String,
-        tint: Color? = nil,
+        _ key: String, title: String, icon: String, tint: Color? = nil,
         @ViewBuilder destination: @escaping () -> Destination
     ) -> some View {
-        NavigationLink {
-            destination() // NO AnyView
-        } label: {
-            Label {
-                Text(title)
-            } icon: {
-                Image(systemName: icon).foregroundStyle(tint ?? homeTheme.accent)
-            }
-        }
-        .accessibilityIdentifier("settings.sub.\(key)")
+        settingsSubLink(key, title: title, icon: icon, accent: homeTheme.accent, tint: tint, destination: destination)
     }
 
-    private func settingsPage<Content: View>(
-        _ title: String,
-        @ViewBuilder content: () -> Content
-    ) -> some View {
-        Form {
-            content()
-        }
-        // `Form`/`List` apply an implicit insertion animation while diffing their
-        // content on first render — on a pushed screen that reads as rows hidden
-        // then popping in (e.g. `dataGroupPage`'s `if isAdmin`/`if isCloudSyncSupported`
-        // sections). `disablesAnimations` kills that unconditionally so every page
-        // built from this helper renders complete on the very first frame.
-        .transaction { $0.disablesAnimations = true }
-        .listStyle(.insetGrouped)
-        .tint(homeTheme.accent)
-        .toggleStyle(SwitchToggleStyle(tint: homeTheme.accent))
-        .symbolRenderingMode(.monochrome)
-        .scrollContentBackground(.hidden)
-        .scrollDismissesKeyboard(.interactively)
-        .keyboardDismissible()
-        .navigationTitle(title)
-        .navigationBarTitleDisplayMode(.inline)
-        .toolbarBackground(appBackground.background, for: .navigationBar)
-        .toolbarBackground(.visible, for: .navigationBar)
-        .toolbarColorScheme(.dark, for: .navigationBar)
-        .toolbar {
-            ToolbarItem(placement: .confirmationAction) { saveButton }
+    private func settingsPage<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        settingsSubPage(title, accent: homeTheme.accent, background: appBackground.background, content: content) {
+            SettingsSaveButton(hasUnsavedChanges: hasUnsavedChanges, accent: homeTheme.accent, action: onSave)
         }
     }
 
-    // MARK: - Pages
-
-    private var workGroupPage: some View {
+    var body: some View {
         settingsPage(L10n.settingsGroupWork) {
             Section {
                 subLink("workplace", title: L10n.settingsSubWorkplace, icon: "building.2.fill") {
                     settingsPage(L10n.settingsSubWorkplace) {
-                        Section { AnyView(workplacesRows) }
-                        Section { AnyView(workerRows) }
-                        Section { AnyView(workplaceRows) }
+                        Section { workplacesRows }
+                        Section { workerRows }
+                        Section { workplaceRows }
                     }
                 }
                 subLink("pay", title: L10n.settingsPayHours, icon: "banknote.fill") {
-                    settingsPage(L10n.settingsPayHours) { Section { AnyView(payRows) } }
+                    settingsPage(L10n.settingsPayHours) { Section { payRows } }
                 }
                 subLink("rules", title: L10n.settingsWorkRules, icon: "clock.badge.checkmark.fill") {
                     WorkRulesView(draft: $draft)
                 }
                 subLink("payroll", title: L10n.settingsSubPayrollTax, icon: "calendar.badge.clock") {
                     settingsPage(L10n.settingsSubPayrollTax) {
-                        Section { AnyView(payrollRows) }
-                        Section { AnyView(taxRows) }
+                        Section { payrollRows }
+                        Section { taxRows }
                     }
                 }
             } footer: {
@@ -215,268 +207,63 @@ struct SettingsView: View {
         }
     }
 
-    private var remindersGroupPage: some View {
-        RemindersView(viewModel: viewModel, draft: $draft)
-    }
-
-    private var privacyGroupPage: some View {
-        settingsPage(L10n.settingsGroupPrivacy) {
-            Section {
-                subLink("lock", title: L10n.appLockSection, icon: "lock.shield.fill") {
-                    settingsPage(L10n.appLockSection) { Section { AnyView(securityRows) } }
-                }
-                subLink("widgets", title: L10n.settingsHideWidgetPaySection, icon: "square.grid.2x2.fill") {
-                    settingsPage(L10n.settingsHideWidgetPaySection) { Section { AnyView(widgetPrivacyRows) } }
-                }
-                subLink("scanner", title: L10n.scannerSection, icon: "doc.text.viewfinder") {
-                    settingsPage(L10n.scannerSection) { Section { AnyView(smartScannerRows) } }
-                }
-                subLink("safety", title: L10n.dataSafetySection, icon: "externaldrive.badge.checkmark") {
-                    settingsPage(L10n.dataSafetySection) { Section { AnyView(dataSafetyRows) } }
+    private var workplacesRows: some View {
+        Group {
+            sectionHeader(L10n.workplacesTitle, icon: "building.2.crop.circle")
+            if viewModel.hasMultipleWorkplaces {
+                WorkplaceSwitcher(viewModel: viewModel)
+                ForEach(viewModel.workplaceOptions.dropFirst()) { option in
+                    HStack(spacing: 10) {
+                        Circle().fill(option.color).frame(width: 10, height: 10)
+                        Text(option.name)
+                        Spacer()
+                        Button(role: .destructive) {
+                            workplacePendingDelete = option
+                        } label: {
+                            Image(systemName: "trash")
+                        }
+                        .buttonStyle(.borderless)
+                        .accessibilityLabel(L10n.workplaceDelete)
+                    }
                 }
             }
-        }
-    }
-
-    private var dataGroupPage: some View {
-        settingsPage(L10n.settingsGroupData) {
-            if viewModel.isCloudSyncSupported {
-                Section { AnyView(syncRows) }
-            }
-            if viewModel.isAdmin {
-                Section { AnyView(adminRows) }
-                    // One-shot, not a 30s poll like the Dashboard's own task —
-                    // this row just needs to not show a stale 0 on first paint.
-                    .task { await supportModel.loadUnreadCount() }
-            }
-            Section { AnyView(toolsRows) }
-        }
-    }
-
-    var body: some View {
-        ZStack {
-            appBackground.background.ignoresSafeArea()
-
-            // Scoped to just the stack itself — popping a NavigationStack back to
-            // root by resetting its `.id()` is a routine, well-understood operation
-            // (apps do it constantly). This is deliberately narrower than the removed
-            // tab-level `.id(tabResetTokens[.settings])`, which reset SettingsView's
-            // entire view (and the UIKit UIHostingController TabView backs it with) —
-            // the suspected actual cause of the EXC_BAD_ACCESS this is fixing.
-            NavigationStack {
-                Form {
-                    accountSection
-                    Section {
-                        groupLink("work", title: L10n.settingsGroupWork, icon: "briefcase.fill", summary: L10n.settingsGroupWorkSummary) { workGroupPage }
-                        groupLink("reminders", title: L10n.settingsGroupReminders, icon: "bell.badge.fill", summary: L10n.settingsGroupRemindersSummary) { remindersGroupPage }
-                        groupLink("privacy", title: L10n.settingsGroupPrivacy, icon: "lock.shield.fill", summary: L10n.settingsGroupPrivacySummary) { privacyGroupPage }
-                        groupLink("data", title: L10n.settingsGroupData, icon: "externaldrive.fill", summary: L10n.settingsGroupDataSummary) { dataGroupPage }
-                    }
-                    languageSection
-                    aboutSection
-                    dangerZoneSection
-                    shareAppSection
-                }
-                .listStyle(.insetGrouped)
-                .scrollContentBackground(.hidden)
-                .background(Color.black)
-                .tint(homeTheme.accent)
-                .toggleStyle(SwitchToggleStyle(tint: homeTheme.accent))
-                .symbolRenderingMode(.monochrome)
-                .scrollDismissesKeyboard(.interactively)
-                .keyboardDismissible()
-                .navigationTitle(L10n.settingsTitle)
-                .navigationBarTitleDisplayMode(.inline)
-                .toolbarBackground(appBackground.background, for: .navigationBar)
-                .toolbarBackground(.visible, for: .navigationBar)
-                .toolbarColorScheme(.dark, for: .navigationBar)
-                .toolbar {
-                    ToolbarItem(placement: .confirmationAction) {
-                        saveButton
-                    }
-                    ToolbarItem(placement: .topBarLeading) {
-                        AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
-                    }
-                }
-                .onAppear {
-                    if !hasUnsavedChanges {
-                        reloadFromStore()
-                    }
-                    viewModel.refreshLocationPermissionStatuses()
-                }
-                .onChange(of: viewModel.activeSettings) { _, _ in
-                    if !hasUnsavedChanges {
-                        reloadFromStore()
-                    }
-                }
-                .onChange(of: viewModel.activeWorkplaceID) { _, _ in
-                    reloadFromStore()
-                }
-                .onChange(of: hasUnsavedChanges, initial: true) { _, dirty in
-                    unsavedChanges.update(hasChanges: dirty, save: saveSettings, discard: discardChanges)
-                }
-                .confirmationDialog(
-                    L10n.privacyDeleteAllConfirm,
-                    isPresented: $showDeleteAllConfirm,
-                    titleVisibility: .visible
-                ) {
-                    Button(L10n.privacyDeleteAll, role: .destructive) {
-                        viewModel.deleteAllUserData()
-                        draft = viewModel.activeSettings
-                        viewModel.showSuccessToast(L10n.feedbackDataDeleted)
-                    }
-                    Button(L10n.editCancel, role: .cancel) {}
-                }
-                .confirmationDialog(
-                    L10n.syncDisableConfirm,
-                    isPresented: $showDisableSyncConfirm,
-                    titleVisibility: .visible
-                ) {
-                    Button(L10n.syncDisableKeepCloud, role: .destructive) {
-                        viewModel.disableICloudSync(deleteRemoteData: false)
-                    }
-                    Button(L10n.syncDisableDeleteCloud, role: .destructive) {
-                        viewModel.disableICloudSync(deleteRemoteData: true)
-                    }
-                    Button(L10n.editCancel, role: .cancel) {
-                        viewModel.isICloudSyncEnabled = true
-                    }
-                }
-                .sheet(isPresented: $showFullDataExport) {
-                    FullDataExportSheet(viewModel: viewModel)
-                }
-                .sheet(isPresented: $showContactSupport) {
-                    ContactSupportSheet(viewModel: viewModel)
-                }
-                .onReceive(NotificationCenter.default.publisher(for: WidgetNudge.openGuide)) { _ in
-                    openWidgetGuideFromReminder()
-                }
-                .onAppear {
-                    if WidgetNudge.pendingGuide { openWidgetGuideFromReminder() }
-                }
-                .sheet(isPresented: $showWidgetGuide) {
-                    WidgetInstallGuideView(installedCount: widgetInstallCount)
-                }
-                .sheet(isPresented: $showAccountSheet) {
-                    AccountSheet(viewModel: viewModel)
-                }
-                .fileImporter(
-                    isPresented: $showFullDataImporter,
-                    allowedContentTypes: [.json],
-                    allowsMultipleSelection: false
-                ) { result in
-                    handleFullDataImport(result)
-                }
-                .confirmationDialog(
-                    L10n.fullImportConfirmTitle,
-                    isPresented: $showImportConfirm,
-                    titleVisibility: .visible
-                ) {
-                    Button(L10n.fullImportReplace, role: .destructive) {
-                        applyFullDataImport(mode: .replace)
-                    }
-                    Button(L10n.fullImportMerge) {
-                        applyFullDataImport(mode: .merge)
-                    }
-                    Button(L10n.editCancel, role: .cancel) {
-                        pendingImportDocument = nil
-                    }
-                } message: {
-                    if let doc = pendingImportDocument {
-                        Text(L10n.fullImportConfirmMessage(doc.sessions.count, doc.appVersion))
-                    } else {
-                        Text(L10n.fullImportConfirmFallback)
-                    }
-                }
-                .alert(
-                    L10n.errorTitle,
-                    isPresented: Binding(
-                        get: { importErrorMessage != nil },
-                        set: { if !$0 { importErrorMessage = nil } }
-                    )
-                ) {
-                    Button(L10n.errorOK, role: .cancel) { importErrorMessage = nil }
-                } message: {
-                    Text(importErrorMessage ?? "")
-                }
-            }
-            .onDisappear {
-                // Plain transient-UI resets on leave. The former `.id(navigationResetID)`
-                // "comes back closed" reset was REMOVED: bumping that id from inside this
-                // same view's onDisappear changed the NavigationStack's identity, which
-                // re-fired onAppear/onDisappear and bumped the id again — an infinite
-                // render loop that starved the main thread and killed the app (code 9).
-                // None of these plain @State resets change navigation identity, so they
-                // can't re-trigger the lifecycle. Settings now keeps its navigation
-                // position across tab switches (standard, loop-free behavior).
-                if !hasUnsavedChanges { reloadFromStore() }
-                showAccountSheet = false
-                showDeleteAllConfirm = false
-                showFullDataExport = false
-                showFullDataImporter = false
-                pendingImportDocument = nil
-                showImportConfirm = false
-                importErrorMessage = nil
-                showContactSupport = false
-                showWidgetGuide = false
-                showDisableSyncConfirm = false
-                isEditingIDNumber = false
-                showAddWorkplace = false
+            Button {
                 newWorkplaceName = ""
+                showAddWorkplace = true
+            } label: {
+                accentLabel(L10n.workplaceAdd, icon: "plus.circle.fill")
+            }
+            .accessibilityIdentifier("settings.addWorkplace")
+            Text(viewModel.hasMultipleWorkplaces ? L10n.workplacesHintActive : L10n.workplacesHint)
+        }
+        .alert(L10n.workplaceAdd, isPresented: $showAddWorkplace) {
+            TextField(L10n.workplaceNamePlaceholder, text: $newWorkplaceName)
+            Button(L10n.workplaceAddConfirm) {
+                if hasUnsavedChanges { onSave() }
+                viewModel.addWorkplace(named: newWorkplaceName)
+            }
+            Button(L10n.editCancel, role: .cancel) {}
+        } message: {
+            Text(L10n.workplaceAddMessage)
+        }
+        .alert(
+            L10n.workplaceDeleteConfirmTitle,
+            isPresented: Binding(
+                get: { workplacePendingDelete != nil },
+                set: { if !$0 { workplacePendingDelete = nil } }
+            )
+        ) {
+            Button(L10n.workplaceDelete, role: .destructive) {
+                if let id = workplacePendingDelete?.workplaceID {
+                    viewModel.deleteWorkplace(id)
+                }
                 workplacePendingDelete = nil
             }
-        }
-    }
-
-    // MARK: - Row Components & Helpers
-
-    private var accountSection: some View {
-        Section {
-            Button {
-                showAccountSheet = true
-            } label: {
-                HStack(spacing: 14) {
-                    ZStack {
-                        Circle()
-                            .fill(homeTheme.accent.opacity(0.15))
-                            .frame(width: 44, height: 44)
-                        Image(systemName: accountAuth.isSignedIn ? "checkmark.seal.fill" : "person.crop.circle")
-                            .font(.system(size: 20))
-                            .foregroundStyle(homeTheme.accent)
-                    }
-                    VStack(alignment: .leading, spacing: 3) {
-                        Text(profileDisplayName)
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(.primary)
-                        Text(
-                            accountAuth.isSignedIn
-                                ? L10n.accountSignedInAs(accountAuth.currentEmail ?? "")
-                                : L10n.accountSignedOutHint
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        HStack(spacing: 6) {
-                            Text(verbatim: LocalPlaceholderUserID.current())
-                                .font(.caption2.monospaced().weight(.semibold))
-                                .foregroundStyle(.secondary)
-                            Button(action: copyPlaceholderUserID) {
-                                Image(systemName: "doc.on.doc")
-                                    .font(.caption2)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(L10n.settingsCopyUserID)
-                        }
-                    }
-                    Spacer(minLength: 0)
-                    Image(systemName: "chevron.right")
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(.tertiary)
-                }
-                .padding(.vertical, 6)
-            }
-            .buttonStyle(.plain)
-            .accessibilityIdentifier("settings.account")
+            Button(L10n.editCancel, role: .cancel) { workplacePendingDelete = nil }
+        } message: {
+            Text(L10n.workplaceDeleteConfirmMessage(
+                workplacePendingDelete?.workplaceID.map { viewModel.shiftCount(in: $0) } ?? 0
+            )).font(.footnote).foregroundStyle(.secondary)
         }
     }
 
@@ -485,36 +272,66 @@ struct SettingsView: View {
             sectionHeader(L10n.settingsWorkerInfo, icon: "person.text.rectangle.fill")
             TextField(L10n.settingsFullName, text: $draft.workerFullName)
                 .accessibilityIdentifier("settings.fullName")
-            if isEditingIDNumber {
-                TextField(L10n.settingsIDNumber, text: $draft.workerIDNumber)
-                    .keyboardType(.numberPad)
-                    .accessibilityIdentifier("settings.idNumber")
-                if IsraeliIDValidator.shouldWarn(for: draft.workerIDNumber) {
+            Group {
+                if isEditingIDNumber {
+                    // Digits read naturally left-to-right even in this RTL screen.
+                    TextField(L10n.settingsIDNumber, text: $draft.workerIDNumber)
+                        .keyboardType(.numberPad)
+                        .multilineTextAlignment(.leading)
+                        .accessibilityIdentifier("settings.idNumber")
+                    // Always present (never inserted/removed) so this row's height
+                    // never changes while typing — toggling it in and out via `if`
+                    // triggered the same stale-cell-bitmap redraw bug as the
+                    // masked/editing swap above, but on every keystroke instead of
+                    // once, since each checksum-validity change resized the row.
                     Text(L10n.settingsIDChecksumWarning)
                         .font(.caption)
                         .foregroundStyle(.orange)
-                }
-                Button(L10n.settingsHideIDNumber) {
-                    isEditingIDNumber = false
-                }
-            } else {
-                HStack {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(L10n.settingsIDNumber)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        Text(AppLockPolicy.maskedNationalID(draft.workerIDNumber))
-                            .font(.body.monospacedDigit())
-                            .accessibilityLabel(L10n.settingsIDNumberMasked)
+                        .opacity(IsraeliIDValidator.shouldWarn(for: draft.workerIDNumber) ? 1 : 0)
+                        .accessibilityHidden(!IsraeliIDValidator.shouldWarn(for: draft.workerIDNumber))
+                    Button(L10n.settingsHideIDNumber) {
+                        setEditingIDNumber(false)
                     }
-                    Spacer()
-                    Button(L10n.settingsEditIDNumber) {
-                        isEditingIDNumber = true
+                } else {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(L10n.settingsIDNumber)
+                                .font(.subheadline)
+                                .foregroundStyle(.secondary)
+                            Text(AppLockPolicy.maskedNationalID(draft.workerIDNumber))
+                                .font(.body.monospacedDigit())
+                                .accessibilityLabel(L10n.settingsIDNumberMasked)
+                        }
+                        Spacer()
+                        Button(L10n.settingsEditIDNumber) {
+                            setEditingIDNumber(true)
+                        }
                     }
                 }
             }
+            // Forces UIKit's table-view cell for this row to be treated as a brand
+            // new cell (not a recycled one) whenever the masked/editing branch
+            // swaps — without this, the row that appears right after the swap can
+            // keep showing a stale, blank snapshot of the text layer until some
+            // unrelated layout pass (e.g. losing focus) forces a redraw.
+            .id(isEditingIDNumber)
             TextField(L10n.settingsEmployeeNumber, text: $draft.employeeNumber)
                 .accessibilityIdentifier("settings.employeeNumber")
+        }
+    }
+
+    /// Swapping the masked `Text` row for the editable `TextField` (and back) is a
+    /// row insert/delete in this `Form`'s underlying table view. Doing that under
+    /// SwiftUI's default implicit animation leaves the new `TextField` mid-transition
+    /// when the user immediately taps in and starts typing, so the typed digits land
+    /// in the bound value (Save activates, the checksum warning reacts) but the text
+    /// layer never repaints until some unrelated layout pass — e.g. losing focus —
+    /// forces it. Disabling the animation for just this toggle avoids that race.
+    private func setEditingIDNumber(_ editing: Bool) {
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            isEditingIDNumber = editing
         }
     }
 
@@ -696,58 +513,232 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
         }
     }
+}
 
-    private var syncRows: some View {
-        Group {
-            sectionHeader(L10n.syncSection, icon: "icloud.fill")
-            Toggle(L10n.syncEnabled, isOn: Binding(
-                get: { viewModel.isICloudSyncEnabled },
-                set: { newValue in
-                    if newValue {
-                        viewModel.isICloudSyncEnabled = true
-                    } else if viewModel.isICloudSyncEnabled {
-                        showDisableSyncConfirm = true
+/// Shared "Save" toolbar button — `WorkGroupPage` (and future extracted pages)
+/// take `hasUnsavedChanges`/`action` from `SettingsView` rather than owning
+/// this state themselves, since it's the SAME save/discard state as the rest
+/// of Settings, not something each page should compute independently.
+struct SettingsSaveButton: View {
+    let hasUnsavedChanges: Bool
+    let accent: Color
+    let action: () -> Void
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 5) {
+                if hasUnsavedChanges {
+                    Circle()
+                        .fill(DS.Palette.ink)
+                        .frame(width: 6, height: 6)
+                        .accessibilityHidden(true)
+                }
+                Text(L10n.settingsSave)
+                    .font(.subheadline.weight(.semibold))
+            }
+            .foregroundStyle(hasUnsavedChanges ? DS.Palette.ink : Color.secondary)
+            .animation(DS.Motion.state, value: hasUnsavedChanges)
+        }
+        .buttonStyle(.borderedProminent)
+        .buttonBorderShape(.capsule)
+        .tint(accent)
+        .disabled(!hasUnsavedChanges)
+        .accessibilityValue(hasUnsavedChanges ? L10n.settingsUnsavedTitle : "")
+        .accessibilityIdentifier("settings.save")
+    }
+}
+
+/// Not a `NavigationLink` destination (it's a plain `Section` inlined directly
+/// into `SettingsView`'s `Form`), so it was never subject to the same
+/// generic-nesting issue `WorkGroupPage` fixed — extracted anyway, for a
+/// smaller `SettingsView.body` and consistency, as requested.
+struct AccountSection: View {
+    @ObservedObject var viewModel: AppViewModel
+    let workerFullName: String
+    @Binding var showAccountSheet: Bool
+
+    @ObservedObject private var homeTheme = HomeAccentTheme.shared
+    @ObservedObject private var accountAuth = SupabaseAuthManager.shared
+
+    private var profileDisplayName: String {
+        let trimmed = workerFullName.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? L10n.settingsProfileFallbackName : trimmed
+    }
+
+    private func copyPlaceholderUserID() {
+        UIPasteboard.general.string = LocalPlaceholderUserID.current()
+        UISelectionFeedbackGenerator().selectionChanged()
+        viewModel.showSuccessToast(L10n.settingsUserIDCopied)
+    }
+
+    var body: some View {
+        Section {
+            Button {
+                showAccountSheet = true
+            } label: {
+                HStack(spacing: 14) {
+                    ZStack {
+                        Circle()
+                            .fill(homeTheme.accent.opacity(0.15))
+                            .frame(width: 44, height: 44)
+                        Image(systemName: accountAuth.isSignedIn ? "checkmark.seal.fill" : "person.crop.circle")
+                            .font(.system(size: 20))
+                            .foregroundStyle(homeTheme.accent)
                     }
-                }
-            ))
-
-            Text(L10n.syncEnabledHint)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-
-            if viewModel.isICloudSyncEnabled {
-                HStack {
-                    Image(systemName: syncIcon)
-                        .foregroundStyle(syncColor)
-                    Text(syncStatusText)
-                        .font(.subheadline)
-                        .foregroundStyle(.secondary)
-                }
-
-                if case .unavailable = viewModel.syncState {
-                    Text(L10n.syncUnavailableHint)
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(profileDisplayName)
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(.primary)
+                        Text(
+                            accountAuth.isSignedIn
+                                ? L10n.accountSignedInAs(accountAuth.currentEmail ?? "")
+                                : L10n.accountSignedOutHint
+                        )
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                } else {
-                    Button {
-                        viewModel.syncNow()
-                    } label: {
-                        accentLabel(L10n.syncNow, icon: "icloud.and.arrow.up")
+                        .lineLimit(1)
+                        HStack(spacing: 6) {
+                            Text(verbatim: LocalPlaceholderUserID.current())
+                                .font(.caption2.monospaced().weight(.semibold))
+                                .foregroundStyle(.secondary)
+                            Button(action: copyPlaceholderUserID) {
+                                Image(systemName: "doc.on.doc")
+                                    .font(.caption2)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(L10n.settingsCopyUserID)
+                        }
                     }
-                    .disabled(viewModel.isSyncing)
+                    Spacer(minLength: 0)
+                    Image(systemName: "chevron.right")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(.tertiary)
+                }
+                .padding(.vertical, 6)
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("settings.account")
+        }
+    }
+}
+
+/// Same `struct` boundary fix as `WorkGroupPage` — this one IS a `NavigationLink`
+/// destination (`groupLink("privacy", ...)`), so it had the exact same issue.
+struct PrivacyGroupPage: View {
+    @ObservedObject var viewModel: AppViewModel
+    @Binding var smartScannerCloudEnabled: Bool
+    @Binding var geminiAPIKeyDraft: String
+    @Binding var secondaryAPIKeyDraft: String
+    @Binding var geminiKeyCheck: KeyCheckUIState
+    @Binding var secondaryKeyCheck: KeyCheckUIState
+    @Binding var widgetInstallCount: Int?
+    @Binding var showWidgetGuide: Bool
+    let hasUnsavedChanges: Bool
+    let onSave: () -> Void
+
+    @EnvironmentObject private var appLock: AppLockController
+    @ObservedObject private var homeTheme = HomeAccentTheme.shared
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
+
+    private func sectionHeader(_ title: String, icon: String) -> some View {
+        settingsSectionHeader(title, icon: icon, accent: homeTheme.accent)
+    }
+
+    private func accentLabel(_ title: String, icon: String) -> some View {
+        settingsAccentLabel(title, icon: icon, accent: homeTheme.accent)
+    }
+
+    private func subLink<Destination: View>(
+        _ key: String, title: String, icon: String, tint: Color? = nil,
+        @ViewBuilder destination: @escaping () -> Destination
+    ) -> some View {
+        settingsSubLink(key, title: title, icon: icon, accent: homeTheme.accent, tint: tint, destination: destination)
+    }
+
+    private func settingsPage<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        settingsSubPage(title, accent: homeTheme.accent, background: appBackground.background, content: content) {
+            SettingsSaveButton(hasUnsavedChanges: hasUnsavedChanges, accent: homeTheme.accent, action: onSave)
+        }
+    }
+
+    var body: some View {
+        settingsPage(L10n.settingsGroupPrivacy) {
+            Section {
+                subLink("lock", title: L10n.appLockSection, icon: "lock.shield.fill") {
+                    settingsPage(L10n.appLockSection) { Section { securityRows } }
+                }
+                subLink("widgets", title: L10n.settingsHideWidgetPaySection, icon: "square.grid.2x2.fill") {
+                    settingsPage(L10n.settingsHideWidgetPaySection) { Section { widgetPrivacyRows } }
+                }
+                subLink("scanner", title: L10n.scannerSection, icon: "doc.text.viewfinder") {
+                    settingsPage(L10n.scannerSection) { Section { smartScannerRows } }
+                }
+                subLink("safety", title: L10n.dataSafetySection, icon: "externaldrive.badge.checkmark") {
+                    settingsPage(L10n.dataSafetySection) { Section { dataSafetyRows } }
                 }
             }
         }
     }
 
-    private var toolsRows: some View {
+    private var securityRows: some View {
         Group {
-            sectionHeader(L10n.settingsTools, icon: "wrench.and.screwdriver.fill")
-            NavigationLink {
-                ActivityLogView(viewModel: viewModel)
-            } label: {
-                accentLabel(L10n.logTitle, icon: "list.bullet.rectangle")
+            sectionHeader(L10n.appLockSection, icon: "lock.shield.fill")
+            Toggle(L10n.appLockEnabled, isOn: $appLock.isEnabled)
+            Text(L10n.appLockHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var widgetPrivacyRows: some View {
+        Group {
+            sectionHeader(L10n.settingsHideWidgetPaySection, icon: "square.grid.2x2.fill")
+            addWidgetButton
+            Text(L10n.settingsAddWidgetHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Toggle(
+                L10n.settingsHideWidgetPay,
+                isOn: Binding(
+                    get: { WidgetBridge.hidePay },
+                    set: { newValue in
+                        WidgetBridge.hidePay = newValue
+                        viewModel.refreshLiveSurfaces()
+                    }
+                )
+            )
+            Text(L10n.settingsHideWidgetPayHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    private var addWidgetButton: some View {
+        Button {
+            Task {
+                widgetInstallCount = await WidgetBridge.installedWidgetCount()
+                showWidgetGuide = true
             }
+        } label: {
+            HStack {
+                Label(L10n.settingsAddWidgetButton, systemImage: "square.grid.2x2")
+                    .foregroundStyle(homeTheme.accent)
+                Spacer()
+                HStack(spacing: 4) {
+                    Text(L10n.settingsWidgetInstalled(widgetInstallCount ?? 0))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .redacted(reason: widgetInstallCount == nil ? .placeholder : [])
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                }
+                Image(systemName: "chevron.right")
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .task {
+            widgetInstallCount = await WidgetBridge.installedWidgetCount()
         }
     }
 
@@ -837,54 +828,6 @@ struct SettingsView: View {
         }
     }
 
-    private var profileDisplayName: String {
-        let trimmed = draft.workerFullName.trimmingCharacters(in: .whitespacesAndNewlines)
-        return trimmed.isEmpty ? L10n.settingsProfileFallbackName : trimmed
-    }
-
-    private func copyPlaceholderUserID() {
-        UIPasteboard.general.string = LocalPlaceholderUserID.current()
-        UISelectionFeedbackGenerator().selectionChanged()
-        viewModel.showSuccessToast(L10n.settingsUserIDCopied)
-    }
-
-    private func openWidgetGuideFromReminder() {
-        WidgetNudge.pendingGuide = false
-        Task {
-            widgetInstallCount = await WidgetBridge.installedWidgetCount()
-            showWidgetGuide = true
-        }
-    }
-
-    private var addWidgetButton: some View {
-        Button {
-            Task {
-                widgetInstallCount = await WidgetBridge.installedWidgetCount()
-                showWidgetGuide = true
-            }
-        } label: {
-            HStack {
-                Label(L10n.settingsAddWidgetButton, systemImage: "square.grid.2x2")
-                    .foregroundStyle(homeTheme.accent)
-                Spacer()
-                HStack(spacing: 4) {
-                    Text(L10n.settingsWidgetInstalled(widgetInstallCount ?? 0))
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .redacted(reason: widgetInstallCount == nil ? .placeholder : [])
-                    Image(systemName: "checkmark.circle.fill")
-                        .foregroundStyle(.green)
-                }
-                Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .task {
-            widgetInstallCount = await WidgetBridge.installedWidgetCount()
-        }
-    }
-
     private var dataSafetyRows: some View {
         Group {
             sectionHeader(L10n.dataSafetySection, icon: "externaldrive.badge.checkmark")
@@ -901,111 +844,545 @@ struct SettingsView: View {
             Text(L10n.dataSafetyHint).font(.footnote).foregroundStyle(.secondary)
         }
     }
+}
+
+/// Same `struct` boundary fix as `WorkGroupPage` — this one IS a `NavigationLink`
+/// destination (`groupLink("data", ...)`), so it had the exact same issue.
+struct DataGroupPage: View {
+    @ObservedObject var viewModel: AppViewModel
+    @Binding var showDisableSyncConfirm: Bool
+    let hasUnsavedChanges: Bool
+    let onSave: () -> Void
+
+    @ObservedObject private var homeTheme = HomeAccentTheme.shared
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
+
+    private func sectionHeader(_ title: String, icon: String) -> some View {
+        settingsSectionHeader(title, icon: icon, accent: homeTheme.accent)
+    }
+
+    private func accentLabel(_ title: String, icon: String) -> some View {
+        settingsAccentLabel(title, icon: icon, accent: homeTheme.accent)
+    }
+
+    private func settingsPage<Content: View>(_ title: String, @ViewBuilder content: () -> Content) -> some View {
+        settingsSubPage(title, accent: homeTheme.accent, background: appBackground.background, content: content) {
+            SettingsSaveButton(hasUnsavedChanges: hasUnsavedChanges, accent: homeTheme.accent, action: onSave)
+        }
+    }
+
+    private var syncDateFormatter: DateFormatter {
+        AppLocale.makeDateFormatter(dateStyle: .short, timeStyle: .short)
+    }
+
+    private var syncIcon: String {
+        switch viewModel.syncState {
+        case .syncing: return "arrow.triangle.2.circlepath.icloud"
+        case .synced: return "checkmark.icloud"
+        case .failed: return "exclamationmark.icloud"
+        case .unavailable: return "icloud.slash"
+        case .idle: return "icloud"
+        }
+    }
+
+    private var syncColor: Color {
+        switch viewModel.syncState {
+        case .synced: return .green
+        case .failed: return .red
+        case .unavailable: return .orange
+        default: return .secondary
+        }
+    }
+
+    private var syncStatusText: String {
+        switch viewModel.syncState {
+        case .idle:
+            return L10n.syncSynced
+        case .syncing:
+            return L10n.syncSyncing
+        case .synced(let date):
+            return L10n.syncLastSync(syncDateFormatter.string(from: date))
+        case .failed(let message):
+            return L10n.syncFailed(message)
+        case .unavailable:
+            return L10n.syncUnavailable
+        }
+    }
+
+    var body: some View {
+        settingsPage(L10n.settingsGroupData) {
+            if viewModel.isCloudSyncSupported {
+                Section { syncRows }
+            }
+            if viewModel.isAdmin {
+                Section { adminRows }
+                    // One-shot, not a 30s poll like the Dashboard's own task —
+                    // this row just needs to not show a stale 0 on first paint.
+                    // `AdminSupportModel.shared` directly (not an `@ObservedObject`
+                    // here) — this view doesn't need to redraw when the count
+                    // changes, `AdminDashboardLink` already owns that.
+                    .task { await AdminSupportModel.shared.loadUnreadCount() }
+            }
+            Section { toolsRows }
+        }
+    }
+
+    private var syncRows: some View {
+        Group {
+            sectionHeader(L10n.syncSection, icon: "icloud.fill")
+            Toggle(L10n.syncEnabled, isOn: Binding(
+                get: { viewModel.isICloudSyncEnabled },
+                set: { newValue in
+                    if newValue {
+                        viewModel.isICloudSyncEnabled = true
+                    } else if viewModel.isICloudSyncEnabled {
+                        showDisableSyncConfirm = true
+                    }
+                }
+            ))
+
+            Text(L10n.syncEnabledHint)
+                .font(.caption)
+                .foregroundStyle(.secondary)
+
+            if viewModel.isICloudSyncEnabled {
+                HStack {
+                    Image(systemName: syncIcon)
+                        .foregroundStyle(syncColor)
+                    Text(syncStatusText)
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                }
+
+                if case .unavailable = viewModel.syncState {
+                    Text(L10n.syncUnavailableHint)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    Button {
+                        viewModel.syncNow()
+                    } label: {
+                        accentLabel(L10n.syncNow, icon: "icloud.and.arrow.up")
+                    }
+                    .disabled(viewModel.isSyncing)
+                }
+            }
+        }
+    }
+
+    private var toolsRows: some View {
+        Group {
+            sectionHeader(L10n.settingsTools, icon: "wrench.and.screwdriver.fill")
+            NavigationLink {
+                ActivityLogView(viewModel: viewModel)
+            } label: {
+                accentLabel(L10n.logTitle, icon: "list.bullet.rectangle")
+            }
+        }
+    }
 
     private var adminRows: some View {
         Group {
             sectionHeader(L10n.adminTitle, icon: "crown.fill")
-            NavigationLink {
-                AdminDashboardView()
-            } label: {
-                accentLabel(L10n.adminSettingsEntry, icon: "crown")
-            }
-            .badge(supportModel.unreadCount)
-            .tint(.red)
+            AdminDashboardLink()
             Text(L10n.adminSettingsFooter).font(.footnote).foregroundStyle(.secondary)
         }
     }
+}
 
-    private var securityRows: some View {
-        Group {
-            sectionHeader(L10n.appLockSection, icon: "lock.shield.fill")
-            Toggle(L10n.appLockEnabled, isOn: $appLock.isEnabled)
-            Text(L10n.appLockHint)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+struct SettingsView: View {
+    @ObservedObject var viewModel: AppViewModel
+    @ObservedObject private var appBackground = AppBackgroundTheme.shared
+    @ObservedObject private var homeTheme = HomeAccentTheme.shared
+    @ObservedObject private var accountAuth = SupabaseAuthManager.shared
+    @ObservedObject private var notificationPrefs = NotificationPreferences.shared
+    // `supportModel`/`announcements` are intentionally NOT @ObservedObject here —
+    // see `AdminDashboardLink`/`UserInboxLink` below. Subscribing at this level
+    // would invalidate this whole (large) body on every admin/announcement
+    // publish, no matter which page of Settings is on screen.
+    @EnvironmentObject private var appLock: AppLockController
+    @EnvironmentObject private var appLanguage: AppLanguageController
+
+    @State private var draft: WorkplaceSettings
+    @State private var saved: SavedSnapshot
+    @ObservedObject private var unsavedChanges = SettingsUnsavedChanges.shared
+    @State private var showAccountSheet = false
+    @State private var showDeleteAllConfirm = false
+    @State private var showFullDataExport = false
+    @State private var showFullDataImporter = false
+    @State private var pendingImportDocument: FullDataExportDocument?
+    @State private var showImportConfirm = false
+    @State private var importErrorMessage: String?
+    @State private var showContactSupport = false
+    @State private var showWidgetGuide = false
+    @State private var widgetInstallCount: Int?
+    @State private var showDisableSyncConfirm = false
+    @State private var isEditingIDNumber = false
+    @State private var smartScannerCloudEnabled = UserDefaultsSmartScannerCloudPreference.shared.isEnabled
+    @State private var geminiAPIKeyDraft = KeychainStore.string(for: .geminiAPIKey) ?? ""
+    @State private var secondaryAPIKeyDraft = KeychainStore.string(for: .secondaryAPIKey) ?? ""
+    @State private var geminiKeyCheck: KeyCheckUIState = .idle
+    @State private var secondaryKeyCheck: KeyCheckUIState = .idle
+
+    private var syncDateFormatter: DateFormatter {
+        AppLocale.makeDateFormatter(dateStyle: .short, timeStyle: .short)
+    }
+
+    @State private var showAddWorkplace = false
+    @State private var newWorkplaceName = ""
+    @State private var workplacePendingDelete: AppViewModel.WorkplaceOption?
+
+    init(viewModel: AppViewModel) {
+        self.viewModel = viewModel
+        _draft = State(initialValue: viewModel.activeSettings)
+        _saved = State(initialValue: SavedSnapshot(settings: viewModel.activeSettings))
+    }
+
+    private struct SavedSnapshot: Equatable {
+        var settings: WorkplaceSettings
+        var scannerCloudEnabled = UserDefaultsSmartScannerCloudPreference.shared.isEnabled
+        var geminiKey = KeychainStore.string(for: .geminiAPIKey) ?? ""
+        var secondaryKey = KeychainStore.string(for: .secondaryAPIKey) ?? ""
+    }
+
+    private var hasUnsavedChanges: Bool {
+        draft != saved.settings
+            || smartScannerCloudEnabled != saved.scannerCloudEnabled
+            || geminiAPIKeyDraft != saved.geminiKey
+            || secondaryAPIKeyDraft != saved.secondaryKey
+    }
+
+    private func reloadFromStore() {
+        let snapshot = SavedSnapshot(settings: viewModel.activeSettings)
+        saved = snapshot
+        draft = snapshot.settings
+        smartScannerCloudEnabled = snapshot.scannerCloudEnabled
+        geminiAPIKeyDraft = snapshot.geminiKey
+        secondaryAPIKeyDraft = snapshot.secondaryKey
+    }
+
+    private func discardChanges() {
+        withAnimation(.none) { reloadFromStore() }
+    }
+
+    private func sectionHeader(_ title: String, icon: String) -> some View {
+        Label {
+            Text(title)
+                .dsFont(.sectionHeader)
+        } icon: {
+            Image(systemName: icon)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(homeTheme.accent)
         }
     }
 
-    private var widgetPrivacyRows: some View {
-        Group {
-            sectionHeader(L10n.settingsHideWidgetPaySection, icon: "square.grid.2x2.fill")
-            addWidgetButton
-            Text(L10n.settingsAddWidgetHint)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Toggle(
-                L10n.settingsHideWidgetPay,
-                isOn: Binding(
-                    get: { WidgetBridge.hidePay },
-                    set: { newValue in
-                        WidgetBridge.hidePay = newValue
-                        viewModel.refreshLiveSurfaces()
-                    }
-                )
-            )
-            Text(L10n.settingsHideWidgetPayHint)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+    // MARK: - Navigation Components
+
+    private func groupLink<Destination: View>(
+        _ key: String,
+        title: String,
+        icon: String,
+        summary: String,
+        tint: Color? = nil,
+        @ViewBuilder destination: @escaping () -> Destination
+    ) -> some View {
+        NavigationLink {
+            destination() // NO AnyView
+        } label: {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(tint ?? homeTheme.accent)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.body.weight(.semibold))
+                    Text(summary)
+                        .font(.footnote)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            .padding(.vertical, 2)
+        }
+        .accessibilityIdentifier("settings.group.\(key)")
+    }
+
+    private func accentLabel(_ title: String, icon: String) -> some View {
+        Label {
+            Text(title)
+        } icon: {
+            Image(systemName: icon).foregroundStyle(homeTheme.accent)
         }
     }
 
-    private var workplacesRows: some View {
-        Group {
-            sectionHeader(L10n.workplacesTitle, icon: "building.2.crop.circle")
-            if viewModel.hasMultipleWorkplaces {
-                WorkplaceSwitcher(viewModel: viewModel)
-                ForEach(viewModel.workplaceOptions.dropFirst()) { option in
-                    HStack(spacing: 10) {
-                        Circle().fill(option.color).frame(width: 10, height: 10)
-                        Text(option.name)
-                        Spacer()
-                        Button(role: .destructive) {
-                            workplacePendingDelete = option
-                        } label: {
-                            Image(systemName: "trash")
+    private func subLink<Destination: View>(
+        _ key: String,
+        title: String,
+        icon: String,
+        tint: Color? = nil,
+        @ViewBuilder destination: @escaping () -> Destination
+    ) -> some View {
+        NavigationLink {
+            destination() // NO AnyView
+        } label: {
+            Label {
+                Text(title)
+            } icon: {
+                Image(systemName: icon).foregroundStyle(tint ?? homeTheme.accent)
+            }
+        }
+        .accessibilityIdentifier("settings.sub.\(key)")
+    }
+
+    private func settingsPage<Content: View>(
+        _ title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        Form {
+            content()
+        }
+        // `Form`/`List` apply an implicit insertion animation while diffing their
+        // content on first render — on a pushed screen that reads as rows hidden
+        // then popping in (e.g. `dataGroupPage`'s `if isAdmin`/`if isCloudSyncSupported`
+        // sections). `disablesAnimations` kills that unconditionally so every page
+        // built from this helper renders complete on the very first frame.
+        .transaction { $0.disablesAnimations = true }
+        .listStyle(.insetGrouped)
+        .tint(homeTheme.accent)
+        .toggleStyle(SwitchToggleStyle(tint: homeTheme.accent))
+        .symbolRenderingMode(.monochrome)
+        .scrollContentBackground(.hidden)
+        .scrollDismissesKeyboard(.interactively)
+        .keyboardDismissible()
+        .navigationTitle(title)
+        .navigationBarTitleDisplayMode(.inline)
+        .toolbarBackground(appBackground.background, for: .navigationBar)
+        .toolbarBackground(.visible, for: .navigationBar)
+        .toolbarColorScheme(.dark, for: .navigationBar)
+        .toolbar {
+            ToolbarItem(placement: .confirmationAction) { saveButton }
+        }
+    }
+
+    // MARK: - Pages
+
+    private var remindersGroupPage: some View {
+        RemindersView(viewModel: viewModel, draft: $draft)
+    }
+
+    var body: some View {
+        ZStack {
+            appBackground.background.ignoresSafeArea()
+
+            // Scoped to just the stack itself — popping a NavigationStack back to
+            // root by resetting its `.id()` is a routine, well-understood operation
+            // (apps do it constantly). This is deliberately narrower than the removed
+            // tab-level `.id(tabResetTokens[.settings])`, which reset SettingsView's
+            // entire view (and the UIKit UIHostingController TabView backs it with) —
+            // the suspected actual cause of the EXC_BAD_ACCESS this is fixing.
+            NavigationStack {
+                Form {
+                    AccountSection(viewModel: viewModel, workerFullName: draft.workerFullName, showAccountSheet: $showAccountSheet)
+                    Section {
+                        groupLink("work", title: L10n.settingsGroupWork, icon: "briefcase.fill", summary: L10n.settingsGroupWorkSummary) {
+                            WorkGroupPage(
+                                viewModel: viewModel,
+                                draft: $draft,
+                                isEditingIDNumber: $isEditingIDNumber,
+                                showAddWorkplace: $showAddWorkplace,
+                                newWorkplaceName: $newWorkplaceName,
+                                workplacePendingDelete: $workplacePendingDelete,
+                                hasUnsavedChanges: hasUnsavedChanges,
+                                onSave: saveSettings
+                            )
                         }
-                        .buttonStyle(.borderless)
-                        .accessibilityLabel(L10n.workplaceDelete)
+                        groupLink("reminders", title: L10n.settingsGroupReminders, icon: "bell.badge.fill", summary: L10n.settingsGroupRemindersSummary) { remindersGroupPage }
+                        groupLink("privacy", title: L10n.settingsGroupPrivacy, icon: "lock.shield.fill", summary: L10n.settingsGroupPrivacySummary) {
+                            PrivacyGroupPage(
+                                viewModel: viewModel,
+                                smartScannerCloudEnabled: $smartScannerCloudEnabled,
+                                geminiAPIKeyDraft: $geminiAPIKeyDraft,
+                                secondaryAPIKeyDraft: $secondaryAPIKeyDraft,
+                                geminiKeyCheck: $geminiKeyCheck,
+                                secondaryKeyCheck: $secondaryKeyCheck,
+                                widgetInstallCount: $widgetInstallCount,
+                                showWidgetGuide: $showWidgetGuide,
+                                hasUnsavedChanges: hasUnsavedChanges,
+                                onSave: saveSettings
+                            )
+                        }
+                        groupLink("data", title: L10n.settingsGroupData, icon: "externaldrive.fill", summary: L10n.settingsGroupDataSummary) {
+                            DataGroupPage(
+                                viewModel: viewModel,
+                                showDisableSyncConfirm: $showDisableSyncConfirm,
+                                hasUnsavedChanges: hasUnsavedChanges,
+                                onSave: saveSettings
+                            )
+                        }
+                    }
+                    languageSection
+                    aboutSection
+                    dangerZoneSection
+                    shareAppSection
+                }
+                .listStyle(.insetGrouped)
+                .scrollContentBackground(.hidden)
+                .background(Color.black)
+                .tint(homeTheme.accent)
+                .toggleStyle(SwitchToggleStyle(tint: homeTheme.accent))
+                .symbolRenderingMode(.monochrome)
+                .scrollDismissesKeyboard(.interactively)
+                .keyboardDismissible()
+                .navigationTitle(L10n.settingsTitle)
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbarBackground(appBackground.background, for: .navigationBar)
+                .toolbarBackground(.visible, for: .navigationBar)
+                .toolbarColorScheme(.dark, for: .navigationBar)
+                .toolbar {
+                    ToolbarItem(placement: .confirmationAction) {
+                        saveButton
+                    }
+                    ToolbarItem(placement: .topBarLeading) {
+                        AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
                     }
                 }
-            }
-            Button {
-                newWorkplaceName = ""
-                showAddWorkplace = true
-            } label: {
-                accentLabel(L10n.workplaceAdd, icon: "plus.circle.fill")
-            }
-            .accessibilityIdentifier("settings.addWorkplace")
-            Text(viewModel.hasMultipleWorkplaces ? L10n.workplacesHintActive : L10n.workplacesHint)
-        }
-        .alert(L10n.workplaceAdd, isPresented: $showAddWorkplace) {
-            TextField(L10n.workplaceNamePlaceholder, text: $newWorkplaceName)
-            Button(L10n.workplaceAddConfirm) {
-                if hasUnsavedChanges { saveSettings() }
-                viewModel.addWorkplace(named: newWorkplaceName)
-            }
-            Button(L10n.editCancel, role: .cancel) {}
-        } message: {
-            Text(L10n.workplaceAddMessage)
-        }
-        .alert(
-            L10n.workplaceDeleteConfirmTitle,
-            isPresented: Binding(
-                get: { workplacePendingDelete != nil },
-                set: { if !$0 { workplacePendingDelete = nil } }
-            )
-        ) {
-            Button(L10n.workplaceDelete, role: .destructive) {
-                if let id = workplacePendingDelete?.workplaceID {
-                    viewModel.deleteWorkplace(id)
+                .onAppear {
+                    if !hasUnsavedChanges {
+                        reloadFromStore()
+                    }
+                    viewModel.refreshLocationPermissionStatuses()
                 }
+                .onChange(of: viewModel.activeSettings) { _, _ in
+                    if !hasUnsavedChanges {
+                        reloadFromStore()
+                    }
+                }
+                .onChange(of: viewModel.activeWorkplaceID) { _, _ in
+                    reloadFromStore()
+                }
+                .onChange(of: hasUnsavedChanges, initial: true) { _, dirty in
+                    unsavedChanges.update(hasChanges: dirty, save: saveSettings, discard: discardChanges)
+                }
+                .confirmationDialog(
+                    L10n.privacyDeleteAllConfirm,
+                    isPresented: $showDeleteAllConfirm,
+                    titleVisibility: .visible
+                ) {
+                    Button(L10n.privacyDeleteAll, role: .destructive) {
+                        viewModel.deleteAllUserData()
+                        draft = viewModel.activeSettings
+                        viewModel.showSuccessToast(L10n.feedbackDataDeleted)
+                    }
+                    Button(L10n.editCancel, role: .cancel) {}
+                }
+                .confirmationDialog(
+                    L10n.syncDisableConfirm,
+                    isPresented: $showDisableSyncConfirm,
+                    titleVisibility: .visible
+                ) {
+                    Button(L10n.syncDisableKeepCloud, role: .destructive) {
+                        viewModel.disableICloudSync(deleteRemoteData: false)
+                    }
+                    Button(L10n.syncDisableDeleteCloud, role: .destructive) {
+                        viewModel.disableICloudSync(deleteRemoteData: true)
+                    }
+                    Button(L10n.editCancel, role: .cancel) {
+                        viewModel.isICloudSyncEnabled = true
+                    }
+                }
+                .sheet(isPresented: $showFullDataExport) {
+                    FullDataExportSheet(viewModel: viewModel)
+                }
+                .sheet(isPresented: $showContactSupport) {
+                    ContactSupportSheet(viewModel: viewModel)
+                }
+                .onReceive(NotificationCenter.default.publisher(for: WidgetNudge.openGuide)) { _ in
+                    openWidgetGuideFromReminder()
+                }
+                .onAppear {
+                    if WidgetNudge.pendingGuide { openWidgetGuideFromReminder() }
+                }
+                .sheet(isPresented: $showWidgetGuide) {
+                    WidgetInstallGuideView(installedCount: widgetInstallCount)
+                }
+                .sheet(isPresented: $showAccountSheet) {
+                    AccountSheet(viewModel: viewModel)
+                }
+                .fileImporter(
+                    isPresented: $showFullDataImporter,
+                    allowedContentTypes: [.json],
+                    allowsMultipleSelection: false
+                ) { result in
+                    handleFullDataImport(result)
+                }
+                .confirmationDialog(
+                    L10n.fullImportConfirmTitle,
+                    isPresented: $showImportConfirm,
+                    titleVisibility: .visible
+                ) {
+                    Button(L10n.fullImportReplace, role: .destructive) {
+                        applyFullDataImport(mode: .replace)
+                    }
+                    Button(L10n.fullImportMerge) {
+                        applyFullDataImport(mode: .merge)
+                    }
+                    Button(L10n.editCancel, role: .cancel) {
+                        pendingImportDocument = nil
+                    }
+                } message: {
+                    if let doc = pendingImportDocument {
+                        Text(L10n.fullImportConfirmMessage(doc.sessions.count, doc.appVersion))
+                    } else {
+                        Text(L10n.fullImportConfirmFallback)
+                    }
+                }
+                .alert(
+                    L10n.errorTitle,
+                    isPresented: Binding(
+                        get: { importErrorMessage != nil },
+                        set: { if !$0 { importErrorMessage = nil } }
+                    )
+                ) {
+                    Button(L10n.errorOK, role: .cancel) { importErrorMessage = nil }
+                } message: {
+                    Text(importErrorMessage ?? "")
+                }
+            }
+            .onDisappear {
+                // Plain transient-UI resets on leave. The former `.id(navigationResetID)`
+                // "comes back closed" reset was REMOVED: bumping that id from inside this
+                // same view's onDisappear changed the NavigationStack's identity, which
+                // re-fired onAppear/onDisappear and bumped the id again — an infinite
+                // render loop that starved the main thread and killed the app (code 9).
+                // None of these plain @State resets change navigation identity, so they
+                // can't re-trigger the lifecycle. Settings now keeps its navigation
+                // position across tab switches (standard, loop-free behavior).
+                if !hasUnsavedChanges { reloadFromStore() }
+                showAccountSheet = false
+                showDeleteAllConfirm = false
+                showFullDataExport = false
+                showFullDataImporter = false
+                pendingImportDocument = nil
+                showImportConfirm = false
+                importErrorMessage = nil
+                showContactSupport = false
+                showWidgetGuide = false
+                showDisableSyncConfirm = false
+                isEditingIDNumber = false
+                showAddWorkplace = false
+                newWorkplaceName = ""
                 workplacePendingDelete = nil
             }
-            Button(L10n.editCancel, role: .cancel) { workplacePendingDelete = nil }
-        } message: {
-            Text(L10n.workplaceDeleteConfirmMessage(
-                workplacePendingDelete?.workplaceID.map { viewModel.shiftCount(in: $0) } ?? 0
-            )).font(.footnote).foregroundStyle(.secondary)
+        }
+    }
+
+    // MARK: - Row Components & Helpers
+
+    private func openWidgetGuideFromReminder() {
+        WidgetNudge.pendingGuide = false
+        Task {
+            widgetInstallCount = await WidgetBridge.installedWidgetCount()
+            showWidgetGuide = true
         }
     }
 
@@ -1066,14 +1443,7 @@ struct SettingsView: View {
                 .foregroundStyle(.secondary)
             }
 
-            NavigationLink {
-                UserInboxView()
-            } label: {
-                accentLabel(L10n.settingsInboxEntry, icon: "tray.full")
-            }
-            .badge(announcements.unreadHistoryCount)
-            .tint(.red)
-            .accessibilityIdentifier("settings.inbox")
+            UserInboxLink()
 
             Button {
                 showContactSupport = true
@@ -1197,39 +1567,6 @@ struct SettingsView: View {
         return "\(short) (\(build))"
     }
 
-    private var syncIcon: String {
-        switch viewModel.syncState {
-        case .syncing: return "arrow.triangle.2.circlepath.icloud"
-        case .synced: return "checkmark.icloud"
-        case .failed: return "exclamationmark.icloud"
-        case .unavailable: return "icloud.slash"
-        case .idle: return "icloud"
-        }
-    }
-
-    private var syncColor: Color {
-        switch viewModel.syncState {
-        case .synced: return .green
-        case .failed: return .red
-        case .unavailable: return .orange
-        default: return .secondary
-        }
-    }
-
-    private var syncStatusText: String {
-        switch viewModel.syncState {
-        case .idle:
-            return L10n.syncSynced
-        case .syncing:
-            return L10n.syncSyncing
-        case .synced(let date):
-            return L10n.syncLastSync(syncDateFormatter.string(from: date))
-        case .failed(let message):
-            return L10n.syncFailed(message)
-        case .unavailable:
-            return L10n.syncUnavailable
-        }
-    }
 }
 
 struct UsualScheduleView: View {

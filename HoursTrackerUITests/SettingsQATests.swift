@@ -55,4 +55,41 @@ final class SettingsQATests: XCTestCase {
         }
         XCTAssertTrue(toggle.waitForExistence(timeout: 5))
     }
+
+    func testWorkplacePageDoesNotCrash() {
+        openSettings()
+        // Settings -> Work -> Workplace is two levels deep (`WorkGroupPage`, then
+        // its own "workplace" subLink) — this was missing the first tap entirely.
+        let workGroupLink = app.buttons["settings.group.work"]
+        XCTAssertTrue(workGroupLink.waitForExistence(timeout: 10), "Work group row not found")
+        workGroupLink.tap()
+        let workplaceLink = app.buttons["settings.sub.workplace"]
+        XCTAssertTrue(workplaceLink.waitForExistence(timeout: 10), "Workplace row not found")
+        workplaceLink.tap()
+        XCTAssertTrue(app.buttons["settings.addWorkplace"].waitForExistence(timeout: 10), "Workplace page (WorkGroupPage) never rendered")
+        XCTAssertEqual(app.state, .runningForeground, "App crashed or backgrounded after opening Workplace page")
+    }
+
+    func testPrivacyGroupPageDoesNotCrash() {
+        openSettings()
+        let privacyLink = app.buttons["settings.group.privacy"]
+        XCTAssertTrue(privacyLink.waitForExistence(timeout: 10), "Privacy group row not found")
+        privacyLink.tap()
+        for key in ["lock", "widgets", "scanner", "safety"] {
+            let subLink = app.buttons["settings.sub.\(key)"]
+            XCTAssertTrue(subLink.waitForExistence(timeout: 10), "\(key) row not found (PrivacyGroupPage)")
+            subLink.tap()
+            XCTAssertEqual(app.state, .runningForeground, "App crashed opening Privacy/\(key) page")
+            app.navigationBars.buttons.element(boundBy: 0).tap()
+        }
+    }
+
+    func testDataGroupPageDoesNotCrash() {
+        openSettings()
+        let dataLink = app.buttons["settings.group.data"]
+        XCTAssertTrue(dataLink.waitForExistence(timeout: 10), "Data group row not found")
+        dataLink.tap()
+        XCTAssertTrue(app.buttons["settings.save"].waitForExistence(timeout: 10), "DataGroupPage never rendered")
+        XCTAssertEqual(app.state, .runningForeground, "App crashed opening Data page")
+    }
 }

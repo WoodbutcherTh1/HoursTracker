@@ -9,12 +9,10 @@ struct AdminDashboardView: View {
     @State private var errorMessage: String?
     @State private var userLookupQuery = ""
     @ObservedObject private var supportModel = AdminSupportModel.shared
-    /// Only runs while this screen is actually on screen (started in `onAppear`,
-    /// invalidated in `onDisappear`) — a background admin isn't polling Supabase.
-    @State private var unreadPollTimer: Timer?
-    /// Belt-and-suspenders refresh while the dashboard is open; the badge's real
-    /// updates are event-driven (open, foreground, inbox dismissed), not this.
-    private static let unreadPollInterval: TimeInterval = 60
+    // Polling timer removed for now while we track down a reported main-thread
+    // hang on the Admin account (v1.13 will re-add it once confirmed safe). The
+    // badge still refreshes on open (`.task` below) and on foreground
+    // (`willEnterForegroundNotification`) — just not on a 60s loop anymore.
 
     var body: some View {
         List {
@@ -65,15 +63,6 @@ struct AdminDashboardView: View {
             // Opened: the badge should reflect reality right away, not whatever
             // it last happened to be.
             await supportModel.loadUnreadCount()
-        }
-        .onAppear {
-            unreadPollTimer = Timer.scheduledTimer(withTimeInterval: Self.unreadPollInterval, repeats: true) { _ in
-                Task { await supportModel.loadUnreadCount() }
-            }
-        }
-        .onDisappear {
-            unreadPollTimer?.invalidate()
-            unreadPollTimer = nil
         }
         .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
             Task { await supportModel.loadUnreadCount() }
@@ -132,7 +121,7 @@ struct AdminDashboardView: View {
                 statRow(L10n.adminStatWatch, stats.withWatch)
                 statRow(L10n.adminStatWidget, stats.withWidget)
                 breakdownRow(L10n.adminStatLanguages, stats.byLanguage)
-                breakdownRow(L10n.adminStatVersions, stats.byVersion)
+                versionBreakdownRow(L10n.adminStatVersions, stats.byVersion)
             } else if loadingStats {
                 ProgressView()
             }
@@ -158,6 +147,39 @@ struct AdminDashboardView: View {
                 .font(.caption)
                 .foregroundStyle(.secondary)
         }
+    }
+
+    /// Like `breakdownRow`, but orders by version number (ascending) instead of
+    /// by count — "1.7, 1.8, 1.10, 1.11", not the lexicographic "1.10, 1.11, 1.8, 1.7"
+    /// you get from comparing version strings character-by-character.
+    private func versionBreakdownRow(_ title: String, _ values: [String: Int]) -> some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(title)
+            Text(verbatim: values.sorted { Self.compareVersions($0, $1) }
+                .map { "\($0.key): \($0.value)" }
+                .joined(separator: " · "))
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+
+    /// Ascending comparator for dotted version strings ("1.7" < "1.8" < "1.10"),
+    /// comparing each dot-separated component numerically rather than as text.
+    /// Falls back to a plain string comparison for anything non-numeric (e.g. "?").
+    private static func compareVersions(_ lhs: (key: String, value: Int), _ rhs: (key: String, value: Int)) -> Bool {
+        let lhsParts = lhs.key.split(separator: ".").map { Int($0) }
+        let rhsParts = rhs.key.split(separator: ".").map { Int($0) }
+        guard !lhsParts.contains(nil), !rhsParts.contains(nil) else {
+            return lhs.key < rhs.key
+        }
+        let lhsNums = lhsParts.map { $0! }
+        let rhsNums = rhsParts.map { $0! }
+        for i in 0..<max(lhsNums.count, rhsNums.count) {
+            let l = i < lhsNums.count ? lhsNums[i] : 0
+            let r = i < rhsNums.count ? rhsNums[i] : 0
+            if l != r { return l < r }
+        }
+        return false
     }
 
     private func loadStats() async {

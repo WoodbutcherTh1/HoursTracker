@@ -254,6 +254,8 @@ enum L10n {
     static func homeStatsGoal(_ target: CustomStringConvertible) -> String {
         String(format: t("home.stats.goal %@"), "\(target)")
     }
+    static var homeStatsGoalInfoLabel: String { t("home.stats.goalInfoLabel") }
+    static var homeStatsGoalInfoBody: String { t("home.stats.goalInfoBody") }
     static var homeStatsMoveEarlier: String { t("home.stats.moveEarlier") }
     static var homeStatsMoveLater: String { t("home.stats.moveLater") }
     static var homeThemeTip: String { t("home.theme.tip") }
@@ -775,6 +777,7 @@ enum L10n {
     static var supportChatAttachPhoto: String { t("supportChat.attachPhoto") }
     static var supportChatAttachmentLocalOnly: String { t("supportChat.attachmentLocalOnly") }
     static var supportChatAutoReplyTag: String { t("supportChat.autoReplyTag") }
+    static var supportChatCopy: String { t("supportChat.copy") }
     static var supportChatErrorLimit: String { t("supportChat.error.limit") }
     static var supportChatErrorGeneric: String { t("supportChat.error.generic") }
     static var supportChatErrorNetwork: String { t("supportChat.error.network") }

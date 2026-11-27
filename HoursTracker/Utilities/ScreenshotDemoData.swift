@@ -30,7 +30,19 @@ extension AppViewModel {
         UserDefaults.standard.set(true, forKey: "homeStatsReorderHintDismissed")
         var settings = WorkplaceSettings.default
         settings.workplaceName = "Riverside Café"
-        settings.workerFullName = "Alex Morgan"
+        // ── App Store screenshots: a native-looking greeting name per language, so
+        // "Good evening, …" reads naturally in each store locale. DEBUG-only and gated
+        // behind UITEST_SCREENSHOTS (this whole file is `#if DEBUG`), so it can NEVER run
+        // in a Release/Archive build — the real app always uses the user's own name.
+        // An explicit `UITEST_WORKER_NAME <name>` still overrides this below.
+        // Remove this switch if you no longer want localized screenshot names.
+        switch AppLocale.current {
+        case .hebrew:  settings.workerFullName = "דוד"       // David
+        case .arabic:  settings.workerFullName = "أحمد"      // Ahmed
+        case .russian: settings.workerFullName = "Иван"      // Ivan
+        case .thai:    settings.workerFullName = "สมชาย"      // Somchai
+        case .english: settings.workerFullName = "John"
+        }
         settings.employeeNumber = "EMP-2291"
         settings.hourlyRate = 55
         settings.dailyGasAllowance = 35

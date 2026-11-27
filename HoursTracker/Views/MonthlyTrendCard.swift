@@ -21,7 +21,55 @@ struct MonthlyTrendCard: View {
     @EnvironmentObject private var appLanguage: AppLanguageController
     @ObservedObject private var homeTheme = HomeAccentTheme.shared
 
-    private var points: [MonthlyTrendPoint] {
+    /// Filled by `recomputePoints()` off the main actor — `points` used to be a
+    /// computed property re-run (each pass: 6 months × `OvertimeCalculator.aggregate`
+    /// over the FULL session history) every time `body` touched it, which `chart`,
+    /// `maxHours`, `averageMonthlyPay` and the empty-state check each did
+    /// independently — up to 5 full recomputations per render. On a history of a
+    /// few years that synchronous multiplication was the actual cost behind
+    /// History's multi-second hang on first appearance; this computes once, off
+    /// the main thread, and only hops back to assign the finished arrays.
+    @State private var points: [MonthlyTrendPoint] = []
+    @State private var averageMonthlyPay: Double = 0
+    @State private var maxHours: Double = 1
+
+    /// Everything `recomputePoints()` reads — `.task(id:)` only reruns when this
+    /// actually changes (all members are `Equatable`), instead of on every publish.
+    private struct TrendInputs: Equatable {
+        let sessions: [WorkSession]
+        let settings: WorkplaceSettings
+        let localeID: String
+    }
+
+    private var trendInputs: TrendInputs {
+        TrendInputs(
+            sessions: viewModel.workSessions,
+            settings: viewModel.activeSettings,
+            localeID: appLanguage.locale.identifier
+        )
+    }
+
+    private func recomputePoints(_ inputs: TrendInputs) async {
+        let computed = await Task.detached(priority: .userInitiated) {
+            Self.computeTrend(sessions: inputs.sessions, settings: inputs.settings, localeID: inputs.localeID)
+        }.value
+        guard !Task.isCancelled else { return }
+        points = computed.points
+        averageMonthlyPay = computed.averagePay
+        maxHours = computed.maxHours
+    }
+
+    // `nonisolated` is load-bearing, not decoration: `MonthlyTrendCard` conforms to
+    // `View` and carries `@State`/`@ObservedObject`, so Swift infers the WHOLE type
+    // — including this `static func` — as `@MainActor` by default. Without
+    // `nonisolated`, `Task.detached` below would still have to hop back to the main
+    // actor just to call this, silently undoing the entire point of detaching: the
+    // "off the main thread" aggregation would actually run back on the main thread.
+    private nonisolated static func computeTrend(
+        sessions: [WorkSession],
+        settings: WorkplaceSettings,
+        localeID: String
+    ) -> (points: [MonthlyTrendPoint], averagePay: Double, maxHours: Double) {
         let calendar = Calendar.current
         var months: [Date] = []
         let now = Date()
@@ -32,11 +80,11 @@ struct MonthlyTrendCard: View {
         }
         let formatter = Date.FormatStyle()
             .month(.abbreviated)
-            .locale(appLanguage.locale)
+            .locale(Locale(identifier: localeID))
 
-        return months.compactMap { monthStart in
+        let points: [MonthlyTrendPoint] = months.compactMap { monthStart in
             let interval = calendar.dateInterval(of: .month, for: monthStart)
-            let monthSessions = viewModel.workSessions.filter { session in
+            let monthSessions = sessions.filter { session in
                 guard let interval else { return false }
                 return session.clockOut != nil
                     && session.clockIn >= interval.start
@@ -46,10 +94,7 @@ struct MonthlyTrendCard: View {
                 return MonthlyTrendPoint(id: monthStart, label: formatter.format(monthStart), hours: 0, pay: 0)
             }
             let hours = monthSessions.reduce(0) { $0 + $1.effectiveHours }
-            let breakdown = OvertimeCalculator.aggregate(
-                sessions: monthSessions,
-                settings: viewModel.activeSettings
-            )
+            let breakdown = OvertimeCalculator.aggregate(sessions: monthSessions, settings: settings)
             return MonthlyTrendPoint(
                 id: monthStart,
                 label: formatter.format(monthStart),
@@ -57,16 +102,11 @@ struct MonthlyTrendCard: View {
                 pay: breakdown.totalPay
             )
         }
-    }
 
-    private var averageMonthlyPay: Double {
         let paid = points.filter { $0.pay > 0 }
-        guard !paid.isEmpty else { return 0 }
-        return paid.reduce(0) { $0 + $1.pay } / Double(paid.count)
-    }
-
-    private var maxHours: Double {
-        max(points.map(\.hours).max() ?? 0, 1)
+        let averagePay = paid.isEmpty ? 0 : paid.reduce(0) { $0 + $1.pay } / Double(paid.count)
+        let maxHours = max(points.map(\.hours).max() ?? 0, 1)
+        return (points, averagePay, maxHours)
     }
 
     var body: some View {
@@ -109,6 +149,9 @@ struct MonthlyTrendCard: View {
         // Cutting the transaction's animation here keeps the chart static unless its
         // own data (`points`) actually changes.
         .transaction { $0.animation = nil }
+        .task(id: trendInputs) {
+            await recomputePoints(trendInputs)
+        }
     }
 
     private var emptyState: some View {

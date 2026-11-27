@@ -105,18 +105,18 @@ struct HomeView: View {
 
     private var breaksArePaid: Bool { viewModel.activeSettings.breaksArePaid }
 
+    /// Natural (unscaled) height of the top content, measured by the hidden probe and
+    /// fed to `HomeFitScale` so the top scales to fit the space above the graph.
     @State private var naturalContentHeight: CGFloat = 0
+    @State private var showDailyGoalInfo = false
 
-    /// How much the GeometryReader is shrunk at the bottom so content clears iOS 26's
-    /// floating ("Liquid Glass") tab bar. Clock state needs different amounts:
-    /// - **Clocked in**: the tall live-timer layout needs a big reserve so the sparkline
-    ///   isn't pushed under the bar.
-    /// - **Clocked out**: the short layout is stretched to fill the available height, so
-    ///   a big reserve just opens a dead black gap between the graph and the bar; a small
-    ///   one lets it drop to a comfortable margin above the bar.
-    /// Tunable knobs — nudge per state if the gap/clearance isn't quite right.
-    private static let homeBottomReserveClockedIn: CGFloat = 120
-    private static let homeBottomReserveClockedOut: CGFloat = 40
+    /// Height the fixed (never-scaled) week graph reserves at the bottom of the screen —
+    /// its own ~130pt plus `sparklineBottomInset` plus a little margin. The top content
+    /// scales to fit `geo.height - this`, so nothing scrolls and nothing overlaps the
+    /// graph. Tunable.
+    private static let sparklineReserveHeight: CGFloat = 180
+    /// Gap between the graph and the floating tab bar.
+    private static let sparklineBottomInset: CGFloat = 40
 
     var body: some View {
         NavigationStack {
@@ -133,95 +133,79 @@ struct HomeView: View {
                 // see, which is what made switching tabs feel laggy app-wide.
                 if isHomeVisible {
                     GeometryReader { geo in
-                    // Clamp once at the source: during a tab-switch transition (and
-                    // briefly on iOS 26's floating tab bar) this GeometryReader can
-                    // report a transient zero or negative size before layout settles.
-                    // Every frame calculation below derives from these two values, so
-                    // clamping here — instead of at each call site — is what actually
-                    // guarantees no `.frame()` downstream ever sees a negative or
-                    // non-finite dimension.
                     let availableWidth = max(0, geo.size.width)
-                    let availableHeight = max(0, geo.size.height)
+                    // Fit-to-screen (NO scrolling): the top content scales to fit the
+                    // space ABOVE the fixed-height graph. The graph keeps its natural
+                    // size and is never scaled.
+                    let availableHeight = max(0, geo.size.height - Self.sparklineReserveHeight)
                     let metrics = HomeLayoutMetrics(width: availableWidth, height: availableHeight)
-                    // ScrollView instead of a hard `.frame(maxHeight: .infinity)`: on
-                    // shorter screens, larger Dynamic Type, or a taller system tab bar,
-                    // the fixed-height sparkline at the bottom could previously overflow
-                    // past the safe area and render underneath the tab bar. `minHeight`
-                    // keeps the old vertically-centered look when everything fits, and
-                    // lets content scroll instead of getting clipped when it doesn't.
                     let fit = HomeFitScale.factor(available: availableHeight, natural: naturalContentHeight)
-                    ZStack {
-                        // Hidden measurement probe: always laid out at the real
-                        // `availableWidth`, never at `availableWidth / fit`. Measuring
-                        // at a fit-dependent width used to feed `naturalContentHeight`
-                        // back into the very `fit` value that chose that width — a
-                        // closed loop that could oscillate every frame instead of
-                        // settling, which is what produced the "NavigationRequestObserver
-                        // tried to update multiple times per frame" freeze and invalid
-                        // (momentarily negative/non-finite) frame sizes. This probe is
-                        // the only thing that writes `naturalContentHeight`, so `fit` is
-                        // now a pure function of the previous frame's stable measurement.
-                        homeContent(metrics: metrics)
-                            .padding(.horizontal, metrics.horizontalPadding)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .background(
-                                GeometryReader { proxy in
-                                    Color.clear.preference(key: HomeNaturalHeightKey.self, value: max(0, proxy.size.height))
-                                }
-                            )
-                            .frame(width: availableWidth)
-                            .hidden()
-                            .accessibilityHidden(true)
-                            .allowsHitTesting(false)
-
-                        // Fits as designed: stretch to the visible height so the Spacers spread the
-                        // layout (tall phones). Too tall: scale the whole layout down to fit instead
-                        // of pinning controls over the tab bar or cutting them off.
-                        ViewThatFits(in: .vertical) {
+                    VStack(spacing: 0) {
+                        // TOP — timer / cards / door. Fills the space above the graph and
+                        // scales down to fit it (ViewThatFits picks the scaled variant when
+                        // the natural layout is too tall). Nothing scrolls.
+                        ZStack {
+                            // Hidden probe: the ONLY writer of `naturalContentHeight`, laid
+                            // out at the real width so `fit` is a stable function of the
+                            // last measurement (never a feedback loop).
                             homeContent(metrics: metrics)
                                 .padding(.horizontal, metrics.horizontalPadding)
-                                .frame(minHeight: availableHeight)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .background(
+                                    GeometryReader { proxy in
+                                        Color.clear.preference(key: HomeNaturalHeightKey.self, value: max(0, proxy.size.height))
+                                    }
+                                )
+                                .frame(width: availableWidth)
+                                .hidden()
+                                .accessibilityHidden(true)
+                                .allowsHitTesting(false)
 
-                            ScrollView {
+                            ViewThatFits(in: .vertical) {
+                                // Fits as-is: natural layout, Spacers spread it to fill.
+                                homeContent(metrics: metrics)
+                                    .padding(.horizontal, metrics.horizontalPadding)
+                                    .frame(minHeight: availableHeight)
+
+                                // Too tall: scale the whole layout down to fit — no scroll.
                                 homeContent(metrics: metrics)
                                     .padding(.horizontal, metrics.horizontalPadding)
                                     .fixedSize(horizontal: false, vertical: true)
-                                    .frame(width: max(0, availableWidth / fit))
-                                    .scaleEffect(fit, anchor: .top)
-                                    .frame(
-                                        width: availableWidth,
-                                        height: max(availableHeight, naturalContentHeight * fit),
-                                        alignment: .top
-                                    )
+                                    .frame(width: max(1, availableWidth / max(fit, 0.01)))
+                                    .scaleEffect(fit, anchor: .center)
+                                    .frame(width: availableWidth, height: availableHeight)
                             }
-                            .scrollBounceBehavior(.basedOnSize)
                         }
+                        .frame(maxHeight: .infinity)
+                        .onPreferenceChange(HomeNaturalHeightKey.self) { naturalContentHeight = $0 }
+
+                        // BOTTOM — the week graph. Natural height, NEVER scaled, pinned
+                        // below the top section. Same spot whether clocked in or out.
+                        HomeWeekSparkline(
+                            dailyHours: weekDailyHours,
+                            weekdayLabels: weekDayLabels,
+                            weekdayFullNames: weekDayFullNames,
+                            highlightedDayIndex: todayWeekdayIndex,
+                            isTodayShiftOpen: hasOpenShiftToday,
+                            accent: viewModel.activeSession != nil ? HomeNeon.coral : homeTheme.accent,
+                            isVisible: isHomeVisible
+                        )
+                        .padding(.horizontal, metrics.horizontalPadding)
+                        .padding(.bottom, Self.sparklineBottomInset)
                     }
-                    .onPreferenceChange(HomeNaturalHeightKey.self) { naturalContentHeight = $0 }
-                    // BUG #3: on shorter screens the door (Clock In / Clock Out) ended up
-                    // under the tab bar. There it is pinned above the tab bar and the rest
-                    // scrolls behind it, so the main action is always one tap away.
-                    .safeAreaInset(edge: .bottom, spacing: 0) {
-                        if metrics.pinsDoor {
-                            pinnedDoor(metrics: metrics)
-                        }
                     }
-                }
-                // BULLETPROOF floating-tab-bar clearance: physically shrink the
-                // GeometryReader by the bar's footprint BEFORE any scaling runs.
-                // `.padding` reduces the frame deterministically, so geo.size.height —
-                // and therefore `availableHeight` — is already short by
-                // `homeBottomReserve`. ViewThatFits/HomeFitScale then fit-or-scroll the
-                // content into the region ABOVE the bar in BOTH clock states, and the
-                // reserved strip just shows the safe-area-ignoring background (no visible
-                // band). Earlier attempts failed because they lived inside the scaled
-                // content or used safeAreaInset, which this custom layout fought — a
-                // frame-shrinking pad can't be fought.
-                .padding(.bottom, viewModel.activeSession != nil
-                    ? Self.homeBottomReserveClockedIn
-                    : Self.homeBottomReserveClockedOut)
                 }
             }
+            // Root-level, once — not a `.sheet`/`.fullScreenCover` (too heavy for a one-line
+            // explainer) and not attached down in `dailyGoalLabel` (which renders up to 3x
+            // per body eval via the hidden probe + `ViewThatFits`'s two candidates).
+            .overlay {
+                if showDailyGoalInfo {
+                    DailyGoalInfoCard(accent: homeTheme.accent) { showDailyGoalInfo = false }
+                        .transition(.scale(scale: 0.9).combined(with: .opacity))
+                }
+            }
+            .animation(.spring(response: 0.3, dampingFraction: 0.85), value: showDailyGoalInfo)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     AssistantToolbarButton(onOpen: { viewModel.showAssistant = true })
@@ -375,12 +359,10 @@ struct HomeView: View {
 
             Spacer(minLength: 4)
 
-            // Hero: the door, static, with the single glow behind it (pinned at the
-            // bottom instead on shorter screens).
-            if !metrics.pinsDoor {
-                clockInDoor(metrics: metrics)
-                dailyGoalLabel
-            }
+            // Hero: the door, always inline now. Short screens scroll (the content lives
+            // in a ScrollView in `body`), so there's no separate pinned-door path.
+            clockInDoor(metrics: metrics)
+            dailyGoalLabel
 
             if viewModel.shouldOfferForgotClockIn {
                 Button {
@@ -423,21 +405,9 @@ struct HomeView: View {
             }
             .buttonStyle(ScalePressButtonStyle())
 
+            // Trailing flex so the content distributes down the available area; the week
+            // graph itself now lives in its own bottom-anchored layer in `body`.
             Spacer(minLength: 4)
-
-            HomeWeekSparkline(
-                dailyHours: weekDailyHours,
-                weekdayLabels: weekDayLabels,
-                weekdayFullNames: weekDayFullNames,
-                highlightedDayIndex: todayWeekdayIndex,
-                isTodayShiftOpen: hasOpenShiftToday,
-                accent: homeTheme.accent,
-                isVisible: isHomeVisible
-            )
-            // Bottom clearance for the floating tab bar is reserved OUTSIDE this scaled
-            // content now — see the `.safeAreaInset(edge: .bottom)` on the outer ZStack
-            // in `body`. Putting it here (inside `homeContent`) let HomeFitScale shrink
-            // it, so it never actually cleared the iOS 26 floating bar.
         }
     }
 
@@ -670,24 +640,15 @@ struct HomeView: View {
                 isVisible: isHomeVisible
             )
 
-            if !metrics.pinsDoor {
-                breakControl(session: session, metrics: metrics)
-                clockOutDoor(session: session, metrics: metrics)
-                dailyGoalLabel
-            }
+            // Always inline now — short screens scroll (content is in a ScrollView in
+            // `body`), so there's no separate pinned-door path.
+            breakControl(session: session, metrics: metrics)
+            clockOutDoor(session: session, metrics: metrics)
+            dailyGoalLabel
 
+            // Trailing flex so the content distributes down the available area; the week
+            // graph itself now lives in its own pinned layer in `body`.
             Spacer(minLength: 4)
-
-            HomeWeekSparkline(
-                dailyHours: weekDailyHours,
-                weekdayLabels: weekDayLabels,
-                highlightedDayIndex: todayWeekdayIndex,
-                isTodayShiftOpen: hasOpenShiftToday,
-                accent: HomeNeon.coral,
-                isVisible: isHomeVisible
-            )
-            // Bottom clearance reserved outside this scaled content — see the
-            // `.safeAreaInset(edge: .bottom)` on the outer ZStack in `body`.
         }
     }
 
@@ -712,9 +673,26 @@ struct HomeView: View {
     @ViewBuilder
     private var dailyGoalLabel: some View {
         if let goal = statGoal(for: .today) {
-            Text(L10n.homeStatsGoal(goal.label))
-                .dsFont(.meta, weight: .semibold)
-                .foregroundStyle(DS.Palette.textTertiary)
+            HStack(spacing: 3) {
+                Text(L10n.homeStatsGoal(goal.label))
+                    .dsFont(.meta, weight: .semibold)
+                    .foregroundStyle(DS.Palette.textTertiary)
+                Button {
+                    showDailyGoalInfo = true
+                } label: {
+                    Image(systemName: "info.circle")
+                        .font(.caption2)
+                        .foregroundStyle(DS.Palette.textTertiary)
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.homeStatsGoalInfoLabel)
+                // Just flips the flag — the card itself is a single root-level `.overlay`
+                // on `body` (below), not attached here. `homeContent(metrics:)` (this
+                // view's container) is rendered up to 3x per body eval (hidden probe +
+                // both `ViewThatFits` candidates); a `.fullScreenCover`/`.sheet` attached
+                // here would have tripled right along with it, all driving the same
+                // `$showDailyGoalInfo`.
+            }
         }
     }
 
@@ -744,44 +722,6 @@ struct HomeView: View {
         .frame(height: metrics.doorHeight)
         .frame(maxWidth: .infinity)
     }
-
-    /// The door pinned above the tab bar, over a fade so scrolled content slides
-    /// under it instead of cutting off at a hard edge. While clocked in the break
-    /// button is pinned with it — left in the scroll view it sat half-hidden
-    /// behind the door.
-    private func pinnedDoor(metrics: HomeLayoutMetrics) -> some View {
-        Group {
-            if let session = viewModel.activeSession {
-                VStack(spacing: metrics.stackSpacing) {
-                    breakControl(session: session, metrics: metrics)
-                        .padding(.horizontal, metrics.horizontalPadding)
-                    clockOutDoor(session: session, metrics: metrics)
-                }
-            } else {
-                clockInDoor(metrics: metrics)
-            }
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.top, HomeLayoutMetrics.pinnedDoorTopPadding)
-        // Solid behind the pinned controls (content scrolling underneath showed
-        // through the break button), with a short fade just above them.
-        .background(
-            VStack(spacing: 0) {
-                LinearGradient(
-                    colors: [appBackground.background.opacity(0), appBackground.background],
-                    startPoint: .top,
-                    endPoint: .bottom
-                )
-                .frame(height: Self.pinnedFadeHeight)
-                .allowsHitTesting(false)
-                appBackground.background
-            }
-            .padding(.top, -Self.pinnedFadeHeight)
-            .ignoresSafeArea(edges: .bottom)
-        )
-    }
-
-    private static let pinnedFadeHeight: CGFloat = 24
 
     // MARK: - Clocked-in hero
 
@@ -1263,5 +1203,97 @@ struct HomeBreakControl: View {
         return hours > 0
             ? String(format: "%d:%02d:%02d", hours, minutes, secs)
             : String(format: "%02d:%02d", minutes, secs)
+    }
+}
+
+/// The daily-goal (i) button's explainer — same dimmed-backdrop/scale-in
+/// center card as `AnnouncementCenterOverlay`, so it reads as the app's own
+/// "Calm Neon" chrome instead of a stock iOS `.alert`/`.popover`.
+private struct DailyGoalInfoCard: View {
+    let accent: Color
+    let onDismiss: () -> Void
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var appeared = false
+
+    var body: some View {
+        ZStack {
+            // `.contentShape` makes the FULL frame tappable, not just wherever
+            // `Color` happens to paint — without it a tap near the edges of this
+            // backdrop could silently miss (SwiftUI's default tap hit-area for a
+            // plain shape is its drawn bounds, and `.ignoresSafeArea()` extending
+            // the paint doesn't always extend the gesture-recognized area the
+            // same way). `.frame(maxWidth: .infinity, maxHeight: .infinity)`
+            // below backs this with an explicit full-screen proposal so the
+            // backdrop can never end up sized to less than the whole screen.
+            Color.black.opacity(0.6)
+                .ignoresSafeArea()
+                .contentShape(Rectangle())
+                .onTapGesture(perform: onDismiss)
+
+            card
+                .padding(.horizontal, DS.Space.xl)
+                .scaleEffect(appeared ? 1 : 0.85)
+                .opacity(appeared ? 1 : 0)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .accessibilityAddTraits(.isModal)
+        .onAppear {
+            withAnimation(DS.Motion.animation(DS.Motion.state, reduceMotion: reduceMotion)) {
+                appeared = true
+            }
+        }
+    }
+
+    private var card: some View {
+        VStack(spacing: DS.Space.md) {
+            HStack {
+                Spacer()
+                // A standalone close "X" replaces the old bottom "אישור"/"OK" CTA —
+                // reported as unintuitive since this card has nothing to confirm,
+                // only to dismiss. Top-trailing matches the standard iOS modal-card
+                // close placement.
+                Button(action: onDismiss) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 13, weight: .bold))
+                        .foregroundStyle(DS.Palette.textSecondary)
+                        .frame(width: 28, height: 28)
+                        .background(DS.Palette.raised, in: Circle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.whatsNewClose)
+            }
+
+            ZStack {
+                Circle()
+                    .fill(accent.opacity(0.18))
+                    .frame(width: 56, height: 56)
+                    .blur(radius: 8)
+                Circle()
+                    .fill(accent)
+                    .frame(width: 44, height: 44)
+                    .shadow(color: accent.opacity(0.45), radius: 14, y: 3)
+                Image(systemName: "info.circle.fill")
+                    .foregroundStyle(DS.Palette.ink)
+                    .font(.system(size: 18, weight: .semibold))
+            }
+            .accessibilityHidden(true)
+
+            VStack(spacing: DS.Space.xs) {
+                Text(L10n.homeStatsGoalInfoLabel)
+                    .dsFont(.titleSection)
+                    .foregroundStyle(DS.Palette.textPrimary)
+                Text(L10n.homeStatsGoalInfoBody)
+                    .dsFont(.body)
+                    .foregroundStyle(DS.Palette.textSecondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.bottom, DS.Space.xs)
+        }
+        .padding(DS.Space.lg)
+        .frame(maxWidth: 320)
+        .dsCard(radius: DS.Radius.xl, fill: DS.Palette.card)
+        .shadow(color: .black.opacity(0.4), radius: 24, y: 10)
     }
 }

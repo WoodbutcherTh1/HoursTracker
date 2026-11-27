@@ -46,6 +46,15 @@ struct HistoryView: View {
     /// scrolling the same list back and forth never does.
     @State private var animatedInIDs: Set<UUID> = []
 
+    /// Bumped on every `.onDisappear` and used as the sessions `List`'s `.id()` — see
+    /// its usage below for why.
+    @State private var sessionsListToken = UUID()
+
+    /// Filled off the main actor by `recomputeSnapshot()` — see `HistorySnapshot`
+    /// below. Starts empty/zeroed; the previous snapshot stays on screen (instead of
+    /// flashing to empty) while a fresh one computes for a period/day/workplace change.
+    @State private var snapshot = HistorySnapshot()
+
     private let calendar = Calendar.current
 
     private var timeFormatter: DateFormatter {
@@ -84,7 +93,7 @@ struct HistoryView: View {
                 // chart could outgrow the screen, and an overflowing stack pushes the
                 // period title up under the navigation bar (the "title disappears
                 // going from month 9 to 8" bug).
-                if selectedDay == nil && !isCalendarExpanded && !filteredSessions.isEmpty {
+                if selectedDay == nil && !isCalendarExpanded && !snapshot.filteredSessions.isEmpty {
                     // Six-month trend: hours per month + average monthly pay.
                     // Hidden once a specific day is picked so that day's own
                     // shift rows (below) land right under the calendar instead
@@ -177,10 +186,10 @@ struct HistoryView: View {
             }
             .sheet(isPresented: $showPayBreakdown) {
                 HistoryPayBreakdownSheet(
-                    breakdown: periodTotals,
-                    workedDayCount: workedDayCount,
-                    showsPendingWorkedDay: hasPendingWorkedDay,
-                    dayCounts: periodDayCounts
+                    breakdown: snapshot.periodTotals,
+                    workedDayCount: snapshot.workedDayCount,
+                    showsPendingWorkedDay: snapshot.hasPendingWorkedDay,
+                    dayCounts: snapshot.periodDayCounts
                 )
             }
             .alert(
@@ -275,6 +284,12 @@ struct HistoryView: View {
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: copyToastVisible)
+            // Off the main actor, always — see `recomputeSnapshot`/`computeSnapshot`.
+            // Reruns only when `historyInputs` actually changes (period, selected day,
+            // workplace, or the sessions/settings feeding it), not on every render.
+            .task(id: historyInputs) {
+                await recomputeSnapshot(historyInputs)
+            }
             .onAppear {
                 alignToCurrentPayrollPeriod()
             }
@@ -298,6 +313,15 @@ struct HistoryView: View {
                 shareItem = nil
                 showPayBreakdown = false
                 showBulkDeleteConfirm = false
+                // Leaving this tab mid-swipe (a row's trailing actions revealed but
+                // not committed) strands the underlying `UITableView` cell: this view
+                // isn't torn down on tab switch (see `MainTabView`'s "comes back
+                // closed" doc comment), so the swiped-open cell is still there when
+                // the tab is reselected, and it — sometimes along with its neighbor —
+                // comes back blank instead of snapping shut. Changing the `List`'s
+                // `.id()` forces a fresh `UITableView` next render, discarding that
+                // stuck swipe state outright rather than trying to close it in place.
+                sessionsListToken = UUID()
             }
             .onChange(of: viewModel.activeSettings.payrollStartDay) { _, _ in
                 alignToCurrentPayrollPeriod()
@@ -892,7 +916,7 @@ struct HistoryView: View {
 
     @ViewBuilder
     private var sessionsContent: some View {
-        let rows = filteredSessions
+        let rows = snapshot.filteredSessions
         if rows.isEmpty {
             emptyState
         } else {
@@ -992,6 +1016,7 @@ struct HistoryView: View {
                 }
                 .listStyle(.plain)
                 .scrollContentBackground(.hidden)
+                .id(sessionsListToken)
             }
             .background(Color(.systemBackground))
             .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
@@ -1008,7 +1033,11 @@ struct HistoryView: View {
     }
 
     private func sessionRow(_ session: WorkSession, striped: Bool) -> some View {
-        let breakdown = viewModel.breakdown(for: session)
+        // O(1) lookup into the batch computed by `computeSnapshot` instead of
+        // `viewModel.breakdown(for:)` per row (see `HistorySnapshot`'s doc comment) —
+        // the fallback only matters for the brief window before the first snapshot
+        // lands, or a session the latest snapshot hasn't caught up to yet.
+        let breakdown = snapshot.breakdownsByID[session.id] ?? viewModel.breakdown(for: session)
         let amount = payMode == .net ? breakdown.netPay : breakdown.grossPay
         let isPicked = isSelecting && selectedIDs.contains(session.id)
         // Tapping the date capsule starts multi-select (or toggles the row while in it).
@@ -1106,7 +1135,7 @@ struct HistoryView: View {
     // MARK: - Sticky Summary
 
     private var stickySummaryBar: some View {
-        let totals = periodTotals
+        let totals = snapshot.periodTotals
 
         return VStack(spacing: 0) {
             Divider()
@@ -1145,8 +1174,8 @@ struct HistoryView: View {
                                 .font(.caption2)
                                 .foregroundStyle(.secondary)
                             WorkedDaysBadge(
-                                dayCount: workedDayCount,
-                                showsPendingDay: hasPendingWorkedDay,
+                                dayCount: snapshot.workedDayCount,
+                                showsPendingDay: snapshot.hasPendingWorkedDay,
                                 valueFont: .caption.weight(.semibold).monospacedDigit(),
                                 showsTitle: false
                             )
@@ -1185,64 +1214,149 @@ struct HistoryView: View {
 
     // MARK: - Data
 
-    private var filteredSessions: [WorkSession] {
-        let period = activePeriod
-        let shown = sortedHistorySessions
-        if let selectedDay {
-            return shown.filter {
-                calendar.isDate($0.date, inSameDayAs: selectedDay)
+    /// Everything the body renders that needs filtering/grouping/pay math — filled by
+    /// `recomputeSnapshot()` off the main actor. These used to be separate computed
+    /// properties (`filteredSessions`, `periodTotals`, `periodDayCounts`,
+    /// `workedDayCount`) evaluated synchronously on every render, AND each table row
+    /// called `viewModel.breakdown(for:)` individually — which re-derives that
+    /// workplace's FULL sick-streak history and re-groups its same-day sessions from
+    /// scratch for every single row (O(rows × wholeHistory), not O(wholeHistory)).
+    /// That per-row cost, not the period-bounded aggregates, was the real reason
+    /// History's first appearance hung for seconds on an account with a few years of
+    /// shifts. `breakdownsByID` batches that: grouped and streak-computed once per
+    /// workplace, looked up per row in O(1).
+    private struct HistorySnapshot {
+        var filteredSessions: [WorkSession] = []
+        var breakdownsByID: [UUID: DayPayBreakdown] = [:]
+        var periodTotals = OvertimeCalculator.aggregate(sessions: [], settings: .default)
+        var periodDayCounts = PeriodDayCounts()
+        var workedDayCount = 0
+        var hasPendingWorkedDay = false
+    }
+
+    /// Everything `computeSnapshot` reads. Gathering this is cheap — copying array
+    /// references and small structs, no sorting/filtering/pay math — so computing it
+    /// as the `.task(id:)` key never does the expensive part synchronously; only an
+    /// actual change here (all members `Equatable`) triggers a recompute.
+    private struct HistoryInputs: Equatable {
+        struct Bucket: Equatable {
+            let workplaceID: UUID?
+            /// This workplace's WHOLE history (unfiltered) — sick-streak day numbers
+            /// need the full timeline to place a streak correctly even when only a
+            /// later part of it is on screen.
+            let fullHistory: [WorkSession]
+            let settings: WorkplaceSettings
+        }
+        let buckets: [Bucket]
+        let historySessions: [WorkSession]
+        let period: PayrollPeriod
+        let selectedDay: Date?
+        let leaveDays: [LeaveDay]
+        let holidays: HolidayCustomization
+        let activeSession: WorkSession?
+    }
+
+    private var historyInputs: HistoryInputs {
+        let buckets: [HistoryInputs.Bucket]
+        if viewModel.isShowingAllWorkplaces {
+            buckets = viewModel.workplaceOptions.map { option in
+                HistoryInputs.Bucket(
+                    workplaceID: viewModel.workplaceKey(for: option.workplaceID),
+                    fullHistory: viewModel.workplaceSessions(for: option.workplaceID),
+                    settings: viewModel.workplaceSettings(for: option.workplaceID)
+                )
             }
+        } else {
+            buckets = [HistoryInputs.Bucket(
+                workplaceID: viewModel.activeWorkplaceKey,
+                fullHistory: viewModel.workSessions,
+                settings: viewModel.activeSettings
+            )]
         }
-        return shown.filter {
-            period.contains($0.date, calendar: calendar)
-        }
-    }
-
-    /// Distinct calendar days worked — not the number of shifts. Two clock-in/out pairs
-    /// on one day are one day here, which is what "days worked" means to a reader (and
-    /// is why Home's session-counting `monthShiftCount` is deliberately not reused).
-    ///
-    /// Anchored to the calendar month the displayed payroll period is labeled with, so
-    /// paging back to June shows June's days rather than this month's. In the default
-    /// state — History opens on the current period — that is the current calendar month.
-    private var workedDayCount: Int {
-        WorkedDaysCounter.distinctWorkedDays(
-            in: viewModel.historySessions,
-            month: activePeriod.labelMonth,
-            calendar: calendar
+        return HistoryInputs(
+            buckets: buckets,
+            historySessions: viewModel.historySessions,
+            period: activePeriod,
+            selectedDay: selectedDay,
+            leaveDays: viewModel.activeSettings.leaveDays,
+            holidays: viewModel.activeSettings.holidayCustomization,
+            activeSession: viewModel.activeSession
         )
     }
 
-    /// Drives the green "+1?" bubble: a shift is running, and its day has no completed
-    /// session yet, so clocking out will genuinely add a day. Clocking in a second time
-    /// on a day already worked shows nothing — that day is counted either way.
-    private var hasPendingWorkedDay: Bool {
-        WorkedDaysCounter.openShiftWouldAddADay(
-            activeSession: viewModel.activeSession,
-            sessions: viewModel.historySessions,
-            month: activePeriod.labelMonth,
-            calendar: calendar
-        )
+    private func recomputeSnapshot(_ inputs: HistoryInputs) async {
+        let calendar = self.calendar
+        let result = await Task.detached(priority: .userInitiated) {
+            Self.computeSnapshot(inputs, calendar: calendar)
+        }.value
+        guard !Task.isCancelled else { return }
+        snapshot = result
     }
 
-    /// Totals for the full custom payroll window (not a calendar month).
-    private var periodTotals: DayPayBreakdown {
-        let period = activePeriod
-        guard viewModel.isShowingAllWorkplaces else {
-            let sessions = viewModel.workSessions.filter { $0.clockOut != nil && period.contains($0.date, calendar: calendar) }
-            return OvertimeCalculator.aggregate(sessions: sessions, settings: viewModel.activeSettings)
+    // `nonisolated` is load-bearing: `HistoryView` carries `@State`/`@ObservedObject`,
+    // so Swift infers the WHOLE type — including this `static func` — as `@MainActor`
+    // by default. Without `nonisolated`, `Task.detached` above would still hop back to
+    // the main actor just to call this, silently undoing the entire point of detaching.
+    private nonisolated static func computeSnapshot(_ inputs: HistoryInputs, calendar: Calendar) -> HistorySnapshot {
+        var snapshot = HistorySnapshot()
+        var filtered: [WorkSession] = []
+        var breakdownsByID: [UUID: DayPayBreakdown] = [:]
+        var periodParts: [DayPayBreakdown] = []
+
+        for bucket in inputs.buckets {
+            let finished = bucket.fullHistory.filter { $0.clockOut != nil }
+            let scoped: [WorkSession]
+            if let selectedDay = inputs.selectedDay {
+                scoped = finished.filter { calendar.isDate($0.date, inSameDayAs: selectedDay) }
+            } else {
+                scoped = finished.filter { inputs.period.contains($0.date, calendar: calendar) }
+            }
+            filtered.append(contentsOf: scoped)
+
+            // Day-aware pricing + sick streaks computed ONCE per workplace (using its
+            // FULL history for streak correctness), not once per row.
+            let streaks = OvertimeCalculator.sickStreakDayNumbers(sessions: bucket.fullHistory, calendar: calendar)
+            let dayGroups = Dictionary(grouping: scoped) { calendar.startOfDay(for: $0.date) }
+            for (_, daySessions) in dayGroups {
+                for (session, breakdown) in OvertimeCalculator.breakdowns(
+                    forDay: daySessions,
+                    settings: bucket.settings,
+                    sickStreakDayNumbers: streaks,
+                    calendar: calendar
+                ) {
+                    breakdownsByID[session.id] = breakdown
+                }
+            }
+
+            periodParts.append(OvertimeCalculator.aggregate(sessions: scoped, settings: bucket.settings))
         }
-        // Merged: each workplace priced by its own rules, then added up.
-        let parts = viewModel.workplaceOptions.map { option -> DayPayBreakdown in
-            let sessions = viewModel.workplaceSessions(for: option.workplaceID)
-                .filter { $0.clockOut != nil && period.contains($0.date, calendar: calendar) }
-            return OvertimeCalculator.aggregate(
-                sessions: sessions,
-                settings: viewModel.workplaceSettings(for: option.workplaceID)
-            )
-        }
-        return DayPayBreakdown.combined(parts)
-            ?? OvertimeCalculator.aggregate(sessions: [], settings: viewModel.activeSettings)
+
+        filtered.sort { $0.date > $1.date }
+        snapshot.filteredSessions = filtered
+        snapshot.breakdownsByID = breakdownsByID
+        snapshot.periodTotals = DayPayBreakdown.combined(periodParts)
+            ?? OvertimeCalculator.aggregate(sessions: [], settings: .default)
+
+        let labelMonth = inputs.period.labelMonth
+        snapshot.workedDayCount = WorkedDaysCounter.distinctWorkedDays(
+            in: inputs.historySessions, month: labelMonth, calendar: calendar
+        )
+        snapshot.hasPendingWorkedDay = WorkedDaysCounter.openShiftWouldAddADay(
+            activeSession: inputs.activeSession, sessions: inputs.historySessions, month: labelMonth, calendar: calendar
+        )
+
+        let start = inputs.selectedDay ?? inputs.period.start
+        let end = inputs.selectedDay ?? inputs.period.end
+        snapshot.periodDayCounts = PeriodDayCounts.count(
+            sessions: inputs.historySessions,
+            leaveDays: inputs.leaveDays,
+            holidays: inputs.holidays,
+            from: start,
+            through: end,
+            calendar: calendar
+        )
+
+        return snapshot
     }
 
     // MARK: - Multi-select delete
@@ -1253,7 +1367,7 @@ struct HistoryView: View {
     }
 
     private var selectionHintBar: some View {
-        let visibleIDs = Set(filteredSessions.map(\.id))
+        let visibleIDs = Set(snapshot.filteredSessions.map(\.id))
         let allVisiblePicked = !visibleIDs.isEmpty && visibleIDs.isSubset(of: selectedIDs)
         return HStack(spacing: 8) {
             Image(systemName: "checkmark.circle")
@@ -1382,29 +1496,6 @@ struct HistoryView: View {
         case .vacation: return L10n.leaveVacationShort
         case .recuperation: return L10n.leaveRecuperationShort
         }
-    }
-
-    /// Day counts for the pay summary — same range as its totals (the selected day,
-    /// or the whole payroll period).
-    private var periodDayCounts: PeriodDayCounts {
-        let period = activePeriod
-        let start = selectedDay ?? period.start
-        let end = selectedDay ?? period.end
-        return PeriodDayCounts.count(
-            sessions: viewModel.historySessions,
-            leaveDays: viewModel.activeSettings.leaveDays,
-            holidays: viewModel.activeSettings.holidayCustomization,
-            from: start,
-            through: end,
-            calendar: calendar
-        )
-    }
-
-    /// Finished shifts shown in History (active workplace, or all when merged), newest first.
-    private var sortedHistorySessions: [WorkSession] {
-        viewModel.historySessions
-            .filter { $0.clockOut != nil }
-            .sorted { $0.date > $1.date }
     }
 
     private func sessionsForDay(_ day: Date) -> [WorkSession] {
